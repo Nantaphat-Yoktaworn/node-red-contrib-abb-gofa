@@ -1,0 +1,58 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-jog', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:  { value: '' },
+            robot: { value: '', type: 'gofa-robot', required: true },
+            axis:  { value: 'X' },
+            dir:   { value: '+' },
+            step:  { value: 10 }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || ('Jog ' + this.axis + this.dir + this.step); },
+        paletteLabel: 'Jog'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-jog">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-axis"><i class="fa fa-arrows"></i> Axis</label>
+        <select id="node-input-axis">
+            <option value="X">X — Forward/Back (mm, base frame)</option>
+            <option value="Y">Y — Left/Right (mm, base frame)</option>
+            <option value="Z">Z — Up/Down (mm, base frame)</option>
+            <option value="RX">RX — Roll (deg, tool frame)</option>
+            <option value="RY">RY — Pitch (deg, tool frame)</option>
+            <option value="RZ">RZ — Yaw (deg, tool frame)</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-dir"><i class="fa fa-exchange"></i> Direction</label>
+        <select id="node-input-dir">
+            <option value="+">+ (positive)</option>
+            <option value="-">- (negative)</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-step"><i class="fa fa-sliders"></i> Step</label>
+        <input type="number" id="node-input-step" placeholder="10" min="1" max="50">
+        <span style="margin-left:4px">mm (or deg for rotation, max 30)</span>
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Jog X+10">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-jog">
+    <p>Moves the robot TCP by a relative amount (Cartesian jog).</p>
+    <p><code>msg.payload.axis</code>, <code>msg.payload.dir</code>, <code>msg.payload.step</code> override properties.</p>
+    <h3>Output <code>msg.payload</code></h3>
+    <dl class="message-properties">
+        <dt>ok</dt><dd>true if robot replied OK</dd>
+        <dt>ack</dt><dd>Raw ack string</dd>
+        <dt>token</dt><dd>Command sent (e.g. X+10)</dd>
+    </dl>
+</script>

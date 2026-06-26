@@ -1,0 +1,47 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-go-point', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:      { value: '' },
+            robot:     { value: '', type: 'gofa-robot', required: true },
+            pointName: { value: '' }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || ('Go to ' + (this.pointName || '...')); },
+        paletteLabel: 'Go to Point',
+        oneditprepare: function() {
+            var node = this;
+            function loadPoints(robotId) {
+                var sel = $('#node-input-pointName').empty()
+                    .append($('<option value="">-- select point --</option>'));
+                if (!robotId) return;
+                $.getJSON('/gofa-robot/' + robotId + '/points', function(pts) {
+                    pts.forEach(function(p) {
+                        sel.append($('<option>').val(p.name).text(p.name));
+                    });
+                    sel.val(node.pointName);
+                });
+            }
+            loadPoints(node.robot);
+            $('#node-input-robot').change(function() { loadPoints($(this).val()); });
+        }
+    });
+</script>
+<script type="text/html" data-template-name="gofa-go-point">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-pointName"><i class="fa fa-map-marker"></i> Point</label>
+        <select id="node-input-pointName" style="width:70%"></select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Go to Point">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-go-point">
+    <p>Moves the robot to a saved point by name or ID.</p>
+    <p><code>msg.payload.name</code> or <code>msg.payload.id</code> overrides the property.</p>
+</script>

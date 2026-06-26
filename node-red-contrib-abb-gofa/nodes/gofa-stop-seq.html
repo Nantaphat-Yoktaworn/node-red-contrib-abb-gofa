@@ -1,0 +1,23 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-stop-seq', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: { name: { value: '' }, robot: { value: '', type: 'gofa-robot', required: true } },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || 'Stop Sequence'; },
+        paletteLabel: 'Stop Sequence'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-stop-seq">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Stop Sequence">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-stop-seq">
+    <p>Signals the sequencer to stop after the current step completes.</p>
+    <p>Must reference the same Robot config node as the running Sequencer.</p>
+</script>

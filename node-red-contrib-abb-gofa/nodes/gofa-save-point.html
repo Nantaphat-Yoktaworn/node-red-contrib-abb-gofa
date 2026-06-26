@@ -1,0 +1,37 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-save-point', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:      { value: '' },
+            robot:     { value: '', type: 'gofa-robot', required: true },
+            pointName: { value: '' }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || 'Save Point'; },
+        paletteLabel: 'Save Point'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-save-point">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-pointName"><i class="fa fa-map-marker"></i> Point Name</label>
+        <input type="text" id="node-input-pointName" placeholder="Leave blank for auto-name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Save Point">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-save-point">
+    <p>Reads the current TCP pose and saves it as a named point.</p>
+    <p><code>msg.payload.name</code> overrides the Point Name property.</p>
+    <h3>Output <code>msg.payload</code></h3>
+    <dl class="message-properties">
+        <dt>ok</dt><dd>true on success</dd>
+        <dt>point</dt><dd>{ id, name, target }</dd>
+        <dt>points</dt><dd>Full updated points list</dd>
+    </dl>
+</script>

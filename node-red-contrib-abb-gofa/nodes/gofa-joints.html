@@ -1,0 +1,26 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-joints', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: { name: { value:'' }, robot: { value:'', type:'gofa-robot', required:true } },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || 'Read Joints'; },
+        paletteLabel: 'Read Joints'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-joints">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Read Joints">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-joints">
+    <p>Reads the current joint angles.</p>
+    <h3>Output <code>msg.payload</code></h3>
+    <dl class="message-properties">
+        <dt>j1 – j6</dt><dd>Joint angles in degrees</dd>
+    </dl>
+</script>

@@ -1,0 +1,28 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-pose', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: { name: { value:'' }, robot: { value:'', type:'gofa-robot', required:true } },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || 'Read Pose'; },
+        paletteLabel: 'Read Pose'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-pose">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Read Pose">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-pose">
+    <p>Reads the current TCP pose.</p>
+    <h3>Output <code>msg.payload</code></h3>
+    <dl class="message-properties">
+        <dt>x, y, z</dt><dd>Position in mm (base frame)</dd>
+        <dt>q1, q2, q3, q4</dt><dd>Quaternion orientation</dd>
+        <dt>cf1, cf4, cf6, cfx</dt><dd>Robot configuration</dd>
+    </dl>
+</script>

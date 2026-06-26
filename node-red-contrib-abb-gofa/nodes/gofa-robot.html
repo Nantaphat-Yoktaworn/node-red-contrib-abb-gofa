@@ -1,0 +1,50 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-robot', {
+        category: 'config',
+        defaults: {
+            name:        { value: '' },
+            ip:          { value: '192.168.20.18', required: true },
+            rwsPort:     { value: '443',  required: true },
+            socketPort:  { value: '1025', required: true },
+            username:    { value: 'Admin' },
+            pointsFile:  { value: 'points.json' }
+        },
+        credentials: { password: { type: 'password' } },
+        label: function() { return this.name || this.ip || 'ABB-GoFa-12'; }
+    });
+</script>
+<script type="text/html" data-template-name="gofa-robot">
+    <div class="form-row">
+        <label for="node-config-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-config-input-name" placeholder="ABB-GoFa-12">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-ip"><i class="fa fa-globe"></i> Robot IP</label>
+        <input type="text" id="node-config-input-ip" placeholder="192.168.20.18">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-rwsPort"><i class="fa fa-plug"></i> RWS Port</label>
+        <input type="number" id="node-config-input-rwsPort" placeholder="443">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-socketPort"><i class="fa fa-plug"></i> Socket Port</label>
+        <input type="number" id="node-config-input-socketPort" placeholder="1025">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-username"><i class="fa fa-user"></i> Username</label>
+        <input type="text" id="node-config-input-username" placeholder="Admin">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-password"><i class="fa fa-lock"></i> Password</label>
+        <input type="password" id="node-config-input-password" placeholder="robotics">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-pointsFile"><i class="fa fa-file"></i> Points File</label>
+        <input type="text" id="node-config-input-pointsFile" placeholder="points.json">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-robot">
+    <p>Connection settings for ABB-GoFa-12. Shared by all GoFa nodes.</p>
+    <p>The RWS session cookie is shared across all nodes — only one login per restart, respecting the 70-session limit.</p>
+    <p>Points file is loaded at startup and kept in memory; all changes are persisted immediately.</p>
+</script>

@@ -1,0 +1,112 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-sequencer', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:     { value: '' },
+            robot:    { value: '', type: 'gofa-robot', required: true },
+            steps:    { value: [] },
+            dwell:    { value: 800 },
+            loop:     { value: false },
+            pingpong: { value: false }
+        },
+        inputs: 1, outputs: 2,
+        outputLabels: ['step complete', 'sequence done / stopped'],
+        icon: 'white-globe.svg',
+        label: function() { return this.name || 'Sequencer'; },
+        paletteLabel: 'Sequencer',
+        oneditprepare: function() {
+            var node = this;
+            var cachedPts = [];
+
+            function buildSelect(val) {
+                var sel = $('<select style="flex:1">');
+                sel.append($('<option value="">-- select point --</option>'));
+                cachedPts.forEach(function(p) {
+                    sel.append($('<option>').val(p.name).text(p.name).prop('selected', p.name === val));
+                });
+                return sel;
+            }
+
+            $('#node-input-steps-container').editableList({
+                addItem: function(container, i, opt) {
+                    var row = $('<div style="display:flex;align-items:center;gap:8px;width:100%">');
+                    var sel = buildSelect(opt.name || '');
+                    row.append(sel);
+                    container.append(row);
+                    opt._input = sel;
+                },
+                removable: true,
+                sortable: true
+            });
+
+            function loadPoints(robotId, cb) {
+                if (!robotId) { if (cb) cb(); return; }
+                $.getJSON('/gofa-robot/' + robotId + '/points', function(pts) {
+                    cachedPts = pts;
+                    if (cb) cb();
+                });
+            }
+
+            loadPoints(node.robot, function() {
+                (node.steps || []).forEach(function(s) {
+                    $('#node-input-steps-container').editableList('addItem', { name: s.name });
+                });
+            });
+
+            $('#node-input-robot').change(function() {
+                loadPoints($(this).val(), function() {
+                    $('#node-input-steps-container').editableList('items').each(function() {
+                        var sel = $(this).find('select');
+                        var cur = sel.val();
+                        sel.empty().append($('<option value="">-- select point --</option>'));
+                        cachedPts.forEach(function(p) {
+                            sel.append($('<option>').val(p.name).text(p.name).prop('selected', p.name === cur));
+                        });
+                    });
+                });
+            });
+        },
+        oneditsave: function() {
+            var steps = [];
+            $('#node-input-steps-container').editableList('items').each(function() {
+                var v = $(this).find('select').val();
+                if (v) steps.push({ name: v });
+            });
+            this.steps = steps;
+        }
+    });
+</script>
+<script type="text/html" data-template-name="gofa-sequencer">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label><i class="fa fa-list"></i> Sequence Steps</label>
+        <ol id="node-input-steps-container"></ol>
+    </div>
+    <div class="form-row">
+        <label for="node-input-dwell"><i class="fa fa-clock-o"></i> Dwell (ms)</label>
+        <input type="number" id="node-input-dwell" placeholder="800" min="0">
+    </div>
+    <div class="form-row">
+        <label for="node-input-loop"><i class="fa fa-repeat"></i> Loop</label>
+        <input type="checkbox" id="node-input-loop" style="width:auto">
+    </div>
+    <div class="form-row">
+        <label for="node-input-pingpong"><i class="fa fa-exchange"></i> Back-and-forth</label>
+        <input type="checkbox" id="node-input-pingpong" style="width:auto">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Sequencer">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-sequencer">
+    <p>Runs a sequence of saved points when triggered. Add point names in the Steps list in the properties panel.</p>
+    <h3>Outputs</h3>
+    <ol>
+        <li>After each step: <code>{ step, total, name, ack }</code></li>
+        <li>When done or stopped: <code>{ done: true }</code> or <code>{ done: false, stopped: true }</code></li>
+    </ol>
+</script>

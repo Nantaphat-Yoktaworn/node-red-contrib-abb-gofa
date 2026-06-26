@@ -1,0 +1,1443 @@
+[
+  {
+    "id": "tab_demo",
+    "type": "tab",
+    "label": "ABB-GoFa-12 Demo",
+    "disabled": false,
+    "info": ""
+  },
+  {
+    "id": "cfg1",
+    "type": "gofa-robot",
+    "name": "ABB-GoFa-12",
+    "ip": "192.168.20.18",
+    "rwsPort": "443",
+    "socketPort": "1025",
+    "username": "Admin",
+    "pointsFile": "points.json"
+  },
+  {
+    "id": "c1",
+    "type": "comment",
+    "z": "tab_demo",
+    "g": "grp1",
+    "name": "Input: any msg  |  Output: ctrlstate / opmode / speed / rapid / x,y,z / j1-j6",
+    "info": "",
+    "x": 320,
+    "y": 102,
+    "wires": []
+  },
+  {
+    "id": "i_st",
+    "type": "inject",
+    "z": "tab_demo",
+    "g": "grp1",
+    "name": "Read Status",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 155,
+    "y": 157,
+    "wires": [
+      [
+        "n_st"
+      ]
+    ]
+  },
+  {
+    "id": "n_st",
+    "type": "gofa-status",
+    "z": "tab_demo",
+    "g": "grp1",
+    "name": "",
+    "robot": "cfg1",
+    "x": 390,
+    "y": 157,
+    "wires": [
+      [
+        "d_st"
+      ]
+    ]
+  },
+  {
+    "id": "d_st",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp1",
+    "name": "{ ctrlstate, opmode, speed, rapid }",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 157,
+    "wires": []
+  },
+  {
+    "id": "i_po",
+    "type": "inject",
+    "z": "tab_demo",
+    "g": "grp1",
+    "name": "Read Pose",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 155,
+    "y": 212,
+    "wires": [
+      [
+        "n_po"
+      ]
+    ]
+  },
+  {
+    "id": "n_po",
+    "type": "gofa-pose",
+    "z": "tab_demo",
+    "g": "grp1",
+    "name": "",
+    "robot": "cfg1",
+    "x": 390,
+    "y": 212,
+    "wires": [
+      [
+        "d_po"
+      ]
+    ]
+  },
+  {
+    "id": "d_po",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp1",
+    "name": "{ x, y, z, q1-q4, cf1/4/6/x }",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 212,
+    "wires": []
+  },
+  {
+    "id": "i_jo",
+    "type": "inject",
+    "z": "tab_demo",
+    "g": "grp1",
+    "name": "Read Joints",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 155,
+    "y": 267,
+    "wires": [
+      [
+        "n_jo"
+      ]
+    ]
+  },
+  {
+    "id": "n_jo",
+    "type": "gofa-joints",
+    "z": "tab_demo",
+    "g": "grp1",
+    "name": "",
+    "robot": "cfg1",
+    "x": 390,
+    "y": 267,
+    "wires": [
+      [
+        "d_jo"
+      ]
+    ]
+  },
+  {
+    "id": "d_jo",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp1",
+    "name": "{ j1, j2, j3, j4, j5, j6 } degrees",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 267,
+    "wires": []
+  },
+  {
+    "id": "grp1",
+    "type": "group",
+    "z": "tab_demo",
+    "name": "1 \u2014 Read Robot State",
+    "style": {
+      "stroke": "#0099cc",
+      "stroke-opacity": "1",
+      "fill": "#e8f4f8",
+      "fill-opacity": "0.5",
+      "label": true,
+      "label-position": "nw",
+      "color": "#0099cc"
+    },
+    "nodes": [
+      "c1",
+      "i_st",
+      "n_st",
+      "d_st",
+      "i_po",
+      "n_po",
+      "d_po",
+      "i_jo",
+      "n_jo",
+      "d_jo"
+    ],
+    "x": 74,
+    "y": 80,
+    "w": 660,
+    "h": 225
+  },
+  {
+    "id": "c2",
+    "type": "comment",
+    "z": "tab_demo",
+    "g": "grp2",
+    "name": "HOME: robot moves to saved home position  |  SETHOME: saves current pose as the new home (persisted on controller)",
+    "info": "",
+    "x": 320,
+    "y": 347,
+    "wires": []
+  },
+  {
+    "id": "i_hm",
+    "type": "inject",
+    "z": "tab_demo",
+    "g": "grp2",
+    "name": "Move HOME",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 155,
+    "y": 402,
+    "wires": [
+      [
+        "n_hm"
+      ]
+    ]
+  },
+  {
+    "id": "n_hm",
+    "type": "gofa-move",
+    "z": "tab_demo",
+    "g": "grp2",
+    "name": "HOME",
+    "robot": "cfg1",
+    "command": "HOME",
+    "x": 390,
+    "y": 402,
+    "wires": [
+      [
+        "d_hm"
+      ]
+    ]
+  },
+  {
+    "id": "d_hm",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp2",
+    "name": "{ ok, ack:'OK:HOME' }",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 402,
+    "wires": []
+  },
+  {
+    "id": "i_sh",
+    "type": "inject",
+    "z": "tab_demo",
+    "g": "grp2",
+    "name": "Set Home (here)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 155,
+    "y": 457,
+    "wires": [
+      [
+        "n_sh"
+      ]
+    ]
+  },
+  {
+    "id": "n_sh",
+    "type": "gofa-move",
+    "z": "tab_demo",
+    "g": "grp2",
+    "name": "SETHOME",
+    "robot": "cfg1",
+    "command": "SETHOME",
+    "x": 390,
+    "y": 457,
+    "wires": [
+      [
+        "d_sh"
+      ]
+    ]
+  },
+  {
+    "id": "d_sh",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp2",
+    "name": "{ ok, ack:'OK:SETHOME' }",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 457,
+    "wires": []
+  },
+  {
+    "id": "grp2",
+    "type": "group",
+    "z": "tab_demo",
+    "name": "2 \u2014 Move Home / Set Home",
+    "style": {
+      "stroke": "#00aa44",
+      "stroke-opacity": "1",
+      "fill": "#e8f5ec",
+      "fill-opacity": "0.5",
+      "label": true,
+      "label-position": "nw",
+      "color": "#00aa44"
+    },
+    "nodes": [
+      "c2",
+      "i_hm",
+      "n_hm",
+      "d_hm",
+      "i_sh",
+      "n_sh",
+      "d_sh"
+    ],
+    "x": 74,
+    "y": 325,
+    "w": 660,
+    "h": 170
+  },
+  {
+    "id": "c3",
+    "type": "comment",
+    "z": "tab_demo",
+    "g": "grp3",
+    "name": "Controls motor power via RWS  |  Override: msg.payload.action = 'motoron' | 'motoroff'",
+    "info": "",
+    "x": 320,
+    "y": 537,
+    "wires": []
+  },
+  {
+    "id": "i_mon",
+    "type": "inject",
+    "z": "tab_demo",
+    "g": "grp3",
+    "name": "Motors ON",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 155,
+    "y": 592,
+    "wires": [
+      [
+        "n_mon"
+      ]
+    ]
+  },
+  {
+    "id": "n_mon",
+    "type": "gofa-motor",
+    "z": "tab_demo",
+    "g": "grp3",
+    "name": "Motors ON",
+    "robot": "cfg1",
+    "action": "motoron",
+    "x": 390,
+    "y": 592,
+    "wires": [
+      [
+        "d_mon"
+      ]
+    ]
+  },
+  {
+    "id": "d_mon",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp3",
+    "name": "{ ok:true, action:'motoron' }",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 592,
+    "wires": []
+  },
+  {
+    "id": "i_mof",
+    "type": "inject",
+    "z": "tab_demo",
+    "g": "grp3",
+    "name": "Motors OFF",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 155,
+    "y": 647,
+    "wires": [
+      [
+        "n_mof"
+      ]
+    ]
+  },
+  {
+    "id": "n_mof",
+    "type": "gofa-motor",
+    "z": "tab_demo",
+    "g": "grp3",
+    "name": "Motors OFF",
+    "robot": "cfg1",
+    "action": "motoroff",
+    "x": 390,
+    "y": 647,
+    "wires": [
+      [
+        "d_mof"
+      ]
+    ]
+  },
+  {
+    "id": "d_mof",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp3",
+    "name": "{ ok:true, action:'motoroff' }",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 647,
+    "wires": []
+  },
+  {
+    "id": "grp3",
+    "type": "group",
+    "z": "tab_demo",
+    "name": "3 \u2014 Motor Control",
+    "style": {
+      "stroke": "#ff6600",
+      "stroke-opacity": "1",
+      "fill": "#fff0e8",
+      "fill-opacity": "0.5",
+      "label": true,
+      "label-position": "nw",
+      "color": "#ff6600"
+    },
+    "nodes": [
+      "c3",
+      "i_mon",
+      "n_mon",
+      "d_mon",
+      "i_mof",
+      "n_mof",
+      "d_mof"
+    ],
+    "x": 74,
+    "y": 515,
+    "w": 660,
+    "h": 170
+  },
+  {
+    "id": "c4",
+    "type": "comment",
+    "z": "tab_demo",
+    "g": "grp4",
+    "name": "Moves TCP relative to current pose  |  X/Y/Z = base frame mm (max 50)  |  RX/RY/RZ = tool frame deg (max 30)  |  Override: msg.payload.{axis,dir,step}",
+    "info": "",
+    "x": 320,
+    "y": 727,
+    "wires": []
+  },
+  {
+    "id": "i_jx",
+    "type": "inject",
+    "z": "tab_demo",
+    "g": "grp4",
+    "name": "Jog X +20 mm",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 155,
+    "y": 782,
+    "wires": [
+      [
+        "n_jx"
+      ]
+    ]
+  },
+  {
+    "id": "n_jx",
+    "type": "gofa-jog",
+    "z": "tab_demo",
+    "g": "grp4",
+    "name": "Jog X +20 mm",
+    "robot": "cfg1",
+    "axis": "X",
+    "dir": "+",
+    "step": 20,
+    "x": 390,
+    "y": 782,
+    "wires": [
+      [
+        "d_jx"
+      ]
+    ]
+  },
+  {
+    "id": "d_jx",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp4",
+    "name": "{ ok, ack, token }",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 782,
+    "wires": []
+  },
+  {
+    "id": "i_jy",
+    "type": "inject",
+    "z": "tab_demo",
+    "g": "grp4",
+    "name": "Jog Y +20 mm",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 155,
+    "y": 837,
+    "wires": [
+      [
+        "n_jy"
+      ]
+    ]
+  },
+  {
+    "id": "n_jy",
+    "type": "gofa-jog",
+    "z": "tab_demo",
+    "g": "grp4",
+    "name": "Jog Y +20 mm",
+    "robot": "cfg1",
+    "axis": "Y",
+    "dir": "+",
+    "step": 20,
+    "x": 390,
+    "y": 837,
+    "wires": [
+      [
+        "d_jy"
+      ]
+    ]
+  },
+  {
+    "id": "d_jy",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp4",
+    "name": "{ ok, ack, token }",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 837,
+    "wires": []
+  },
+  {
+    "id": "i_jz",
+    "type": "inject",
+    "z": "tab_demo",
+    "g": "grp4",
+    "name": "Jog Z +20 mm",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 155,
+    "y": 892,
+    "wires": [
+      [
+        "n_jz"
+      ]
+    ]
+  },
+  {
+    "id": "n_jz",
+    "type": "gofa-jog",
+    "z": "tab_demo",
+    "g": "grp4",
+    "name": "Jog Z +20 mm",
+    "robot": "cfg1",
+    "axis": "Z",
+    "dir": "+",
+    "step": 20,
+    "x": 390,
+    "y": 892,
+    "wires": [
+      [
+        "d_jz"
+      ]
+    ]
+  },
+  {
+    "id": "d_jz",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp4",
+    "name": "{ ok, ack, token }",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 892,
+    "wires": []
+  },
+  {
+    "id": "i_jrz",
+    "type": "inject",
+    "z": "tab_demo",
+    "g": "grp4",
+    "name": "Jog RZ +5 deg",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 155,
+    "y": 947,
+    "wires": [
+      [
+        "n_jrz"
+      ]
+    ]
+  },
+  {
+    "id": "n_jrz",
+    "type": "gofa-jog",
+    "z": "tab_demo",
+    "g": "grp4",
+    "name": "Jog RZ +5 deg",
+    "robot": "cfg1",
+    "axis": "RZ",
+    "dir": "+",
+    "step": 5,
+    "x": 390,
+    "y": 947,
+    "wires": [
+      [
+        "d_jrz"
+      ]
+    ]
+  },
+  {
+    "id": "d_jrz",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp4",
+    "name": "{ ok, ack, token }",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 947,
+    "wires": []
+  },
+  {
+    "id": "grp4",
+    "type": "group",
+    "z": "tab_demo",
+    "name": "4 \u2014 Cartesian Jog",
+    "style": {
+      "stroke": "#6600cc",
+      "stroke-opacity": "1",
+      "fill": "#f0e8ff",
+      "fill-opacity": "0.5",
+      "label": true,
+      "label-position": "nw",
+      "color": "#6600cc"
+    },
+    "nodes": [
+      "c4",
+      "i_jx",
+      "n_jx",
+      "d_jx",
+      "i_jy",
+      "n_jy",
+      "d_jy",
+      "i_jz",
+      "n_jz",
+      "d_jz",
+      "i_jrz",
+      "n_jrz",
+      "d_jrz"
+    ],
+    "x": 74,
+    "y": 705,
+    "w": 660,
+    "h": 280
+  },
+  {
+    "id": "c5",
+    "type": "comment",
+    "z": "tab_demo",
+    "g": "grp5",
+    "name": "Rotates one joint by a relative angle (max 30 deg)  |  Override: msg.payload.{joint,dir,step}",
+    "info": "",
+    "x": 320,
+    "y": 1027,
+    "wires": []
+  },
+  {
+    "id": "i_jj1",
+    "type": "inject",
+    "z": "tab_demo",
+    "g": "grp5",
+    "name": "Joint J1 +5 deg",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 155,
+    "y": 1082,
+    "wires": [
+      [
+        "n_jj1"
+      ]
+    ]
+  },
+  {
+    "id": "n_jj1",
+    "type": "gofa-joint-jog",
+    "z": "tab_demo",
+    "g": "grp5",
+    "name": "Joint J1 +5 deg",
+    "robot": "cfg1",
+    "joint": "J1",
+    "dir": "+",
+    "step": 5,
+    "x": 390,
+    "y": 1082,
+    "wires": [
+      [
+        "d_jj1"
+      ]
+    ]
+  },
+  {
+    "id": "d_jj1",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp5",
+    "name": "{ ok, ack, token }",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 1082,
+    "wires": []
+  },
+  {
+    "id": "i_jj2",
+    "type": "inject",
+    "z": "tab_demo",
+    "g": "grp5",
+    "name": "Joint J2 +5 deg",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 155,
+    "y": 1137,
+    "wires": [
+      [
+        "n_jj2"
+      ]
+    ]
+  },
+  {
+    "id": "n_jj2",
+    "type": "gofa-joint-jog",
+    "z": "tab_demo",
+    "g": "grp5",
+    "name": "Joint J2 +5 deg",
+    "robot": "cfg1",
+    "joint": "J2",
+    "dir": "+",
+    "step": 5,
+    "x": 390,
+    "y": 1137,
+    "wires": [
+      [
+        "d_jj2"
+      ]
+    ]
+  },
+  {
+    "id": "d_jj2",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp5",
+    "name": "{ ok, ack, token }",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 1137,
+    "wires": []
+  },
+  {
+    "id": "grp5",
+    "type": "group",
+    "z": "tab_demo",
+    "name": "5 \u2014 Joint Jog",
+    "style": {
+      "stroke": "#009999",
+      "stroke-opacity": "1",
+      "fill": "#e8f5f5",
+      "fill-opacity": "0.5",
+      "label": true,
+      "label-position": "nw",
+      "color": "#009999"
+    },
+    "nodes": [
+      "c5",
+      "i_jj1",
+      "n_jj1",
+      "d_jj1",
+      "i_jj2",
+      "n_jj2",
+      "d_jj2"
+    ],
+    "x": 74,
+    "y": 1005,
+    "w": 660,
+    "h": 170
+  },
+  {
+    "id": "c6",
+    "type": "comment",
+    "z": "tab_demo",
+    "g": "grp6",
+    "name": "Run in order: 1-Save  2-List  3-Go To  4-Delete  |  Point name set in node properties or override via msg.payload.name / msg.payload.id",
+    "info": "",
+    "x": 320,
+    "y": 1217,
+    "wires": []
+  },
+  {
+    "id": "i_sv",
+    "type": "inject",
+    "z": "tab_demo",
+    "g": "grp6",
+    "name": "1. Save Current Pose",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 155,
+    "y": 1272,
+    "wires": [
+      [
+        "n_sv"
+      ]
+    ]
+  },
+  {
+    "id": "n_sv",
+    "type": "gofa-save-point",
+    "z": "tab_demo",
+    "g": "grp6",
+    "name": "1. Save Current Pose",
+    "robot": "cfg1",
+    "x": 390,
+    "y": 1272,
+    "wires": [
+      [
+        "d_sv"
+      ]
+    ],
+    "pointName": ""
+  },
+  {
+    "id": "d_sv",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp6",
+    "name": "{ ok, point:{id,name,target}, points:[] }",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 1272,
+    "wires": []
+  },
+  {
+    "id": "i_li",
+    "type": "inject",
+    "z": "tab_demo",
+    "g": "grp6",
+    "name": "2. List All Points",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 155,
+    "y": 1327,
+    "wires": [
+      [
+        "n_li"
+      ]
+    ]
+  },
+  {
+    "id": "n_li",
+    "type": "gofa-point-list",
+    "z": "tab_demo",
+    "g": "grp6",
+    "name": "2. List All Points",
+    "robot": "cfg1",
+    "x": 390,
+    "y": 1327,
+    "wires": [
+      [
+        "d_li"
+      ]
+    ]
+  },
+  {
+    "id": "d_li",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp6",
+    "name": "[ {id, name, target}, ... ]",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 1327,
+    "wires": []
+  },
+  {
+    "id": "i_gt",
+    "type": "inject",
+    "z": "tab_demo",
+    "g": "grp6",
+    "name": "3. Go to Point",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 155,
+    "y": 1382,
+    "wires": [
+      [
+        "n_gt"
+      ]
+    ]
+  },
+  {
+    "id": "n_gt",
+    "type": "gofa-go-point",
+    "z": "tab_demo",
+    "g": "grp6",
+    "name": "3. Go to Point",
+    "robot": "cfg1",
+    "x": 390,
+    "y": 1382,
+    "wires": [
+      [
+        "d_gt"
+      ]
+    ],
+    "pointName": "Demo Point"
+  },
+  {
+    "id": "d_gt",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp6",
+    "name": "{ ok, ack, point }",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 1382,
+    "wires": []
+  },
+  {
+    "id": "i_dl",
+    "type": "inject",
+    "z": "tab_demo",
+    "g": "grp6",
+    "name": "4. Delete Point",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 155,
+    "y": 1437,
+    "wires": [
+      [
+        "n_dl"
+      ]
+    ]
+  },
+  {
+    "id": "n_dl",
+    "type": "gofa-delete-point",
+    "z": "tab_demo",
+    "g": "grp6",
+    "name": "4. Delete Point",
+    "robot": "cfg1",
+    "x": 390,
+    "y": 1437,
+    "wires": [
+      [
+        "d_dl"
+      ]
+    ],
+    "pointName": "Demo Point"
+  },
+  {
+    "id": "d_dl",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp6",
+    "name": "{ ok, deleted, points:[] }",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 1437,
+    "wires": []
+  },
+  {
+    "id": "grp6",
+    "type": "group",
+    "z": "tab_demo",
+    "name": "6 \u2014 Saved Points",
+    "style": {
+      "stroke": "#007744",
+      "stroke-opacity": "1",
+      "fill": "#e8f5ee",
+      "fill-opacity": "0.5",
+      "label": true,
+      "label-position": "nw",
+      "color": "#007744"
+    },
+    "nodes": [
+      "c6",
+      "i_sv",
+      "n_sv",
+      "d_sv",
+      "i_li",
+      "n_li",
+      "d_li",
+      "i_gt",
+      "n_gt",
+      "d_gt",
+      "i_dl",
+      "n_dl",
+      "d_dl"
+    ],
+    "x": 74,
+    "y": 1195,
+    "w": 660,
+    "h": 280
+  },
+  {
+    "id": "c7",
+    "type": "comment",
+    "z": "tab_demo",
+    "g": "grp7",
+    "name": "Run Sequence: visits each saved point in order with dwell delay  |  Output 1 = after each step  |  Output 2 = when done or stopped  |  Stop Sequence: halts loop after current step",
+    "info": "",
+    "x": 320,
+    "y": 1517,
+    "wires": []
+  },
+  {
+    "id": "i_sq",
+    "type": "inject",
+    "z": "tab_demo",
+    "g": "grp7",
+    "name": "Run Sequence",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 155,
+    "y": 1572,
+    "wires": [
+      [
+        "n_sq"
+      ]
+    ]
+  },
+  {
+    "id": "n_sq",
+    "type": "gofa-sequencer",
+    "z": "tab_demo",
+    "g": "grp7",
+    "name": "Demo Sequence",
+    "robot": "cfg1",
+    "steps": [
+      {
+        "name": "Demo Point"
+      }
+    ],
+    "dwell": 1000,
+    "loop": false,
+    "pingpong": false,
+    "x": 390,
+    "y": 1572,
+    "wires": [
+      [
+        "d_sqstep"
+      ],
+      [
+        "d_sqdone"
+      ]
+    ]
+  },
+  {
+    "id": "d_sqstep",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp7",
+    "name": "{ step, total, name, ack }",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 1572,
+    "wires": []
+  },
+  {
+    "id": "d_sqdone",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp7",
+    "name": "{ done:true } or { stopped:true }",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 1627,
+    "wires": []
+  },
+  {
+    "id": "i_ss",
+    "type": "inject",
+    "z": "tab_demo",
+    "g": "grp7",
+    "name": "Stop Sequence",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 155,
+    "y": 1682,
+    "wires": [
+      [
+        "n_ss"
+      ]
+    ]
+  },
+  {
+    "id": "n_ss",
+    "type": "gofa-stop-seq",
+    "z": "tab_demo",
+    "g": "grp7",
+    "name": "",
+    "robot": "cfg1",
+    "x": 390,
+    "y": 1682,
+    "wires": [
+      [
+        "d_ss"
+      ]
+    ]
+  },
+  {
+    "id": "d_ss",
+    "type": "debug",
+    "z": "tab_demo",
+    "g": "grp7",
+    "name": "{ ok:true, message:'stop requested' }",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 625,
+    "y": 1682,
+    "wires": []
+  },
+  {
+    "id": "grp7",
+    "type": "group",
+    "z": "tab_demo",
+    "name": "7 \u2014 Sequence Runner",
+    "style": {
+      "stroke": "#cc0044",
+      "stroke-opacity": "1",
+      "fill": "#ffe8ee",
+      "fill-opacity": "0.5",
+      "label": true,
+      "label-position": "nw",
+      "color": "#cc0044"
+    },
+    "nodes": [
+      "c7",
+      "i_sq",
+      "n_sq",
+      "d_sqstep",
+      "d_sqdone",
+      "i_ss",
+      "n_ss",
+      "d_ss"
+    ],
+    "x": 74,
+    "y": 1495,
+    "w": 660,
+    "h": 245
+  }
+]

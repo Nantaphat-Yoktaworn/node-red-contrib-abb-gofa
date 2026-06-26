@@ -1,0 +1,48 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-joint-jog', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:  { value: '' },
+            robot: { value: '', type: 'gofa-robot', required: true },
+            joint: { value: 'J1' },
+            dir:   { value: '+' },
+            step:  { value: 5 }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || ('Joint Jog ' + this.joint + this.dir + this.step + 'deg'); },
+        paletteLabel: 'Joint Jog'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-joint-jog">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-joint"><i class="fa fa-cog"></i> Joint</label>
+        <select id="node-input-joint">
+            <option value="J1">J1</option><option value="J2">J2</option>
+            <option value="J3">J3</option><option value="J4">J4</option>
+            <option value="J5">J5</option><option value="J6">J6</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-dir"><i class="fa fa-exchange"></i> Direction</label>
+        <select id="node-input-dir">
+            <option value="+">+ (positive)</option>
+            <option value="-">- (negative)</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-step"><i class="fa fa-sliders"></i> Step (deg)</label>
+        <input type="number" id="node-input-step" placeholder="5" min="1" max="30">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Joint Jog J1+5">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-joint-jog">
+    <p>Moves a single robot joint by a relative angle.</p>
+    <p><code>msg.payload.joint</code>, <code>msg.payload.dir</code>, <code>msg.payload.step</code> override properties.</p>
+</script>

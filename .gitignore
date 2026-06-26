@@ -1,0 +1,10 @@
+# Ignore everything by default
+*
+# Allow the palette package
+!node-red-contrib-abb-gofa/
+!node-red-contrib-abb-gofa/**
+# Allow the demo flow
+!nodered/
+!nodered/gofa_demo_flow.json
+# Allow this file
+!.gitignore

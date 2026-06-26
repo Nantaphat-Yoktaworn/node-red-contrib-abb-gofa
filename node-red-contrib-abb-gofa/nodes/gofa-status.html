@@ -1,0 +1,29 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-status', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: { name: { value:'' }, robot: { value:'', type:'gofa-robot', required:true } },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || 'Robot Status'; },
+        paletteLabel: 'Robot Status'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-status">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Robot Status">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-status">
+    <p>Reads controller status on each input message.</p>
+    <h3>Output <code>msg.payload</code></h3>
+    <dl class="message-properties">
+        <dt>ctrlstate</dt><dd>motoron | guardstop | emergencystop | sysfail</dd>
+        <dt>opmode</dt><dd>AUTO | MANR</dd>
+        <dt>speed</dt><dd>Speed override 0-100</dd>
+        <dt>rapid</dt><dd>running | stopped</dd>
+    </dl>
+</script>

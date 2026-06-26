@@ -1,0 +1,35 @@
+'use strict';
+module.exports = function(RED) {
+    function GoFaGoPointNode(config) {
+        RED.nodes.createNode(this, config);
+        this.robot     = RED.nodes.getNode(config.robot);
+        this.pointName = config.pointName || '';
+        var node = this;
+        node.on('input', function(msg, send, done) {
+            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+            var p = msg.payload || {};
+            var nameOrId = p.name || p.id || node.pointName;
+            var pt = node.robot.findPoint(nameOrId);
+            if (!pt) {
+                msg.payload = { ok: false, error: 'Point not found: ' + nameOrId };
+                return send(msg), done();
+            }
+            var token = node.robot.gotoToken(pt.target);
+            if (!token) {
+                msg.payload = { ok: false, error: 'Point has invalid data (NaN): ' + pt.name };
+                return send(msg), done();
+            }
+            node.status({ fill: 'blue', shape: 'dot', text: pt.name });
+            node.robot.socketSend(token).then(function(ack) {
+                var ok = ack.startsWith('OK:');
+                msg.payload = { ok: ok, ack: ack, point: pt };
+                node.status({ fill: ok ? 'green' : 'red', shape: 'dot', text: ack });
+                send(msg); done();
+            }).catch(function(err) {
+                node.status({ fill: 'red', shape: 'ring', text: 'error' });
+                node.error(err, msg); done(err);
+            });
+        });
+    }
+    RED.nodes.registerType('gofa-go-point', GoFaGoPointNode);
+};
