@@ -5,12 +5,14 @@ Node-RED palette for controlling the **ABB GoFa CRB 15000** collaborative robot 
 ## What's in this repo
 
 ```
-node-red-contrib-abb-gofa/   ← Node-RED palette package (npm installable)
+node-red-contrib-abb-gofa/       ← Node-RED palette package (npm installable)
 flows/
-  gofa_demo_flow.json         ← Demo flow showing all nodes
+  gofa_demo_flow.json            ← Demo flow showing all nodes individually
+nodered/
+  robot_palette_flow.json        ← Full dashboard using only palette nodes
 rapid/
-  MainModule.mod              ← RAPID socket server (must run on controller)
-  GoFaControl.pgf             ← Program loader file
+  MainModule.mod                 ← RAPID socket server (must run on controller)
+  GoFaControl.pgf                ← Program loader file
 ```
 
 ---
@@ -90,10 +92,13 @@ Open any GoFa node → edit → click the **pencil icon** next to Robot to creat
 
 ---
 
-## Demo flow
+## Example flows
 
-Import `flows/gofa_demo_flow.json` into Node-RED (Menu → Import).  
-The flow demonstrates all 13 nodes organized in labeled groups with explanatory comments.
+**Demo flow** — `flows/gofa_demo_flow.json`  
+Import via Node-RED Menu → Import. Shows all 13 nodes with inject triggers and debug output.
+
+**Palette dashboard** — `nodered/robot_palette_flow.json`  
+Full robot control dashboard built exclusively with palette nodes. Import it, then open `http://localhost:1880/robot` in a browser. Features: live status, all jog axes, save/go/delete points, sequencer with loop + back-and-forth options.
 
 ---
 

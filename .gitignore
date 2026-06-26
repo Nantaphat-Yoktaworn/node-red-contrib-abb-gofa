@@ -8,6 +8,9 @@
 # Node-RED flows
 !flows/
 !flows/gofa_demo_flow.json
+!flows/robot_palette_flow.json
+!nodered/
+!nodered/robot_palette_flow.json
 
 # RAPID program (must be loaded on controller for palette to work)
 !rapid/

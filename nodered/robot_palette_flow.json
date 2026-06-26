@@ -1,0 +1,666 @@
+[
+  {
+    "id": "tab_pal",
+    "type": "tab",
+    "label": "ABB-GoFa-12 Dashboard",
+    "disabled": false,
+    "info": ""
+  },
+  {
+    "id": "cfg_robot",
+    "type": "gofa-robot",
+    "name": "ABB-GoFa-12",
+    "ip": "192.168.20.18",
+    "rwsPort": "443",
+    "socketPort": "1025",
+    "username": "Admin",
+    "pointsFile": "points.json",
+    "credentials": {}
+  },
+  {
+    "id": "p_inj",
+    "type": "inject",
+    "name": "Poll 200ms",
+    "z": "tab_pal",
+    "x": 100,
+    "y": 100,
+    "repeat": "0.2",
+    "crontab": "",
+    "once": true,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "wires": [
+      [
+        "p_status",
+        "p_pose",
+        "p_joints"
+      ]
+    ]
+  },
+  {
+    "id": "p_status",
+    "type": "gofa-status",
+    "name": "Robot Status",
+    "z": "tab_pal",
+    "x": 340,
+    "y": 60,
+    "robot": "cfg_robot",
+    "wires": [
+      [
+        "p_merge"
+      ]
+    ]
+  },
+  {
+    "id": "p_pose",
+    "type": "gofa-pose",
+    "name": "Read Pose",
+    "z": "tab_pal",
+    "x": 340,
+    "y": 100,
+    "robot": "cfg_robot",
+    "wires": [
+      [
+        "p_merge"
+      ]
+    ]
+  },
+  {
+    "id": "p_joints",
+    "type": "gofa-joints",
+    "name": "Read Joints",
+    "z": "tab_pal",
+    "x": 340,
+    "y": 140,
+    "robot": "cfg_robot",
+    "wires": [
+      [
+        "p_merge"
+      ]
+    ]
+  },
+  {
+    "id": "p_merge",
+    "type": "function",
+    "name": "Merge poll data",
+    "z": "tab_pal",
+    "x": 600,
+    "y": 100,
+    "func": "var d = context.get('d') || {};\nObject.assign(d, msg.payload);\nd._n = (d._n||0) + 1;\ncontext.set('d', d);\nif (d._n >= 3) {\n    d.updated = new Date().toLocaleTimeString();\n    delete d._n;\n    flow.set('robot_data', Object.assign({}, d));\n    context.set('d', {});\n}\nreturn null;",
+    "outputs": 1,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "pg_in",
+    "type": "http in",
+    "name": "GET /robot",
+    "z": "tab_pal",
+    "x": 100,
+    "y": 240,
+    "method": "get",
+    "url": "/robot",
+    "wires": [
+      [
+        "pg_fn"
+      ]
+    ]
+  },
+  {
+    "id": "pg_fn",
+    "type": "function",
+    "name": "Serve HTML page",
+    "z": "tab_pal",
+    "x": 320,
+    "y": 240,
+    "func": "msg.headers = { 'Content-Type': 'text/html' };\nmsg.payload = `<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>ABB-GoFa-12</title>\n<style>\n  * { box-sizing: border-box; margin: 0; padding: 0; }\n  body { background: #0d1117; color: #e6edf3; font-family: 'Segoe UI', sans-serif; padding: 24px; }\n  h1 { font-size: 1.6rem; color: #ff6b00; margin-bottom: 6px; }\n  .subtitle { color: #8b949e; font-size: 0.85rem; margin-bottom: 24px; }\n  .layout { display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start; }\n  .column { display: flex; flex-direction: column; gap: 16px; }\n  @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }\n  .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; }\n  .card h2 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; margin-bottom: 16px; }\n  .row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #21262d; }\n  .row:last-child { border-bottom: none; }\n  .label { color: #8b949e; font-size: 0.85rem; }\n  .value { font-size: 1rem; font-weight: 600; color: #e6edf3; font-family: monospace; }\n  .led { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }\n  .led.green  { background: #3fb950; box-shadow: 0 0 8px #3fb950; }\n  .led.yellow { background: #d29922; box-shadow: 0 0 8px #d29922; }\n  .led.red    { background: #f85149; box-shadow: 0 0 8px #f85149; }\n  .led.grey   { background: #484f58; }\n  .bar-wrap { flex: 1; margin: 0 12px; background: #21262d; border-radius: 4px; height: 8px; overflow: hidden; }\n  .bar { height: 100%; background: #ff6b00; border-radius: 4px; transition: width 0.5s; }\n  .joint-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }\n  .joint { background: #0d1117; border-radius: 8px; padding: 12px; text-align: center; }\n  .joint .jname { font-size: 0.7rem; color: #8b949e; text-transform: uppercase; margin-bottom: 4px; }\n  .joint .jval { font-size: 1.2rem; font-weight: 700; color: #ff6b00; font-family: monospace; }\n  .joint .jdeg { font-size: 0.7rem; color: #8b949e; }\n  .updated { color: #484f58; font-size: 0.75rem; text-align: right; margin-top: 16px; }\n  .connecting { color: #8b949e; font-style: italic; }\n  .controls { display: flex; gap: 12px; flex-wrap: wrap; }\n  .btn { flex: 1; min-width: 120px; padding: 16px; border: none; border-radius: 8px; background: #ff6b00; color: #fff; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s, transform 0.1s; }\n  .btn:hover { background: #ff8528; }\n  .btn:active { transform: translateY(1px); }\n  .btn:disabled { opacity: 0.5; cursor: wait; }\n  .btn.home { background: #3fb950; }\n  .btn.home:hover { background: #4cc85e; }\n  .jog-steps { display:flex; gap:18px; align-items:center; flex-wrap:wrap; margin-bottom:14px; color:#8b949e; font-size:0.85rem; }\n  .jog-steps input[type=number] { width:64px; background:#0d1117; color:#e6edf3; border:1px solid #30363d; border-radius:6px; padding:6px; }\n  .jog-grid { display:grid; grid-template-columns: repeat(6, 1fr); gap:10px; }\n  .btn.jog { background:#1f6feb; padding:14px 6px; font-size:0.8rem; }\n  .btn.jog:hover { background:#388bfd; }\n  .btn.jog.rot { background:#8957e5; }\n  .btn.jog.rot:hover { background:#9e6bf0; }\n  @media (max-width: 700px) { .jog-grid { grid-template-columns: repeat(2, 1fr); } }\n  .pt-row { display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }\n  .pt-row input[type=text], .pt-row select { flex:1; min-width:140px; background:#0d1117; color:#e6edf3; border:1px solid #30363d; border-radius:6px; padding:10px; font-size:0.9rem; }\n  .pt-row .btn { flex:0 0 auto; min-width:90px; }\n  .btn.del { background:#da3633; }\n  .btn.del:hover { background:#f85149; }\n  .btn.stop { background:#da3633; }\n  .btn.stop:hover { background:#f85149; }\n  .btn.recover { background:#1f6feb; }\n  .btn.recover:hover { background:#388bfd; }\n  .seq-list { list-style:none; margin:8px 0; padding:0; }\n  .seq-list li { display:flex; align-items:center; gap:10px; background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:8px 12px; margin-bottom:6px; }\n  .seq-list .sidx { color:#8b949e; width:1.6em; text-align:right; font-family:monospace; }\n  .seq-list .sname { flex:1; font-family:monospace; }\n  .seq-list button { background:#21262d; color:#e6edf3; border:1px solid #30363d; border-radius:6px; padding:4px 10px; cursor:pointer; }\n  .seq-list button:hover:not(:disabled) { background:#30363d; }\n  .seq-list button:disabled { opacity:0.3; cursor:default; }\n  .seq-list .x { color:#f85149; }\n  .seq-list .empty { color:#484f58; font-style:italic; }\n  .toast { margin-top: 14px; font-size: 0.85rem; color: #8b949e; min-height: 1.2em; font-family: monospace; }\n</style>\n</head>\n<body>\n<h1>ABB-GoFa-12</h1>\n<p class=\"subtitle\">Live robot status &mdash; updates ~5 times per second</p>\n<div class=\"layout\">\n    <div class=\"column\">\n      <div class=\"card\">\n          <h2>Controller Status</h2>\n          <div class=\"row\">\n            <span class=\"label\">State</span>\n            <span class=\"value\"><span class=\"led grey\" id=\"led\"></span><span id=\"ctrlstate\">...</span></span>\n          </div>\n          <div class=\"row\">\n            <span class=\"label\">Mode</span>\n            <span class=\"value\" id=\"opmode\">...</span>\n          </div>\n          <div class=\"row\">\n            <span class=\"label\">RAPID</span>\n            <span class=\"value\" id=\"rapid\">...</span>\n          </div>\n          <div class=\"row\">\n            <span class=\"label\">Speed</span>\n            <div class=\"bar-wrap\"><div class=\"bar\" id=\"speedbar\" style=\"width:0%\"></div></div>\n            <span class=\"value\" id=\"speed\">...</span>\n          </div>\n        </div>\n      <div class=\"card\">\n          <h2>Tool Position (mm)</h2>\n          <div class=\"row\"><span class=\"label\">X</span><span class=\"value\" id=\"px\">...</span></div>\n          <div class=\"row\"><span class=\"label\">Y</span><span class=\"value\" id=\"py\">...</span></div>\n          <div class=\"row\"><span class=\"label\">Z</span><span class=\"value\" id=\"pz\">...</span></div>\n        </div>\n      <div class=\"card\">\n          <h2>Joint Angles (degrees)</h2>\n          <div class=\"joint-grid\">\n            <div class=\"joint\"><div class=\"jname\">J1</div><div class=\"jval\" id=\"j1\">...</div><div class=\"jdeg\">deg</div></div>\n            <div class=\"joint\"><div class=\"jname\">J2</div><div class=\"jval\" id=\"j2\">...</div><div class=\"jdeg\">deg</div></div>\n            <div class=\"joint\"><div class=\"jname\">J3</div><div class=\"jval\" id=\"j3\">...</div><div class=\"jdeg\">deg</div></div>\n            <div class=\"joint\"><div class=\"jname\">J4</div><div class=\"jval\" id=\"j4\">...</div><div class=\"jdeg\">deg</div></div>\n            <div class=\"joint\"><div class=\"jname\">J5</div><div class=\"jval\" id=\"j5\">...</div><div class=\"jdeg\">deg</div></div>\n            <div class=\"joint\"><div class=\"jname\">J6</div><div class=\"jval\" id=\"j6\">...</div><div class=\"jdeg\">deg</div></div>\n          </div>\n        </div>\n    </div>\n    <div class=\"column\">\n      <div class=\"card\">\n          <h2>Robot Control</h2>\n          <div class=\"controls\">\n            <button class=\"btn home\" id=\"btn-home\" onclick=\"move('home')\">Home</button>\n            <button class=\"btn\" onclick=\"setHome()\">Set Home (here)</button>\n            <button class=\"btn stop\" onclick=\"ctrl('motoroff')\">Motors Off</button>\n            <button class=\"btn recover\" onclick=\"ctrl('motoron')\">Motors On</button>\n          </div>\n          <div class=\"toast\" id=\"toast\">Ready.</div>\n        </div>\n      <div class=\"card\">\n          <h2>Jog &mdash; move (base frame) &amp; rotate (tool frame)</h2>\n          <div class=\"jog-steps\">\n            <label>Step <span id=\"lin-cm\">2</span> cm\n              <input type=\"range\" id=\"lin-range\" min=\"1\" max=\"5\" step=\"1\" value=\"2\" oninput=\"syncLin('range')\"></label>\n            <label>or mm <input type=\"number\" id=\"lin-mm\" min=\"1\" max=\"50\" value=\"20\" oninput=\"syncLin('mm')\"></label>\n            <label>Angle <input type=\"number\" id=\"ang-deg\" min=\"1\" max=\"30\" value=\"5\"> deg</label>\n          </div>\n          <div class=\"jog-grid\">\n            <button class=\"btn jog\" onclick=\"jog('Y+')\">Right +Y</button>\n            <button class=\"btn jog\" onclick=\"jog('Y-')\">Left -Y</button>\n            <button class=\"btn jog\" onclick=\"jog('X-')\">Back -X</button>\n            <button class=\"btn jog\" onclick=\"jog('X+')\">Forward +X</button>\n            <button class=\"btn jog\" onclick=\"jog('Z+')\">Up +Z</button>\n            <button class=\"btn jog\" onclick=\"jog('Z-')\">Down -Z</button>\n            <button class=\"btn jog rot\" onclick=\"jog('RX+')\">Roll +</button>\n            <button class=\"btn jog rot\" onclick=\"jog('RX-')\">Roll -</button>\n            <button class=\"btn jog rot\" onclick=\"jog('RY+')\">Pitch +</button>\n            <button class=\"btn jog rot\" onclick=\"jog('RY-')\">Pitch -</button>\n            <button class=\"btn jog rot\" onclick=\"jog('RZ+')\">Yaw +</button>\n            <button class=\"btn jog rot\" onclick=\"jog('RZ-')\">Yaw -</button>\n          </div>\n        </div>\n      <div class=\"card\">\n          <h2>Joint Jog (per-axis, degrees)</h2>\n          <div class=\"jog-steps\">\n            <label>Angle <input type=\"number\" id=\"joint-deg\" min=\"1\" max=\"30\" value=\"5\"> deg</label>\n          </div>\n          <div class=\"jog-grid\">\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J1+')\">J1 +</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J1-')\">J1 -</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J2+')\">J2 +</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J2-')\">J2 -</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J3+')\">J3 +</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J3-')\">J3 -</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J4+')\">J4 +</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J4-')\">J4 -</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J5+')\">J5 +</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J5-')\">J5 -</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J6+')\">J6 +</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J6-')\">J6 -</button>\n          </div>\n        </div>\n      <div class=\"card\">\n          <h2>Saved Points</h2>\n          <div class=\"pt-row\">\n            <input type=\"text\" id=\"ptname\" placeholder=\"point name (optional)\">\n            <button class=\"btn home\" onclick=\"savePoint()\">Save current pose</button>\n          </div>\n          <div class=\"pt-row\">\n            <select id=\"pointsel\"></select>\n            <button class=\"btn\" onclick=\"goPoint()\">Go</button>\n            <button class=\"btn del\" onclick=\"deletePoint()\">Delete</button>\n          </div>\n        </div>\n      <div class=\"card\">\n          <h2>Sequence Runner</h2>\n          <div class=\"pt-row\">\n            <select id=\"seqadd\"></select>\n            <button class=\"btn\" onclick=\"addSeqStep()\">Add step</button>\n            <label style=\"color:#8b949e; font-size:0.85rem;\">Pause <input type=\"number\" id=\"seq-dwell\" min=\"0\" max=\"10000\" value=\"800\" style=\"width:80px; background:#0d1117; color:#e6edf3; border:1px solid #30363d; border-radius:6px; padding:6px;\"> ms</label>\n            <button class=\"btn home\" onclick=\"runSeq()\">Run</button>\n            <button class=\"btn del\" onclick=\"stopSeq()\">Stop</button>\n            <label style=\"color:#8b949e; font-size:0.85rem; display:flex; align-items:center; gap:6px;\"><input type=\"checkbox\" id=\"seq-loop\"> Loop</label>\n            <label style=\"color:#8b949e; font-size:0.85rem; display:flex; align-items:center; gap:6px;\"><input type=\"checkbox\" id=\"seq-pingpong\"> Back-and-forth (reverse on return)</label>\n          </div>\n          <ol id=\"seqlist\" class=\"seq-list\"></ol>\n          <p style=\"color:#8b949e; font-size:0.8rem;\">Add points to build the order, reorder with the arrows, remove with X. A point may appear more than once.</p>\n        </div>\n    </div>\n  </div>\n<p class=\"updated\" id=\"updated\">Connecting...</p>\n\n<script>\nfunction renderPoints(points) {\n  var sel = document.getElementById('pointsel');\n  if (!sel) return;\n  var cur = sel.value;\n  sel.innerHTML = '';\n  points.forEach(function(p){ var o = document.createElement('option'); o.value = p.id; o.textContent = p.name; sel.appendChild(o); });\n  if (cur) sel.value = cur;\n  var add = document.getElementById('seqadd');\n  if (add) {\n    var curAdd = add.value;\n    add.innerHTML = '';\n    points.forEach(function(p){ var o = document.createElement('option'); o.value = p.id; o.textContent = p.name; add.appendChild(o); });\n    if (curAdd) add.value = curAdd;\n  }\n  renderSeq();\n}\nfunction goPoint() {\n  var sel = document.getElementById('pointsel');\n  if (!sel || !sel.value) return;\n  sendMove({ goto: sel.value }, 'Go ' + sel.options[sel.selectedIndex].text);\n}\nfunction savePoint() {\n  var name = (document.getElementById('ptname').value || '').trim();\n  var toast = document.getElementById('toast');\n  toast.style.color = '#8b949e'; toast.textContent = 'Saving point...';\n  fetch('/robot/savepoint', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name:name }) })\n    .then(function(r){ return r.json(); })\n    .then(function(res){\n      if (res.ok) { toast.style.color='#3fb950'; toast.textContent='Saved: ' + res.name; document.getElementById('ptname').value=''; renderPoints(res.points||[]); }\n      else { toast.style.color='#f85149'; toast.textContent='Error: ' + (res.error||'failed'); }\n    })\n    .catch(function(){ toast.style.color='#f85149'; toast.textContent='Connection error'; });\n}\nfunction deletePoint() {\n  var sel = document.getElementById('pointsel');\n  if (!sel || !sel.value) return;\n  var toast = document.getElementById('toast');\n  toast.style.color='#8b949e'; toast.textContent='Deleting...';\n  fetch('/robot/deletepoint', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: sel.value }) })\n    .then(function(r){ return r.json(); })\n    .then(function(res){ if(res.ok){ toast.style.color='#3fb950'; toast.textContent='Deleted'; renderPoints(res.points||[]); } else { toast.style.color='#f85149'; toast.textContent='Error'; } })\n    .catch(function(){ toast.style.color='#f85149'; toast.textContent='Connection error'; });\n}\nfunction ctrl(state) {\n  var toast = document.getElementById('toast');\n  toast.style.color = '#8b949e'; toast.textContent = (state === 'motoroff' ? 'Stopping...' : 'Recovering...');\n  fetch('/robot/ctrlstate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ state:state }) })\n    .then(function(r){ return r.json(); })\n    .then(function(res){ toast.style.color = res.ok ? '#3fb950' : '#f85149'; toast.textContent = res.ok ? (state === 'motoroff' ? 'Motors OFF' : 'Motors ON') : ('Error: ' + (res.error || res.status)); })\n    .catch(function(){ toast.style.color = '#f85149'; toast.textContent = 'Connection error'; });\n}\nfunction jogJoint(tok) {\n  var step = parseInt(document.getElementById('joint-deg').value) || 5;\n  sendMove({ joint: tok, step: step }, 'Joint ' + tok + ' ' + step + 'deg');\n}\nfunction setHome() {\n  if (!confirm('Set HOME to the current pose? (saved on the controller)')) return;\n  sendMove({ sethome: true }, 'Set Home');\n}\nvar seqSteps = [];\nfunction renderSeq() {\n  var list = document.getElementById('seqlist');\n  if (!list) return;\n  list.innerHTML = '';\n  if (!seqSteps.length) { var li = document.createElement('li'); li.className = 'empty'; li.textContent = 'No steps yet \\u2014 add points above.'; list.appendChild(li); return; }\n  seqSteps.forEach(function(s, i){\n    var li = document.createElement('li');\n    li.innerHTML = '<span class=\"sidx\">' + (i + 1) + '</span><span class=\"sname\">' + s.name + '</span>' +\n      '<button onclick=\"seqUp(' + i + ')\"' + (i === 0 ? ' disabled' : '') + '>&#9650;</button>' +\n      '<button onclick=\"seqDown(' + i + ')\"' + (i === seqSteps.length - 1 ? ' disabled' : '') + '>&#9660;</button>' +\n      '<button class=\"x\" onclick=\"seqDel(' + i + ')\">&times;</button>';\n    list.appendChild(li);\n  });\n}\nfunction addSeqStep() {\n  var sel = document.getElementById('seqadd');\n  if (!sel || !sel.value) return;\n  seqSteps.push({ id: sel.value, name: sel.options[sel.selectedIndex].text });\n  renderSeq();\n}\nfunction seqUp(i)   { if (i <= 0) return; var t = seqSteps[i-1]; seqSteps[i-1] = seqSteps[i]; seqSteps[i] = t; renderSeq(); }\nfunction seqDown(i) { if (i >= seqSteps.length - 1) return; var t = seqSteps[i+1]; seqSteps[i+1] = seqSteps[i]; seqSteps[i] = t; renderSeq(); }\nfunction seqDel(i)  { seqSteps.splice(i, 1); renderSeq(); }\nfunction runSeq() {\n  var steps = seqSteps.map(function(s){ return { name: s.name }; });\n  if (!steps.length) return;\n  var dwell = parseInt(document.getElementById('seq-dwell').value) || 0;\n  var loop = document.getElementById('seq-loop').checked;\n  var pingpong = document.getElementById('seq-pingpong').checked;\n  var toast = document.getElementById('toast');\n  toast.style.color = '#8b949e'; toast.textContent = 'Running sequence (' + steps.length + ')...';\n  fetch('/robot/sequence', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ steps:steps, dwell:dwell, loop:loop, pingpong:pingpong }) })\n    .then(function(r){ return r.json(); })\n    .then(function(res){ toast.style.color = res.ok ? '#3fb950' : '#f85149'; toast.textContent = res.ok ? ('Sequence started: ' + res.count + ' points') : ('Error: ' + (res.error || 'failed')); })\n    .catch(function(){ toast.style.color = '#f85149'; toast.textContent = 'Connection error'; });\n}\nfunction stopSeq() {\n  fetch('/robot/sequence/stop', { method:'POST' })\n    .then(function(r){ return r.json(); })\n    .then(function(){ var t = document.getElementById('toast'); t.style.color = '#d29922'; t.textContent = 'Sequence stop requested'; });\n}\nfunction update() {\n  fetch('/robot/data')\n    .then(r => r.json())\n    .then(d => {\n      document.getElementById('ctrlstate').textContent = d.ctrlstate || '-';\n      document.getElementById('opmode').textContent = d.opmode || '-';\n      document.getElementById('rapid').textContent = d.rapid || '-';\n      document.getElementById('speed').textContent = (d.speed || '0') + '%';\n      document.getElementById('speedbar').style.width = (d.speed || 0) + '%';\n      document.getElementById('px').textContent = d.x || '-';\n      document.getElementById('py').textContent = d.y || '-';\n      document.getElementById('pz').textContent = d.z || '-';\n      document.getElementById('j1').textContent = d.j1 || '-';\n      document.getElementById('j2').textContent = d.j2 || '-';\n      document.getElementById('j3').textContent = d.j3 || '-';\n      document.getElementById('j4').textContent = d.j4 || '-';\n      document.getElementById('j5').textContent = d.j5 || '-';\n      document.getElementById('j6').textContent = d.j6 || '-';\n      document.getElementById('updated').textContent = 'Last update: ' + d.updated;\n      renderPoints(d.points || []);\n      var led = document.getElementById('led');\n      var colors = { motoron:'green', guardstop:'yellow', emergencystop:'red', sysfail:'red' };\n      led.className = 'led ' + (colors[d.ctrlstate] || 'grey');\n    })\n    .catch(function() {\n      document.getElementById('updated').textContent = 'Connection error \u2014 retrying...';\n    });\n}\nfunction sendMove(body, label) {\n  var toast = document.getElementById('toast');\n  var btns = document.querySelectorAll('.btn');\n  btns.forEach(function(b){ b.disabled = true; });\n  toast.style.color = '#8b949e';\n  toast.textContent = 'Sending ' + label + '...';\n  fetch('/robot/move', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })\n    .then(function(r){ return r.json(); })\n    .then(function(res){\n      if (res.ok) { toast.style.color = '#3fb950'; toast.textContent = 'OK: ' + label + (res.ack ? ' (' + res.ack + ')' : ''); }\n      else { toast.style.color = '#f85149'; toast.textContent = 'Error: ' + (res.error || 'failed'); }\n    })\n    .catch(function(){ toast.style.color = '#f85149'; toast.textContent = 'Connection error'; })\n    .finally(function(){ btns.forEach(function(b){ b.disabled = false; }); });\n}\nfunction move(key) {\n  var names = { home:'Home', p1:'Point 1', p2:'Point 2', p3:'Point 3' };\n  sendMove({ routine:key }, names[key] || key);\n}\nfunction jog(token) {\n  var rot = token.charAt(0) === 'R';\n  var step = rot ? (parseInt(document.getElementById('ang-deg').value) || 5)\n                 : (parseInt(document.getElementById('lin-mm').value) || 10);\n  sendMove({ jog:token, step:step }, 'Jog ' + token + ' ' + step + (rot ? 'deg' : 'mm'));\n}\nfunction syncLin(src) {\n  var r = document.getElementById('lin-range'), mm = document.getElementById('lin-mm');\n  if (src === 'range') { mm.value = r.value * 10; }\n  else { var v = Math.max(1, Math.min(50, parseInt(mm.value) || 10)); mm.value = v; r.value = Math.round(v / 10) || 1; }\n  document.getElementById('lin-cm').textContent = (mm.value / 10);\n}\nupdate();\nsetInterval(update, 200);\n</script>\n</body>\n</html>`;\nreturn msg;",
+    "outputs": 1,
+    "wires": [
+      [
+        "pg_out"
+      ]
+    ]
+  },
+  {
+    "id": "pg_out",
+    "type": "http response",
+    "name": "",
+    "z": "tab_pal",
+    "x": 560,
+    "y": 240,
+    "wires": []
+  },
+  {
+    "id": "dt_in",
+    "type": "http in",
+    "name": "GET /robot/data",
+    "z": "tab_pal",
+    "x": 100,
+    "y": 340,
+    "method": "get",
+    "url": "/robot/data",
+    "wires": [
+      [
+        "dt_ptlist"
+      ]
+    ]
+  },
+  {
+    "id": "dt_ptlist",
+    "type": "gofa-point-list",
+    "name": "Point List",
+    "z": "tab_pal",
+    "x": 340,
+    "y": 340,
+    "robot": "cfg_robot",
+    "wires": [
+      [
+        "dt_fn"
+      ]
+    ]
+  },
+  {
+    "id": "dt_fn",
+    "type": "function",
+    "name": "Serve JSON data",
+    "z": "tab_pal",
+    "x": 560,
+    "y": 340,
+    "func": "var d = flow.get('robot_data') || {};\nmsg.payload = Object.assign({}, d, { points: msg.payload });\nmsg.statusCode = 200;\nreturn msg;",
+    "outputs": 1,
+    "wires": [
+      [
+        "dt_out"
+      ]
+    ]
+  },
+  {
+    "id": "dt_out",
+    "type": "http response",
+    "name": "",
+    "z": "tab_pal",
+    "x": 780,
+    "y": 340,
+    "wires": []
+  },
+  {
+    "id": "mv_in",
+    "type": "http in",
+    "name": "POST /robot/move",
+    "z": "tab_pal",
+    "x": 100,
+    "y": 500,
+    "method": "post",
+    "url": "/robot/move",
+    "wires": [
+      [
+        "mv_route"
+      ]
+    ]
+  },
+  {
+    "id": "mv_route",
+    "type": "function",
+    "name": "Route move command",
+    "z": "tab_pal",
+    "x": 320,
+    "y": 500,
+    "func": "var p = msg.payload || {};\nif (p.routine || p.sethome) {\n    msg.payload = { command: p.sethome ? 'SETHOME' : p.routine.toUpperCase() };\n    return [msg, null, null, null, null];\n}\nif (p.jog) {\n    msg.payload = { axis: p.jog.slice(0,-1), dir: p.jog.slice(-1), step: p.step };\n    return [null, msg, null, null, null];\n}\nif (p.joint) {\n    msg.payload = { joint: p.joint.slice(0,-1), dir: p.joint.slice(-1), step: p.step };\n    return [null, null, msg, null, null];\n}\nif (p.goto) {\n    msg.payload = { name: p.goto, id: p.goto };\n    return [null, null, null, msg, null];\n}\nmsg.statusCode = 400;\nmsg.payload = { ok: false, error: 'unknown command' };\nreturn [null, null, null, null, msg];",
+    "outputs": 5,
+    "wires": [
+      [
+        "mv_move"
+      ],
+      [
+        "mv_jog"
+      ],
+      [
+        "mv_jjog"
+      ],
+      [
+        "mv_gopoint"
+      ],
+      [
+        "mv_out"
+      ]
+    ]
+  },
+  {
+    "id": "mv_move",
+    "type": "gofa-move",
+    "name": "Move Home/SetHome",
+    "z": "tab_pal",
+    "x": 580,
+    "y": 420,
+    "robot": "cfg_robot",
+    "command": "HOME",
+    "wires": [
+      [
+        "mv_resp"
+      ]
+    ]
+  },
+  {
+    "id": "mv_jog",
+    "type": "gofa-jog",
+    "name": "Jog",
+    "z": "tab_pal",
+    "x": 580,
+    "y": 480,
+    "robot": "cfg_robot",
+    "axis": "X",
+    "dir": "+",
+    "step": 10,
+    "wires": [
+      [
+        "mv_resp"
+      ]
+    ]
+  },
+  {
+    "id": "mv_jjog",
+    "type": "gofa-joint-jog",
+    "name": "Joint Jog",
+    "z": "tab_pal",
+    "x": 580,
+    "y": 540,
+    "robot": "cfg_robot",
+    "joint": "J1",
+    "dir": "+",
+    "step": 5,
+    "wires": [
+      [
+        "mv_resp"
+      ]
+    ]
+  },
+  {
+    "id": "mv_gopoint",
+    "type": "gofa-go-point",
+    "name": "Go to Point",
+    "z": "tab_pal",
+    "x": 580,
+    "y": 600,
+    "robot": "cfg_robot",
+    "pointName": "",
+    "wires": [
+      [
+        "mv_resp"
+      ]
+    ]
+  },
+  {
+    "id": "mv_resp",
+    "type": "function",
+    "name": "Format move response",
+    "z": "tab_pal",
+    "x": 800,
+    "y": 500,
+    "func": "msg.statusCode = 200;\nreturn msg;",
+    "outputs": 1,
+    "wires": [
+      [
+        "mv_out"
+      ]
+    ]
+  },
+  {
+    "id": "mv_out",
+    "type": "http response",
+    "name": "",
+    "z": "tab_pal",
+    "x": 1020,
+    "y": 500,
+    "wires": []
+  },
+  {
+    "id": "sv_in",
+    "type": "http in",
+    "name": "POST /robot/savepoint",
+    "z": "tab_pal",
+    "x": 100,
+    "y": 700,
+    "method": "post",
+    "url": "/robot/savepoint",
+    "wires": [
+      [
+        "sv_prep"
+      ]
+    ]
+  },
+  {
+    "id": "sv_prep",
+    "type": "function",
+    "name": "Save prep",
+    "z": "tab_pal",
+    "x": 320,
+    "y": 700,
+    "func": "msg.payload = { name: (msg.payload && msg.payload.name) || '' };\nreturn msg;",
+    "outputs": 1,
+    "wires": [
+      [
+        "sv_node"
+      ]
+    ]
+  },
+  {
+    "id": "sv_node",
+    "type": "gofa-save-point",
+    "name": "Save Point",
+    "z": "tab_pal",
+    "x": 540,
+    "y": 700,
+    "robot": "cfg_robot",
+    "pointName": "",
+    "wires": [
+      [
+        "sv_fn"
+      ]
+    ]
+  },
+  {
+    "id": "sv_fn",
+    "type": "function",
+    "name": "Save response",
+    "z": "tab_pal",
+    "x": 760,
+    "y": 700,
+    "func": "msg.payload.name = msg.payload.point ? msg.payload.point.name : '';\nmsg.statusCode = 200;\nreturn msg;",
+    "outputs": 1,
+    "wires": [
+      [
+        "sv_out"
+      ]
+    ]
+  },
+  {
+    "id": "sv_out",
+    "type": "http response",
+    "name": "",
+    "z": "tab_pal",
+    "x": 980,
+    "y": 700,
+    "wires": []
+  },
+  {
+    "id": "dl_in",
+    "type": "http in",
+    "name": "POST /robot/deletepoint",
+    "z": "tab_pal",
+    "x": 100,
+    "y": 780,
+    "method": "post",
+    "url": "/robot/deletepoint",
+    "wires": [
+      [
+        "dl_prep"
+      ]
+    ]
+  },
+  {
+    "id": "dl_prep",
+    "type": "function",
+    "name": "Delete prep",
+    "z": "tab_pal",
+    "x": 320,
+    "y": 780,
+    "func": "msg.payload = { id: msg.payload.id, name: msg.payload.id };\nreturn msg;",
+    "outputs": 1,
+    "wires": [
+      [
+        "dl_node"
+      ]
+    ]
+  },
+  {
+    "id": "dl_node",
+    "type": "gofa-delete-point",
+    "name": "Delete Point",
+    "z": "tab_pal",
+    "x": 540,
+    "y": 780,
+    "robot": "cfg_robot",
+    "pointName": "",
+    "wires": [
+      [
+        "dl_ok"
+      ]
+    ]
+  },
+  {
+    "id": "dl_ok",
+    "type": "change",
+    "name": "Set 200",
+    "z": "tab_pal",
+    "x": 760,
+    "y": 780,
+    "rules": [
+      {
+        "t": "set",
+        "p": "statusCode",
+        "pt": "msg",
+        "to": "200",
+        "tot": "num"
+      }
+    ],
+    "wires": [
+      [
+        "dl_out"
+      ]
+    ]
+  },
+  {
+    "id": "dl_out",
+    "type": "http response",
+    "name": "",
+    "z": "tab_pal",
+    "x": 980,
+    "y": 780,
+    "wires": []
+  },
+  {
+    "id": "ct_in",
+    "type": "http in",
+    "name": "POST /robot/ctrlstate",
+    "z": "tab_pal",
+    "x": 100,
+    "y": 860,
+    "method": "post",
+    "url": "/robot/ctrlstate",
+    "wires": [
+      [
+        "ct_prep"
+      ]
+    ]
+  },
+  {
+    "id": "ct_prep",
+    "type": "function",
+    "name": "Motor prep",
+    "z": "tab_pal",
+    "x": 320,
+    "y": 860,
+    "func": "msg.payload = { action: msg.payload.state };\nreturn msg;",
+    "outputs": 1,
+    "wires": [
+      [
+        "ct_node"
+      ]
+    ]
+  },
+  {
+    "id": "ct_node",
+    "type": "gofa-motor",
+    "name": "Motor On/Off",
+    "z": "tab_pal",
+    "x": 540,
+    "y": 860,
+    "robot": "cfg_robot",
+    "action": "motoron",
+    "wires": [
+      [
+        "ct_ok"
+      ]
+    ]
+  },
+  {
+    "id": "ct_ok",
+    "type": "change",
+    "name": "Set 200",
+    "z": "tab_pal",
+    "x": 760,
+    "y": 860,
+    "rules": [
+      {
+        "t": "set",
+        "p": "statusCode",
+        "pt": "msg",
+        "to": "200",
+        "tot": "num"
+      }
+    ],
+    "wires": [
+      [
+        "ct_out"
+      ]
+    ]
+  },
+  {
+    "id": "ct_out",
+    "type": "http response",
+    "name": "",
+    "z": "tab_pal",
+    "x": 980,
+    "y": 860,
+    "wires": []
+  },
+  {
+    "id": "sq_in",
+    "type": "http in",
+    "name": "POST /robot/sequence",
+    "z": "tab_pal",
+    "x": 100,
+    "y": 960,
+    "method": "post",
+    "url": "/robot/sequence",
+    "wires": [
+      [
+        "sq_prep"
+      ]
+    ]
+  },
+  {
+    "id": "sq_prep",
+    "type": "function",
+    "name": "Sequence prep",
+    "z": "tab_pal",
+    "x": 320,
+    "y": 960,
+    "func": "var p = msg.payload || {};\nvar steps = p.steps || [];\n// immediate HTTP reply\nvar reply = { req: msg.req, res: msg.res,\n    statusCode: 200, payload: { ok: true, count: steps.length } };\n// sequencer message with runtime overrides\nmsg.payload = {\n    steps:    steps,\n    dwell:    p.dwell    != null ? p.dwell    : 800,\n    loop:     p.loop     != null ? p.loop     : false,\n    pingpong: p.pingpong != null ? p.pingpong : false\n};\nreturn [reply, msg];",
+    "outputs": 2,
+    "wires": [
+      [
+        "sq_out"
+      ],
+      [
+        "sq_node"
+      ]
+    ]
+  },
+  {
+    "id": "sq_out",
+    "type": "http response",
+    "name": "",
+    "z": "tab_pal",
+    "x": 540,
+    "y": 920,
+    "wires": []
+  },
+  {
+    "id": "sq_node",
+    "type": "gofa-sequencer",
+    "name": "Sequencer",
+    "z": "tab_pal",
+    "x": 540,
+    "y": 980,
+    "robot": "cfg_robot",
+    "steps": [],
+    "dwell": 800,
+    "loop": false,
+    "pingpong": false,
+    "wires": [
+      [],
+      []
+    ]
+  },
+  {
+    "id": "st_in",
+    "type": "http in",
+    "name": "POST /robot/sequence/stop",
+    "z": "tab_pal",
+    "x": 100,
+    "y": 1060,
+    "method": "post",
+    "url": "/robot/sequence/stop",
+    "wires": [
+      [
+        "st_node"
+      ]
+    ]
+  },
+  {
+    "id": "st_node",
+    "type": "gofa-stop-seq",
+    "name": "Stop Seq",
+    "z": "tab_pal",
+    "x": 340,
+    "y": 1060,
+    "robot": "cfg_robot",
+    "wires": [
+      [
+        "st_ok"
+      ]
+    ]
+  },
+  {
+    "id": "st_ok",
+    "type": "change",
+    "name": "Set 200 + OK",
+    "z": "tab_pal",
+    "x": 560,
+    "y": 1060,
+    "rules": [
+      {
+        "t": "set",
+        "p": "statusCode",
+        "pt": "msg",
+        "to": "200",
+        "tot": "num"
+      },
+      {
+        "t": "set",
+        "p": "payload",
+        "pt": "msg",
+        "to": "{\"ok\":true}",
+        "tot": "json"
+      }
+    ],
+    "wires": [
+      [
+        "st_out"
+      ]
+    ]
+  },
+  {
+    "id": "st_out",
+    "type": "http response",
+    "name": "",
+    "z": "tab_pal",
+    "x": 780,
+    "y": 1060,
+    "wires": []
+  }
+]
