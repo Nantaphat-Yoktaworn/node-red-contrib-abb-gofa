@@ -12,8 +12,8 @@ module.exports = function(RED) {
             if (!node.robot) { node.error('No robot configured', msg); return done(); }
 
             var zone;
-            if (msg.payload !== null && msg.payload !== undefined && msg.payload !== '') {
-                zone = String(msg.payload).toLowerCase();
+            if (typeof msg.payload === 'string' && msg.payload !== '') {
+                zone = msg.payload.toLowerCase();
             } else {
                 zone = node.zone;
             }
