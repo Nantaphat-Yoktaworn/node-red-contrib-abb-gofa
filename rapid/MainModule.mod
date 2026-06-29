@@ -115,7 +115,12 @@ MODULE MainModule
             SocketClose clientSocket;
             RETURN;
         ENDIF
-        RAISE;
+        ! Motion error from a \Conc move surfaces here at the next sync point
+        ! (SocketReceive). Clear the path and go back to listening.
+        StopMove \Quick;
+        ClearPath;
+        StartMove;
+        RETRY;
     ENDPROC
 
     ! Parse one command, run the routine, send the ack
@@ -145,10 +150,10 @@ MODULE MainModule
         CASE "PING":
             SocketSend clientSocket \Str:=("OK:PING" + ByteToStr(10\Char));
         CASE "STOP":
-            bStopMotion := TRUE;
-            StopMove;
+            StopMove \Quick;
             ClearPath;
             StartMove;
+            bStopMotion := FALSE;
             SocketSend clientSocket \Str:=("OK:STOP" + ByteToStr(10\Char));
         CASE "GRIPON":
             SocketSend clientSocket \Str:=("OK:GRIPON" + ByteToStr(10\Char));
@@ -229,23 +234,17 @@ MODULE MainModule
         p := CRobT(\Tool:=tGripper \WObj:=wobj1);
         IF rot THEN
             TEST axis
-            CASE "X": MoveJ RelTool(p, 0, 0, 0 \Rx:=val), vJog, fine, tGripper \WObj:=wobj1;
-            CASE "Y": MoveJ RelTool(p, 0, 0, 0 \Ry:=val), vJog, fine, tGripper \WObj:=wobj1;
-            CASE "Z": MoveJ RelTool(p, 0, 0, 0 \Rz:=val), vJog, fine, tGripper \WObj:=wobj1;
+            CASE "X": MoveJ \Conc, RelTool(p, 0, 0, 0 \Rx:=val), vJog, fine, tGripper \WObj:=wobj1;
+            CASE "Y": MoveJ \Conc, RelTool(p, 0, 0, 0 \Ry:=val), vJog, fine, tGripper \WObj:=wobj1;
+            CASE "Z": MoveJ \Conc, RelTool(p, 0, 0, 0 \Rz:=val), vJog, fine, tGripper \WObj:=wobj1;
             ENDTEST
         ELSE
             TEST axis
-            CASE "X": MoveJ Offs(p, val, 0, 0), vJog, fine, tGripper \WObj:=wobj1;
-            CASE "Y": MoveJ Offs(p, 0, val, 0), vJog, fine, tGripper \WObj:=wobj1;
-            CASE "Z": MoveJ Offs(p, 0, 0, val), vJog, fine, tGripper \WObj:=wobj1;
+            CASE "X": MoveJ \Conc, Offs(p, val, 0, 0), vJog, fine, tGripper \WObj:=wobj1;
+            CASE "Y": MoveJ \Conc, Offs(p, 0, val, 0), vJog, fine, tGripper \WObj:=wobj1;
+            CASE "Z": MoveJ \Conc, Offs(p, 0, 0, val), vJog, fine, tGripper \WObj:=wobj1;
             ENDTEST
         ENDIF
-    ERROR
-        ! ponytail: standard recover-and-continue; tune here if a limit hit ever wedges motion
-        StopMove;
-        ClearPath;
-        StartMove;
-        RETURN;
     ENDPROC
 
     ! Parse a joint-jog token and execute it. Token (after CleanCmd):
@@ -286,13 +285,7 @@ MODULE MainModule
         CASE 5: jt.robax.rax_5 := jt.robax.rax_5 + val;
         CASE 6: jt.robax.rax_6 := jt.robax.rax_6 + val;
         ENDTEST
-        MoveAbsJ jt, vJog, fine, tGripper \WObj:=wobj1;
-        RETURN TRUE;
-    ERROR
-        ! out of range / limit: recover, keep server alive (already acked)
-        StopMove;
-        ClearPath;
-        StartMove;
+        MoveAbsJ \Conc, jt, vJog, fine, tGripper \WObj:=wobj1;
         RETURN TRUE;
     ENDFUNC
 
@@ -335,13 +328,7 @@ MODULE MainModule
         t.extax   := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
         ! Valid -> ack first (snappy UI), then move
         SocketSend clientSocket \Str:=("OK:GOTO" + ByteToStr(10\Char));
-        MoveJ t, vGoto, fine, tGripper \WObj:=wobj1;
-        RETURN TRUE;
-    ERROR
-        ! unreachable target: recover, keep server alive (already acked)
-        StopMove;
-        ClearPath;
-        StartMove;
+        MoveJ \Conc, t, vGoto, fine, tGripper \WObj:=wobj1;
         RETURN TRUE;
     ENDFUNC
 
@@ -427,22 +414,19 @@ MODULE MainModule
     ! -------------------------------------------------------
 
     PROC rGoHome()
-        MoveJ pHome, v200, z50, tGripper \WObj:=wobj1;
+        MoveJ \Conc, pHome, v200, z50, tGripper \WObj:=wobj1;
     ENDPROC
 
     PROC rPickPos1()
-        MoveJ pPickPos1, v200, z10, tGripper \WObj:=wobj1;
-        WaitTime 0.5;
+        MoveJ \Conc, pPickPos1, v200, z10, tGripper \WObj:=wobj1;
     ENDPROC
 
     PROC rPickPos2()
-        MoveJ pPickPos2, v200, z10, tGripper \WObj:=wobj1;
-        WaitTime 0.5;
+        MoveJ \Conc, pPickPos2, v200, z10, tGripper \WObj:=wobj1;
     ENDPROC
 
     PROC rPlacePos()
-        MoveJ pPlacePos, v200, z10, tGripper \WObj:=wobj1;
-        WaitTime 0.5;
+        MoveJ \Conc, pPlacePos, v200, z10, tGripper \WObj:=wobj1;
     ENDPROC
 
     PROC rPickAndPlace()
@@ -465,18 +449,8 @@ MODULE MainModule
         IF NOT ParseNums(StrPart(cmd, 6, n - 5), vals) RETURN FALSE;
         jt.robax := [vals{1}, vals{2}, vals{3}, vals{4}, vals{5}, vals{6}];
         jt.extax := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
-        IF bStopMotion THEN
-            bStopMotion := FALSE;
-            SocketSend clientSocket \Str:=("OK:MOVEJ" + ByteToStr(10\Char));
-            RETURN TRUE;
-        ENDIF
         SocketSend clientSocket \Str:=("OK:MOVEJ" + ByteToStr(10\Char));
-        MoveAbsJ jt, vGoto, zActive, tGripper \WObj:=wobj1;
-        RETURN TRUE;
-    ERROR
-        StopMove;
-        ClearPath;
-        StartMove;
+        MoveAbsJ \Conc, jt, vGoto, zActive, tGripper \WObj:=wobj1;
         RETURN TRUE;
     ENDFUNC
 
