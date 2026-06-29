@@ -1,23 +1,31 @@
 # Ignore everything by default
 *
 
-# Node-RED palette package (npm installable)
+# Node-RED palette package
 !node-red-contrib-abb-gofa/
 !node-red-contrib-abb-gofa/**
+# ...but not generated/internal files inside it
+node-red-contrib-abb-gofa/.claude/
+node-red-contrib-abb-gofa/node_modules/
+node-red-contrib-abb-gofa/package-lock.json
 
 # Node-RED flows
 !flows/
 !flows/gofa_demo_flow.json
 !flows/robot_palette_flow.json
-!nodered/
-!nodered/robot_palette_flow.json
 
-# RAPID program (must be loaded on controller for palette to work)
+# RAPID program
 !rapid/
 !rapid/MainModule.mod
 !rapid/GoFaControl.pgf
 
-# This file
+# Packaged releases
+!dist/
+!dist/*.tgz
+
+# This file and README
 !.gitignore
-# README
 !README.md
+
+# Runtime files (generated locally, not for version control)
+# points.json  — saved robot positions, created by gofa-save-point at runtime
