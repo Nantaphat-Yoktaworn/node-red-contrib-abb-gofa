@@ -117,7 +117,7 @@ MODULE MainModule
         ENDIF
         ! Motion error from a \Conc move surfaces here at the next sync point
         ! (SocketReceive). Clear the path and go back to listening.
-        StopMove \Quick;
+        StopMove;
         ClearPath;
         StartMove;
         RETRY;
@@ -150,7 +150,7 @@ MODULE MainModule
         CASE "PING":
             SocketSend clientSocket \Str:=("OK:PING" + ByteToStr(10\Char));
         CASE "STOP":
-            StopMove \Quick;
+            StopMove;
             ClearPath;
             StartMove;
             bStopMotion := FALSE;
