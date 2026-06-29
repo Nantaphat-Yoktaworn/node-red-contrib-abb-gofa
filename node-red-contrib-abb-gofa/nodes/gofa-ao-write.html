@@ -13,6 +13,11 @@
     });
 </script>
 <script type="text/html" data-template-name="gofa-ao-write">
+    <div class="form-row" style="background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:8px;margin-bottom:8px;">
+        <i class="fa fa-exclamation-triangle" style="color:#856404;"></i>
+        <span style="color:#856404;font-weight:bold;"> Requires external I/O module</span><br>
+        <span style="color:#856404;font-size:0.9em;">Signal will not exist (HTTP 404) unless an analog I/O expansion module is fitted to the controller.</span>
+    </div>
     <div class="form-row">
         <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
         <input type="text" id="node-input-robot">
@@ -31,6 +36,7 @@
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-ao-write">
+    <p><b>⚠ Requires external I/O module.</b> Analog output signals (AO) do not exist on the base OmniCore C30 — an expansion I/O module must be fitted and configured. Without it, this node returns HTTP 404.</p>
     <p>Writes an analog output (AO) signal on the ABB GoFa controller via RWS.</p>
     <h3>Input</h3>
     <p><code>msg.payload</code> can be:</p>

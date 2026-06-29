@@ -232,6 +232,9 @@ MODULE MainModule
     PROC JogMove(string axis, num val, bool rot)
         VAR robtarget p;
         p := CRobT(\Tool:=tGripper \WObj:=wobj1);
+        StopMove;
+        ClearPath;
+        StartMove;
         IF rot THEN
             TEST axis
             CASE "X": MoveJ \Conc, RelTool(p, 0, 0, 0 \Rx:=val), vJog, fine, tGripper \WObj:=wobj1;
@@ -285,6 +288,9 @@ MODULE MainModule
         CASE 5: jt.robax.rax_5 := jt.robax.rax_5 + val;
         CASE 6: jt.robax.rax_6 := jt.robax.rax_6 + val;
         ENDTEST
+        StopMove;
+        ClearPath;
+        StartMove;
         MoveAbsJ \Conc, jt, vJog, fine, tGripper \WObj:=wobj1;
         RETURN TRUE;
     ENDFUNC

@@ -15,6 +15,11 @@
     });
 </script>
 <script type="text/html" data-template-name="gofa-rapid-var-write">
+    <div class="form-row" style="background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:8px;margin-bottom:8px;">
+        <i class="fa fa-exclamation-triangle" style="color:#856404;"></i>
+        <span style="color:#856404;font-weight:bold;"> Requires PC Interface RobotWare option</span><br>
+        <span style="color:#856404;font-size:0.9em;">Not available on standard OmniCore C30. Use <b>gofa-zone-set</b> for zone variables.</span>
+    </div>
     <div class="form-row">
         <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
         <input type="text" id="node-input-robot">
@@ -41,6 +46,7 @@
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-rapid-var-write">
+    <p><b>⚠ Requires PC Interface RobotWare option.</b> This node will fail with HTTP 404 on a standard OmniCore C30 that does not have the PC Interface option installed. For zone variables, use <b>gofa-zone-set</b> instead (TCP socket, no option required).</p>
     <p>Writes a value to a RAPID variable on the robot controller via RWS.</p>
     <h3>Configuration</h3>
     <ul>
@@ -59,7 +65,6 @@
     <p><code>msg.payload = { ok: true, variable: "mySpeed", value: "50" }</code> on success.</p>
     <p><code>msg.payload = { ok: false, error: "..." }</code> on failure.</p>
     <h3>Notes</h3>
-    <p>The variable must be declared as <b>VAR</b> (not <b>CONST</b> or <b>PERS</b> read-only) in RAPID.</p>
-    <p>If the controller returns a "method not supported" error, RAPID variable write may require
-    mastership or the <b>PC Interface</b> RobotWare option on the OmniCore C30.</p>
+    <p>The variable must be declared as <b>VAR</b> or <b>PERS</b> (not <b>CONST</b>) in RAPID.</p>
+    <p>HTTP 404 = PC Interface option not installed. HTTP 405 = mastership required in addition to PC Interface.</p>
 </script>
