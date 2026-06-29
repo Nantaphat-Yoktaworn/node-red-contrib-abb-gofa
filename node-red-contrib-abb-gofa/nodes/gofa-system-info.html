@@ -1,0 +1,40 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-system-info', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:  { value: '' },
+            robot: { value: '', type: 'gofa-robot', required: true }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || 'System Info'; },
+        paletteLabel: 'System Info'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-system-info">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="System Info">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-system-info">
+    <p>Reads controller identity and RobotWare version from the robot via RWS.</p>
+    <h3>Input</h3>
+    <p>Any message triggers a read. <code>msg.payload</code> is not used.</p>
+    <h3>Output</h3>
+    <p><code>msg.payload</code> on success:</p>
+    <pre>{
+  ok: true,
+  rwVersion:   "7.x.x",
+  rwBuildDate: "...",
+  ctrlName:    "15000-501318",
+  ctrlId:      "15000-501318",
+  ctrlType:    "Real Controller",
+  ctrlMac:     "00:30:64:a4:d8:6e"
+}</pre>
+    <p>Fields that are not available are omitted from the output.</p>
+    <p>On error: <code>{ ok: false, error: "..." }</code></p>
+</script>

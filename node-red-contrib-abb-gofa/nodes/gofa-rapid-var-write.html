@@ -1,0 +1,65 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-rapid-var-write', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:     { value: '' },
+            robot:    { value: '', type: 'gofa-robot', required: true },
+            task:     { value: 'T_ROB1' },
+            module:   { value: 'MainModule' },
+            variable: { value: '' },
+            value:    { value: '' }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || this.variable || 'RAPID Var Write'; },
+        paletteLabel: 'RAPID Var Write'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-rapid-var-write">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-task"><i class="fa fa-tasks"></i> Task</label>
+        <input type="text" id="node-input-task" placeholder="T_ROB1">
+    </div>
+    <div class="form-row">
+        <label for="node-input-module"><i class="fa fa-file-code-o"></i> Module</label>
+        <input type="text" id="node-input-module" placeholder="MainModule">
+    </div>
+    <div class="form-row">
+        <label for="node-input-variable"><i class="fa fa-pencil"></i> Variable</label>
+        <input type="text" id="node-input-variable" placeholder="myVar">
+    </div>
+    <div class="form-row">
+        <label for="node-input-value"><i class="fa fa-tag"></i> Value</label>
+        <input type="text" id="node-input-value" placeholder="0">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="RAPID Var Write">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-rapid-var-write">
+    <p>Writes a value to a RAPID variable on the robot controller via RWS.</p>
+    <h3>Configuration</h3>
+    <ul>
+        <li><b>Task</b> — RAPID task name (default: <code>T_ROB1</code>)</li>
+        <li><b>Module</b> — RAPID module name (default: <code>MainModule</code>)</li>
+        <li><b>Variable</b> — variable name as declared in RAPID (e.g. <code>mySpeed</code>)</li>
+        <li><b>Value</b> — default value to write</li>
+    </ul>
+    <h3>Input</h3>
+    <p><code>msg.payload</code> can be:</p>
+    <ul>
+        <li>A plain value (string, number, boolean) — written directly to the variable</li>
+        <li>An object <code>{ task, module, variable, value }</code> — overrides any config field present</li>
+    </ul>
+    <h3>Output</h3>
+    <p><code>msg.payload = { ok: true, variable: "mySpeed", value: "50" }</code> on success.</p>
+    <p><code>msg.payload = { ok: false, error: "..." }</code> on failure.</p>
+    <h3>Notes</h3>
+    <p>The variable must be declared as <b>VAR</b> (not <b>CONST</b> or <b>PERS</b> read-only) in RAPID.</p>
+    <p>If the controller returns a "method not supported" error, RAPID variable write may require
+    mastership or the <b>PC Interface</b> RobotWare option on the OmniCore C30.</p>
+</script>

@@ -1,0 +1,31 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-stop-motion', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:  { value: '' },
+            robot: { value: '', type: 'gofa-robot', required: true }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || 'Stop Motion'; },
+        paletteLabel: 'Stop Motion'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-stop-motion">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Stop Motion">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-stop-motion">
+    <p>Sends a <code>STOP</code> command to immediately halt robot motion via the RAPID socket server.</p>
+    <p>The RAPID program calls <code>StopMove\Quick</code> and <code>ClearPath</code>, and sets a flag so the next queued motion is skipped.</p>
+    <h3>Input</h3>
+    <p>Any message triggers the stop. <code>msg.payload</code> is ignored.</p>
+    <h3>Output</h3>
+    <p><code>msg.payload = { ok: true }</code> on success.</p>
+    <p><code>msg.payload = { ok: false, error: "..." }</code> on failure.</p>
+</script>

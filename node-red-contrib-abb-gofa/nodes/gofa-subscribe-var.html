@@ -1,0 +1,63 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-subscribe-var', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:     { value: '' },
+            robot:    { value: '', type: 'gofa-robot', required: true },
+            task:     { value: 'T_ROB1' },
+            module:   { value: 'MainModule' },
+            variable: { value: '' },
+            interval: { value: 1000 }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || this.variable || 'Subscribe Var'; },
+        paletteLabel: 'Subscribe Var'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-subscribe-var">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-task"><i class="fa fa-tasks"></i> Task</label>
+        <input type="text" id="node-input-task" placeholder="T_ROB1">
+    </div>
+    <div class="form-row">
+        <label for="node-input-module"><i class="fa fa-file-code-o"></i> Module</label>
+        <input type="text" id="node-input-module" placeholder="MainModule">
+    </div>
+    <div class="form-row">
+        <label for="node-input-variable"><i class="fa fa-tag"></i> Variable</label>
+        <input type="text" id="node-input-variable" placeholder="myVar">
+    </div>
+    <div class="form-row">
+        <label for="node-input-interval"><i class="fa fa-clock-o"></i> Interval (ms)</label>
+        <input type="number" id="node-input-interval" placeholder="1000" min="100">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Subscribe Var">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-subscribe-var">
+    <p>Polls the controller every N ms for the RAPID variable value. Send a message to start polling; send again to stop (toggle). Uses a two-stage read: direct symbol endpoint first, falls back to module source text for PERS variables.</p>
+    <h3>Configuration</h3>
+    <dl class="message-properties">
+        <dt>Task</dt><dd>RAPID task name (default: <code>T_ROB1</code>)</dd>
+        <dt>Module</dt><dd>RAPID module name (e.g. <code>MainModule</code>)</dd>
+        <dt>Variable</dt><dd>Variable name (e.g. <code>mySpeed</code>)</dd>
+        <dt>Interval (ms)</dt><dd>Poll interval in milliseconds (default: <code>1000</code>)</dd>
+    </dl>
+    <h3>Input</h3>
+    <p>Send any message to start polling. Send again to stop. Optionally override config at runtime with <code>msg.payload.task</code>, <code>msg.payload.module</code>, or <code>msg.payload.variable</code>.</p>
+    <h3>Output <code>msg.payload</code></h3>
+    <dl class="message-properties">
+        <dt>ok <span class="property-type">boolean</span></dt><dd><code>true</code></dd>
+        <dt>task <span class="property-type">string</span></dt><dd>RAPID task name</dd>
+        <dt>module <span class="property-type">string</span></dt><dd>RAPID module name</dd>
+        <dt>variable <span class="property-type">string</span></dt><dd>Variable name</dd>
+        <dt>value <span class="property-type">string</span></dt><dd>Current variable value</dd>
+        <dt>source <span class="property-type">string</span></dt><dd><code>rws</code> or <code>module-text</code></dd>
+    </dl>
+</script>

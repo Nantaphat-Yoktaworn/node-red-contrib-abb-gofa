@@ -1,0 +1,40 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-points-import', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:  { value: '' },
+            robot: { value: '', type: 'gofa-robot', required: true }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || 'Points Import'; },
+        paletteLabel: 'Points Import'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-points-import">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Points Import">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-points-import">
+    <p>Imports a points array into the robot config node's saved points, replacing the entire existing list.</p>
+    <p><b>Warning:</b> This operation overwrites all existing saved points. Use <b>gofa-points-export</b> first to back up the current list if needed.</p>
+    <h3>Input</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">array | object</span></dt>
+        <dd>Either an array of point objects directly, or an object with a <code>points</code> property containing the array. Each point must have <code>id</code>, <code>name</code>, and <code>target</code> properties.</dd>
+    </dl>
+    <h3>Output</h3>
+    <dl class="message-properties">
+        <dt>payload.ok <span class="property-type">boolean</span></dt>
+        <dd><code>true</code> on success.</dd>
+        <dt>payload.count <span class="property-type">number</span></dt>
+        <dd>Number of points imported.</dd>
+    </dl>
+    <h3>Notes</h3>
+    <p>Points are persisted to <code>points.json</code> in Node-RED's userDir immediately after import. The robot config node's in-memory list is also updated.</p>
+</script>

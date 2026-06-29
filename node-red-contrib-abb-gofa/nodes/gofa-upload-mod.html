@@ -1,0 +1,41 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-upload-mod', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:       { value: '' },
+            robot:      { value: '', type: 'gofa-robot', required: true },
+            remotePath: { value: '$HOME/Programs/MainModule.mod' }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || 'Upload .mod'; },
+        paletteLabel: 'Upload .mod'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-upload-mod">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-remotePath"><i class="fa fa-folder"></i> Remote path</label>
+        <input type="text" id="node-input-remotePath" placeholder="$HOME/Programs/MainModule.mod">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Upload .mod">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-upload-mod">
+    <p>Uploads a RAPID <code>.mod</code> file to the robot controller via RWS fileservice (HTTP PUT).</p>
+    <h3>Input — <code>msg.payload</code></h3>
+    <ul>
+        <li><b>String starting with <code>/</code> or <code>./</code></b> — treated as a local file path; the file is read from disk and uploaded.</li>
+        <li><b>String (other)</b> — used directly as file content.</li>
+        <li><b>Buffer</b> — uploaded as-is.</li>
+        <li><b>Object</b> <code>{ content, remotePath }</code> — <code>content</code> is the file content (string or Buffer); <code>remotePath</code> overrides the configured destination path.</li>
+    </ul>
+    <h3>Output</h3>
+    <p><code>msg.payload = { ok: true, remotePath: "$HOME/Programs/MainModule.mod", bytes: 1234 }</code></p>
+    <h3>After upload</h3>
+    <p>On the FlexPendant: Program Editor → Load → the uploaded file, then PP to Main → Play.</p>
+</script>

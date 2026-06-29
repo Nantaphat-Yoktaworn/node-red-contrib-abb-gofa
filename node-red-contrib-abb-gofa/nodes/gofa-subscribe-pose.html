@@ -1,0 +1,38 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-subscribe-pose', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:     { value: '' },
+            robot:    { value: '', type: 'gofa-robot', required: true },
+            interval: { value: 500 }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || 'Subscribe Pose'; },
+        paletteLabel: 'Subscribe Pose'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-subscribe-pose">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-interval"><i class="fa fa-clock-o"></i> Interval (ms)</label>
+        <input type="number" id="node-input-interval" placeholder="500">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Subscribe Pose">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-subscribe-pose">
+    <p>Polls the controller every N ms for current TCP pose (robtarget) of ROB_1. Send any message to toggle polling on/off.</p>
+    <h3>Output <code>msg.payload</code></h3>
+    <dl class="message-properties">
+        <dt>ok <span class="property-type">boolean</span></dt><dd><code>true</code></dd>
+        <dt>x, y, z <span class="property-type">number</span></dt><dd>TCP position in mm</dd>
+        <dt>q1, q2, q3, q4 <span class="property-type">number</span></dt><dd>TCP orientation quaternion</dd>
+    </dl>
+    <h3>Notes</h3>
+    <p>Default interval is 500 ms. Send a message to start; send again to stop.</p>
+</script>

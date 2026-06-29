@@ -1,0 +1,68 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-rapid-var-read', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:     { value: '' },
+            robot:    { value: '', type: 'gofa-robot', required: true },
+            task:     { value: 'T_ROB1' },
+            module:   { value: 'MainModule' },
+            variable: { value: '' }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || this.variable || 'RAPID Var Read'; },
+        paletteLabel: 'RAPID Var Read'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-rapid-var-read">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-task"><i class="fa fa-tasks"></i> Task</label>
+        <input type="text" id="node-input-task" placeholder="T_ROB1">
+    </div>
+    <div class="form-row">
+        <label for="node-input-module"><i class="fa fa-file-code-o"></i> Module</label>
+        <input type="text" id="node-input-module" placeholder="MainModule">
+    </div>
+    <div class="form-row">
+        <label for="node-input-variable"><i class="fa fa-tag"></i> Variable</label>
+        <input type="text" id="node-input-variable" placeholder="myVar">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="RAPID Var Read">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-rapid-var-read">
+    <p>Reads the value of a RAPID variable from the robot controller via RWS.</p>
+    <h3>Configuration</h3>
+    <dl class="message-properties">
+        <dt>Task</dt><dd>RAPID task name (default: <code>T_ROB1</code>)</dd>
+        <dt>Module</dt><dd>RAPID module name (default: <code>MainModule</code>)</dd>
+        <dt>Variable</dt><dd>Variable name to read (e.g. <code>mySpeed</code>)</dd>
+    </dl>
+    <h3>Input</h3>
+    <p><code>msg.payload</code> may be an object with <code>{ task, module, variable }</code>
+    to override the configured values at runtime.</p>
+    <h3>Output</h3>
+    <dl class="message-properties">
+        <dt>payload.ok <span class="property-type">boolean</span></dt>
+        <dd><code>true</code> on success, <code>false</code> on error</dd>
+        <dt>payload.variable <span class="property-type">string</span></dt>
+        <dd>The variable name that was read</dd>
+        <dt>payload.value <span class="property-type">string</span></dt>
+        <dd>The variable value as a string</dd>
+        <dt>payload.raw <span class="property-type">string</span></dt>
+        <dd>Full XHTML response body from the controller</dd>
+    </dl>
+    <h3>Notes</h3>
+    <p>If the controller has the <b>PC Interface</b> RobotWare option, values are read live
+    via <code>/rw/rapid/symbol/data</code>. Otherwise the node falls back to reading the
+    module source text — this works for <code>PERS</code> variables (whose current value is
+    stored in the module file) but will return only the initial value for <code>VAR</code>
+    declarations.</p>
+    <p><code>msg.payload.source</code> will be <code>"rws"</code> or <code>"module-text"</code>
+    so you can tell which path was taken.</p>
+</script>

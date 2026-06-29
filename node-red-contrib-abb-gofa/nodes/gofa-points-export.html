@@ -1,0 +1,39 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-points-export', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:  { value: '' },
+            robot: { value: '', type: 'gofa-robot', required: true }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || 'Points Export'; },
+        paletteLabel: 'Points Export'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-points-export">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Points Export">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-points-export">
+    <p>Exports the saved points list from the robot config node as <code>msg.payload</code>.</p>
+    <p>This is a pure in-memory operation — no RWS or TCP communication is required.</p>
+    <h3>Input</h3>
+    <p>Any message triggers the export. <code>msg.payload</code> is ignored.</p>
+    <h3>Output</h3>
+    <dl class="message-properties">
+        <dt>payload.ok <span class="property-type">boolean</span></dt>
+        <dd>Always <code>true</code>.</dd>
+        <dt>payload.count <span class="property-type">number</span></dt>
+        <dd>Number of points exported.</dd>
+        <dt>payload.points <span class="property-type">array</span></dt>
+        <dd>Array of point objects, each with <code>id</code>, <code>name</code>, and <code>target</code> properties.</dd>
+    </dl>
+    <h3>Notes</h3>
+    <p>Points are stored in Node-RED's userDir as <code>points.json</code>, not on the robot controller. The exported array can be saved externally and later restored using the <b>gofa-points-import</b> node.</p>
+</script>

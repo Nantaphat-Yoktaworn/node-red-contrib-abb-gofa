@@ -24,6 +24,8 @@ MODULE MainModule
 
     PERS tooldata tGripper := [TRUE, [[0,0,0],[1,0,0,0]], [1,[0,0,100],[1,0,0,0],0,0,0]];
     PERS wobjdata wobj1    := [FALSE, TRUE, "", [[0,0,0],[1,0,0,0]], [[0,0,0],[1,0,0,0]]];
+    PERS zonedata zActive  := [FALSE, 10, 15, 15, 1.5, 15, 1.5];
+    PERS bool bStopMotion  := FALSE;
 
     ! Home = position robot was at during setup
     PERS robtarget pHome     := [[323.21,-81.81,807.00],
@@ -52,7 +54,7 @@ MODULE MainModule
     ! -------------------------------------------------------
     ! Socket server state
     ! -------------------------------------------------------
-    CONST string SERVER_IP   := "192.168.20.18";
+    CONST string SERVER_IP   := "192.168.20.17";
     CONST num    SERVER_PORT  := 1025;
 
     ! Persisted home pose (survives restart AND module reload). One line of
@@ -60,13 +62,13 @@ MODULE MainModule
     CONST string HOME_FILE   := "HOME:/Programs/gofa_home.cfg";
 
     ! Jog: slow + predictable. Clamps below are the safety knobs.
-    CONST speeddata vJog     := v50;
+    CONST speeddata vJog     := [50, 500, 5000, 1000];
     CONST num    JOG_MAX_MM  := 50;
     CONST num    JOG_MAX_DEG := 30;
     CONST num    JOINT_MAX_DEG := 30;   ! per-axis jog clamp
 
     ! GoTo a saved point: moderate speed (operator watches the cell).
-    CONST speeddata vGoto    := v100;
+    CONST speeddata vGoto    := [100, 500, 5000, 1000];
 
     VAR socketdev serverSocket;
     VAR socketdev clientSocket;
@@ -140,6 +142,18 @@ MODULE MainModule
         CASE "P3":
             SocketSend clientSocket \Str:=("OK:" + cmd + ByteToStr(10\Char));
             rPlacePos;
+        CASE "PING":
+            SocketSend clientSocket \Str:=("OK:PING" + ByteToStr(10\Char));
+        CASE "STOP":
+            bStopMotion := TRUE;
+            StopMove;
+            ClearPath;
+            StartMove;
+            SocketSend clientSocket \Str:=("OK:STOP" + ByteToStr(10\Char));
+        CASE "GRIPON":
+            SocketSend clientSocket \Str:=("OK:GRIPON" + ByteToStr(10\Char));
+        CASE "GRIPOFF":
+            SocketSend clientSocket \Str:=("OK:GRIPOFF" + ByteToStr(10\Char));
         DEFAULT:
             ! Not a named point - try GOTO <11 nums>, jog (X+20...),
             ! joint jog (J1+5), then speed override (SPEED50)
@@ -150,6 +164,10 @@ MODULE MainModule
             ELSEIF TryJointJog(cmd) THEN
                 ! handled (ack sent inside)
             ELSEIF TrySpeed(cmd) THEN
+                ! handled (ack sent inside)
+            ELSEIF TryMoveJ(cmd) THEN
+                ! handled (ack sent inside)
+            ELSEIF TryZone(cmd) THEN
                 ! handled (ack sent inside)
             ELSE
                 SocketSend clientSocket \Str:=("ERR:" + cmd + ByteToStr(10\Char));
@@ -433,5 +451,56 @@ MODULE MainModule
         rPlacePos;
         rGoHome;
     ENDPROC
+
+    ! Absolute joint move. Token: MOVEJ<j1;j2;j3;j4;j5;j6> (degrees).
+    ! Checks and clears bStopMotion before executing. Returns FALSE if
+    ! not a MOVEJ token or parse fails.
+    FUNC bool TryMoveJ(string cmd)
+        VAR num n;
+        VAR num vals{6};
+        VAR jointtarget jt;
+        n := StrLen(cmd);
+        IF n < 6 RETURN FALSE;
+        IF StrPart(cmd, 1, 5) <> "MOVEJ" RETURN FALSE;
+        IF NOT ParseNums(StrPart(cmd, 6, n - 5), vals) RETURN FALSE;
+        jt.robax := [vals{1}, vals{2}, vals{3}, vals{4}, vals{5}, vals{6}];
+        jt.extax := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
+        IF bStopMotion THEN
+            bStopMotion := FALSE;
+            SocketSend clientSocket \Str:=("OK:MOVEJ" + ByteToStr(10\Char));
+            RETURN TRUE;
+        ENDIF
+        SocketSend clientSocket \Str:=("OK:MOVEJ" + ByteToStr(10\Char));
+        MoveAbsJ jt, vGoto, zActive, tGripper \WObj:=wobj1;
+        RETURN TRUE;
+    ERROR
+        StopMove;
+        ClearPath;
+        StartMove;
+        RETURN TRUE;
+    ENDFUNC
+
+    ! Set the active zone data. Token: ZONE<name> (FINE, Z1, Z5, Z10, Z20, Z50, Z100).
+    ! Returns FALSE if not a ZONE token or unrecognised zone name.
+    FUNC bool TryZone(string cmd)
+        VAR num n;
+        VAR string zname;
+        n := StrLen(cmd);
+        IF n < 5 RETURN FALSE;
+        IF StrPart(cmd, 1, 4) <> "ZONE" RETURN FALSE;
+        zname := StrPart(cmd, 5, n - 4);
+        TEST zname
+        CASE "FINE":  zActive := fine;
+        CASE "Z1":    zActive := z1;
+        CASE "Z5":    zActive := z5;
+        CASE "Z10":   zActive := z10;
+        CASE "Z20":   zActive := z20;
+        CASE "Z50":   zActive := z50;
+        CASE "Z100":  zActive := z100;
+        DEFAULT: RETURN FALSE;
+        ENDTEST
+        SocketSend clientSocket \Str:=("OK:ZONE" + zname + ByteToStr(10\Char));
+        RETURN TRUE;
+    ENDFUNC
 
 ENDMODULE

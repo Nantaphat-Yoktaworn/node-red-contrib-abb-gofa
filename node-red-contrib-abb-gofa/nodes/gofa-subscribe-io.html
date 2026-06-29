@@ -1,0 +1,38 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-subscribe-io', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:   { value: '' },
+            robot:  { value: '', type: 'gofa-robot', required: true },
+            signal: { value: 'DI10_1' }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || this.signal || 'Subscribe IO'; },
+        paletteLabel: 'Subscribe IO'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-subscribe-io">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-signal"><i class="fa fa-bolt"></i> Signal</label>
+        <input type="text" id="node-input-signal" placeholder="DI10_1">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Subscribe IO">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-subscribe-io">
+    <p>Subscribes to a single I/O signal value via RWS WebSocket (priority High). Outputs a message each time the signal value changes.</p>
+    <h3>Input</h3>
+    <p>Send any message to start the subscription. To subscribe to a different signal at runtime, send a message with <code>msg.payload.signal</code> set to the new signal name — the existing subscription is closed and a new one is opened.</p>
+    <h3>Output <code>msg.payload</code></h3>
+    <dl class="message-properties">
+        <dt>ok <span class="property-type">boolean</span></dt><dd><code>true</code></dd>
+        <dt>signal <span class="property-type">string</span></dt><dd>Signal name</dd>
+        <dt>value <span class="property-type">number</span></dt><dd>Signal value (0 or 1 for digital signals)</dd>
+    </dl>
+</script>

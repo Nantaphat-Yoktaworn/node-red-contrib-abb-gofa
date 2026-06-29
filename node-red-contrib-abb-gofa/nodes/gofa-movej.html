@@ -1,0 +1,45 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-movej', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:   { value: '' },
+            robot:  { value: '', type: 'gofa-robot', required: true },
+            joints: { value: '[0,0,85,0,0,0]' }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || 'MoveJ'; },
+        paletteLabel: 'MoveJ'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-movej">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-joints"><i class="fa fa-sliders"></i> Joints</label>
+        <input type="text" id="node-input-joints" placeholder="[0,0,85,0,0,0]" style="width:70%">
+    </div>
+    <div class="form-row">
+        <label style="width:auto; padding-left:105px; color:#aaa; font-size:0.85em">
+            JSON array [j1,j2,j3,j4,j5,j6] in degrees
+        </label>
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="MoveJ">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-movej">
+    <p>Moves the robot to an absolute joint position via the RAPID socket server (<code>MOVEJ</code> command).</p>
+    <h3>Input</h3>
+    <p><code>msg.payload</code> can be:</p>
+    <ul>
+        <li>A 6-element array <code>[j1,j2,j3,j4,j5,j6]</code> of joint angles in degrees</li>
+        <li>An object <code>{ j1, j2, j3, j4, j5, j6 }</code></li>
+        <li><code>null</code> / not set — uses the configured default</li>
+    </ul>
+    <h3>Output</h3>
+    <p><code>msg.payload = { ok: true, joints: [j1,j2,j3,j4,j5,j6] }</code> on success.</p>
+    <p><code>msg.payload = { ok: false, error: "..." }</code> on failure.</p>
+</script>

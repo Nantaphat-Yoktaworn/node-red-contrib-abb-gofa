@@ -1,0 +1,45 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-speed-set', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:  { value: '' },
+            robot: { value: '', type: 'gofa-robot', required: true },
+            speed: { value: 50, validate: RED.validators.number() }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || ('Speed ' + this.speed + '%'); },
+        paletteLabel: 'Speed Set'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-speed-set">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-speed"><i class="fa fa-tachometer"></i> Speed %</label>
+        <input type="number" id="node-input-speed" min="1" max="100" placeholder="50">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Speed 50%">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-speed-set">
+    <p>Sets the robot speed override percentage (1–100) via RWS.</p>
+    <h3>Input</h3>
+    <p><code>msg.payload</code> can be:</p>
+    <ul>
+        <li>A number — used directly as the speed percentage</li>
+        <li>An object <code>{ speed: 75 }</code> — overrides the configured value</li>
+        <li><code>null</code> / not set — uses the configured default</li>
+    </ul>
+    <p>Values outside 1–100 are clamped with a warning.</p>
+    <h3>Output</h3>
+    <p><code>msg.payload = { ok: true, speed: 75 }</code> on success.</p>
+    <p><code>msg.payload = { ok: false, error: "..." }</code> on failure.</p>
+    <h3>Notes</h3>
+    <p>This sets the global speed override on the controller, the same as the
+    speed slider on the FlexPendant. The existing TCP <code>SPEED{n}</code> command
+    in the RAPID socket server does the same thing but goes through RAPID.</p>
+</script>

@@ -1,0 +1,90 @@
+'use strict';
+const https = require('https');
+const http  = require('http');
+
+module.exports = function(RED) {
+    function GoFaFileReadNode(config) {
+        RED.nodes.createNode(this, config);
+        this.robot      = RED.nodes.getNode(config.robot);
+        this.remotePath = config.remotePath || '$HOME/Programs/MainModule.mod';
+        this.encoding   = config.encoding   || 'utf8';
+        var node = this;
+
+        node.on('input', function(msg, send, done) {
+            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+
+            var remotePath = node.remotePath;
+            var encoding   = node.encoding;
+
+            if (msg.payload && typeof msg.payload === 'string') {
+                remotePath = msg.payload;
+            } else if (msg.payload && typeof msg.payload === 'object') {
+                if (msg.payload.remotePath) remotePath = msg.payload.remotePath;
+                if (msg.payload.encoding)   encoding   = msg.payload.encoding;
+            }
+
+            node.status({ fill: 'blue', shape: 'dot', text: 'reading…' });
+
+            var robot = node.robot;
+            robot._getSession().then(function() {
+                return new Promise(function(resolve, reject) {
+                    var headers = { 'Accept': '*/*' };
+                    if (robot._cookie) {
+                        headers['Cookie'] = robot._cookie;
+                    } else {
+                        headers['Authorization'] = 'Basic ' +
+                            Buffer.from(robot.username + ':' + robot.password).toString('base64');
+                    }
+
+                    var proto = robot.rwsPort === 443 ? https : http;
+                    var req = proto.request({
+                        hostname: robot.ip, port: robot.rwsPort,
+                        path: '/fileservice/' + remotePath,
+                        method: 'GET',
+                        headers: headers,
+                        rejectUnauthorized: false
+                    }, function(res) {
+                        if (res.headers['set-cookie']) {
+                            robot._cookie = res.headers['set-cookie']
+                                .map(function(c) { return c.split(';')[0]; }).join('; ');
+                        }
+                        var chunks = [];
+                        res.on('data', function(c) { chunks.push(c); });
+                        res.on('end', function() {
+                            if (res.statusCode === 401) {
+                                robot._cookie = null;
+                                return reject(new Error('HTTP 401 Unauthorized'));
+                            }
+                            if (res.statusCode < 200 || res.statusCode >= 300) {
+                                return reject(new Error('HTTP ' + res.statusCode + ' ' + remotePath));
+                            }
+                            var buf = Buffer.concat(chunks);
+                            resolve({ buf: buf, encoding: encoding });
+                        });
+                    });
+                    req.on('error', reject);
+                    req.end();
+                });
+            })
+            .then(function(result) {
+                var content = result.encoding === 'base64'
+                    ? result.buf.toString('base64')
+                    : result.buf.toString('utf8');
+                msg.payload = {
+                    ok: true,
+                    remotePath: remotePath,
+                    content: content,
+                    bytes: result.buf.length
+                };
+                node.status({ fill: 'green', shape: 'dot', text: result.buf.length + ' bytes' });
+                send(msg); done();
+            })
+            .catch(function(err) {
+                msg.payload = { ok: false, error: err.message };
+                node.status({ fill: 'red', shape: 'ring', text: 'error' });
+                node.error(err, msg); done(err);
+            });
+        });
+    }
+    RED.nodes.registerType('gofa-file-read', GoFaFileReadNode);
+};

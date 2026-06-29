@@ -1,0 +1,54 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-rapid-exec', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:   { value: '' },
+            robot:  { value: '', type: 'gofa-robot', required: true },
+            action: { value: 'start' }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() {
+            var labels = { start: 'RAPID Start', stop: 'RAPID Stop', resetpp: 'RAPID Reset PP' };
+            return this.name || labels[this.action] || 'RAPID Exec';
+        },
+        paletteLabel: 'RAPID Exec'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-rapid-exec">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-action"><i class="fa fa-play"></i> Action</label>
+        <select id="node-input-action">
+            <option value="start">Start RAPID</option>
+            <option value="stop">Stop RAPID</option>
+            <option value="resetpp">Reset Program Pointer (PP)</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="RAPID Start">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-rapid-exec">
+    <p>Controls RAPID program execution on the robot controller via RWS.</p>
+    <h3>Actions</h3>
+    <ul>
+        <li><b>start</b> — begin RAPID execution (cycle: forever)</li>
+        <li><b>stop</b> — halt RAPID execution</li>
+        <li><b>resetpp</b> — move program pointer back to Main</li>
+    </ul>
+    <h3>Input</h3>
+    <p><code>msg.payload.action</code> overrides the configured action if set.</p>
+    <h3>Output</h3>
+    <p><code>msg.payload</code> — <code>{ ok: true, action: "start" }</code> on success,
+    or <code>{ ok: false, error: "..." }</code> on failure.</p>
+    <h3>Notes</h3>
+    <p>Controller must be in <b>AUTO</b> mode and motors must be ON before calling start.
+    Use <b>gofa-motor</b> to enable motors first.</p>
+    <p><b>Requires the "PC Interface" RobotWare option</b> to be installed on the OmniCore C30.
+    Without it, the controller returns "method not supported" and this node will report that
+    clearly in the error message.</p>
+</script>

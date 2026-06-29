@@ -1,0 +1,49 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-grip', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:   { value: '' },
+            robot:  { value: '', type: 'gofa-robot', required: true },
+            action: { value: 'on' },
+            signal: { value: 'DO10_1' }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || ('Grip ' + (this.action || 'on').toUpperCase()); },
+        paletteLabel: 'Grip'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-grip">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-action"><i class="fa fa-hand-grab-o"></i> Action</label>
+        <select id="node-input-action" style="width:70%">
+            <option value="on">ON — close gripper</option>
+            <option value="off">OFF — open gripper</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-signal"><i class="fa fa-plug"></i> DO Signal</label>
+        <input type="text" id="node-input-signal" placeholder="DO10_1" style="width:70%">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Grip">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-grip">
+    <p>Controls a digital output signal for a gripper via the RAPID socket server (<code>GRIPON</code> / <code>GRIPOFF</code>).</p>
+    <h3>Input</h3>
+    <p><code>msg.payload</code> can be:</p>
+    <ul>
+        <li><code>true</code>, <code>1</code>, <code>"on"</code>, or <code>"gripon"</code> — activate gripper</li>
+        <li><code>false</code>, <code>0</code>, <code>"off"</code>, or <code>"gripoff"</code> — deactivate gripper</li>
+        <li>An object <code>{ action: "on" }</code></li>
+        <li><code>null</code> / not set — uses the configured default action</li>
+    </ul>
+    <h3>Output</h3>
+    <p><code>msg.payload = { ok: true, action: 'on', signal: 'DO10_1' }</code> on success.</p>
+    <p><code>msg.payload = { ok: false, error: "..." }</code> on failure.</p>
+</script>

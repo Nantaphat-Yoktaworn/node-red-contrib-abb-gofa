@@ -1,0 +1,44 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-zone-set', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:  { value: '' },
+            robot: { value: '', type: 'gofa-robot', required: true },
+            zone:  { value: 'z10' }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || ('Zone ' + this.zone); },
+        paletteLabel: 'Zone Set'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-zone-set">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-zone"><i class="fa fa-crosshairs"></i> Zone</label>
+        <select id="node-input-zone" style="width:70%">
+            <option value="fine">fine — stop precisely at point</option>
+            <option value="z1">z1 — 1 mm radius</option>
+            <option value="z5">z5 — 5 mm radius</option>
+            <option value="z10">z10 — 10 mm radius</option>
+            <option value="z20">z20 — 20 mm radius</option>
+            <option value="z50">z50 — 50 mm radius</option>
+            <option value="z100">z100 — 100 mm radius</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Zone Set">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-zone-set">
+    <p>Sets the active motion zone (fly-by radius) on the robot via the RAPID socket server (<code>ZONE</code> command).</p>
+    <h3>Input</h3>
+    <p><code>msg.payload</code> can be a string zone name (fine/z1/z5/z10/z20/z50/z100) to override the configured value.
+    Pass <code>null</code> or omit to use the configured default.</p>
+    <h3>Output</h3>
+    <p><code>msg.payload = { ok: true, zone: 'z10' }</code> on success.</p>
+    <p><code>msg.payload = { ok: false, error: "..." }</code> on failure.</p>
+</script>
