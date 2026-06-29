@@ -76,9 +76,9 @@ module.exports = function(RED) {
             } else {
                 headers['Cookie'] = node._cookie;
             }
-            if (method === 'POST' && body) {
+            if (method === 'POST') {
                 headers['Content-Type']   = 'application/x-www-form-urlencoded;v=2.0';
-                headers['Content-Length'] = Buffer.byteLength(body);
+                headers['Content-Length'] = Buffer.byteLength(body || '');
             }
             var proto = node.rwsPort === 443 ? https : http;
             var req = proto.request({
@@ -127,6 +127,23 @@ module.exports = function(RED) {
     GoFaRobotNode.prototype.rwsPost = function(p, b) {
         var node = this;
         return this._getSession().then(function() { return node._request('POST', p, b, false); });
+    };
+    GoFaRobotNode.prototype.withMastership = function(fn) {
+        var node = this;
+        return node._getSession()
+            .then(function() { return node._request('POST', '/rw/mastership/request', '', false); })
+            .then(function() {
+                return fn().then(
+                    function(result) {
+                        return node._request('POST', '/rw/mastership/release', '', false)
+                            .then(function() { return result; });
+                    },
+                    function(err) {
+                        return node._request('POST', '/rw/mastership/release', '', false)
+                            .then(function() { throw err; }, function() { throw err; });
+                    }
+                );
+            });
     };
 
     GoFaRobotNode.prototype.socketSend = function(cmd) {

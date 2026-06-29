@@ -7,7 +7,7 @@ module.exports = function(RED) {
         node.on('input', function(msg, send, done) {
             if (!node.robot) { node.error('No robot configured', msg); return done(); }
             node.status({ fill: 'blue', shape: 'dot', text: 'enabling...' });
-            node.robot.rwsPost('/rw/motionsystem/mechunits/ROB_1/lead-through?action=activate', 'status=active')
+            node.robot.rwsPost('/rw/motionsystem/mechunits/ROB_1/lead-through/activate', 'status=active')
             .then(function() {
                 msg.payload = { ok: true };
                 node.status({ fill: 'green', shape: 'dot', text: 'enabled' });

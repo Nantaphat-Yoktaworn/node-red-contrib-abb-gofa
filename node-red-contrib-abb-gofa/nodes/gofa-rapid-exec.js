@@ -26,16 +26,20 @@ module.exports = function(RED) {
                 return done();
             }
 
-            node.robot.rwsPost('/rw/rapid/execution?action=' + action, bodies[action])
+            // RWS 2.0 (OmniCore) path-based actions. No external mastership needed:
+            // start works when RAPID is idle; stop requires RMMP privilege (set in
+            // FlexPendant → UAS → Admin user → Remote privilege).
+            node.robot.rwsPost('/rw/rapid/execution/' + action, bodies[action])
             .then(function() {
                 msg.payload = { ok: true, action: action };
                 node.status({ fill: 'green', shape: 'dot', text: labels[action] });
                 send(msg); done();
             })
             .catch(function(err) {
-                var hint = err.message.indexOf('405') >= 0 || err.message.indexOf('method not supported') >= 0
-                    ? ' (requires PC Interface RobotWare option on controller)'
-                    : '';
+                var hint = '';
+                if (err.message.indexOf('-757') >= 0 || err.message.indexOf('not allowed access') >= 0) {
+                    hint = ' (stop/resetpp requires RMMP Remote privilege — FlexPendant → UAS → Admin user)';
+                }
                 msg.payload = { ok: false, error: err.message + hint };
                 node.status({ fill: 'red', shape: 'ring', text: 'error' });
                 node.error(err.message + hint, msg); done(err);

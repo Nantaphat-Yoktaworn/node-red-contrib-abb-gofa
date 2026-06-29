@@ -43,7 +43,9 @@ module.exports = function(RED) {
 
             node.status({ fill: 'blue', shape: 'dot', text: variable + '=' + value });
 
-            node.robot.rwsPost(path, body)
+            node.robot.withMastership(function() {
+                return node.robot.rwsPost(path, body);
+            })
             .then(function() {
                 msg.payload = { ok: true, variable: variable, value: String(value) };
                 node.status({ fill: 'green', shape: 'dot', text: variable + '=' + value });
@@ -51,13 +53,10 @@ module.exports = function(RED) {
             })
             .catch(function(err) {
                 var hint = '';
-                if (err.message.indexOf('404') >= 0 ||
-                    err.message.indexOf('-1073445866') >= 0 ||
-                    err.message.toLowerCase().indexOf('resource not found') >= 0) {
-                    hint = ' (requires PC Interface RobotWare option on controller)';
-                } else if (err.message.indexOf('405') >= 0 ||
-                    err.message.toLowerCase().indexOf('method not supported') >= 0) {
-                    hint = ' (RAPID variable write requires PC Interface and/or mastership)';
+                if (err.message.indexOf('404') >= 0) {
+                    hint = ' (variable not found — check task/module/variable name)';
+                } else if (err.message.indexOf('405') >= 0 || err.message.indexOf('mastership') >= 0) {
+                    hint = ' (mastership unavailable — disconnect RobotStudio or other RWS client first)';
                 }
                 var fullMsg = err.message + hint;
                 msg.payload = { ok: false, error: fullMsg };
