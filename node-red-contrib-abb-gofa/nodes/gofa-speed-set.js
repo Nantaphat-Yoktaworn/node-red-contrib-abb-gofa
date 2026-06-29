@@ -10,10 +10,10 @@ module.exports = function(RED) {
             if (!node.robot) { node.error('No robot configured', msg); return done(); }
 
             var raw;
-            if (msg.payload !== null && msg.payload !== undefined) {
-                raw = (typeof msg.payload === 'object' && msg.payload.speed !== undefined)
-                    ? msg.payload.speed
-                    : msg.payload;
+            if (typeof msg.payload === 'number') {
+                raw = msg.payload;
+            } else if (typeof msg.payload === 'string' && msg.payload !== '') {
+                raw = msg.payload;
             } else {
                 raw = node.speed;
             }
@@ -29,20 +29,12 @@ module.exports = function(RED) {
 
             node.status({ fill: 'blue', shape: 'dot', text: speed + '%' });
 
-            node.robot.rwsPost('/rw/mastership/request', '')
-            .then(function() {
-                return node.robot.rwsPost('/rw/panel/speedratio', 'speed-ratio=' + speed);
-            })
-            .then(function() {
-                return node.robot.rwsPost('/rw/mastership/release', '');
-            })
-            .then(function() {
+            node.robot.socketSend('SPEED' + speed).then(function(resp) {
+                if (!resp.startsWith('OK:')) throw new Error('Robot error: ' + resp);
                 msg.payload = { ok: true, speed: speed };
                 node.status({ fill: 'green', shape: 'dot', text: speed + '%' });
                 send(msg); done();
-            })
-            .catch(function(err) {
-                node.robot.rwsPost('/rw/mastership/release', '').catch(function(){});
+            }).catch(function(err) {
                 msg.payload = { ok: false, error: err.message };
                 node.status({ fill: 'red', shape: 'ring', text: 'error' });
                 node.error(err, msg); done(err);

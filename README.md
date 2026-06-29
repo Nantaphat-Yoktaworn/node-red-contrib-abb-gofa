@@ -21,7 +21,7 @@ rapid/
 
 - ABB GoFa CRB 15000 with OmniCore C30 controller
 - RobotWare 7.x (tested on 7.21.0)
-- **PC Interface** RobotWare option *(optional — required only for `gofa-rapid-exec` and `gofa-rapid-var-write`)*
+- **PC Interface** RobotWare option *(optional — required only for `gofa-rapid-exec` and `gofa-rapid-var-write`; not included on standard OmniCore C30)*
 - **RapidSockets** firewall service enabled on the Public network (RobotStudio → Controller → Configuration → Communication → Firewall Manager)
 - Node-RED v3+
 
@@ -104,7 +104,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = Robot Web Ser
 | Node | Protocol | What it does |
 |---|:---:|---|
 | **gofa-motor** | RWS | Enable (motoron) or disable (motoroff) robot motors |
-| **gofa-speed-set** | RWS | Set speed override % (acquires/releases mastership automatically) |
+| **gofa-speed-set** | TCP | Set speed override % via RAPID `SpeedRefresh` (no mastership required) |
 
 ### Saved points
 
@@ -124,7 +124,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = Robot Web Ser
 | Node | Protocol | What it does |
 |---|:---:|---|
 | **gofa-rapid-var-read** | RWS | Read a RAPID PERS/VAR value (falls back to fileservice if no PC Interface) |
-| **gofa-rapid-exec** | RWS | Start, stop, or reset PP of the RAPID program *(requires PC Interface option)* |
+| **gofa-rapid-exec** | RWS | Start, stop, or reset PP of the RAPID program *(requires PC Interface RobotWare option — not included on standard OmniCore C30)* |
 | **gofa-rapid-var-write** | RWS | Write a value to a RAPID PERS variable *(requires PC Interface option)* |
 
 ### Files
@@ -165,7 +165,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = Robot Web Ser
 ## Example flows
 
 **Demo flow** — `flows/gofa_demo_flow.json`  
-Import via Node-RED Menu → Import. Shows all 39 nodes across 14 groups with inject triggers and debug output.
+Import via Node-RED Menu → Import. Shows all nodes across groups with inject triggers and debug output. Note: `gofa-rapid-exec` is excluded — it requires the PC Interface RobotWare option not present on standard controllers.
 
 **Palette dashboard** — `nodered/robot_palette_flow.json`  
 Full robot control dashboard built exclusively with palette nodes. Import it, then open `http://localhost:1880/robot` in a browser. Features: live status, all jog axes, save/go/delete points, sequencer with loop + back-and-forth options.
