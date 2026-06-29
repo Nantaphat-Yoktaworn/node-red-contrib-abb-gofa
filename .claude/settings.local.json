@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:developercenter.robotstudio.com)",
+      "Read(//home/dan/.claude/**)",
+      "Bash(curl *)",
+      "Bash(npm list *)",
+      "Bash(node-red --version)",
+      "Read(//home/dan/.node-red/**)",
+      "Bash(git -C /home/dan/nnnn/ABB-GoFa-12 ls-files .claude/)",
+      "Bash(git -C /home/dan/nnnn/ABB-GoFa-12 ls-files --others --exclude-standard .claude/)"
+    ]
+  }
+}

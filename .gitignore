@@ -23,9 +23,12 @@ node-red-contrib-abb-gofa/package-lock.json
 !dist/
 !dist/*.tgz
 
-# This file and README
+# This file, README, and Claude Code project config
 !.gitignore
 !README.md
+!CLAUDE.md
+!/.claude/
+!/.claude/**
 
 # Runtime files (generated locally, not for version control)
 # points.json  — saved robot positions, created by gofa-save-point at runtime
