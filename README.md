@@ -21,7 +21,7 @@ rapid/
 
 - ABB GoFa CRB 15000 with OmniCore C30 controller
 - RobotWare 7.x (tested on 7.21.0)
-- **Socket Messaging / PC Interface** RobotWare option installed
+- **PC Interface** RobotWare option *(optional — required only for `gofa-rapid-exec` and `gofa-rapid-var-write`)*
 - **RapidSockets** firewall service enabled on the Public network (RobotStudio → Controller → Configuration → Communication → Firewall Manager)
 - Node-RED v3+
 
@@ -74,28 +74,98 @@ Open any GoFa node → edit → click the **pencil icon** next to Robot to creat
 
 ## Nodes
 
-| Node | What it does |
-|---|---|
-| **Robot Status** | Reads controller state, op-mode, speed, RAPID execution state |
-| **Read Pose** | Reads current TCP position (x, y, z + quaternion + config) |
-| **Read Joints** | Reads all 6 joint angles in degrees |
-| **Move Home** | Sends HOME or SETHOME command via socket |
-| **Motor On/Off** | Enables or disables robot motors via RWS |
-| **Jog** | Moves TCP by a relative step (mm, base frame) or rotates (deg, tool frame) |
-| **Joint Jog** | Moves a single joint by a relative angle |
-| **Save Point** | Reads current pose and saves it as a named point |
-| **Go to Point** | Moves robot to a saved point by name |
-| **Point List** | Outputs the full list of saved points |
-| **Delete Point** | Deletes a saved point by name |
-| **Sequencer** | Runs a list of saved points in order, with dwell time, loop, and back-and-forth options |
-| **Stop Sequence** | Signals the sequencer to stop after the current step |
+Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = Robot Web Services HTTPS port 443 · **WS** = RWS WebSocket subscription · **Local** = no network (reads/writes `points.json` on Node-RED host)
+
+### Read robot state
+
+| Node | Protocol | What it does |
+|---|:---:|---|
+| **gofa-status** | RWS | Controller state, op-mode, speed override, RAPID execution state |
+| **gofa-pose** | RWS | TCP position (x, y, z + quaternion + config flags) |
+| **gofa-joints** | RWS | All 6 joint angles in degrees |
+| **gofa-system-info** | RWS | RobotWare version, controller name, ID, type, MAC |
+| **gofa-elog** | RWS | Controller event log entries (domain, count configurable) |
+
+### Motion — TCP socket
+
+| Node | Protocol | What it does |
+|---|:---:|---|
+| **gofa-move** | TCP | HOME (go to saved home) or SETHOME (save current pose as home) |
+| **gofa-movej** | TCP | Absolute joint move to target angles `[j1..j6]` in degrees |
+| **gofa-jog** | TCP | Move TCP by relative step (mm, base frame) or rotate (deg, tool frame) |
+| **gofa-joint-jog** | TCP | Rotate a single joint by a relative angle |
+| **gofa-grip** | TCP | Activate (GRIPON) or deactivate (GRIPOFF) gripper via digital output |
+| **gofa-zone-set** | TCP | Set path blend radius (fine / z1 / z5 / z10 / z20 / z50 / z100) |
+| **gofa-stop-motion** | TCP | Halt current motion immediately |
+| **gofa-ping** | TCP | Connectivity test — measures round-trip time to RAPID server |
+
+### Motion — controller
+
+| Node | Protocol | What it does |
+|---|:---:|---|
+| **gofa-motor** | RWS | Enable (motoron) or disable (motoroff) robot motors |
+| **gofa-speed-set** | RWS | Set speed override % (acquires/releases mastership automatically) |
+
+### Saved points
+
+| Node | Protocol | What it does |
+|---|:---:|---|
+| **gofa-save-point** | RWS + Local | Read current pose via RWS, save as named point in `points.json` |
+| **gofa-go-point** | TCP + Local | Look up saved point locally, move robot to it via TCP |
+| **gofa-point-list** | Local | Output the full saved-points array |
+| **gofa-delete-point** | Local | Remove a saved point by name |
+| **gofa-points-export** | Local | Dump entire points list to `msg.payload` (for backup) |
+| **gofa-points-import** | Local | Replace points list from `msg.payload` array (for restore) |
+| **gofa-sequencer** | TCP + Local | Visit saved points in order with configurable dwell, loop, ping-pong |
+| **gofa-stop-seq** | Local | Signal the sequencer to stop after the current step |
+
+### RAPID program
+
+| Node | Protocol | What it does |
+|---|:---:|---|
+| **gofa-rapid-var-read** | RWS | Read a RAPID PERS/VAR value (falls back to fileservice if no PC Interface) |
+| **gofa-rapid-exec** | RWS | Start, stop, or reset PP of the RAPID program *(requires PC Interface option)* |
+| **gofa-rapid-var-write** | RWS | Write a value to a RAPID PERS variable *(requires PC Interface option)* |
+
+### Files
+
+| Node | Protocol | What it does |
+|---|:---:|---|
+| **gofa-file-read** | RWS | Download a file from the controller filesystem via fileservice |
+| **gofa-upload-mod** | RWS | Upload a RAPID `.mod` file to the controller filesystem |
+
+### I/O signals
+
+| Node | Protocol | What it does |
+|---|:---:|---|
+| **gofa-io-list** | RWS | List all I/O signals with name, type, and current value |
+| **gofa-di-read** | RWS | Read a digital input signal value (0 or 1) |
+| **gofa-ai-read** | RWS | Read an analog input signal value *(requires external I/O module)* |
+| **gofa-do-write** | RWS | Write a digital output signal (0 or 1) *(requires external I/O module)* |
+| **gofa-ao-write** | RWS | Write an analog output signal (float) *(requires external I/O module)* |
+
+### Lead-through
+
+| Node | Protocol | What it does |
+|---|:---:|---|
+| **gofa-leadthrough-enable** | RWS | Activate hand-guiding (manual mode + enable switch required) |
+| **gofa-leadthrough-disable** | RWS | Deactivate hand-guiding |
+
+### Real-time subscriptions
+
+| Node | Protocol | What it does |
+|---|:---:|---|
+| **gofa-subscribe-state** | WS | Push message on every controller state change (motoron/motoroff/…) |
+| **gofa-subscribe-io** | WS | Push message on every I/O signal change |
+| **gofa-subscribe-var** | RWS poll | Poll a RAPID variable at a configurable interval; toggle on/off with any input |
+| **gofa-subscribe-pose** | RWS poll | Poll TCP position at a configurable interval; toggle on/off with any input |
 
 ---
 
 ## Example flows
 
 **Demo flow** — `flows/gofa_demo_flow.json`  
-Import via Node-RED Menu → Import. Shows all 13 nodes with inject triggers and debug output.
+Import via Node-RED Menu → Import. Shows all 39 nodes across 14 groups with inject triggers and debug output.
 
 **Palette dashboard** — `nodered/robot_palette_flow.json`  
 Full robot control dashboard built exclusively with palette nodes. Import it, then open `http://localhost:1880/robot` in a browser. Features: live status, all jog axes, save/go/delete points, sequencer with loop + back-and-forth options.
