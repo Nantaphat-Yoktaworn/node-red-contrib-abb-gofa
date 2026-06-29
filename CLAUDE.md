@@ -99,7 +99,7 @@ GOTO token rounds to 1 dp (xyz) / 4 dp (quaternion) to stay under RAPID's 80-cha
 
 | Setting | Value |
 |---------|-------|
-| Robot IP | `192.168.20.18` |
+| Robot IP | `192.168.20.17` |
 | RWS port | `443` (HTTPS, self-signed cert — `rejectUnauthorized: false`) |
 | Socket port | `1025` |
 | Username | `Admin` |

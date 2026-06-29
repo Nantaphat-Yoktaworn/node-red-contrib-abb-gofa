@@ -2026,7 +2026,7 @@
     "type": "comment",
     "z": "4882a62fc667fd1f",
     "g": "ec2c96597318fe47",
-    "name": "SPEED-SET: speed override % via RAPID socket (no mastership)  |  RAPID-VAR-READ: read PERS/VAR  |  RAPID-VAR-WRITE / RAPID-EXEC: require PC Interface RobotWare option (not on standard OmniCore C30)",
+    "name": "SPEED-SET: speed override % via RAPID socket (no mastership)  |  RAPID-VAR-READ / RAPID-VAR-WRITE / RAPID-EXEC: require PC Interface option (616-1) — NOT licensed on this controller",
     "info": "",
     "x": 1420,
     "y": 520,
@@ -3284,6 +3284,132 @@
     "info": "",
     "x": 1600,
     "y": 1310,
+    "wires": []
+  },
+  {
+    "id": "grp_rapid_exec_15",
+    "type": "group",
+    "z": "4882a62fc667fd1f",
+    "name": "15 - RAPID Execution Control",
+    "style": {
+      "stroke": "#cc6600",
+      "stroke-opacity": "1",
+      "fill": "#fff5e8",
+      "fill-opacity": "0.5",
+      "label": true,
+      "label-position": "nw",
+      "color": "#cc6600"
+    },
+    "nodes": [
+      "cmt_rapid_exec",
+      "inj_rapid_start",
+      "inj_rapid_stop",
+      "inj_rapid_resetpp",
+      "nd_rapid_exec",
+      "dbg_rapid_exec"
+    ],
+    "x": 994,
+    "y": 2281,
+    "w": 900,
+    "h": 252
+  },
+  {
+    "id": "cmt_rapid_exec",
+    "type": "comment",
+    "z": "4882a62fc667fd1f",
+    "g": "grp_rapid_exec_15",
+    "name": "RAPID-EXEC: start / stop / resetpp  |  ⚠ Requires PC Interface option (616-1) — NOT licensed on this controller (RW 7.21.0)  |  POST returns HTTP 405 without it",
+    "info": "",
+    "x": 1400,
+    "y": 2325,
+    "wires": []
+  },
+  {
+    "id": "inj_rapid_start",
+    "type": "inject",
+    "z": "4882a62fc667fd1f",
+    "g": "grp_rapid_exec_15",
+    "name": "RAPID Start",
+    "props": [
+      { "p": "payload" }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "{\"action\":\"start\"}",
+    "payloadType": "json",
+    "x": 1080,
+    "y": 2370,
+    "wires": [["nd_rapid_exec"]]
+  },
+  {
+    "id": "inj_rapid_stop",
+    "type": "inject",
+    "z": "4882a62fc667fd1f",
+    "g": "grp_rapid_exec_15",
+    "name": "RAPID Stop",
+    "props": [
+      { "p": "payload" }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "{\"action\":\"stop\"}",
+    "payloadType": "json",
+    "x": 1080,
+    "y": 2420,
+    "wires": [["nd_rapid_exec"]]
+  },
+  {
+    "id": "inj_rapid_resetpp",
+    "type": "inject",
+    "z": "4882a62fc667fd1f",
+    "g": "grp_rapid_exec_15",
+    "name": "RAPID Reset PP",
+    "props": [
+      { "p": "payload" }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "{\"action\":\"resetpp\"}",
+    "payloadType": "json",
+    "x": 1080,
+    "y": 2470,
+    "wires": [["nd_rapid_exec"]]
+  },
+  {
+    "id": "nd_rapid_exec",
+    "type": "gofa-rapid-exec",
+    "z": "4882a62fc667fd1f",
+    "g": "grp_rapid_exec_15",
+    "name": "",
+    "robot": "cfg1",
+    "action": "start",
+    "x": 1360,
+    "y": 2420,
+    "wires": [["dbg_rapid_exec"]]
+  },
+  {
+    "id": "dbg_rapid_exec",
+    "type": "debug",
+    "z": "4882a62fc667fd1f",
+    "g": "grp_rapid_exec_15",
+    "name": "{ ok, action } or { ok:false, error }",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1620,
+    "y": 2420,
     "wires": []
   }
 ]

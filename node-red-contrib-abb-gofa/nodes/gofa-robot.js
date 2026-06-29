@@ -8,7 +8,7 @@ const path  = require('path');
 module.exports = function(RED) {
     function GoFaRobotNode(config) {
         RED.nodes.createNode(this, config);
-        this.ip         = config.ip         || '192.168.20.18';
+        this.ip         = config.ip         || '192.168.20.17';
         this.rwsPort    = parseInt(config.rwsPort)    || 443;
         this.socketPort = parseInt(config.socketPort) || 1025;
         this.username   = config.username   || 'Admin';

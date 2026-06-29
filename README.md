@@ -64,7 +64,7 @@ Open any GoFa node → edit → click the **pencil icon** next to Robot to creat
 
 | Field | Default | Description |
 |---|---|---|
-| Robot IP | `192.168.20.18` | Controller IP address |
+| Robot IP | `192.168.20.17` | Controller IP address |
 | RWS Port | `443` | HTTPS port for Robot Web Services |
 | Socket Port | `1025` | TCP port for the RAPID socket server |
 | Username | `Admin` | RWS login |
@@ -188,6 +188,6 @@ Saved points are stored in `points.json` (on the Node-RED host), not on the robo
 ## Robot connection test
 
 ```bash
-printf 'HOME\n' | nc -w 3 192.168.20.18 1025
+printf 'HOME\n' | nc -w 3 192.168.20.17 1025
 # Expected: OK:HOME
 ```
