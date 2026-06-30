@@ -26,11 +26,16 @@ module.exports = function(RED) {
                 return done();
             }
 
-            // RWS 2.0 (OmniCore) path-based actions. No external mastership needed:
-            // start works when RAPID is idle; stop requires RMMP privilege (set in
-            // FlexPendant → UAS → Admin user → Remote privilege).
-            node.robot.rwsPost('/rw/rapid/execution/' + action, bodies[action])
-            .then(function() {
+            // RWS 2.0 (OmniCore) path-based actions.
+            // resetpp requires edit mastership (/rw/mastership/edit/request).
+            // start/stop work without mastership given Remote Start/Stop UAS grant.
+            var doAction = action === 'resetpp'
+                ? node.robot.withMastership(function() {
+                    return node.robot.rwsPost('/rw/rapid/execution/resetpp', '');
+                })
+                : node.robot.rwsPost('/rw/rapid/execution/' + action, bodies[action]);
+
+            doAction.then(function() {
                 msg.payload = { ok: true, action: action };
                 node.status({ fill: 'green', shape: 'dot', text: labels[action] });
                 send(msg); done();
@@ -38,7 +43,7 @@ module.exports = function(RED) {
             .catch(function(err) {
                 var hint = '';
                 if (err.message.indexOf('-757') >= 0 || err.message.indexOf('not allowed access') >= 0) {
-                    hint = ' (stop/resetpp requires RMMP Remote privilege — FlexPendant → UAS → Admin user)';
+                    hint = ' (requires Remote Start/Stop grant — RobotStudio → Edit User Accounts)';
                 }
                 msg.payload = { ok: false, error: err.message + hint };
                 node.status({ fill: 'red', shape: 'ring', text: 'error' });

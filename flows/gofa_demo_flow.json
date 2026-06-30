@@ -3250,10 +3250,10 @@
     "id": "cfg1",
     "type": "gofa-robot",
     "name": "GoFa 15000",
-    "ip": "192.168.20.17",
+    "ip": "192.168.20.15",
     "rwsPort": "443",
     "socketPort": "1025",
-    "username": "Admin",
+    "username": "NNNN",
     "pointsFile": "points.json"
   },
   {

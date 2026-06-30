@@ -3,10 +3,10 @@
         category: 'config',
         defaults: {
             name:        { value: '' },
-            ip:          { value: '192.168.20.17', required: true },
+            ip:          { value: '192.168.20.15', required: true },
             rwsPort:     { value: '443',  required: true },
             socketPort:  { value: '1025', required: true },
-            username:    { value: 'Admin' },
+            username:    { value: 'NNNN' },
             pointsFile:  { value: 'points.json' }
         },
         credentials: { password: { type: 'password' } },
@@ -20,7 +20,7 @@
     </div>
     <div class="form-row">
         <label for="node-config-input-ip"><i class="fa fa-globe"></i> Robot IP</label>
-        <input type="text" id="node-config-input-ip" placeholder="192.168.20.17">
+        <input type="text" id="node-config-input-ip" placeholder="192.168.20.15">
     </div>
     <div class="form-row">
         <label for="node-config-input-rwsPort"><i class="fa fa-plug"></i> RWS Port</label>
@@ -32,7 +32,7 @@
     </div>
     <div class="form-row">
         <label for="node-config-input-username"><i class="fa fa-user"></i> Username</label>
-        <input type="text" id="node-config-input-username" placeholder="Admin">
+        <input type="text" id="node-config-input-username" placeholder="NNNN">
     </div>
     <div class="form-row">
         <label for="node-config-input-password"><i class="fa fa-lock"></i> Password</label>

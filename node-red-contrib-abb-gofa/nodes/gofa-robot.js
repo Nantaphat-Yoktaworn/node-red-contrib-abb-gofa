@@ -8,10 +8,10 @@ const path  = require('path');
 module.exports = function(RED) {
     function GoFaRobotNode(config) {
         RED.nodes.createNode(this, config);
-        this.ip         = config.ip         || '192.168.20.17';
+        this.ip         = config.ip         || '192.168.20.15';
         this.rwsPort    = parseInt(config.rwsPort)    || 443;
         this.socketPort = parseInt(config.socketPort) || 1025;
-        this.username   = config.username   || 'Admin';
+        this.username   = config.username   || 'NNNN';
         this.password   = (this.credentials && this.credentials.password) || 'robotics';
         this.pointsFile = config.pointsFile || path.join(RED.settings.userDir || '.', 'points.json');
 
@@ -129,17 +129,22 @@ module.exports = function(RED) {
         return this._getSession().then(function() { return node._request('POST', p, b, false); });
     };
     GoFaRobotNode.prototype.withMastership = function(fn) {
+        return this._withMastershipDomain('edit', fn);
+    };
+    GoFaRobotNode.prototype._withMastershipDomain = function(domain, fn) {
         var node = this;
+        var req = '/rw/mastership/' + domain + '/request';
+        var rel = '/rw/mastership/' + domain + '/release';
         return node._getSession()
-            .then(function() { return node._request('POST', '/rw/mastership/request', '', false); })
+            .then(function() { return node._request('POST', req, '', false); })
             .then(function() {
                 return fn().then(
                     function(result) {
-                        return node._request('POST', '/rw/mastership/release', '', false)
+                        return node._request('POST', rel, '', false)
                             .then(function() { return result; });
                     },
                     function(err) {
-                        return node._request('POST', '/rw/mastership/release', '', false)
+                        return node._request('POST', rel, '', false)
                             .then(function() { throw err; }, function() { throw err; });
                     }
                 );

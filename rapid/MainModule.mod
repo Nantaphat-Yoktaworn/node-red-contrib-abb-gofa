@@ -54,7 +54,7 @@ MODULE MainModule
     ! -------------------------------------------------------
     ! Socket server state
     ! -------------------------------------------------------
-    CONST string SERVER_IP   := "192.168.20.17";
+    CONST string SERVER_IP   := "192.168.20.15";
     CONST num    SERVER_PORT  := 1025;
 
     ! Persisted home pose (survives restart AND module reload). One line of

@@ -1,19 +1,19 @@
-# ABB-GoFa-12
+# ABB GoFa CRB 15000 — Node-RED Palette
 
-Node-RED palette for controlling the **ABB GoFa CRB 15000** collaborative robot over the network — no extra hardware or licenses required.
+Node-RED palette for controlling the **ABB GoFa CRB 15000** collaborative robot over the network — no extra ABB licenses or hardware required beyond the standard OmniCore C30 controller.
 
 ## What's in this repo
 
 ```
-node-red-contrib-abb-gofa/       ← Node-RED palette package (npm installable)
-dist/
-  node-red-contrib-abb-gofa-*.tgz ← Packaged releases (install via npm)
-flows/
-  gofa_demo_flow.json            ← Demo flow showing all nodes individually
-  robot_palette_flow.json        ← Full robot control dashboard
+node-red-contrib-abb-gofa/       ← Node-RED palette (npm installable)
 rapid/
   MainModule.mod                 ← RAPID socket server (must run on controller)
-  GoFaControl.pgf                ← Program loader file
+  GoFaControl.pgf                ← Program group file
+flows/
+  gofa_demo_flow.json            ← Demo flow — one inject per node
+  robot_palette_flow.json        ← Full robot control dashboard
+dist/
+  node-red-contrib-abb-gofa-*.tgz ← Packaged releases
 ```
 
 ---
@@ -22,172 +22,335 @@ rapid/
 
 - ABB GoFa CRB 15000 with OmniCore C30 controller
 - RobotWare 7.x (tested on 7.21.0)
-- **PC Interface** RobotWare option *(optional — required only for `gofa-rapid-exec` and `gofa-rapid-var-write`; not included on standard OmniCore C30)*
-- **RapidSockets** firewall service enabled on the Public network (RobotStudio → Controller → Configuration → Communication → Firewall Manager)
 - Node-RED v3+
+- Node.js v18+
+- RobotStudio (free) — only needed once for user permission setup
+
+No extra RobotWare options required. RWS (Robot Web Services) is built into every OmniCore controller.
 
 ---
 
-## Setup — 2 steps
+## Quick start
 
-### Step 1 — Load the RAPID program on the controller
+1. [Set your robot's IP address](#1-set-your-robot-ip) (if different from `192.168.20.15`)
+2. [Create an RWS user with Remote Start/Stop permission](#2-create-an-rws-user-robotstudio)
+3. [Upload and run the RAPID program](#3-upload-and-run-the-rapid-program)
+4. [Install the Node-RED palette](#4-install-the-node-red-palette)
+5. [Configure the robot config node](#5-configure-the-robot-config-node)
 
-Upload `rapid/MainModule.mod` to the controller:
+---
 
-```bash
-curl -sk -u Admin:robotics -X PUT -H "Content-Type: text/plain;v=2.0" \
-  --data-binary @rapid/MainModule.mod \
-  "https://<ROBOT_IP>/fileservice/\$HOME/Programs/MainModule.mod"
+## 1. Set your robot IP
+
+If your robot's IP address is **not** `192.168.20.15`, you need to update it in three places before doing anything else.
+
+### Find your robot's IP
+
+On the **FlexPendant**: ABB menu → **Control Panel** → **Network Settings** — the LAN port IP is shown there.
+
+### Update the repo files
+
+Run this in your terminal from the repo root (replace `X.X.X.X` with your IP):
+
+**Windows (PowerShell):**
+```powershell
+$old = "192.168.20.15"; $new = "X.X.X.X"
+Get-ChildItem -Recurse -Include *.js,*.html,*.json,*.mod,*.md |
+  ForEach-Object { (Get-Content $_) -replace $old, $new | Set-Content $_ }
 ```
 
-Then on the **FlexPendant**:
-1. Switch to **AUTO** mode and enable motors
-2. Program Editor → Load → `$HOME/Programs/MainModule.mod`
-3. PP to Main → **Play**
+**Linux / macOS:**
+```bash
+find . -type f \( -name "*.js" -o -name "*.html" -o -name "*.json" -o -name "*.mod" -o -name "*.md" \) \
+  | xargs sed -i 's/192\.168\.20\.15/X.X.X.X/g'
+```
 
-The robot is now listening for commands on port **1025**.
+**Files this touches:**
+| File | What it sets |
+|------|-------------|
+| `rapid/MainModule.mod` | IP the RAPID socket server binds to |
+| `node-red-contrib-abb-gofa/nodes/gofa-robot.js` | Default IP in the config node |
+| `node-red-contrib-abb-gofa/nodes/gofa-robot.html` | Placeholder in the UI |
+| `flows/gofa_demo_flow.json` | Stored IP in the demo flow config |
+| `flows/robot_palette_flow.json` | Stored IP in the dashboard flow config |
 
-### Step 2 — Install the palette in Node-RED
+> **Why MainModule.mod?** The RAPID socket server explicitly binds to the controller's own IP address. If this doesn't match the actual IP, the socket server silently fails to start and all TCP commands will time out.
+
+---
+
+## 2. Create an RWS user (RobotStudio)
+
+The built-in `Admin` account cannot start or stop RAPID remotely. You need to create a dedicated user with Remote Start/Stop permission. This is a one-time setup done in RobotStudio.
+
+### Open RobotStudio and connect
+
+1. Open **RobotStudio** (free download from ABB)
+2. **Controller** tab → **Add Controller** → enter your robot's IP → connect
+3. Log in as `Admin` / `robotics` when prompted
+
+### Create the user
+
+4. In the **Controller** tab ribbon → click **Edit User Accounts**
+
+   *(If you don't see it: try right-clicking the controller name in the left panel → look for Authorization or User Accounts)*
+
+5. Click **Add User**
+6. Set a username (e.g. `nodeuser`) and password (e.g. `robotics`)
+7. In the **Grants** / **Permissions** list, enable:
+   - ✅ **Remote Start** (allows `start` action via RWS)
+   - ✅ **Remote Stop** (allows `stop` and `resetpp` actions via RWS)
+   - ✅ All other grants you want (read-only operations work without grants)
+8. Click **OK** → **Apply**
+
+> **What about `resetpp`?** It requires edit mastership in addition to Remote Stop — the palette handles this automatically using `/rw/mastership/edit/request`.
+
+### Update the palette credentials
+
+Edit `node-red-contrib-abb-gofa/nodes/gofa-robot.js` and `gofa-robot.html` — replace `NNNN` with your chosen username:
+
+```bash
+# Linux / macOS
+sed -i "s/NNNN/nodeuser/g" \
+  node-red-contrib-abb-gofa/nodes/gofa-robot.js \
+  node-red-contrib-abb-gofa/nodes/gofa-robot.html \
+  flows/gofa_demo_flow.json \
+  flows/robot_palette_flow.json
+```
+
+---
+
+## 3. Upload and run the RAPID program
+
+The RAPID socket server (`MainModule.mod`) must be running on the controller for all motion commands to work. RWS-only nodes (status, pose, joints, I/O) work without it.
+
+### Upload the file
+
+```bash
+curl -sk -u <username>:<password> -X PUT -H "Content-Type: text/plain;v=2.0" \
+  --data-binary @rapid/MainModule.mod \
+  "https://<ROBOT_IP>/fileservice/\$HOME/Programs/MainModule.mod"
+# Expected response: HTTP 200
+```
+
+### Load and start on the FlexPendant
+
+1. Key switch → **AUTO** mode
+2. Enable motors (green button or ABB menu → **Production Window** → motors on)
+3. **Program Editor** → **File** → **Load Program** → navigate to `$HOME/Programs/` → select `MainModule.mod`
+4. **PP to Main** → press **Play** (▶)
+
+The robot is now listening for socket commands on port **1025**.
+
+### Test the connection
+
+```bash
+# Linux / macOS
+printf 'PING\n' | nc -w 3 <ROBOT_IP> 1025
+# Expected: OK:PING
+
+# Windows PowerShell
+$tcp = New-Object System.Net.Sockets.TcpClient("<ROBOT_IP>", 1025)
+$s = $tcp.GetStream(); $b = [System.Text.Encoding]::ASCII.GetBytes("PING`n")
+$s.Write($b,0,$b.Length); Start-Sleep -m 500
+$r = New-Object byte[] 64; $n = $s.Read($r,0,64)
+[System.Text.Encoding]::ASCII.GetString($r,0,$n)
+$tcp.Close()
+```
+
+---
+
+## 4. Install the Node-RED palette
 
 ```bash
 cd ~/.node-red
 npm install /path/to/node-red-contrib-abb-gofa
 ```
 
-Restart Node-RED. The **ABB-GoFa-12** section will appear in the palette.
+Or from a packaged release:
+
+```bash
+cd ~/.node-red
+npm install /path/to/dist/node-red-contrib-abb-gofa-1.0.1.tgz
+```
+
+Restart Node-RED. The **ABB GoFa** section will appear in the palette sidebar.
+
+> **Note (local install):** npm 7+ creates a symlink instead of copying. The palette depends on the `ws` package — run `npm install` once inside the palette directory to make sure it resolves correctly:
+> ```bash
+> cd /path/to/node-red-contrib-abb-gofa && npm install
+> ```
 
 ---
 
-## Configuration
+## 5. Configure the robot config node
 
-Open any GoFa node → edit → click the **pencil icon** next to Robot to create a config node:
+Every GoFa node shares a single **gofa-robot** config node. Open any GoFa node → click the pencil icon next to **Robot**:
 
 | Field | Default | Description |
-|---|---|---|
-| Robot IP | `192.168.20.17` | Controller IP address |
-| RWS Port | `443` | HTTPS port for Robot Web Services |
+|-------|---------|-------------|
+| Robot IP | `192.168.20.15` | Controller IP — must match Step 1 |
+| RWS Port | `443` | HTTPS port (built-in, do not change) |
 | Socket Port | `1025` | TCP port for the RAPID socket server |
-| Username | `Admin` | RWS login |
-| Password | `robotics` | RWS password |
-| Points File | `points.json` | Where saved points are stored on disk |
+| Username | `NNNN` | The user you created in Step 2 |
+| Password | `robotics` | The password you set in Step 2 |
+| Points File | `points.json` | Saved robot positions on the Node-RED host |
+
+Click **Update** → **Deploy**.
 
 ---
 
-## Nodes
+## Import the demo flow
 
-Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = Robot Web Services HTTPS port 443 · **WS** = RWS WebSocket subscription · **Local** = no network (reads/writes `points.json` on Node-RED host)
+**Menu → Import → select a file:**
+
+| Flow | What it does |
+|------|-------------|
+| `flows/gofa_demo_flow.json` | One inject per node — good for testing each feature |
+| `flows/robot_palette_flow.json` | Full dashboard at `http://localhost:1880/robot` |
+
+After importing, open the **gofa-robot** config node (click any GoFa node → pencil icon) and verify the IP and credentials match your setup.
+
+---
+
+## Nodes reference
+
+Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST API port 443 · **WS** = RWS WebSocket · **Local** = no network (`points.json` on Node-RED host)
 
 ### Read robot state
 
 | Node | Protocol | What it does |
-|---|:---:|---|
-| **gofa-status** | RWS | Controller state, op-mode, speed override, RAPID execution state |
-| **gofa-pose** | RWS | TCP position (x, y, z + quaternion + config flags) |
+|------|:--------:|-------------|
+| **gofa-status** | RWS | Controller state, op-mode, speed %, RAPID exec state |
+| **gofa-pose** | RWS | TCP position (x, y, z mm + quaternion + config flags) |
 | **gofa-joints** | RWS | All 6 joint angles in degrees |
-| **gofa-system-info** | RWS | RobotWare version, controller name, ID, type, MAC |
-| **gofa-elog** | RWS | Controller event log entries (domain, count configurable) |
+| **gofa-system-info** | RWS | RobotWare version, controller name/ID/MAC |
+| **gofa-elog** | RWS | Controller event log |
 
-### Motion — TCP socket
-
-| Node | Protocol | What it does |
-|---|:---:|---|
-| **gofa-move** | TCP | HOME (go to saved home) or SETHOME (save current pose as home) |
-| **gofa-movej** | TCP | Absolute joint move to target angles `[j1..j6]` in degrees |
-| **gofa-jog** | TCP | Move TCP by relative step (mm, base frame) or rotate (deg, tool frame) |
-| **gofa-joint-jog** | TCP | Rotate a single joint by a relative angle |
-| **gofa-grip** | TCP | Activate (GRIPON) or deactivate (GRIPOFF) gripper via digital output |
-| **gofa-zone-set** | TCP | Set path blend radius (fine / z1 / z5 / z10 / z20 / z50 / z100) |
-| **gofa-stop-motion** | TCP | Halt current motion immediately |
-| **gofa-ping** | TCP | Connectivity test — measures round-trip time to RAPID server |
-
-### Motion — controller
+### Motion
 
 | Node | Protocol | What it does |
-|---|:---:|---|
-| **gofa-motor** | RWS | Enable (motoron) or disable (motoroff) robot motors |
-| **gofa-speed-set** | TCP | Set speed override % via RAPID `SpeedRefresh` (no mastership required) |
+|------|:--------:|-------------|
+| **gofa-motor** | RWS | Motors on / off |
+| **gofa-speed-set** | TCP | Speed override 1–100% |
+| **gofa-move** | TCP | HOME (go to home) or SETHOME (save current pose as home) |
+| **gofa-movej** | TCP | Absolute joint move `[j1..j6]` degrees |
+| **gofa-jog** | TCP | Relative TCP translate (mm, base frame) or rotate (°, tool frame) |
+| **gofa-joint-jog** | TCP | Rotate single joint by ± degrees |
+| **gofa-zone-set** | TCP | Path blend zone (fine / z1 / z5 / z10 / z20 / z50 / z100) |
+| **gofa-stop-motion** | TCP | Halt motion immediately |
+| **gofa-ping** | TCP | Round-trip latency test |
+| **gofa-grip** | TCP | GRIPON / GRIPOFF via digital output |
+| **gofa-leadthrough-enable** | RWS | Activate hand-guiding (manual mode + enable switch required) |
+| **gofa-leadthrough-disable** | RWS | Deactivate hand-guiding |
 
 ### Saved points
 
 | Node | Protocol | What it does |
-|---|:---:|---|
-| **gofa-save-point** | RWS + Local | Read current pose via RWS, save as named point in `points.json` |
-| **gofa-go-point** | TCP + Local | Look up saved point locally, move robot to it via TCP |
+|------|:--------:|-------------|
+| **gofa-save-point** | RWS + Local | Read current pose, save as named point in `points.json` |
+| **gofa-go-point** | TCP + Local | Look up a saved point and move to it |
 | **gofa-point-list** | Local | Output the full saved-points array |
 | **gofa-delete-point** | Local | Remove a saved point by name |
-| **gofa-points-export** | Local | Dump entire points list to `msg.payload` (for backup) |
-| **gofa-points-import** | Local | Replace points list from `msg.payload` array (for restore) |
-| **gofa-sequencer** | TCP + Local | Visit saved points in order with configurable dwell, loop, ping-pong |
-| **gofa-stop-seq** | Local | Signal the sequencer to stop after the current step |
+| **gofa-points-export** | Local | Dump points list to `msg.payload` |
+| **gofa-points-import** | Local | Replace points list from `msg.payload` |
+| **gofa-sequencer** | TCP + Local | Visit saved points in order — dwell, loop, ping-pong |
+| **gofa-stop-seq** | Local | Signal the sequencer to stop after current step |
 
-### RAPID program
-
-| Node | Protocol | What it does |
-|---|:---:|---|
-| **gofa-rapid-var-read** | RWS | Read a RAPID PERS/VAR value (falls back to fileservice if no PC Interface) |
-| **gofa-rapid-exec** | RWS | Start, stop, or reset PP of the RAPID program *(requires PC Interface RobotWare option — not included on standard OmniCore C30)* |
-| **gofa-rapid-var-write** | RWS | Write a value to a RAPID PERS variable *(requires PC Interface option)* |
-
-### Files
+### RAPID program control
 
 | Node | Protocol | What it does |
-|---|:---:|---|
-| **gofa-file-read** | RWS | Download a file from the controller filesystem via fileservice |
-| **gofa-upload-mod** | RWS | Upload a RAPID `.mod` file to the controller filesystem |
+|------|:--------:|-------------|
+| **gofa-rapid-exec** | RWS | `start` / `stop` / `resetpp` the RAPID program |
+| **gofa-rapid-var-read** | RWS | Read a RAPID PERS or VAR value |
+| **gofa-rapid-var-write** | RWS | Write a value to a RAPID PERS variable |
 
-### I/O signals
+> `gofa-rapid-exec` requires the RWS user to have **Remote Start** and **Remote Stop** grants (see Step 2). `resetpp` additionally acquires edit mastership automatically — no extra setup needed.
 
-| Node | Protocol | What it does |
-|---|:---:|---|
-| **gofa-io-list** | RWS | List all I/O signals with name, type, and current value |
-| **gofa-di-read** | RWS | Read a digital input signal value (0 or 1) |
-| **gofa-ai-read** | RWS | Read an analog input signal value *(requires external I/O module)* |
-| **gofa-do-write** | RWS | Write a digital output signal (0 or 1) *(requires external I/O module)* |
-| **gofa-ao-write** | RWS | Write an analog output signal (float) *(requires external I/O module)* |
-
-### Lead-through
+### Files and I/O
 
 | Node | Protocol | What it does |
-|---|:---:|---|
-| **gofa-leadthrough-enable** | RWS | Activate hand-guiding (manual mode + enable switch required) |
-| **gofa-leadthrough-disable** | RWS | Deactivate hand-guiding |
+|------|:--------:|-------------|
+| **gofa-file-read** | RWS | Download a file from the controller filesystem |
+| **gofa-upload-mod** | RWS | Upload a `.mod` file to the controller filesystem |
+| **gofa-io-list** | RWS | List all I/O signals |
+| **gofa-di-read** | RWS | Read a digital input (0 or 1) |
+| **gofa-ai-read** | RWS | Read an analog input |
+| **gofa-do-write** | RWS | Write a digital output (0 or 1) |
+| **gofa-ao-write** | RWS | Write an analog output (float) |
 
 ### Real-time subscriptions
 
 | Node | Protocol | What it does |
-|---|:---:|---|
-| **gofa-subscribe-state** | WS | Push message on every controller state change (motoron/motoroff/…) |
-| **gofa-subscribe-io** | WS | Push message on every I/O signal change |
-| **gofa-subscribe-var** | RWS poll | Poll a RAPID variable at a configurable interval; toggle on/off with any input |
-| **gofa-subscribe-pose** | RWS poll | Poll TCP position at a configurable interval; toggle on/off with any input |
+|------|:--------:|-------------|
+| **gofa-subscribe-state** | WS | Push on every controller state change (motoron / motoroff / …) |
+| **gofa-subscribe-io** | WS | Push on every I/O signal change |
+| **gofa-subscribe-var** | RWS poll | Poll a RAPID variable on an interval |
+| **gofa-subscribe-pose** | RWS poll | Poll TCP position on an interval |
 
 ---
 
-## Example flows
+## How it works
 
-**Demo flow** — `flows/gofa_demo_flow.json`  
-Import via Node-RED Menu → Import. Shows all nodes across groups with inject triggers and debug output. Note: `gofa-rapid-exec` is excluded — it requires the PC Interface RobotWare option not present on standard controllers.
+**Two communication layers:**
 
-**Palette dashboard** — `flows/robot_palette_flow.json`  
-Full robot control dashboard built exclusively with palette nodes. Import it, then open `http://localhost:1880/robot` in a browser. Features: live status, all jog axes, save/go/delete points, sequencer with loop + back-and-forth options.
+```
+Node-RED ──TCP 1025──▶ RAPID socket server (MainModule.mod)
+                            └─ motion commands (jog, move, HOME …)
 
----
+Node-RED ──HTTPS 443──▶ RWS built into OmniCore
+                            └─ read state, motor on/off, RAPID start/stop, I/O
+```
 
-## How movement works
+All motion commands go through the RAPID TCP socket. This avoids mastership conflicts with the FlexPendant and gives instant `OK:` acknowledgment before the move executes. RWS is used only for reads and non-motion control.
 
-All moves go through the RAPID TCP socket server (port 1025), not the RWS API. This means:
-
-- **No mastership conflicts** — the FlexPendant can stay connected
-- **Instant ack** — the robot sends `OK:` before the move starts so the UI stays responsive
-- **Automatic recovery** — singularity or out-of-reach errors are caught inside RAPID and don't kill the server
-
-Saved points are stored in `points.json` (on the Node-RED host), not on the robot.
+Saved points are stored in `points.json` on the Node-RED host — not on the robot.
 
 ---
 
-## Robot connection test
+## Troubleshooting
+
+### Socket commands time out (jog, HOME, ping …)
+
+1. Confirm RAPID is running on the FlexPendant (green play indicator)
+2. Check `rapid/MainModule.mod` — `SERVER_IP` must match your robot's actual IP
+3. Re-upload the `.mod` and reload on the FlexPendant if you changed the IP
+4. Verify port 1025 is reachable: `nc -zv <ROBOT_IP> 1025`
+
+### RWS returns 401
+
+Session expired. The palette auto-retries with credentials — if it keeps failing, check the username and password in the config node.
+
+### `gofa-rapid-exec` returns 403
+
+| Error code | Cause | Fix |
+|------------|-------|-----|
+| `icode:-757` | User lacks Remote Start/Stop grant | RobotStudio → Edit User Accounts → add Remote Start/Stop grants |
+| `org_code:-4501` on resetpp | Edit mastership not acquired | Update to latest palette — `resetpp` now wraps in `withMastership('edit')` automatically |
+
+### `gofa-subscribe-*` shows "unknown node type"
+
+Run `npm install` inside the palette directory so the `ws` package resolves when npm has symlinked the package:
 
 ```bash
-printf 'HOME\n' | nc -w 3 192.168.20.17 1025
-# Expected: OK:HOME
+cd /path/to/node-red-contrib-abb-gofa && npm install
 ```
+
+Then restart Node-RED.
+
+### RWS returns 405 (method not allowed)
+
+This palette targets **OmniCore / RWS 2.0** which uses path-based actions (e.g. `/rw/rapid/execution/start`). If you see 405, you may be connecting to an IRC5 controller running RWS 1.0 — the endpoint format is different.
+
+---
+
+## Default connection settings
+
+| Setting | Value |
+|---------|-------|
+| Robot IP | `192.168.20.15` |
+| RWS port | `443` (HTTPS, self-signed cert) |
+| Socket port | `1025` |
+| Username | `NNNN` |
+| Password | `robotics` |
+
+The self-signed HTTPS certificate on the controller is accepted automatically (`rejectUnauthorized: false`).
