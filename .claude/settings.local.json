@@ -8,7 +8,27 @@
       "Bash(node-red --version)",
       "Read(//home/dan/.node-red/**)",
       "Bash(git -C /home/dan/nnnn/ABB-GoFa-12 ls-files .claude/)",
-      "Bash(git -C /home/dan/nnnn/ABB-GoFa-12 ls-files --others --exclude-standard .claude/)"
+      "Bash(git -C /home/dan/nnnn/ABB-GoFa-12 ls-files --others --exclude-standard .claude/)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git config *)",
+      "Bash(git push *)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:abb-robot-machine-vision.readthedocs.io)",
+      "WebFetch(domain:forums.robotstudio.com)",
+      "WebFetch(domain:tech-community.robotics.abb.com)",
+      "WebFetch(domain:docs.aica.tech)",
+      "WebFetch(domain:help.dragandbot.com)",
+      "WebFetch(domain:pypi.org)",
+      "WebFetch(domain:docs.mech-mind.net)",
+      "Bash(rm -f /tmp/abb3.txt)",
+      "Bash(curl -sk -u Admin:robotics -c /tmp/abb3.txt -b /tmp/abb3.txt -H 'Accept: application/xhtml+xml;v=2.0' __TRACKED_VAR__/rw/system)",
+      "Bash(curl -sk -b /tmp/abb3.txt -H 'Accept: application/xhtml+xml;v=2.0' __TRACKED_VAR__/users)",
+      "Read(//c/Users/anapa/.node-red/**)",
+      "Bash(npm install *)",
+      "Bash(gh auth *)",
+      "Bash(gh issue *)"
     ]
   }
 }

@@ -92,17 +92,33 @@ Returns: `204 No Content` on success
 
 ### Mastership — `/rw/mastership/`
 
-Mastership gates write access to panel resources (speedratio) and RAPID symbol writes.
+**OmniCore has two mastership domains — they are independent:**
 
+#### General mastership (motion domain)
 ```
-POST /rw/mastership/request   — acquire mastership (204 on success)
-POST /rw/mastership/release   — release mastership (204 on success)
+POST /rw/mastership/request   — always blocked on OmniCore (HTTP 403 org_code:-13)
+POST /rw/mastership/release
 ```
+On OmniCore, the RAPID runtime holds motion mastership internally at all times (even when RAPID is stopped). `POST /rw/mastership/request` will always return 403. Do not use this for `resetpp` or RAPID var writes.
 
-**Notes**:
-- `/rw/mastership/edit` and `/rw/mastership/motion` paths exist but do NOT accept POST — they return "wrong uri". Use the bare `request`/`release` paths above.
-- Mastership is session-scoped; always release in an error handler too.
-- Not required for: I/O reads, panel ctrl-state, session management.
+#### Edit mastership
+```
+POST /rw/mastership/edit/request   — acquire edit mastership (204 on success)
+POST /rw/mastership/edit/release   — release edit mastership (204 on success)
+```
+Edit mastership is a separate domain from motion mastership. It works even while RAPID is running or stopped.
+
+**Required for:**
+- `POST /rw/rapid/execution/resetpp`
+- RAPID variable writes (`PUT /rw/rapid/symbol/data/...`)
+
+**Not required for:**
+- `start` / `stop` (need UAS grants instead)
+- Motor on/off (`ctrl-state`)
+- Read-only RWS calls
+- I/O reads
+
+The palette uses `GoFaRobotNode.prototype.withMastership(fn)` which wraps `_withMastershipDomain('edit', fn)`. Always release in both success and error handlers.
 
 ---
 
@@ -112,6 +128,37 @@ POST /rw/mastership/release   — release mastership (204 on success)
 Read RAPID execution state.  
 Response class: `ctrlexecstate`  
 Values: `running` | `stopped`
+
+#### POST /rw/rapid/execution/start
+Start RAPID program execution.  
+Body: `regain=continue&execmode=continue&cycle=forever&condition=none&stopatbp=disabled&alltaskbytsp=false`  
+Returns: `204 No Content`  
+**Requires: Remote Start UAS grant** (set in RobotStudio → Edit User Accounts). Not mastership.  
+Error `icode:-757` = user lacks Remote Start grant.
+
+#### POST /rw/rapid/execution/stop
+Stop RAPID program execution.  
+Body: `stopmode=stop&usetsp=normal`  
+Returns: `204 No Content`  
+**Requires: Remote Stop UAS grant.**  
+Error `icode:-757` = user lacks Remote Stop grant.
+
+#### POST /rw/rapid/execution/resetpp
+Reset program pointer to main.  
+Body: (empty)  
+Returns: `204 No Content`  
+**Requires: edit mastership** (`POST /rw/mastership/edit/request` first).  
+Error `org_code:-4501` = edit mastership not held.
+
+> **OmniCore note:** All three use **path-based** URLs (RWS 2.0). The IRC5 format `POST /rw/rapid/execution?action=start` returns **HTTP 405** on OmniCore.
+
+#### Remote Start/Stop — UAS grants (not RMMP)
+
+To start/stop RAPID via RWS, the RWS user needs UAS grants, not RMMP privileges:
+- `POST /users/rmmp` with `privilege=modify` → HTTP 403 `icode:-4502` — wrong mechanism
+- Built-in `Admin` account cannot start/stop RAPID remotely regardless of RMMP
+- Correct: create a user in **RobotStudio → Edit User Accounts** with **Remote Start** + **Remote Stop** grants
+- In RobotWare 7, UAS management is in RobotStudio only (not on FlexPendant)
 
 ---
 
@@ -227,10 +274,22 @@ States: `PENDING` | `IN_PROGRESS` | `DONE` | `FAILED`
 
 ---
 
+## I/O Service — `/rw/iosystem/`
+
+#### POST /rw/iosystem/signals/{name}/set
+Set an I/O signal value.  
+Body: `lvalue=<value>` (0 or 1 for digital, float for analog)  
+Returns: `204 No Content`  
+> OmniCore path-based format. IRC5 format (`?action=set`) returns HTTP 405.
+
+---
+
 ## Notes for This Project
 
+- Controller IP: `192.168.20.15`, credentials: `NNNN:robotics`
 - `rejectUnauthorized: false` is set in all HTTPS requests (self-signed cert on controller)
 - The project uses Basic auth (not Digest) on first request, then cookie for subsequent requests
 - Cookie is stored in `robot._cookie` on the config node and cleared on 401
 - All RWS calls go through `robot.rwsGet()` / `robot.rwsPost()` helpers in `gofa-robot.js`
 - Response parsing uses `robot.parseXhtml(body, className)` — regex-based, not a DOM parser
+- `withMastership(fn)` uses edit domain (`/rw/mastership/edit/...`), not general mastership
