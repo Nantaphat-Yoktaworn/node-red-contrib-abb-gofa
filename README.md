@@ -11,7 +11,8 @@ rapid/
   GoFaControl.pgf                ← Program group file
 flows/
   gofa_demo_flow.json            ← Demo flow — one inject per node
-  robot_palette_flow.json        ← Full robot control dashboard
+  robot_palette_flow.json        ← Full robot control palette flow
+  gofa_payload_test_flow.json    ← Payload override tests for 6 updated nodes
 dist/
   node-red-contrib-abb-gofa-*.tgz ← Packaged releases
 ```
@@ -206,7 +207,8 @@ Click **Update** → **Deploy**.
 | Flow | What it does |
 |------|-------------|
 | `flows/gofa_demo_flow.json` | One inject per node — good for testing each feature |
-| `flows/robot_palette_flow.json` | Full dashboard at `http://localhost:1880/robot` |
+| `flows/robot_palette_flow.json` | Full robot control palette flow |
+| `flows/gofa_payload_test_flow.json` | msg.payload override tests for the 6 updated nodes |
 
 After importing, open the **gofa-robot** config node (click any GoFa node → pencil icon) and verify the IP and credentials match your setup.
 
@@ -314,6 +316,56 @@ ELSEIF varname = "MYSPEED" THEN
 > Variable names in socket commands are **uppercased** automatically (`nMySpeed` → sent as `GETVAR:nMySpeed` → matched as `NMYSPEED`). String values sent to `SETVAR` preserve their original case and spaces.
 
 After editing `MainModule.mod`, re-upload it and reload on the FlexPendant.
+
+---
+
+## msg.payload conventions
+
+Every node that has configurable action parameters follows the same priority chain:
+
+```
+msg.payload  →  node property (editor)  →  built-in default
+```
+
+### Nodes with configurable payload
+
+| Node | Accepted payload forms | Default |
+|------|----------------------|---------|
+| **gofa-motor** | `'motoron'` / `'motoroff'` (string) · `{ action: 'motoron' }` | `motoron` |
+| **gofa-move** | `'HOME'` / `'SETHOME'` (string) · `{ command: 'HOME' }` | `HOME` |
+| **gofa-rapid-exec** | `'start'` / `'stop'` / `'resetpp'` (string) · `{ action: 'start' }` | `start` |
+| **gofa-speed-set** | number or string `1`–`100` | `50` |
+| **gofa-zone-set** | `'fine'` / `'z1'` / `'z5'` / `'z10'` / `'z20'` / `'z50'` / `'z100'` | `z10` |
+| **gofa-grip** | `true` / `1` / `'on'` / `'gripon'` or `false` / `0` / `'off'` / `'gripoff'` · `{ action: 'on' }` | `on` |
+| **gofa-jog** | `{ axis, dir, step }` | X, +, 10 |
+| **gofa-joint-jog** | `{ joint, dir, step }` | J1, +, 5 |
+| **gofa-movej** | `[j1,j2,j3,j4,j5,j6]` or `{ j1, j2, j3, j4, j5, j6 }` | `[0,0,85,0,0,0]` |
+| **gofa-go-point** | `{ name }` or `{ id }` | (property) |
+| **gofa-save-point** | `{ name }` | (property) |
+| **gofa-delete-point** | `{ name }` or `{ id }` | (property) |
+| **gofa-rapid-var-read** | `{ task, module, variable }` | T_ROB1 / MainModule / (property) |
+| **gofa-rapid-var-write** | bare value · `{ variable, value }` | (property) |
+| **gofa-do-write** | `0` or `1` (number) · `{ signal, value }` | signal: DO10_1, value: 0 |
+| **gofa-ao-write** | float (number) · `{ signal, value }` | signal: AO1, value: 0.0 |
+| **gofa-ai-read** | signal name (string) | `AI1` |
+| **gofa-di-read** | signal name (string) | `DI10_1` |
+| **gofa-subscribe-io** | `{ signal }` | `DI10_1` |
+| **gofa-subscribe-var** | `{ task, module, variable }` (toggles polling) | T_ROB1 / MainModule / (property) |
+| **gofa-subscribe-pose** | `{ interval }` ms on start · absent = stops if running | 500 ms |
+| **gofa-file-read** | file path (string) · `{ remotePath, encoding }` | `$HOME/Programs/MainModule.mod` |
+| **gofa-upload-mod** | `Buffer` · file path (string) · `{ localPath, remotePath }` | (property) |
+| **gofa-points-export** | file path (string) · `{ savePath }` | (property / no file) |
+| **gofa-points-import** | file path (string) · `{ loadPath }` · array · `{ points: [...] }` | (property / clear) |
+| **gofa-elog** | `{ domain, count }` | domain: 1, count: 10 |
+| **gofa-sequencer** | `{ steps, dwell, loop, pingpong }` | (property) |
+
+### Trigger-only nodes (no payload needed)
+
+These nodes fire on any input message and ignore `msg.payload`:
+
+`gofa-status` · `gofa-pose` · `gofa-joints` · `gofa-system-info` · `gofa-ping` ·
+`gofa-stop-motion` · `gofa-stop-seq` · `gofa-point-list` ·
+`gofa-leadthrough-enable` · `gofa-leadthrough-disable`
 
 ---
 

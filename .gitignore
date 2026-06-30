@@ -13,6 +13,7 @@ node-red-contrib-abb-gofa/package-lock.json
 !flows/
 !flows/gofa_demo_flow.json
 !flows/robot_palette_flow.json
+!flows/gofa_payload_test_flow.json
 
 # RAPID program
 !rapid/

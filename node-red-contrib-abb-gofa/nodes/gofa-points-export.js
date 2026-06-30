@@ -9,7 +9,10 @@ module.exports = function(RED) {
         node.on('input', function(msg, send, done) {
             if (!node.robot) { node.error('No robot configured', msg); return done(); }
             var points   = node.robot.getPoints();
-            var savePath = msg.savePath || node.savePath || '';
+            var raw      = msg.payload;
+            var savePath = (typeof raw === 'string' && raw) ? raw
+                         : (raw && raw.savePath)             ? raw.savePath
+                         : msg.savePath || node.savePath || '';
             msg.payload  = { ok: true, count: points.length, points: points };
 
             if (!savePath) {

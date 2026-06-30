@@ -7,7 +7,10 @@ module.exports = function(RED) {
         var node = this;
         node.on('input', function(msg, send, done) {
             if (!node.robot) { node.error('No robot configured', msg); return done(); }
-            var cmd = (msg.payload && msg.payload.command) || node.command;
+            var raw = msg.payload;
+            var cmd = (typeof raw === 'string' && raw) ? raw
+                    : (raw && raw.command)             ? raw.command
+                    : node.command;
             node.status({ fill:'blue', shape:'dot', text: cmd });
             node.robot.socketSend(cmd).then(function(ack) {
                 var ok = ack.startsWith('OK:');

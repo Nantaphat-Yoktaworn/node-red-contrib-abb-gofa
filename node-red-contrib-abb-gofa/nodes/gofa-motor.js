@@ -7,7 +7,10 @@ module.exports = function(RED) {
         var node = this;
         node.on('input', function(msg, send, done) {
             if (!node.robot) { node.error('No robot configured', msg); return done(); }
-            var action = (msg.payload && msg.payload.action) || node.action;
+            var raw    = msg.payload;
+            var action = (typeof raw === 'string' && raw) ? raw
+                       : (raw && raw.action)              ? raw.action
+                       : node.action;
             node.status({ fill:'blue', shape:'dot', text: action });
             node.robot.rwsPost('/rw/panel/ctrl-state', 'ctrl-state=' + action)
             .then(function() {

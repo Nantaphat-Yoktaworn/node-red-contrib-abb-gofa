@@ -29,6 +29,26 @@
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-move">
-    <p>Sends HOME or SETHOME to the robot via the RAPID socket server.</p>
-    <p><code>msg.payload.command</code> overrides the property if set.</p>
+    <p>Sends <code>HOME</code> or <code>SETHOME</code> to the robot via the RAPID socket server (port 1025).</p>
+
+    <h3>Input</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">string | object</span></dt>
+        <dd>
+            <ul>
+                <li><b>string</b> — <code>'HOME'</code> or <code>'SETHOME'</code></li>
+                <li><b>object</b> — <code>{ command: 'HOME' }</code></li>
+                <li><b>(absent)</b> — uses the <em>Command</em> dropdown (default: <code>HOME</code>)</li>
+            </ul>
+        </dd>
+    </dl>
+
+    <h3>Output</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd><code>{ ok: true|false, ack: 'OK:HOME' }</code></dd>
+    </dl>
+
+    <h3>Notes</h3>
+    <p><code>SETHOME</code> captures the current TCP pose and persists it to <code>HOME:/Programs/gofa_home.cfg</code> on the controller.</p>
 </script>

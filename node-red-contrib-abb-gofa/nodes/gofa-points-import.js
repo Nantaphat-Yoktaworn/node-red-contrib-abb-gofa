@@ -8,7 +8,14 @@ module.exports = function(RED) {
         var node = this;
         node.on('input', function(msg, send, done) {
             if (!node.robot) { node.error('No robot configured', msg); return done(); }
-            var loadPath = msg.loadPath || node.loadPath || '';
+            var loadPath;
+            if (typeof msg.payload === 'string' && msg.payload) {
+                loadPath = msg.payload;
+            } else if (msg.payload && msg.payload.loadPath) {
+                loadPath = msg.payload.loadPath;
+            } else {
+                loadPath = msg.loadPath || node.loadPath || '';
+            }
             var arr;
 
             if (loadPath) {

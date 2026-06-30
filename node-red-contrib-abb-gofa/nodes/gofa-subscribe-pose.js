@@ -47,8 +47,15 @@ module.exports = function(RED) {
 
         node.on('input', function(msg, send, done) {
             if (!node.robot) { node.error('No robot configured', msg); return done(); }
-            if (node._running) stopPolling();
-            else startPolling();
+            if (node._running) {
+                stopPolling();
+            } else {
+                var raw = msg.payload;
+                if (raw && typeof raw.interval === 'number') {
+                    node.interval = Math.max(100, Math.round(raw.interval));
+                }
+                startPolling();
+            }
             done();
         });
 

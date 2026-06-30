@@ -26,11 +26,21 @@
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-points-export">
-    <p>Exports the saved points list from the robot config node as <code>msg.payload</code>.</p>
-    <p>If <b>Save to file</b> is set, the points array is also written to that path as JSON on the Node-RED host.</p>
+    <p>Exports the saved points list from the robot config node. Optionally writes the list to a file on the Node-RED host.</p>
+
     <h3>Input</h3>
-    <p>Any message triggers the export. <code>msg.payload</code> is ignored.</p>
-    <p>You can also override the save path at runtime by setting <code>msg.savePath</code>.</p>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">string | object</span></dt>
+        <dd>
+            <ul>
+                <li><b>string</b> — file path to save to, e.g. <code>'/data/points_backup.json'</code></li>
+                <li><b>object</b> — <code>{ savePath: '/data/points_backup.json' }</code></li>
+                <li><b>(absent)</b> — uses the <em>Save to file</em> property (empty = no file write)</li>
+            </ul>
+            Legacy: <code>msg.savePath</code> (string) is still accepted as a fallback.
+        </dd>
+    </dl>
+
     <h3>Output</h3>
     <dl class="message-properties">
         <dt>payload.ok <span class="property-type">boolean</span></dt>
@@ -38,10 +48,11 @@
         <dt>payload.count <span class="property-type">number</span></dt>
         <dd>Number of points exported.</dd>
         <dt>payload.points <span class="property-type">array</span></dt>
-        <dd>Array of point objects, each with <code>id</code>, <code>name</code>, and <code>target</code> properties.</dd>
+        <dd>Array of point objects, each with <code>id</code>, <code>name</code>, and <code>target</code>.</dd>
         <dt>payload.savedTo <span class="property-type">string</span></dt>
-        <dd>Path the file was written to (only present when a save path is configured).</dd>
+        <dd>Path the file was written to (only present when a save path is used).</dd>
     </dl>
+
     <h3>Notes</h3>
-    <p>Points are stored in Node-RED's userDir as <code>points.json</code>, not on the robot controller. The exported array can be saved externally and later restored using the <b>gofa-points-import</b> node.</p>
+    <p>Points are stored on the Node-RED host (not on the controller). Use <b>gofa-points-import</b> to restore a saved file.</p>
 </script>

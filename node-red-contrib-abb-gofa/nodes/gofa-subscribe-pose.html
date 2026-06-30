@@ -26,13 +26,31 @@
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-subscribe-pose">
-    <p>Polls the controller every N ms for current TCP pose (robtarget) of ROB_1. Send any message to toggle polling on/off.</p>
-    <h3>Output <code>msg.payload</code></h3>
+    <p>Polls the controller for the current TCP pose (robtarget) of ROB_1. Each input message toggles polling on or off.</p>
+
+    <h3>Input</h3>
     <dl class="message-properties">
-        <dt>ok <span class="property-type">boolean</span></dt><dd><code>true</code></dd>
-        <dt>x, y, z <span class="property-type">number</span></dt><dd>TCP position in mm</dd>
-        <dt>q1, q2, q3, q4 <span class="property-type">number</span></dt><dd>TCP orientation quaternion</dd>
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>
+            On <b>start</b> only:
+            <ul>
+                <li><b>{ interval: 2000 }</b> — override poll rate in ms (minimum 100)</li>
+                <li><b>(absent)</b> — uses the <em>Interval</em> property (default: 500 ms)</li>
+            </ul>
+            On <b>stop</b>: payload is ignored.
+        </dd>
     </dl>
+
+    <h3>Output</h3>
+    <dl class="message-properties">
+        <dt>payload.ok <span class="property-type">boolean</span></dt>
+        <dd><code>true</code></dd>
+        <dt>payload.x, payload.y, payload.z <span class="property-type">number</span></dt>
+        <dd>TCP position in mm (base frame)</dd>
+        <dt>payload.q1, payload.q2, payload.q3, payload.q4 <span class="property-type">number</span></dt>
+        <dd>TCP orientation as quaternion</dd>
+    </dl>
+
     <h3>Notes</h3>
-    <p>Default interval is 500 ms. Send a message to start; send again to stop.</p>
+    <p>To change the poll rate without redeploying, stop the node first (one inject), then start it again with <code>{ interval: N }</code> (another inject).</p>
 </script>

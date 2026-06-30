@@ -26,12 +26,23 @@
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-points-import">
-    <p>Imports a points list into the robot config node, replacing the entire existing list.</p>
-    <p><b>Warning:</b> This overwrites all existing saved points.</p>
+    <p>Imports a points list into the robot config node, <b>replacing</b> the entire existing list.</p>
+
     <h3>Input</h3>
-    <p>If <b>Load from file</b> is set, points are read from that JSON file (ignoring <code>msg.payload</code>).</p>
-    <p>You can also override the path at runtime with <code>msg.loadPath</code>.</p>
-    <p>If no file path is configured, <code>msg.payload</code> is used — either an array of point objects, or an object with a <code>points</code> array. Sending a trigger with no payload (or an empty payload) clears all points.</p>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">string | object | array</span></dt>
+        <dd>
+            <ul>
+                <li><b>string</b> — file path to load from, e.g. <code>'/data/points_backup.json'</code></li>
+                <li><b>object</b> — <code>{ loadPath: '/data/points_backup.json' }</code></li>
+                <li><b>array</b> — point objects to import directly, e.g. <code>[{ id, name, target }]</code></li>
+                <li><b>{ points }</b> — <code>{ points: [...] }</code></li>
+                <li><b>(absent)</b> — uses the <em>Load from file</em> property; if also empty, clears all points</li>
+            </ul>
+            Legacy: <code>msg.loadPath</code> (string) is still accepted as a fallback.
+        </dd>
+    </dl>
+
     <h3>Output</h3>
     <dl class="message-properties">
         <dt>payload.ok <span class="property-type">boolean</span></dt>
@@ -39,6 +50,9 @@
         <dt>payload.count <span class="property-type">number</span></dt>
         <dd>Number of points imported (0 = all points cleared).</dd>
         <dt>payload.loadedFrom <span class="property-type">string | null</span></dt>
-        <dd>File path that was read, or <code>null</code> if loaded from <code>msg.payload</code>.</dd>
+        <dd>File path that was read, or <code>null</code> if loaded from <code>msg.payload</code> directly.</dd>
     </dl>
+
+    <h3>Notes</h3>
+    <p>This overwrites all existing saved points. Export first with <b>gofa-points-export</b> if you need a backup.</p>
 </script>

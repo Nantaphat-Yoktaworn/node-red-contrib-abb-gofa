@@ -310,3 +310,30 @@ Returns: `204 No Content`
 - All RWS calls go through `robot.rwsGet()` / `robot.rwsPost()` helpers in `gofa-robot.js`
 - Response parsing uses `robot.parseXhtml(body, className)` — regex-based, not a DOM parser
 - `withMastership(fn)` uses edit domain (`/rw/mastership/edit/...`), not general mastership
+
+---
+
+## Node msg.payload Pattern
+
+All palette nodes follow: **msg.payload → node property (editor) → built-in default**
+
+**Nodes fixed to add bare-string payload support (previously only accepted object form):**
+
+| Node | Bare string accepted | Object form |
+|------|---------------------|-------------|
+| `gofa-motor` | `'motoron'` / `'motoroff'` | `{ action: 'motoron' }` |
+| `gofa-move` | `'HOME'` / `'SETHOME'` | `{ command: 'HOME' }` |
+| `gofa-rapid-exec` | `'start'` / `'stop'` / `'resetpp'` | `{ action: 'start' }` |
+
+**Nodes fixed to read file path from msg.payload (previously used non-standard msg.* keys):**
+
+| Node | msg.payload string | msg.payload object | Legacy fallback |
+|------|-------------------|--------------------|-----------------|
+| `gofa-points-export` | save path | `{ savePath: '...' }` | `msg.savePath` |
+| `gofa-points-import` | load path | `{ loadPath: '...' }` or array | `msg.loadPath` |
+
+**Node fixed to support runtime interval override:**
+
+| Node | msg.payload on start | Effect |
+|------|---------------------|--------|
+| `gofa-subscribe-pose` | `{ interval: 2000 }` | Sets poll rate in ms (min 100); ignored on stop |
