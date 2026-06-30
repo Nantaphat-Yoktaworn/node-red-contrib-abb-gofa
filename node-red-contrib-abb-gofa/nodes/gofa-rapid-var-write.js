@@ -3,8 +3,6 @@ module.exports = function(RED) {
     function GoFaRapidVarWriteNode(config) {
         RED.nodes.createNode(this, config);
         this.robot    = RED.nodes.getNode(config.robot);
-        this.task     = config.task     || 'T_ROB1';
-        this.module   = config.module   || 'MainModule';
         this.variable = config.variable || '';
         this.value    = config.value    !== undefined ? config.value : '';
         var node = this;
@@ -12,15 +10,11 @@ module.exports = function(RED) {
         node.on('input', function(msg, send, done) {
             if (!node.robot) { node.error('No robot configured', msg); return done(); }
 
-            var task     = node.task;
-            var module   = node.module;
             var variable = node.variable;
             var value    = node.value;
 
             if (msg.payload !== null && msg.payload !== undefined) {
                 if (typeof msg.payload === 'object') {
-                    if (msg.payload.task     !== undefined) task     = msg.payload.task;
-                    if (msg.payload.module   !== undefined) module   = msg.payload.module;
                     if (msg.payload.variable !== undefined) variable = msg.payload.variable;
                     if (msg.payload.value    !== undefined) value    = msg.payload.value;
                 } else {
@@ -34,34 +28,32 @@ module.exports = function(RED) {
                 return done();
             }
 
-            var path = '/rw/rapid/symbol/data/RAPID/' +
-                encodeURIComponent(task) + '/' +
-                encodeURIComponent(module) + '/' +
-                encodeURIComponent(variable);
-
-            var body = 'value=' + encodeURIComponent(String(value));
-
             node.status({ fill: 'blue', shape: 'dot', text: variable + '=' + value });
 
-            node.robot.withMastership(function() {
-                return node.robot.rwsPost(path, body);
-            })
-            .then(function() {
-                msg.payload = { ok: true, variable: variable, value: String(value) };
-                node.status({ fill: 'green', shape: 'dot', text: variable + '=' + value });
-                send(msg); done();
+            // SETVAR:<name>:<value> — handled by TrySetVar in MainModule.mod
+            node.robot.socketSend('SETVAR:' + variable + ':' + value)
+            .then(function(reply) {
+                if (reply.startsWith('OK:SETVAR')) {
+                    msg.payload = { ok: true, variable: variable, value: String(value) };
+                    node.status({ fill: 'green', shape: 'dot', text: variable + '=' + value });
+                    send(msg); done();
+                } else {
+                    var hint = '';
+                    if (reply === 'ERR:UNKNOWN_VAR') {
+                        hint = ' — add "' + variable.toUpperCase() + '" to TryGetVar/TrySetVar in MainModule.mod';
+                    } else if (reply === 'ERR:PARSE') {
+                        hint = ' — value "' + value + '" cannot be parsed as the variable\'s RAPID type';
+                    }
+                    var fullMsg = reply + hint;
+                    msg.payload = { ok: false, error: fullMsg };
+                    node.status({ fill: 'red', shape: 'ring', text: reply });
+                    node.error(fullMsg, msg); done(new Error(fullMsg));
+                }
             })
             .catch(function(err) {
-                var hint = '';
-                if (err.message.indexOf('404') >= 0) {
-                    hint = ' (variable not found — check task/module/variable name)';
-                } else if (err.message.indexOf('405') >= 0 || err.message.indexOf('mastership') >= 0) {
-                    hint = ' (mastership unavailable — disconnect RobotStudio or other RWS client first)';
-                }
-                var fullMsg = err.message + hint;
-                msg.payload = { ok: false, error: fullMsg };
+                msg.payload = { ok: false, error: err.message };
                 node.status({ fill: 'red', shape: 'ring', text: 'error' });
-                node.error(fullMsg, msg); done(err);
+                node.error(err.message, msg); done(err);
             });
         });
     }

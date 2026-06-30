@@ -23,20 +23,25 @@ module.exports = function(RED) {
 
             node.status({ fill: 'blue', shape: 'dot', text: variable });
 
-            var symPath = '/rw/rapid/symbol/data/RAPID/' +
-                encodeURIComponent(task) + '/' +
-                encodeURIComponent(module) + '/' +
-                encodeURIComponent(variable);
-
-            node.robot.rwsGet(symPath)
-            .then(function(body) {
-                var value = node.robot.parseXhtml(body, 'value');
-                msg.payload = { ok: true, variable: variable, value: value, raw: body, source: 'rws' };
-                node.status({ fill: 'green', shape: 'dot', text: variable + ' = ' + value });
-                send(msg); done();
+            // Primary: use TCP socket GETVAR command (works on compiled .modx, no PC Interface needed)
+            node.robot.socketSend('GETVAR:' + variable)
+            .then(function(reply) {
+                // reply is "VAL:<value>" or "ERR:<reason>"
+                if (reply.startsWith('VAL:')) {
+                    var rawVal = reply.slice(4);
+                    // Try to parse as number; keep as string if not numeric
+                    var numVal = parseFloat(rawVal);
+                    var value = isNaN(numVal) ? rawVal : numVal;
+                    msg.payload = { ok: true, variable: variable, value: value, source: 'socket' };
+                    node.status({ fill: 'green', shape: 'dot', text: variable + ' = ' + value });
+                    send(msg); done();
+                } else {
+                    // ERR:UNKNOWN_VAR means the variable isn't in the RAPID GETVAR handler
+                    throw new Error(reply);
+                }
             })
             .catch(function() {
-                // PC Interface not installed — fall back via module-text metadata → fileservice
+                // Fallback: read the module source from the controller filesystem and parse :=
                 var textPath = '/rw/rapid/tasks/' +
                     encodeURIComponent(task) + '/modules/' +
                     encodeURIComponent(module) + '/text';
@@ -53,7 +58,7 @@ module.exports = function(RED) {
                     var m   = src.match(re);
                     if (!m) {
                         throw new Error('Variable ' + variable + ' not found in module ' + module +
-                            ' (runtime VAR changes require PC Interface; PERS values reflect last loaded module)');
+                            ' — add it to the GETVAR handler in MainModule.mod for live value access');
                     }
                     var value = m[1].trim().replace(/^"(.*)"$/, '$1');
                     msg.payload = { ok: true, variable: variable, value: value, source: 'module-text' };

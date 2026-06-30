@@ -4,8 +4,6 @@
         defaults: {
             name:     { value: '' },
             robot:    { value: '', type: 'gofa-robot', required: true },
-            task:     { value: 'T_ROB1' },
-            module:   { value: 'MainModule' },
             variable: { value: '' },
             value:    { value: '' }
         },
@@ -15,26 +13,13 @@
     });
 </script>
 <script type="text/html" data-template-name="gofa-rapid-var-write">
-    <div class="form-row" style="background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:8px;margin-bottom:8px;">
-        <i class="fa fa-exclamation-triangle" style="color:#856404;"></i>
-        <span style="color:#856404;font-weight:bold;"> Requires PC Interface RobotWare option</span><br>
-        <span style="color:#856404;font-size:0.9em;">Not available on standard OmniCore C30. Use <b>gofa-zone-set</b> for zone variables.</span>
-    </div>
     <div class="form-row">
         <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
         <input type="text" id="node-input-robot">
     </div>
     <div class="form-row">
-        <label for="node-input-task"><i class="fa fa-tasks"></i> Task</label>
-        <input type="text" id="node-input-task" placeholder="T_ROB1">
-    </div>
-    <div class="form-row">
-        <label for="node-input-module"><i class="fa fa-file-code-o"></i> Module</label>
-        <input type="text" id="node-input-module" placeholder="MainModule">
-    </div>
-    <div class="form-row">
         <label for="node-input-variable"><i class="fa fa-pencil"></i> Variable</label>
-        <input type="text" id="node-input-variable" placeholder="myVar">
+        <input type="text" id="node-input-variable" placeholder="nTestVar">
     </div>
     <div class="form-row">
         <label for="node-input-value"><i class="fa fa-tag"></i> Value</label>
@@ -46,25 +31,22 @@
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-rapid-var-write">
-    <p><b>⚠ Requires PC Interface RobotWare option.</b> This node will fail with HTTP 404 on a standard OmniCore C30 that does not have the PC Interface option installed. For zone variables, use <b>gofa-zone-set</b> instead (TCP socket, no option required).</p>
-    <p>Writes a value to a RAPID variable on the robot controller via RWS.</p>
+    <p>Writes a value to a RAPID PERS variable via the TCP socket server (<code>SETVAR:&lt;name&gt;:&lt;value&gt;</code>).</p>
+    <p>The variable must be listed in <code>TrySetVar</code> inside <code>MainModule.mod</code>. Built-in variables: <code>nTestVar</code> (num) and <code>sTestMsg</code> (string).</p>
     <h3>Configuration</h3>
     <ul>
-        <li><b>Task</b> — RAPID task name (default: <code>T_ROB1</code>)</li>
-        <li><b>Module</b> — RAPID module name (default: <code>MainModule</code>)</li>
-        <li><b>Variable</b> — variable name as declared in RAPID (e.g. <code>mySpeed</code>)</li>
+        <li><b>Variable</b> — variable name as declared in RAPID (e.g. <code>nTestVar</code>)</li>
         <li><b>Value</b> — default value to write</li>
     </ul>
     <h3>Input</h3>
     <p><code>msg.payload</code> can be:</p>
     <ul>
-        <li>A plain value (string, number, boolean) — written directly to the variable</li>
-        <li>An object <code>{ task, module, variable, value }</code> — overrides any config field present</li>
+        <li>A plain value (string, number) — written directly to the variable</li>
+        <li>An object <code>{ variable, value }</code> — overrides any configured field</li>
     </ul>
     <h3>Output</h3>
-    <p><code>msg.payload = { ok: true, variable: "mySpeed", value: "50" }</code> on success.</p>
-    <p><code>msg.payload = { ok: false, error: "..." }</code> on failure.</p>
-    <h3>Notes</h3>
-    <p>The variable must be declared as <b>VAR</b> or <b>PERS</b> (not <b>CONST</b>) in RAPID.</p>
-    <p>HTTP 404 = PC Interface option not installed. HTTP 405 = mastership required in addition to PC Interface.</p>
+    <p><code>msg.payload = { ok: true, variable: "nTestVar", value: "42" }</code> on success.</p>
+    <p><code>msg.payload = { ok: false, error: "ERR:UNKNOWN_VAR..." }</code> on failure.</p>
+    <h3>Adding more variables</h3>
+    <p>To expose another RAPID variable, add a matching <code>ELSEIF varname = "MYVAR"</code> block in <code>TryGetVar</code> and <code>TrySetVar</code> in <code>MainModule.mod</code>, then re-upload and reload the module.</p>
 </script>

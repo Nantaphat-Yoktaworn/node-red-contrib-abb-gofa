@@ -6,7 +6,8 @@ var WS    = require('ws');
 module.exports = function(RED) {
     function GoFaSubscribeStateNode(config) {
         RED.nodes.createNode(this, config);
-        this.robot = RED.nodes.getNode(config.robot);
+        this.robot   = RED.nodes.getNode(config.robot);
+        this.oneshot = !!config.oneshot;
         var node = this;
         node._ws      = null;
         node._pollkey = null;
@@ -50,13 +51,21 @@ module.exports = function(RED) {
             }).then(function(location) {
                 node._pollkey = location.split('/poll/').pop();
                 var wsUrl = location;
-                var ws = new WS(wsUrl, ['robapi2_subscription'], {
+                var ws = new WS(wsUrl, ['rws_subscription'], {
                     rejectUnauthorized: false,
                     headers: { Cookie: robot._cookie || '' }
                 });
                 node._ws = ws;
                 ws.on('open', function() {
                     node.status({ fill: 'green', shape: 'dot', text: 'connected' });
+                    robot.rwsGet('/rw/panel/ctrl-state').then(function(body) {
+                        var m = body.match(/class="ctrlstate">([^<]+)</);
+                        if (m) {
+                            var state = m[1].trim();
+                            node.status({ fill: 'green', shape: 'dot', text: state });
+                            node.send({ payload: { ok: true, state: state } });
+                        }
+                    }).catch(function() {});
                 });
                 ws.on('message', function(data) {
                     var str = data.toString();
@@ -81,7 +90,32 @@ module.exports = function(RED) {
         }
 
         node.on('input', function(msg, send, done) {
-            startSubscription();
+            if (!node.robot) { node.error('No robot configured'); return done(); }
+            if (node.oneshot) {
+                node.status({ fill: 'yellow', shape: 'ring', text: 'reading' });
+                node.robot.rwsGet('/rw/panel/ctrl-state').then(function(body) {
+                    var m = body.match(/class="ctrlstate">([^<]+)</);
+                    if (m) {
+                        var state = m[1].trim();
+                        node.status({ fill: 'green', shape: 'dot', text: state });
+                        node.send({ payload: { ok: true, state: state } });
+                    }
+                }).catch(function(err) {
+                    node.status({ fill: 'red', shape: 'ring', text: 'error' });
+                    node.error(err);
+                });
+            } else if (node._ws) {
+                node.robot.rwsGet('/rw/panel/ctrl-state').then(function(body) {
+                    var m = body.match(/class="ctrlstate">([^<]+)</);
+                    if (m) {
+                        var state = m[1].trim();
+                        node.status({ fill: 'green', shape: 'dot', text: state });
+                        node.send({ payload: { ok: true, state: state } });
+                    }
+                }).catch(function(err) { node.error(err); });
+            } else {
+                startSubscription();
+            }
             done();
         });
 

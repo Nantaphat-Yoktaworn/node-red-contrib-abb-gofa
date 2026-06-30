@@ -76,7 +76,7 @@ module.exports = function(RED) {
             } else {
                 headers['Cookie'] = node._cookie;
             }
-            if (method === 'POST') {
+            if (method === 'POST' || method === 'PUT') {
                 headers['Content-Type']   = 'application/x-www-form-urlencoded;v=2.0';
                 headers['Content-Length'] = Buffer.byteLength(body || '');
             }
@@ -127,6 +127,10 @@ module.exports = function(RED) {
     GoFaRobotNode.prototype.rwsPost = function(p, b) {
         var node = this;
         return this._getSession().then(function() { return node._request('POST', p, b, false); });
+    };
+    GoFaRobotNode.prototype.rwsPut = function(p, b) {
+        var node = this;
+        return this._getSession().then(function() { return node._request('PUT', p, b, false); });
     };
     GoFaRobotNode.prototype.withMastership = function(fn) {
         return this._withMastershipDomain('edit', fn);

@@ -218,7 +218,7 @@ curl -sk -u Admin:robotics -X PUT -H "Content-Type: text/plain;v=2.0" \
 ### Subscription Service — `/subscription`
 
 Real-time event delivery over WebSocket (RFC 6455).  
-Subprotocol: `robapi2_subscription`
+Subprotocol: `rws_subscription` (OmniCore RW7 — `robapi2_subscription` returns HTTP 400)
 
 #### POST /subscription
 Create a subscription.  
@@ -271,6 +271,23 @@ States: `PENDING` | `IN_PROGRESS` | `DONE` | `FAILED`
 | Recommended request rate | ≤ 20 req/s (50ms interval) |
 | Max input payload | < 100KB (except file upload) |
 | Max file upload | 800MB |
+
+---
+
+## Lead-Through — `/rw/motionsystem/mechunits/{unit}/lead-through`
+
+#### GET /rw/motionsystem/mechunits/ROB_1/lead-through
+Read lead-through state.  
+Response class: `status`  
+Values: `Active` | `Inactive`
+
+#### POST /rw/motionsystem/mechunits/ROB_1/lead-through
+Enable or disable lead-through (compliance/hand-guiding) mode.  
+Works in **Auto mode with RAPID stopped and motors ON**.  
+Body: `status=active` (enable) or `status=inactive` (disable)  
+Returns: `204 No Content`
+
+> **OmniCore note:** Sub-paths `/lead-through/activate` and `/lead-through/deactivate` do **not** exist — they return HTTP 404. Use the base resource with the `status` body parameter for both directions.
 
 ---
 

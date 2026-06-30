@@ -2,8 +2,9 @@
     RED.nodes.registerType('gofa-subscribe-state', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
-            name:  { value: '' },
-            robot: { value: '', type: 'gofa-robot', required: true }
+            name:    { value: '' },
+            robot:   { value: '', type: 'gofa-robot', required: true },
+            oneshot: { value: false }
         },
         inputs: 1, outputs: 1, icon: 'white-globe.svg',
         label: function() { return this.name || 'Subscribe State'; },
@@ -19,15 +20,22 @@
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Subscribe State">
     </div>
+    <div class="form-row">
+        <label style="width:auto;margin-right:8px;" for="node-input-oneshot">
+            <input type="checkbox" id="node-input-oneshot" style="width:auto;vertical-align:middle;margin-right:4px;">
+            One-shot (poll once per inject, no subscription)
+        </label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-subscribe-state">
-    <p>Subscribes to controller state changes via RWS WebSocket. Send any message to start the subscription; the node then outputs a message each time the controller state changes.</p>
+    <p>Reads or subscribes to controller state via RWS.</p>
     <h3>Output <code>msg.payload</code></h3>
     <dl class="message-properties">
         <dt>ok <span class="property-type">boolean</span></dt><dd><code>true</code></dd>
         <dt>state <span class="property-type">string</span></dt>
-        <dd>Current controller state: <code>motoron</code> | <code>motoroff</code> | <code>guardstop</code> | <code>emergencystop</code> | <code>emergencystopreset</code> | <code>sysfail</code></dd>
+        <dd><code>motoron</code> | <code>motoroff</code> | <code>guardstop</code> | <code>emergencystop</code> | <code>emergencystopreset</code> | <code>sysfail</code></dd>
     </dl>
-    <h3>Notes</h3>
-    <p>The subscription is started on the first input message and remains active until the flow is redeployed or Node-RED stops. Subsequent input messages are ignored while a subscription is active.</p>
+    <h3>Modes</h3>
+    <p><b>One-shot unchecked (default):</b> First inject opens a WebSocket subscription; the node emits the current state immediately and then again on every state change. Subsequent injects poll and emit the current state on demand.</p>
+    <p><b>One-shot checked:</b> Each inject does a single GET and emits the current state. No persistent WebSocket connection.</p>
 </script>

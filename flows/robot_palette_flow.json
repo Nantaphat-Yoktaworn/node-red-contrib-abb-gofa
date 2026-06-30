@@ -1,666 +1,169 @@
 [
-  {
-    "id": "tab_pal",
-    "type": "tab",
-    "label": "ABB-GoFa-12 Dashboard",
-    "disabled": false,
-    "info": ""
-  },
-  {
-    "id": "cfg_robot",
-    "type": "gofa-robot",
-    "name": "ABB-GoFa-12",
-    "ip": "192.168.20.15",
-    "rwsPort": "443",
-    "socketPort": "1025",
-    "username": "NNNN",
-    "pointsFile": "points.json",
-    "credentials": {}
-  },
-  {
-    "id": "p_inj",
-    "type": "inject",
-    "name": "Poll 200ms",
-    "z": "tab_pal",
-    "x": 100,
-    "y": 100,
-    "repeat": "0.2",
-    "crontab": "",
-    "once": true,
-    "onceDelay": 0.1,
-    "topic": "",
-    "payload": "",
-    "payloadType": "date",
-    "wires": [
-      [
-        "p_status",
-        "p_pose",
-        "p_joints"
-      ]
-    ]
-  },
-  {
-    "id": "p_status",
-    "type": "gofa-status",
-    "name": "Robot Status",
-    "z": "tab_pal",
-    "x": 340,
-    "y": 60,
-    "robot": "cfg_robot",
-    "wires": [
-      [
-        "p_merge"
-      ]
-    ]
-  },
-  {
-    "id": "p_pose",
-    "type": "gofa-pose",
-    "name": "Read Pose",
-    "z": "tab_pal",
-    "x": 340,
-    "y": 100,
-    "robot": "cfg_robot",
-    "wires": [
-      [
-        "p_merge"
-      ]
-    ]
-  },
-  {
-    "id": "p_joints",
-    "type": "gofa-joints",
-    "name": "Read Joints",
-    "z": "tab_pal",
-    "x": 340,
-    "y": 140,
-    "robot": "cfg_robot",
-    "wires": [
-      [
-        "p_merge"
-      ]
-    ]
-  },
-  {
-    "id": "p_merge",
-    "type": "function",
-    "name": "Merge poll data",
-    "z": "tab_pal",
-    "x": 600,
-    "y": 100,
-    "func": "var d = context.get('d') || {};\nObject.assign(d, msg.payload);\nd._n = (d._n||0) + 1;\ncontext.set('d', d);\nif (d._n >= 3) {\n    d.updated = new Date().toLocaleTimeString();\n    delete d._n;\n    flow.set('robot_data', Object.assign({}, d));\n    context.set('d', {});\n}\nreturn null;",
-    "outputs": 1,
-    "wires": [
-      []
-    ]
-  },
-  {
-    "id": "pg_in",
-    "type": "http in",
-    "name": "GET /robot",
-    "z": "tab_pal",
-    "x": 100,
-    "y": 240,
-    "method": "get",
-    "url": "/robot",
-    "wires": [
-      [
-        "pg_fn"
-      ]
-    ]
-  },
-  {
-    "id": "pg_fn",
-    "type": "function",
-    "name": "Serve HTML page",
-    "z": "tab_pal",
-    "x": 320,
-    "y": 240,
-    "func": "msg.headers = { 'Content-Type': 'text/html' };\nmsg.payload = `<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>ABB-GoFa-12</title>\n<style>\n  * { box-sizing: border-box; margin: 0; padding: 0; }\n  body { background: #0d1117; color: #e6edf3; font-family: 'Segoe UI', sans-serif; padding: 24px; }\n  h1 { font-size: 1.6rem; color: #ff6b00; margin-bottom: 6px; }\n  .subtitle { color: #8b949e; font-size: 0.85rem; margin-bottom: 24px; }\n  .layout { display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start; }\n  .column { display: flex; flex-direction: column; gap: 16px; }\n  @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }\n  .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; }\n  .card h2 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; margin-bottom: 16px; }\n  .row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #21262d; }\n  .row:last-child { border-bottom: none; }\n  .label { color: #8b949e; font-size: 0.85rem; }\n  .value { font-size: 1rem; font-weight: 600; color: #e6edf3; font-family: monospace; }\n  .led { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }\n  .led.green  { background: #3fb950; box-shadow: 0 0 8px #3fb950; }\n  .led.yellow { background: #d29922; box-shadow: 0 0 8px #d29922; }\n  .led.red    { background: #f85149; box-shadow: 0 0 8px #f85149; }\n  .led.grey   { background: #484f58; }\n  .bar-wrap { flex: 1; margin: 0 12px; background: #21262d; border-radius: 4px; height: 8px; overflow: hidden; }\n  .bar { height: 100%; background: #ff6b00; border-radius: 4px; transition: width 0.5s; }\n  .joint-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }\n  .joint { background: #0d1117; border-radius: 8px; padding: 12px; text-align: center; }\n  .joint .jname { font-size: 0.7rem; color: #8b949e; text-transform: uppercase; margin-bottom: 4px; }\n  .joint .jval { font-size: 1.2rem; font-weight: 700; color: #ff6b00; font-family: monospace; }\n  .joint .jdeg { font-size: 0.7rem; color: #8b949e; }\n  .updated { color: #484f58; font-size: 0.75rem; text-align: right; margin-top: 16px; }\n  .connecting { color: #8b949e; font-style: italic; }\n  .controls { display: flex; gap: 12px; flex-wrap: wrap; }\n  .btn { flex: 1; min-width: 120px; padding: 16px; border: none; border-radius: 8px; background: #ff6b00; color: #fff; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s, transform 0.1s; }\n  .btn:hover { background: #ff8528; }\n  .btn:active { transform: translateY(1px); }\n  .btn:disabled { opacity: 0.5; cursor: wait; }\n  .btn.home { background: #3fb950; }\n  .btn.home:hover { background: #4cc85e; }\n  .jog-steps { display:flex; gap:18px; align-items:center; flex-wrap:wrap; margin-bottom:14px; color:#8b949e; font-size:0.85rem; }\n  .jog-steps input[type=number] { width:64px; background:#0d1117; color:#e6edf3; border:1px solid #30363d; border-radius:6px; padding:6px; }\n  .jog-grid { display:grid; grid-template-columns: repeat(6, 1fr); gap:10px; }\n  .btn.jog { background:#1f6feb; padding:14px 6px; font-size:0.8rem; }\n  .btn.jog:hover { background:#388bfd; }\n  .btn.jog.rot { background:#8957e5; }\n  .btn.jog.rot:hover { background:#9e6bf0; }\n  @media (max-width: 700px) { .jog-grid { grid-template-columns: repeat(2, 1fr); } }\n  .pt-row { display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }\n  .pt-row input[type=text], .pt-row select { flex:1; min-width:140px; background:#0d1117; color:#e6edf3; border:1px solid #30363d; border-radius:6px; padding:10px; font-size:0.9rem; }\n  .pt-row .btn { flex:0 0 auto; min-width:90px; }\n  .btn.del { background:#da3633; }\n  .btn.del:hover { background:#f85149; }\n  .btn.stop { background:#da3633; }\n  .btn.stop:hover { background:#f85149; }\n  .btn.recover { background:#1f6feb; }\n  .btn.recover:hover { background:#388bfd; }\n  .seq-list { list-style:none; margin:8px 0; padding:0; }\n  .seq-list li { display:flex; align-items:center; gap:10px; background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:8px 12px; margin-bottom:6px; }\n  .seq-list .sidx { color:#8b949e; width:1.6em; text-align:right; font-family:monospace; }\n  .seq-list .sname { flex:1; font-family:monospace; }\n  .seq-list button { background:#21262d; color:#e6edf3; border:1px solid #30363d; border-radius:6px; padding:4px 10px; cursor:pointer; }\n  .seq-list button:hover:not(:disabled) { background:#30363d; }\n  .seq-list button:disabled { opacity:0.3; cursor:default; }\n  .seq-list .x { color:#f85149; }\n  .seq-list .empty { color:#484f58; font-style:italic; }\n  .toast { margin-top: 14px; font-size: 0.85rem; color: #8b949e; min-height: 1.2em; font-family: monospace; }\n</style>\n</head>\n<body>\n<h1>ABB-GoFa-12</h1>\n<p class=\"subtitle\">Live robot status &mdash; updates ~5 times per second</p>\n<div class=\"layout\">\n    <div class=\"column\">\n      <div class=\"card\">\n          <h2>Controller Status</h2>\n          <div class=\"row\">\n            <span class=\"label\">State</span>\n            <span class=\"value\"><span class=\"led grey\" id=\"led\"></span><span id=\"ctrlstate\">...</span></span>\n          </div>\n          <div class=\"row\">\n            <span class=\"label\">Mode</span>\n            <span class=\"value\" id=\"opmode\">...</span>\n          </div>\n          <div class=\"row\">\n            <span class=\"label\">RAPID</span>\n            <span class=\"value\" id=\"rapid\">...</span>\n          </div>\n          <div class=\"row\">\n            <span class=\"label\">Speed</span>\n            <div class=\"bar-wrap\"><div class=\"bar\" id=\"speedbar\" style=\"width:0%\"></div></div>\n            <span class=\"value\" id=\"speed\">...</span>\n          </div>\n        </div>\n      <div class=\"card\">\n          <h2>Tool Position (mm)</h2>\n          <div class=\"row\"><span class=\"label\">X</span><span class=\"value\" id=\"px\">...</span></div>\n          <div class=\"row\"><span class=\"label\">Y</span><span class=\"value\" id=\"py\">...</span></div>\n          <div class=\"row\"><span class=\"label\">Z</span><span class=\"value\" id=\"pz\">...</span></div>\n        </div>\n      <div class=\"card\">\n          <h2>Joint Angles (degrees)</h2>\n          <div class=\"joint-grid\">\n            <div class=\"joint\"><div class=\"jname\">J1</div><div class=\"jval\" id=\"j1\">...</div><div class=\"jdeg\">deg</div></div>\n            <div class=\"joint\"><div class=\"jname\">J2</div><div class=\"jval\" id=\"j2\">...</div><div class=\"jdeg\">deg</div></div>\n            <div class=\"joint\"><div class=\"jname\">J3</div><div class=\"jval\" id=\"j3\">...</div><div class=\"jdeg\">deg</div></div>\n            <div class=\"joint\"><div class=\"jname\">J4</div><div class=\"jval\" id=\"j4\">...</div><div class=\"jdeg\">deg</div></div>\n            <div class=\"joint\"><div class=\"jname\">J5</div><div class=\"jval\" id=\"j5\">...</div><div class=\"jdeg\">deg</div></div>\n            <div class=\"joint\"><div class=\"jname\">J6</div><div class=\"jval\" id=\"j6\">...</div><div class=\"jdeg\">deg</div></div>\n          </div>\n        </div>\n    </div>\n    <div class=\"column\">\n      <div class=\"card\">\n          <h2>Robot Control</h2>\n          <div class=\"controls\">\n            <button class=\"btn home\" id=\"btn-home\" onclick=\"move('home')\">Home</button>\n            <button class=\"btn\" onclick=\"setHome()\">Set Home (here)</button>\n            <button class=\"btn stop\" onclick=\"ctrl('motoroff')\">Motors Off</button>\n            <button class=\"btn recover\" onclick=\"ctrl('motoron')\">Motors On</button>\n          </div>\n          <div class=\"toast\" id=\"toast\">Ready.</div>\n        </div>\n      <div class=\"card\">\n          <h2>Jog &mdash; move (base frame) &amp; rotate (tool frame)</h2>\n          <div class=\"jog-steps\">\n            <label>Step <span id=\"lin-cm\">2</span> cm\n              <input type=\"range\" id=\"lin-range\" min=\"1\" max=\"5\" step=\"1\" value=\"2\" oninput=\"syncLin('range')\"></label>\n            <label>or mm <input type=\"number\" id=\"lin-mm\" min=\"1\" max=\"50\" value=\"20\" oninput=\"syncLin('mm')\"></label>\n            <label>Angle <input type=\"number\" id=\"ang-deg\" min=\"1\" max=\"30\" value=\"5\"> deg</label>\n          </div>\n          <div class=\"jog-grid\">\n            <button class=\"btn jog\" onclick=\"jog('Y+')\">Right +Y</button>\n            <button class=\"btn jog\" onclick=\"jog('Y-')\">Left -Y</button>\n            <button class=\"btn jog\" onclick=\"jog('X-')\">Back -X</button>\n            <button class=\"btn jog\" onclick=\"jog('X+')\">Forward +X</button>\n            <button class=\"btn jog\" onclick=\"jog('Z+')\">Up +Z</button>\n            <button class=\"btn jog\" onclick=\"jog('Z-')\">Down -Z</button>\n            <button class=\"btn jog rot\" onclick=\"jog('RX+')\">Roll +</button>\n            <button class=\"btn jog rot\" onclick=\"jog('RX-')\">Roll -</button>\n            <button class=\"btn jog rot\" onclick=\"jog('RY+')\">Pitch +</button>\n            <button class=\"btn jog rot\" onclick=\"jog('RY-')\">Pitch -</button>\n            <button class=\"btn jog rot\" onclick=\"jog('RZ+')\">Yaw +</button>\n            <button class=\"btn jog rot\" onclick=\"jog('RZ-')\">Yaw -</button>\n          </div>\n        </div>\n      <div class=\"card\">\n          <h2>Joint Jog (per-axis, degrees)</h2>\n          <div class=\"jog-steps\">\n            <label>Angle <input type=\"number\" id=\"joint-deg\" min=\"1\" max=\"30\" value=\"5\"> deg</label>\n          </div>\n          <div class=\"jog-grid\">\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J1+')\">J1 +</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J1-')\">J1 -</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J2+')\">J2 +</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J2-')\">J2 -</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J3+')\">J3 +</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J3-')\">J3 -</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J4+')\">J4 +</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J4-')\">J4 -</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J5+')\">J5 +</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J5-')\">J5 -</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J6+')\">J6 +</button>\n            <button class=\"btn jog rot\" onclick=\"jogJoint('J6-')\">J6 -</button>\n          </div>\n        </div>\n      <div class=\"card\">\n          <h2>Saved Points</h2>\n          <div class=\"pt-row\">\n            <input type=\"text\" id=\"ptname\" placeholder=\"point name (optional)\">\n            <button class=\"btn home\" onclick=\"savePoint()\">Save current pose</button>\n          </div>\n          <div class=\"pt-row\">\n            <select id=\"pointsel\"></select>\n            <button class=\"btn\" onclick=\"goPoint()\">Go</button>\n            <button class=\"btn del\" onclick=\"deletePoint()\">Delete</button>\n          </div>\n        </div>\n      <div class=\"card\">\n          <h2>Sequence Runner</h2>\n          <div class=\"pt-row\">\n            <select id=\"seqadd\"></select>\n            <button class=\"btn\" onclick=\"addSeqStep()\">Add step</button>\n            <label style=\"color:#8b949e; font-size:0.85rem;\">Pause <input type=\"number\" id=\"seq-dwell\" min=\"0\" max=\"10000\" value=\"800\" style=\"width:80px; background:#0d1117; color:#e6edf3; border:1px solid #30363d; border-radius:6px; padding:6px;\"> ms</label>\n            <button class=\"btn home\" onclick=\"runSeq()\">Run</button>\n            <button class=\"btn del\" onclick=\"stopSeq()\">Stop</button>\n            <label style=\"color:#8b949e; font-size:0.85rem; display:flex; align-items:center; gap:6px;\"><input type=\"checkbox\" id=\"seq-loop\"> Loop</label>\n            <label style=\"color:#8b949e; font-size:0.85rem; display:flex; align-items:center; gap:6px;\"><input type=\"checkbox\" id=\"seq-pingpong\"> Back-and-forth (reverse on return)</label>\n          </div>\n          <ol id=\"seqlist\" class=\"seq-list\"></ol>\n          <p style=\"color:#8b949e; font-size:0.8rem;\">Add points to build the order, reorder with the arrows, remove with X. A point may appear more than once.</p>\n        </div>\n    </div>\n  </div>\n<p class=\"updated\" id=\"updated\">Connecting...</p>\n\n<script>\nfunction renderPoints(points) {\n  var sel = document.getElementById('pointsel');\n  if (!sel) return;\n  var cur = sel.value;\n  sel.innerHTML = '';\n  points.forEach(function(p){ var o = document.createElement('option'); o.value = p.id; o.textContent = p.name; sel.appendChild(o); });\n  if (cur) sel.value = cur;\n  var add = document.getElementById('seqadd');\n  if (add) {\n    var curAdd = add.value;\n    add.innerHTML = '';\n    points.forEach(function(p){ var o = document.createElement('option'); o.value = p.id; o.textContent = p.name; add.appendChild(o); });\n    if (curAdd) add.value = curAdd;\n  }\n  renderSeq();\n}\nfunction goPoint() {\n  var sel = document.getElementById('pointsel');\n  if (!sel || !sel.value) return;\n  sendMove({ goto: sel.value }, 'Go ' + sel.options[sel.selectedIndex].text);\n}\nfunction savePoint() {\n  var name = (document.getElementById('ptname').value || '').trim();\n  var toast = document.getElementById('toast');\n  toast.style.color = '#8b949e'; toast.textContent = 'Saving point...';\n  fetch('/robot/savepoint', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name:name }) })\n    .then(function(r){ return r.json(); })\n    .then(function(res){\n      if (res.ok) { toast.style.color='#3fb950'; toast.textContent='Saved: ' + res.name; document.getElementById('ptname').value=''; renderPoints(res.points||[]); }\n      else { toast.style.color='#f85149'; toast.textContent='Error: ' + (res.error||'failed'); }\n    })\n    .catch(function(){ toast.style.color='#f85149'; toast.textContent='Connection error'; });\n}\nfunction deletePoint() {\n  var sel = document.getElementById('pointsel');\n  if (!sel || !sel.value) return;\n  var toast = document.getElementById('toast');\n  toast.style.color='#8b949e'; toast.textContent='Deleting...';\n  fetch('/robot/deletepoint', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: sel.value }) })\n    .then(function(r){ return r.json(); })\n    .then(function(res){ if(res.ok){ toast.style.color='#3fb950'; toast.textContent='Deleted'; renderPoints(res.points||[]); } else { toast.style.color='#f85149'; toast.textContent='Error'; } })\n    .catch(function(){ toast.style.color='#f85149'; toast.textContent='Connection error'; });\n}\nfunction ctrl(state) {\n  var toast = document.getElementById('toast');\n  toast.style.color = '#8b949e'; toast.textContent = (state === 'motoroff' ? 'Stopping...' : 'Recovering...');\n  fetch('/robot/ctrlstate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ state:state }) })\n    .then(function(r){ return r.json(); })\n    .then(function(res){ toast.style.color = res.ok ? '#3fb950' : '#f85149'; toast.textContent = res.ok ? (state === 'motoroff' ? 'Motors OFF' : 'Motors ON') : ('Error: ' + (res.error || res.status)); })\n    .catch(function(){ toast.style.color = '#f85149'; toast.textContent = 'Connection error'; });\n}\nfunction jogJoint(tok) {\n  var step = parseInt(document.getElementById('joint-deg').value) || 5;\n  sendMove({ joint: tok, step: step }, 'Joint ' + tok + ' ' + step + 'deg');\n}\nfunction setHome() {\n  if (!confirm('Set HOME to the current pose? (saved on the controller)')) return;\n  sendMove({ sethome: true }, 'Set Home');\n}\nvar seqSteps = [];\nfunction renderSeq() {\n  var list = document.getElementById('seqlist');\n  if (!list) return;\n  list.innerHTML = '';\n  if (!seqSteps.length) { var li = document.createElement('li'); li.className = 'empty'; li.textContent = 'No steps yet \\u2014 add points above.'; list.appendChild(li); return; }\n  seqSteps.forEach(function(s, i){\n    var li = document.createElement('li');\n    li.innerHTML = '<span class=\"sidx\">' + (i + 1) + '</span><span class=\"sname\">' + s.name + '</span>' +\n      '<button onclick=\"seqUp(' + i + ')\"' + (i === 0 ? ' disabled' : '') + '>&#9650;</button>' +\n      '<button onclick=\"seqDown(' + i + ')\"' + (i === seqSteps.length - 1 ? ' disabled' : '') + '>&#9660;</button>' +\n      '<button class=\"x\" onclick=\"seqDel(' + i + ')\">&times;</button>';\n    list.appendChild(li);\n  });\n}\nfunction addSeqStep() {\n  var sel = document.getElementById('seqadd');\n  if (!sel || !sel.value) return;\n  seqSteps.push({ id: sel.value, name: sel.options[sel.selectedIndex].text });\n  renderSeq();\n}\nfunction seqUp(i)   { if (i <= 0) return; var t = seqSteps[i-1]; seqSteps[i-1] = seqSteps[i]; seqSteps[i] = t; renderSeq(); }\nfunction seqDown(i) { if (i >= seqSteps.length - 1) return; var t = seqSteps[i+1]; seqSteps[i+1] = seqSteps[i]; seqSteps[i] = t; renderSeq(); }\nfunction seqDel(i)  { seqSteps.splice(i, 1); renderSeq(); }\nfunction runSeq() {\n  var steps = seqSteps.map(function(s){ return { name: s.name }; });\n  if (!steps.length) return;\n  var dwell = parseInt(document.getElementById('seq-dwell').value) || 0;\n  var loop = document.getElementById('seq-loop').checked;\n  var pingpong = document.getElementById('seq-pingpong').checked;\n  var toast = document.getElementById('toast');\n  toast.style.color = '#8b949e'; toast.textContent = 'Running sequence (' + steps.length + ')...';\n  fetch('/robot/sequence', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ steps:steps, dwell:dwell, loop:loop, pingpong:pingpong }) })\n    .then(function(r){ return r.json(); })\n    .then(function(res){ toast.style.color = res.ok ? '#3fb950' : '#f85149'; toast.textContent = res.ok ? ('Sequence started: ' + res.count + ' points') : ('Error: ' + (res.error || 'failed')); })\n    .catch(function(){ toast.style.color = '#f85149'; toast.textContent = 'Connection error'; });\n}\nfunction stopSeq() {\n  fetch('/robot/sequence/stop', { method:'POST' })\n    .then(function(r){ return r.json(); })\n    .then(function(){ var t = document.getElementById('toast'); t.style.color = '#d29922'; t.textContent = 'Sequence stop requested'; });\n}\nfunction update() {\n  fetch('/robot/data')\n    .then(r => r.json())\n    .then(d => {\n      document.getElementById('ctrlstate').textContent = d.ctrlstate || '-';\n      document.getElementById('opmode').textContent = d.opmode || '-';\n      document.getElementById('rapid').textContent = d.rapid || '-';\n      document.getElementById('speed').textContent = (d.speed || '0') + '%';\n      document.getElementById('speedbar').style.width = (d.speed || 0) + '%';\n      var fmt=function(v){return v!=null&&v!==''?(+v).toFixed(2):'-';};\n      document.getElementById('px').textContent = fmt(d.x);\n      document.getElementById('py').textContent = fmt(d.y);\n      document.getElementById('pz').textContent = fmt(d.z);\n      document.getElementById('j1').textContent = fmt(d.j1);\n      document.getElementById('j2').textContent = fmt(d.j2);\n      document.getElementById('j3').textContent = fmt(d.j3);\n      document.getElementById('j4').textContent = fmt(d.j4);\n      document.getElementById('j5').textContent = fmt(d.j5);\n      document.getElementById('j6').textContent = fmt(d.j6);\n      document.getElementById('updated').textContent = 'Last update: ' + d.updated;\n      renderPoints(d.points || []);\n      var led = document.getElementById('led');\n      var colors = { motoron:'green', guardstop:'yellow', emergencystop:'red', sysfail:'red' };\n      led.className = 'led ' + (colors[d.ctrlstate] || 'grey');\n    })\n    .catch(function() {\n      document.getElementById('updated').textContent = 'Connection error \u2014 retrying...';\n    });\n}\nfunction sendMove(body, label) {\n  var toast = document.getElementById('toast');\n  var btns = document.querySelectorAll('.btn');\n  btns.forEach(function(b){ b.disabled = true; });\n  toast.style.color = '#8b949e';\n  toast.textContent = 'Sending ' + label + '...';\n  fetch('/robot/move', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })\n    .then(function(r){ return r.json(); })\n    .then(function(res){\n      if (res.ok) { toast.style.color = '#3fb950'; toast.textContent = 'OK: ' + label + (res.ack ? ' (' + res.ack + ')' : ''); }\n      else { toast.style.color = '#f85149'; toast.textContent = 'Error: ' + (res.error || 'failed'); }\n    })\n    .catch(function(){ toast.style.color = '#f85149'; toast.textContent = 'Connection error'; })\n    .finally(function(){ btns.forEach(function(b){ b.disabled = false; }); });\n}\nfunction move(key) {\n  var names = { home:'Home', p1:'Point 1', p2:'Point 2', p3:'Point 3' };\n  sendMove({ routine:key }, names[key] || key);\n}\nfunction jog(token) {\n  var rot = token.charAt(0) === 'R';\n  var step = rot ? (parseInt(document.getElementById('ang-deg').value) || 5)\n                 : (parseInt(document.getElementById('lin-mm').value) || 10);\n  sendMove({ jog:token, step:step }, 'Jog ' + token + ' ' + step + (rot ? 'deg' : 'mm'));\n}\nfunction syncLin(src) {\n  var r = document.getElementById('lin-range'), mm = document.getElementById('lin-mm');\n  if (src === 'range') { mm.value = r.value * 10; }\n  else { var v = Math.max(1, Math.min(50, parseInt(mm.value) || 10)); mm.value = v; r.value = Math.round(v / 10) || 1; }\n  document.getElementById('lin-cm').textContent = (mm.value / 10);\n}\nupdate();\nsetInterval(update, 200);\n</script>\n</body>\n</html>`;\nreturn msg;",
-    "outputs": 1,
-    "wires": [
-      [
-        "pg_out"
-      ]
-    ]
-  },
-  {
-    "id": "pg_out",
-    "type": "http response",
-    "name": "",
-    "z": "tab_pal",
-    "x": 560,
-    "y": 240,
-    "wires": []
-  },
-  {
-    "id": "dt_in",
-    "type": "http in",
-    "name": "GET /robot/data",
-    "z": "tab_pal",
-    "x": 100,
-    "y": 340,
-    "method": "get",
-    "url": "/robot/data",
-    "wires": [
-      [
-        "dt_ptlist"
-      ]
-    ]
-  },
-  {
-    "id": "dt_ptlist",
-    "type": "gofa-point-list",
-    "name": "Point List",
-    "z": "tab_pal",
-    "x": 340,
-    "y": 340,
-    "robot": "cfg_robot",
-    "wires": [
-      [
-        "dt_fn"
-      ]
-    ]
-  },
-  {
-    "id": "dt_fn",
-    "type": "function",
-    "name": "Serve JSON data",
-    "z": "tab_pal",
-    "x": 560,
-    "y": 340,
-    "func": "var d = flow.get('robot_data') || {};\nmsg.payload = Object.assign({}, d, { points: msg.payload });\nmsg.statusCode = 200;\nreturn msg;",
-    "outputs": 1,
-    "wires": [
-      [
-        "dt_out"
-      ]
-    ]
-  },
-  {
-    "id": "dt_out",
-    "type": "http response",
-    "name": "",
-    "z": "tab_pal",
-    "x": 780,
-    "y": 340,
-    "wires": []
-  },
-  {
-    "id": "mv_in",
-    "type": "http in",
-    "name": "POST /robot/move",
-    "z": "tab_pal",
-    "x": 100,
-    "y": 500,
-    "method": "post",
-    "url": "/robot/move",
-    "wires": [
-      [
-        "mv_route"
-      ]
-    ]
-  },
-  {
-    "id": "mv_route",
-    "type": "function",
-    "name": "Route move command",
-    "z": "tab_pal",
-    "x": 320,
-    "y": 500,
-    "func": "var p = msg.payload || {};\nif (p.routine || p.sethome) {\n    msg.payload = { command: p.sethome ? 'SETHOME' : p.routine.toUpperCase() };\n    return [msg, null, null, null, null];\n}\nif (p.jog) {\n    msg.payload = { axis: p.jog.slice(0,-1), dir: p.jog.slice(-1), step: p.step };\n    return [null, msg, null, null, null];\n}\nif (p.joint) {\n    msg.payload = { joint: p.joint.slice(0,-1), dir: p.joint.slice(-1), step: p.step };\n    return [null, null, msg, null, null];\n}\nif (p.goto) {\n    msg.payload = { name: p.goto, id: p.goto };\n    return [null, null, null, msg, null];\n}\nmsg.statusCode = 400;\nmsg.payload = { ok: false, error: 'unknown command' };\nreturn [null, null, null, null, msg];",
-    "outputs": 5,
-    "wires": [
-      [
-        "mv_move"
-      ],
-      [
-        "mv_jog"
-      ],
-      [
-        "mv_jjog"
-      ],
-      [
-        "mv_gopoint"
-      ],
-      [
-        "mv_out"
-      ]
-    ]
-  },
-  {
-    "id": "mv_move",
-    "type": "gofa-move",
-    "name": "Move Home/SetHome",
-    "z": "tab_pal",
-    "x": 580,
-    "y": 420,
-    "robot": "cfg_robot",
-    "command": "HOME",
-    "wires": [
-      [
-        "mv_resp"
-      ]
-    ]
-  },
-  {
-    "id": "mv_jog",
-    "type": "gofa-jog",
-    "name": "Jog",
-    "z": "tab_pal",
-    "x": 580,
-    "y": 480,
-    "robot": "cfg_robot",
-    "axis": "X",
-    "dir": "+",
-    "step": 10,
-    "wires": [
-      [
-        "mv_resp"
-      ]
-    ]
-  },
-  {
-    "id": "mv_jjog",
-    "type": "gofa-joint-jog",
-    "name": "Joint Jog",
-    "z": "tab_pal",
-    "x": 580,
-    "y": 540,
-    "robot": "cfg_robot",
-    "joint": "J1",
-    "dir": "+",
-    "step": 5,
-    "wires": [
-      [
-        "mv_resp"
-      ]
-    ]
-  },
-  {
-    "id": "mv_gopoint",
-    "type": "gofa-go-point",
-    "name": "Go to Point",
-    "z": "tab_pal",
-    "x": 580,
-    "y": 600,
-    "robot": "cfg_robot",
-    "pointName": "",
-    "wires": [
-      [
-        "mv_resp"
-      ]
-    ]
-  },
-  {
-    "id": "mv_resp",
-    "type": "function",
-    "name": "Format move response",
-    "z": "tab_pal",
-    "x": 800,
-    "y": 500,
-    "func": "msg.statusCode = 200;\nreturn msg;",
-    "outputs": 1,
-    "wires": [
-      [
-        "mv_out"
-      ]
-    ]
-  },
-  {
-    "id": "mv_out",
-    "type": "http response",
-    "name": "",
-    "z": "tab_pal",
-    "x": 1020,
-    "y": 500,
-    "wires": []
-  },
-  {
-    "id": "sv_in",
-    "type": "http in",
-    "name": "POST /robot/savepoint",
-    "z": "tab_pal",
-    "x": 100,
-    "y": 700,
-    "method": "post",
-    "url": "/robot/savepoint",
-    "wires": [
-      [
-        "sv_prep"
-      ]
-    ]
-  },
-  {
-    "id": "sv_prep",
-    "type": "function",
-    "name": "Save prep",
-    "z": "tab_pal",
-    "x": 320,
-    "y": 700,
-    "func": "msg.payload = { name: (msg.payload && msg.payload.name) || '' };\nreturn msg;",
-    "outputs": 1,
-    "wires": [
-      [
-        "sv_node"
-      ]
-    ]
-  },
-  {
-    "id": "sv_node",
-    "type": "gofa-save-point",
-    "name": "Save Point",
-    "z": "tab_pal",
-    "x": 540,
-    "y": 700,
-    "robot": "cfg_robot",
-    "pointName": "",
-    "wires": [
-      [
-        "sv_fn"
-      ]
-    ]
-  },
-  {
-    "id": "sv_fn",
-    "type": "function",
-    "name": "Save response",
-    "z": "tab_pal",
-    "x": 760,
-    "y": 700,
-    "func": "msg.payload.name = msg.payload.point ? msg.payload.point.name : '';\nmsg.statusCode = 200;\nreturn msg;",
-    "outputs": 1,
-    "wires": [
-      [
-        "sv_out"
-      ]
-    ]
-  },
-  {
-    "id": "sv_out",
-    "type": "http response",
-    "name": "",
-    "z": "tab_pal",
-    "x": 980,
-    "y": 700,
-    "wires": []
-  },
-  {
-    "id": "dl_in",
-    "type": "http in",
-    "name": "POST /robot/deletepoint",
-    "z": "tab_pal",
-    "x": 100,
-    "y": 780,
-    "method": "post",
-    "url": "/robot/deletepoint",
-    "wires": [
-      [
-        "dl_prep"
-      ]
-    ]
-  },
-  {
-    "id": "dl_prep",
-    "type": "function",
-    "name": "Delete prep",
-    "z": "tab_pal",
-    "x": 320,
-    "y": 780,
-    "func": "msg.payload = { id: msg.payload.id, name: msg.payload.id };\nreturn msg;",
-    "outputs": 1,
-    "wires": [
-      [
-        "dl_node"
-      ]
-    ]
-  },
-  {
-    "id": "dl_node",
-    "type": "gofa-delete-point",
-    "name": "Delete Point",
-    "z": "tab_pal",
-    "x": 540,
-    "y": 780,
-    "robot": "cfg_robot",
-    "pointName": "",
-    "wires": [
-      [
-        "dl_ok"
-      ]
-    ]
-  },
-  {
-    "id": "dl_ok",
-    "type": "change",
-    "name": "Set 200",
-    "z": "tab_pal",
-    "x": 760,
-    "y": 780,
-    "rules": [
-      {
-        "t": "set",
-        "p": "statusCode",
-        "pt": "msg",
-        "to": "200",
-        "tot": "num"
-      }
-    ],
-    "wires": [
-      [
-        "dl_out"
-      ]
-    ]
-  },
-  {
-    "id": "dl_out",
-    "type": "http response",
-    "name": "",
-    "z": "tab_pal",
-    "x": 980,
-    "y": 780,
-    "wires": []
-  },
-  {
-    "id": "ct_in",
-    "type": "http in",
-    "name": "POST /robot/ctrlstate",
-    "z": "tab_pal",
-    "x": 100,
-    "y": 860,
-    "method": "post",
-    "url": "/robot/ctrlstate",
-    "wires": [
-      [
-        "ct_prep"
-      ]
-    ]
-  },
-  {
-    "id": "ct_prep",
-    "type": "function",
-    "name": "Motor prep",
-    "z": "tab_pal",
-    "x": 320,
-    "y": 860,
-    "func": "msg.payload = { action: msg.payload.state };\nreturn msg;",
-    "outputs": 1,
-    "wires": [
-      [
-        "ct_node"
-      ]
-    ]
-  },
-  {
-    "id": "ct_node",
-    "type": "gofa-motor",
-    "name": "Motor On/Off",
-    "z": "tab_pal",
-    "x": 540,
-    "y": 860,
-    "robot": "cfg_robot",
-    "action": "motoron",
-    "wires": [
-      [
-        "ct_ok"
-      ]
-    ]
-  },
-  {
-    "id": "ct_ok",
-    "type": "change",
-    "name": "Set 200",
-    "z": "tab_pal",
-    "x": 760,
-    "y": 860,
-    "rules": [
-      {
-        "t": "set",
-        "p": "statusCode",
-        "pt": "msg",
-        "to": "200",
-        "tot": "num"
-      }
-    ],
-    "wires": [
-      [
-        "ct_out"
-      ]
-    ]
-  },
-  {
-    "id": "ct_out",
-    "type": "http response",
-    "name": "",
-    "z": "tab_pal",
-    "x": 980,
-    "y": 860,
-    "wires": []
-  },
-  {
-    "id": "sq_in",
-    "type": "http in",
-    "name": "POST /robot/sequence",
-    "z": "tab_pal",
-    "x": 100,
-    "y": 960,
-    "method": "post",
-    "url": "/robot/sequence",
-    "wires": [
-      [
-        "sq_prep"
-      ]
-    ]
-  },
-  {
-    "id": "sq_prep",
-    "type": "function",
-    "name": "Sequence prep",
-    "z": "tab_pal",
-    "x": 320,
-    "y": 960,
-    "func": "var p = msg.payload || {};\nvar steps = p.steps || [];\n// immediate HTTP reply\nvar reply = { req: msg.req, res: msg.res,\n    statusCode: 200, payload: { ok: true, count: steps.length } };\n// sequencer message with runtime overrides\nmsg.payload = {\n    steps:    steps,\n    dwell:    p.dwell    != null ? p.dwell    : 800,\n    loop:     p.loop     != null ? p.loop     : false,\n    pingpong: p.pingpong != null ? p.pingpong : false\n};\nreturn [reply, msg];",
-    "outputs": 2,
-    "wires": [
-      [
-        "sq_out"
-      ],
-      [
-        "sq_node"
-      ]
-    ]
-  },
-  {
-    "id": "sq_out",
-    "type": "http response",
-    "name": "",
-    "z": "tab_pal",
-    "x": 540,
-    "y": 920,
-    "wires": []
-  },
-  {
-    "id": "sq_node",
-    "type": "gofa-sequencer",
-    "name": "Sequencer",
-    "z": "tab_pal",
-    "x": 540,
-    "y": 980,
-    "robot": "cfg_robot",
-    "steps": [],
-    "dwell": 800,
-    "loop": false,
-    "pingpong": false,
-    "wires": [
-      [],
-      []
-    ]
-  },
-  {
-    "id": "st_in",
-    "type": "http in",
-    "name": "POST /robot/sequence/stop",
-    "z": "tab_pal",
-    "x": 100,
-    "y": 1060,
-    "method": "post",
-    "url": "/robot/sequence/stop",
-    "wires": [
-      [
-        "st_node"
-      ]
-    ]
-  },
-  {
-    "id": "st_node",
-    "type": "gofa-stop-seq",
-    "name": "Stop Seq",
-    "z": "tab_pal",
-    "x": 340,
-    "y": 1060,
-    "robot": "cfg_robot",
-    "wires": [
-      [
-        "st_ok"
-      ]
-    ]
-  },
-  {
-    "id": "st_ok",
-    "type": "change",
-    "name": "Set 200 + OK",
-    "z": "tab_pal",
-    "x": 560,
-    "y": 1060,
-    "rules": [
-      {
-        "t": "set",
-        "p": "statusCode",
-        "pt": "msg",
-        "to": "200",
-        "tot": "num"
-      },
-      {
-        "t": "set",
-        "p": "payload",
-        "pt": "msg",
-        "to": "{\"ok\":true}",
-        "tot": "json"
-      }
-    ],
-    "wires": [
-      [
-        "st_out"
-      ]
-    ]
-  },
-  {
-    "id": "st_out",
-    "type": "http response",
-    "name": "",
-    "z": "tab_pal",
-    "x": 780,
-    "y": 1060,
-    "wires": []
-  }
+  {"id":"tab_pal","type":"tab","label":"ABB-GoFa-12 Dashboard","disabled":false,"info":""},
+  {"id":"cfg_robot","type":"gofa-robot","name":"ABB-GoFa-12","ip":"192.168.20.15","rwsPort":"443","socketPort":"1025","username":"NNNN","pointsFile":"points.json","credentials":{}},
+
+  {"id":"p_inj","type":"inject","name":"Poll 200ms","z":"tab_pal","x":100,"y":60,"repeat":"0.2","crontab":"","once":true,"onceDelay":0.1,"topic":"","payload":"","payloadType":"date","wires":[["p_status","p_pose","p_joints"]]},
+  {"id":"p_status","type":"gofa-status","name":"Status","z":"tab_pal","x":340,"y":40,"robot":"cfg_robot","wires":[["p_merge"]]},
+  {"id":"p_pose","type":"gofa-pose","name":"Pose","z":"tab_pal","x":340,"y":80,"robot":"cfg_robot","wires":[["p_merge"]]},
+  {"id":"p_joints","type":"gofa-joints","name":"Joints","z":"tab_pal","x":340,"y":120,"robot":"cfg_robot","wires":[["p_merge"]]},
+  {"id":"p_merge","type":"function","name":"Merge poll","z":"tab_pal","x":560,"y":80,"func":"var d=context.get('d')||{};Object.assign(d,msg.payload);d._n=(d._n||0)+1;context.set('d',d);if(d._n>=3){d.updated=new Date().toLocaleTimeString();delete d._n;flow.set('robot_data',Object.assign({},d));context.set('d',{});}return null;","outputs":1,"wires":[[]]},
+
+  {"id":"pg_in","type":"http in","name":"GET /robot","z":"tab_pal","x":100,"y":240,"method":"get","url":"/robot","wires":[["pg_fn"]]},
+  {"id":"pg_fn","type":"function","name":"Serve HTML","z":"tab_pal","x":320,"y":240,"func":"msg.headers={'Content-Type':'text/html'};\nmsg.payload=`<!DOCTYPE html>\n<html lang='en'>\n<head>\n<meta charset='UTF-8'>\n<meta name='viewport' content='width=device-width,initial-scale=1'>\n<title>ABB GoFa-12</title>\n<style>\n*{box-sizing:border-box;margin:0;padding:0}\nbody{background:#0d1117;color:#e6edf3;font-family:Segoe UI,sans-serif;display:flex;height:100vh;overflow:hidden;font-size:14px}\n.sidebar{width:180px;min-width:180px;background:#161b22;border-right:1px solid #30363d;padding:12px;overflow-y:auto}\n.sidebar h1{font-size:0.9rem;color:#ff6b00;margin-bottom:8px;font-weight:700}\n.sr{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #21262d}\n.sl{color:#8b949e;font-size:0.75rem}\n.sv{font-weight:600;font-family:monospace;font-size:0.78rem}\n.led{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:3px}\n.led.g{background:#3fb950;box-shadow:0 0 4px #3fb950}\n.led.y{background:#d29922;box-shadow:0 0 4px #d29922}\n.led.r{background:#f85149;box-shadow:0 0 4px #f85149}\n.led.x{background:#484f58}\n.sbar{background:#21262d;border-radius:3px;height:4px;margin:2px 0 5px}\n.sfill{height:100%;background:#ff6b00;border-radius:3px;transition:width .3s}\n.sg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:4px}\n.sj{background:#0d1117;border-radius:5px;padding:5px;text-align:center}\n.sj .jn{font-size:0.6rem;color:#8b949e;text-transform:uppercase}\n.sj .jv{font-size:0.85rem;font-weight:700;color:#ff6b00;font-family:monospace}\n.upd{font-size:0.65rem;color:#484f58;margin-top:6px}\n.main{flex:1;display:flex;flex-direction:column;overflow:hidden}\n.tabs{display:flex;background:#161b22;border-bottom:1px solid #30363d;flex-shrink:0}\n.tb{padding:9px 14px;background:none;border:none;color:#8b949e;font-size:0.8rem;cursor:pointer;border-bottom:2px solid transparent;font-family:inherit}\n.tb:hover{color:#e6edf3}\n.tb.active{color:#ff6b00;border-bottom-color:#ff6b00}\n.panel{display:none;flex:1;overflow-y:auto;padding:14px;flex-direction:column;gap:10px}\n.panel.active{display:flex}\n.card{background:#161b22;border:1px solid #30363d;border-radius:9px;padding:14px}\n.card h2{font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;color:#8b949e;margin-bottom:10px}\n.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}\n.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}\n.g6{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-bottom:5px}\n.btn{padding:9px 12px;border:none;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s}\n.btn:hover{opacity:.85}\n.btn:active{transform:translateY(1px)}\n.btn:disabled{opacity:.4;cursor:wait}\n.blue{background:#1f6feb;color:#fff}\n.green{background:#3fb950;color:#fff}\n.red{background:#da3633;color:#fff}\n.orange{background:#ff6b00;color:#fff}\n.purple{background:#8957e5;color:#fff}\n.grey{background:#30363d;color:#e6edf3}\n.srow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:7px}\n.srow label{color:#8b949e;font-size:0.78rem;display:flex;align-items:center;gap:4px}\ninput[type=number],input[type=text],select,textarea{background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:5px;padding:6px;font-size:0.8rem;font-family:inherit}\ninput[type=number]{width:68px}\ninput[type=range]{accent-color:#ff6b00;cursor:pointer;padding:0;width:100%}\nselect,input[type=text]{width:100%}\ntextarea{resize:vertical;font-family:monospace;font-size:0.73rem;width:100%}\n.ir{display:flex;gap:6px;align-items:center;margin-bottom:7px}\n.ir input[type=text]{flex:1;width:auto}\n.ir input[type=number]{width:75px}\n.toast{font-size:0.78rem;color:#8b949e;font-family:monospace;min-height:1em;padding:5px 0}\n.seq-list{list-style:none;margin:5px 0}\n.seq-list li{display:flex;align-items:center;gap:6px;background:#0d1117;border:1px solid #30363d;border-radius:5px;padding:6px 9px;margin-bottom:3px}\n.seq-list .si{color:#8b949e;width:1.3em;font-family:monospace;font-size:0.78rem}\n.seq-list .sn{flex:1;font-size:0.82rem}\n.seq-list .xb{color:#f85149;background:none;border:none;cursor:pointer;font-size:0.95rem;padding:0 3px}\n.seq-list .ab{background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:0.72rem}\n.dtbl{width:100%;border-collapse:collapse;font-size:0.78rem}\n.dtbl th{color:#8b949e;text-align:left;padding:4px 6px;border-bottom:1px solid #30363d}\n.dtbl td{padding:4px 6px;border-bottom:1px solid #21262d;font-family:monospace}\n.dtbl tr:last-child td{border-bottom:none}\n.elog-entry{background:#0d1117;border:1px solid #30363d;border-radius:5px;padding:7px;margin-bottom:4px;font-size:0.76rem}\n.elog-entry .et{color:#8b949e;font-size:0.7rem;margin-bottom:2px}\n.chk{display:flex;align-items:center;gap:5px;color:#8b949e;font-size:0.78rem;cursor:pointer}\n</style>\n</head>\n<body>\n<aside class='sidebar'>\n  <h1>ABB GoFa-12</h1>\n  <div class='sr'><span class='sl'>State</span><span class='sv'><span class='led x' id='led'></span><span id='cs'>—</span></span></div>\n  <div class='sr'><span class='sl'>Mode</span><span class='sv' id='om'>—</span></div>\n  <div class='sr'><span class='sl'>RAPID</span><span class='sv' id='rp'>—</span></div>\n  <div class='sr'><span class='sl'>Speed</span><span class='sv'><span id='sp'>—</span>%</span></div>\n  <div class='sbar'><div class='sfill' id='spb' style='width:0'></div></div>\n  <div class='sr'><span class='sl'>X</span><span class='sv' id='px'>—</span></div>\n  <div class='sr'><span class='sl'>Y</span><span class='sv' id='py'>—</span></div>\n  <div class='sr'><span class='sl'>Z</span><span class='sv' id='pz'>—</span></div>\n  <div class='sg'>\n    <div class='sj'><div class='jn'>J1</div><div class='jv' id='j1'>—</div></div>\n    <div class='sj'><div class='jn'>J2</div><div class='jv' id='j2'>—</div></div>\n    <div class='sj'><div class='jn'>J3</div><div class='jv' id='j3'>—</div></div>\n    <div class='sj'><div class='jn'>J4</div><div class='jv' id='j4'>—</div></div>\n    <div class='sj'><div class='jn'>J5</div><div class='jv' id='j5'>—</div></div>\n    <div class='sj'><div class='jn'>J6</div><div class='jv' id='j6'>—</div></div>\n  </div>\n  <div class='upd' id='upd'>Connecting...</div>\n</aside>\n<div class='main'>\n  <div class='tabs'>\n    <button class='tb active' data-tab='motion' onclick='showTab(this)'>Motion</button>\n    <button class='tb' data-tab='points' onclick='showTab(this)'>Points</button>\n    <button class='tb' data-tab='control' onclick='showTab(this)'>Control</button>\n    <button class='tb' data-tab='io' onclick='showTab(this)'>I/O</button>\n    <button class='tb' data-tab='rapid' onclick='showTab(this)'>RAPID</button>\n    <button class='tb' data-tab='system' onclick='showTab(this)'>System</button>\n  </div>\n  <div id='tab-motion' class='panel active'>\n    <div class='card'>\n      <h2>Cartesian Jog — base frame translate / tool frame rotate</h2>\n      <div class='srow'>\n        <label>Linear step <input type='number' id='lin' min='1' max='50' value='10'> mm</label>\n        <label>Rotation step <input type='number' id='ang' min='1' max='30' value='5'> deg</label>\n      </div>\n      <div class='g6'>\n        <button class='btn blue' data-jog='X+' onclick='jogBtn(this)'>+X</button>\n        <button class='btn blue' data-jog='X-' onclick='jogBtn(this)'>-X</button>\n        <button class='btn blue' data-jog='Y+' onclick='jogBtn(this)'>+Y</button>\n        <button class='btn blue' data-jog='Y-' onclick='jogBtn(this)'>-Y</button>\n        <button class='btn blue' data-jog='Z+' onclick='jogBtn(this)'>+Z</button>\n        <button class='btn blue' data-jog='Z-' onclick='jogBtn(this)'>-Z</button>\n      </div>\n      <div class='g6'>\n        <button class='btn purple' data-jog='RX+' onclick='jogBtn(this)'>+RX</button>\n        <button class='btn purple' data-jog='RX-' onclick='jogBtn(this)'>-RX</button>\n        <button class='btn purple' data-jog='RY+' onclick='jogBtn(this)'>+RY</button>\n        <button class='btn purple' data-jog='RY-' onclick='jogBtn(this)'>-RY</button>\n        <button class='btn purple' data-jog='RZ+' onclick='jogBtn(this)'>+RZ</button>\n        <button class='btn purple' data-jog='RZ-' onclick='jogBtn(this)'>-RZ</button>\n      </div>\n      <div class='toast' id='t-jog'></div>\n    </div>\n    <div class='card'>\n      <h2>Joint Jog (degrees per axis)</h2>\n      <div class='srow'><label>Angle step <input type='number' id='jjog' min='1' max='30' value='5'> deg</label></div>\n      <div class='g6'>\n        <button class='btn purple' data-joint='J1+' onclick='jjogBtn(this)'>J1+</button>\n        <button class='btn purple' data-joint='J1-' onclick='jjogBtn(this)'>J1-</button>\n        <button class='btn purple' data-joint='J2+' onclick='jjogBtn(this)'>J2+</button>\n        <button class='btn purple' data-joint='J2-' onclick='jjogBtn(this)'>J2-</button>\n        <button class='btn purple' data-joint='J3+' onclick='jjogBtn(this)'>J3+</button>\n        <button class='btn purple' data-joint='J3-' onclick='jjogBtn(this)'>J3-</button>\n      </div>\n      <div class='g6'>\n        <button class='btn purple' data-joint='J4+' onclick='jjogBtn(this)'>J4+</button>\n        <button class='btn purple' data-joint='J4-' onclick='jjogBtn(this)'>J4-</button>\n        <button class='btn purple' data-joint='J5+' onclick='jjogBtn(this)'>J5+</button>\n        <button class='btn purple' data-joint='J5-' onclick='jjogBtn(this)'>J5-</button>\n        <button class='btn purple' data-joint='J6+' onclick='jjogBtn(this)'>J6+</button>\n        <button class='btn purple' data-joint='J6-' onclick='jjogBtn(this)'>J6-</button>\n      </div>\n    </div>\n    <div class='card'>\n      <h2>Absolute Joint Move (MOVEJ)</h2>\n      <div class='srow'>\n        <label>J1 <input type='number' id='mj1' value='0' step='0.1'></label>\n        <label>J2 <input type='number' id='mj2' value='0' step='0.1'></label>\n        <label>J3 <input type='number' id='mj3' value='85' step='0.1'></label>\n        <label>J4 <input type='number' id='mj4' value='0' step='0.1'></label>\n        <label>J5 <input type='number' id='mj5' value='0' step='0.1'></label>\n        <label>J6 <input type='number' id='mj6' value='0' step='0.1'></label>\n        <button class='btn orange' onclick='moveJ()'>Move</button>\n      </div>\n      <div class='toast' id='t-movej'></div>\n    </div>\n    <div class='card'>\n      <h2>Ping</h2>\n      <div class='ir'>\n        <button class='btn grey' onclick='doPing()'>Ping Robot</button>\n        <span id='ping-r' style='font-family:monospace;color:#8b949e'></span>\n      </div>\n    </div>\n  </div>\n  <div id='tab-points' class='panel'>\n    <div class='card'>\n      <h2>Save Current Pose</h2>\n      <div class='ir'>\n        <input type='text' id='ptname' placeholder='name (auto if blank)'>\n        <button class='btn green' onclick='savePoint()'>Save</button>\n      </div>\n      <div class='toast' id='t-save'></div>\n    </div>\n    <div class='card'>\n      <h2>Go To / Delete Saved Point</h2>\n      <div class='ir'>\n        <select id='ptsel'></select>\n        <button class='btn orange' onclick='goPoint()'>Go</button>\n        <button class='btn red' onclick='delPoint()'>Delete</button>\n      </div>\n      <div class='toast' id='t-pt'></div>\n    </div>\n    <div class='card'>\n      <h2>Sequence Runner</h2>\n      <div class='ir'>\n        <select id='seqadd'></select>\n        <button class='btn grey' onclick='addStep()'>Add Step</button>\n      </div>\n      <div class='srow'>\n        <label>Dwell <input type='number' id='seq-dwell' value='800' min='0' max='30000' style='width:75px'> ms</label>\n        <label class='chk'><input type='checkbox' id='seq-loop'> Loop</label>\n        <label class='chk'><input type='checkbox' id='seq-pp'> Ping-Pong</label>\n        <button class='btn green' onclick='runSeq()'>Run</button>\n        <button class='btn red' onclick='stopSeq()'>Stop</button>\n      </div>\n      <ol id='seqlist' class='seq-list'></ol>\n      <div class='toast' id='t-seq'></div>\n    </div>\n    <div class='card'>\n      <h2>Export / Import Points</h2>\n      <div class='ir'><button class='btn grey' onclick='exportPts()'>Export to JSON</button></div>\n      <textarea id='exp-json' rows='4' placeholder='Exported JSON appears here...'></textarea>\n      <div style='color:#8b949e;font-size:0.78rem;margin:6px 0'>Import (paste JSON array):</div>\n      <textarea id='imp-json' rows='4' placeholder='Paste points JSON array here...'></textarea>\n      <div class='ir' style='margin-top:5px'><button class='btn orange' onclick='importPts()'>Import</button></div>\n      <div class='toast' id='t-exp'></div>\n    </div>\n  </div>\n  <div id='tab-control' class='panel'>\n    <div class='g2'>\n      <div class='card'>\n        <h2>Motors</h2>\n        <div class='g2'>\n          <button class='btn green' data-ctrl='motoron' onclick='ctrlBtn(this)'>Motors ON</button>\n          <button class='btn red' data-ctrl='motoroff' onclick='ctrlBtn(this)'>Motors OFF</button>\n        </div>\n      </div>\n      <div class='card'>\n        <h2>RAPID Execution</h2>\n        <div class='g3'>\n          <button class='btn green' data-rapid='start' onclick='rapidBtn(this)'>Start</button>\n          <button class='btn red' data-rapid='stop' onclick='rapidBtn(this)'>Stop</button>\n          <button class='btn grey' data-rapid='resetpp' onclick='rapidBtn(this)'>Reset PP</button>\n        </div>\n        <div class='toast' id='t-rapid'></div>\n      </div>\n    </div>\n    <div class='g2'>\n      <div class='card'>\n        <h2>Home &amp; Stop</h2>\n        <div class='g3'>\n          <button class='btn green' data-move='home' onclick='moveBtn(this)'>Home</button>\n          <button class='btn grey' data-move='sethome' onclick='moveBtn(this)'>Set Home</button>\n          <button class='btn red' data-move='stop' onclick='moveBtn(this)'>Stop Motion</button>\n        </div>\n      </div>\n      <div class='card'>\n        <h2>Gripper</h2>\n        <div class='g2'>\n          <button class='btn green' data-grip='on' onclick='gripBtn(this)'>Gripper ON</button>\n          <button class='btn red' data-grip='off' onclick='gripBtn(this)'>Gripper OFF</button>\n        </div>\n        <div class='toast' id='t-grip'></div>\n      </div>\n    </div>\n    <div class='g2'>\n      <div class='card'>\n        <h2>Speed Override</h2>\n        <div class='srow'>\n          <label style='flex:1'>Speed: <span id='sp-val'>50</span>%\n            <input type='range' id='sp-range' min='1' max='100' value='50' oninput='updateSpVal(this.value)' style='margin-top:4px'>\n          </label>\n        </div>\n        <div class='ir'><button class='btn orange' onclick='setSpeed()'>Set Speed</button></div>\n        <div class='toast' id='t-speed'></div>\n      </div>\n      <div class='card'>\n        <h2>Path Zone</h2>\n        <div class='ir'>\n          <select id='zone-sel'><option>FINE</option><option>Z1</option><option>Z5</option><option selected>Z10</option><option>Z20</option><option>Z50</option><option>Z100</option></select>\n          <button class='btn orange' onclick='setZone()'>Set Zone</button>\n        </div>\n        <div class='toast' id='t-zone'></div>\n      </div>\n    </div>\n    <div class='card'>\n      <h2>Lead-Through (Gravity Compensation)</h2>\n      <div class='g2'>\n        <button class='btn green' data-lt='enable' onclick='ltBtn(this)'>Enable Lead-Through</button>\n        <button class='btn red' data-lt='disable' onclick='ltBtn(this)'>Disable Lead-Through</button>\n      </div>\n      <div class='toast' id='t-lt'></div>\n    </div>\n    <div class='toast' id='t-ctrl'></div>\n  </div>\n  <div id='tab-io' class='panel'>\n    <div class='card'>\n      <h2>List Signals</h2>\n      <div class='ir'>\n        <select id='io-type'><option value=''>All</option><option>DI</option><option>DO</option><option>AI</option><option>AO</option><option>GI</option><option>GO</option></select>\n        <button class='btn grey' onclick='listIO()'>Refresh</button>\n      </div>\n      <div id='io-tbl'></div>\n      <div class='toast' id='t-iol'></div>\n    </div>\n    <div class='g2'>\n      <div class='card'>\n        <h2>Digital Input — Read</h2>\n        <div class='ir'>\n          <input type='text' id='di-sig' placeholder='DI10_1'>\n          <button class='btn blue' onclick='readDI()'>Read</button>\n        </div>\n        <div id='di-r' style='font-size:1.05rem;font-weight:700;font-family:monospace;color:#ff6b00'></div>\n      </div>\n      <div class='card'>\n        <h2>Analog Input — Read</h2>\n        <div class='ir'>\n          <input type='text' id='ai-sig' placeholder='AI1'>\n          <button class='btn blue' onclick='readAI()'>Read</button>\n        </div>\n        <div id='ai-r' style='font-size:1.05rem;font-weight:700;font-family:monospace;color:#ff6b00'></div>\n      </div>\n    </div>\n    <div class='g2'>\n      <div class='card'>\n        <h2>Digital Output — Write</h2>\n        <div class='ir'>\n          <input type='text' id='do-sig' placeholder='DO10_1'>\n          <select id='do-val' style='width:80px'><option value='1'>1 ON</option><option value='0'>0 OFF</option></select>\n          <button class='btn orange' onclick='writeDO()'>Write</button>\n        </div>\n        <div class='toast' id='t-do'></div>\n      </div>\n      <div class='card'>\n        <h2>Analog Output — Write</h2>\n        <div class='ir'>\n          <input type='text' id='ao-sig' placeholder='AO1'>\n          <input type='number' id='ao-val' value='0' step='0.1'>\n          <button class='btn orange' onclick='writeAO()'>Write</button>\n        </div>\n        <div class='toast' id='t-ao'></div>\n      </div>\n    </div>\n  </div>\n  <div id='tab-rapid' class='panel'>\n    <div class='card'>\n      <h2>Read RAPID Variable</h2>\n      <div class='ir'>\n        <input type='text' id='rv-task' placeholder='T_ROB1'>\n        <input type='text' id='rv-mod' placeholder='MainModule'>\n        <input type='text' id='rv-var' placeholder='variable name'>\n        <button class='btn blue' onclick='readVar()'>Read</button>\n      </div>\n      <div id='rv-r' style='background:#0d1117;border:1px solid #30363d;border-radius:5px;padding:9px;font-family:monospace;min-height:34px;word-break:break-all'></div>\n    </div>\n    <div class='card'>\n      <h2>Write RAPID Variable (requires PC Interface option + edit mastership)</h2>\n      <div class='ir'>\n        <input type='text' id='rw-task' placeholder='T_ROB1'>\n        <input type='text' id='rw-mod' placeholder='MainModule'>\n        <input type='text' id='rw-var' placeholder='variable name'>\n        <input type='text' id='rw-val' placeholder='value'>\n        <button class='btn orange' onclick='writeVar()'>Write</button>\n      </div>\n      <div class='toast' id='t-rw'></div>\n    </div>\n  </div>\n  <div id='tab-system' class='panel'>\n    <div class='card'>\n      <h2>System Info</h2>\n      <div class='ir'><button class='btn grey' onclick='getSysInfo()'>Read</button></div>\n      <div id='si-r'></div>\n    </div>\n    <div class='card'>\n      <h2>Event Log</h2>\n      <div class='ir'><button class='btn grey' onclick='getElog()'>Fetch Log</button></div>\n      <div id='el-r'></div>\n    </div>\n    <div class='card'>\n      <h2>File Read (controller filesystem)</h2>\n      <div class='ir'>\n        <input type='text' id='fr-path' placeholder='$HOME/Programs/MainModule.mod'>\n        <button class='btn blue' onclick='readFile()'>Read</button>\n      </div>\n      <textarea id='fr-r' rows='8' placeholder='File content...' readonly></textarea>\n    </div>\n    <div class='card'>\n      <h2>Upload .mod File (local path on Node-RED host)</h2>\n      <div class='ir'>\n        <input type='text' id='fu-local' placeholder='/path/to/rapid/MainModule.mod'>\n        <input type='text' id='fu-remote' value='$HOME/Programs/MainModule.mod'>\n        <button class='btn orange' onclick='uploadFile()'>Upload</button>\n      </div>\n      <div class='toast' id='t-upload'></div>\n    </div>\n  </div>\n</div>\n<script>\nvar _pts=[];\nvar _seq=[];\nfunction showTab(btn){\n  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});\n  document.querySelectorAll('.tb').forEach(function(b){b.classList.remove('active');});\n  document.getElementById('tab-'+btn.dataset.tab).classList.add('active');\n  btn.classList.add('active');\n}\nfunction updateSpVal(v){document.getElementById('sp-val').textContent=v;}\nfunction toast(id,msg,ok){\n  var el=document.getElementById(id);if(!el)return;\n  el.style.color=ok===undefined?'#8b949e':ok?'#3fb950':'#f85149';\n  el.textContent=msg;\n}\nfunction fmt(v){return v!=null&&v!==''?(+v).toFixed(2):'-';}\nfunction post(url,body){\n  return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json();});\n}\nfunction update(){\n  fetch('/robot/data').then(function(r){return r.json();}).then(function(d){\n    document.getElementById('cs').textContent=d.ctrlstate||'-';\n    document.getElementById('om').textContent=d.opmode||'-';\n    document.getElementById('rp').textContent=d.rapid||'-';\n    document.getElementById('sp').textContent=d.speed||'0';\n    document.getElementById('spb').style.width=(d.speed||0)+'%';\n    document.getElementById('px').textContent=fmt(d.x);\n    document.getElementById('py').textContent=fmt(d.y);\n    document.getElementById('pz').textContent=fmt(d.z);\n    document.getElementById('j1').textContent=fmt(d.j1);\n    document.getElementById('j2').textContent=fmt(d.j2);\n    document.getElementById('j3').textContent=fmt(d.j3);\n    document.getElementById('j4').textContent=fmt(d.j4);\n    document.getElementById('j5').textContent=fmt(d.j5);\n    document.getElementById('j6').textContent=fmt(d.j6);\n    document.getElementById('upd').textContent=d.updated||'';\n    var lm={motoron:'g',guardstop:'y',emergencystop:'r',sysfail:'r'};\n    document.getElementById('led').className='led '+(lm[d.ctrlstate]||'x');\n    if(d.points){_pts=d.points;renderPtSels();}\n  }).catch(function(){document.getElementById('upd').textContent='Connection error';});\n}\nfunction renderPtSels(){\n  ['ptsel','seqadd'].forEach(function(id){\n    var sel=document.getElementById(id);if(!sel)return;\n    var cur=sel.value;\n    sel.innerHTML='';\n    if(!_pts.length){var o=document.createElement('option');o.textContent='-- no points --';sel.appendChild(o);return;}\n    _pts.forEach(function(p){var o=document.createElement('option');o.value=p.id;o.textContent=p.name;sel.appendChild(o);});\n    if(cur)sel.value=cur;\n  });\n  renderSeq();\n}\nfunction sendMove(body,label,tid){\n  var t=tid||'t-jog';\n  toast(t,'Sending '+label+'...');\n  var btns=document.querySelectorAll('.btn');\n  btns.forEach(function(b){b.disabled=true;});\n  return post('/robot/move',body).then(function(res){\n    toast(t,res.ok?'OK: '+label:'Error: '+(res.error||'failed'),res.ok);\n    return res;\n  }).catch(function(){toast(t,'Connection error',false);})\n  .finally(function(){btns.forEach(function(b){b.disabled=false;});});\n}\nfunction jogBtn(btn){\n  var tok=btn.dataset.jog;\n  var rot=tok.charAt(0)==='R';\n  var step=rot?parseInt(document.getElementById('ang').value)||5:parseInt(document.getElementById('lin').value)||10;\n  sendMove({jog:tok,step:step},'Jog '+tok+' '+step+(rot?'deg':'mm'),'t-jog');\n}\nfunction jjogBtn(btn){\n  var tok=btn.dataset.joint;\n  var step=parseInt(document.getElementById('jjog').value)||5;\n  sendMove({joint:tok,step:step},'Joint '+tok+' '+step+'deg','t-jog');\n}\nfunction moveJ(){\n  var j=[parseFloat(document.getElementById('mj1').value)||0,parseFloat(document.getElementById('mj2').value)||0,parseFloat(document.getElementById('mj3').value)||85,parseFloat(document.getElementById('mj4').value)||0,parseFloat(document.getElementById('mj5').value)||0,parseFloat(document.getElementById('mj6').value)||0];\n  sendMove({movej:j},'MOVEJ','t-movej');\n}\nfunction moveBtn(btn){\n  var m=btn.dataset.move;\n  if(m==='sethome'){if(!confirm('Set HOME to current pose?'))return;sendMove({sethome:true},'Set Home','t-ctrl');}\n  else if(m==='stop'){sendMove({stop:true},'Stop Motion','t-ctrl');}\n  else{sendMove({routine:m},m,'t-ctrl');}\n}\nfunction doPing(){\n  document.getElementById('ping-r').textContent='Pinging...';\n  post('/robot/ping',{}).then(function(res){document.getElementById('ping-r').textContent=res.ok?'RTT: '+res.rtt+'ms':'Error: '+(res.error||'failed');}).catch(function(){document.getElementById('ping-r').textContent='Connection error';});\n}\nfunction goPoint(){\n  var sel=document.getElementById('ptsel');if(!sel||!sel.value)return;\n  sendMove({goto:sel.value},'Go '+sel.options[sel.selectedIndex].text,'t-pt');\n}\nfunction savePoint(){\n  var name=document.getElementById('ptname').value.trim();\n  toast('t-save','Saving...');\n  post('/robot/savepoint',{name:name}).then(function(res){\n    toast('t-save',res.ok?'Saved: '+(res.name||'point'):'Error: '+(res.error||'failed'),res.ok);\n    if(res.ok){document.getElementById('ptname').value='';if(res.points){_pts=res.points;renderPtSels();}}\n  }).catch(function(){toast('t-save','Connection error',false);});\n}\nfunction delPoint(){\n  var sel=document.getElementById('ptsel');if(!sel||!sel.value)return;\n  toast('t-pt','Deleting...');\n  post('/robot/deletepoint',{id:sel.value}).then(function(res){\n    toast('t-pt',res.ok?'Deleted':'Error: '+(res.error||'failed'),res.ok);\n    if(res.ok&&res.points){_pts=res.points;renderPtSels();}\n  }).catch(function(){toast('t-pt','Connection error',false);});\n}\nfunction renderSeq(){\n  var list=document.getElementById('seqlist');if(!list)return;\n  list.innerHTML='';\n  if(!_seq.length){\n    var li=document.createElement('li');\n    li.style.color='#484f58';li.style.fontStyle='italic';\n    li.textContent='No steps yet — add from dropdown above';\n    list.appendChild(li);return;\n  }\n  _seq.forEach(function(s,i){\n    var li=document.createElement('li');\n    var idx=document.createElement('span');idx.className='si';idx.textContent=(i+1)+'.';\n    var nm=document.createElement('span');nm.className='sn';nm.textContent=s.name;\n    var up=document.createElement('button');up.className='ab';up.textContent='↑';up.disabled=(i===0);(function(ii){up.onclick=function(){seqUp(ii);};})(i);\n    var dn=document.createElement('button');dn.className='ab';dn.textContent='↓';dn.disabled=(i===_seq.length-1);(function(ii){dn.onclick=function(){seqDn(ii);};})(i);\n    var rm=document.createElement('button');rm.className='xb';rm.textContent='×';(function(ii){rm.onclick=function(){seqRm(ii);};})(i);\n    li.appendChild(idx);li.appendChild(nm);li.appendChild(up);li.appendChild(dn);li.appendChild(rm);\n    list.appendChild(li);\n  });\n}\nfunction addStep(){var sel=document.getElementById('seqadd');if(!sel||!sel.value)return;_seq.push({id:sel.value,name:sel.options[sel.selectedIndex].text});renderSeq();}\nfunction seqUp(i){if(i<=0)return;var t=_seq[i-1];_seq[i-1]=_seq[i];_seq[i]=t;renderSeq();}\nfunction seqDn(i){if(i>=_seq.length-1)return;var t=_seq[i+1];_seq[i+1]=_seq[i];_seq[i]=t;renderSeq();}\nfunction seqRm(i){_seq.splice(i,1);renderSeq();}\nfunction runSeq(){\n  if(!_seq.length)return;\n  toast('t-seq','Running...');\n  post('/robot/sequence',{steps:_seq.map(function(s){return{name:s.name};}),dwell:parseInt(document.getElementById('seq-dwell').value)||800,loop:document.getElementById('seq-loop').checked,pingpong:document.getElementById('seq-pp').checked})\n    .then(function(res){toast('t-seq',res.ok?'Sequence started: '+res.count+' pts':'Error: '+(res.error||'failed'),res.ok);})\n    .catch(function(){toast('t-seq','Connection error',false);});\n}\nfunction stopSeq(){post('/robot/sequence/stop',{}).then(function(){toast('t-seq','Stop requested');}).catch(function(){toast('t-seq','Error',false);});}\nfunction exportPts(){\n  post('/robot/points/export',{}).then(function(res){\n    if(res.ok){document.getElementById('exp-json').value=JSON.stringify(res.points,null,2);toast('t-exp',res.count+' points exported',true);}\n    else{toast('t-exp','Error: '+(res.error||'failed'),false);}\n  }).catch(function(){toast('t-exp','Connection error',false);});\n}\nfunction importPts(){\n  var json=document.getElementById('imp-json').value.trim();if(!json)return;\n  var data;try{data=JSON.parse(json);}catch(e){toast('t-exp','Invalid JSON: '+e.message,false);return;}\n  post('/robot/points/import',{data:data}).then(function(res){\n    toast('t-exp',res.ok?'Imported '+res.count+' points':'Error: '+(res.error||'failed'),res.ok);\n    if(res.ok&&res.points){_pts=res.points;renderPtSels();}\n  }).catch(function(){toast('t-exp','Connection error',false);});\n}\nfunction ctrlBtn(btn){\n  var s=btn.dataset.ctrl;\n  toast('t-ctrl',s==='motoron'?'Motors on...':'Motors off...');\n  post('/robot/ctrlstate',{state:s}).then(function(res){toast('t-ctrl',res.ok?(s==='motoron'?'Motors ON':'Motors OFF'):'Error: '+(res.error||res.status||'failed'),res.ok);}).catch(function(){toast('t-ctrl','Connection error',false);});\n}\nfunction rapidBtn(btn){\n  var a=btn.dataset.rapid;\n  toast('t-rapid',a+'...');\n  post('/robot/rapid',{action:a}).then(function(res){toast('t-rapid',res.ok?'RAPID '+a+' OK':'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-rapid','Connection error',false);});\n}\nfunction gripBtn(btn){\n  var a=btn.dataset.grip;\n  toast('t-grip','Gripper '+a+'...');\n  post('/robot/gripper',{action:a}).then(function(res){toast('t-grip',res.ok?'Gripper '+a+' OK':'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-grip','Connection error',false);});\n}\nfunction setSpeed(){\n  var s=parseInt(document.getElementById('sp-range').value)||50;\n  toast('t-speed','Setting '+s+'%...');\n  post('/robot/speed',{speed:s}).then(function(res){toast('t-speed',res.ok?'Speed: '+res.speed+'%':'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-speed','Connection error',false);});\n}\nfunction setZone(){\n  var z=document.getElementById('zone-sel').value;\n  toast('t-zone','Setting '+z+'...');\n  post('/robot/zone',{zone:z}).then(function(res){toast('t-zone',res.ok?'Zone: '+res.zone:'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-zone','Connection error',false);});\n}\nfunction ltBtn(btn){\n  var a=btn.dataset.lt;\n  toast('t-lt',a+'...');\n  post('/robot/leadthrough',{action:a}).then(function(res){toast('t-lt',res.ok?'Leadthrough '+a+' OK':'Error: '+(res.error||res.hint||'failed'),res.ok);}).catch(function(){toast('t-lt','Connection error',false);});\n}\nfunction listIO(){\n  var t=document.getElementById('io-type').value;\n  toast('t-iol','Loading...');\n  post('/robot/io/list',{type:t}).then(function(res){\n    if(!res.ok){toast('t-iol','Error: '+(res.error||'failed'),false);return;}\n    toast('t-iol',res.count+' signals',true);\n    var tbl=document.createElement('table');tbl.className='dtbl';\n    var thead=tbl.createTHead();var hrow=thead.insertRow();\n    ['Signal','Type','Value'].forEach(function(h){var th=document.createElement('th');th.textContent=h;hrow.appendChild(th);});\n    var tbody=tbl.createTBody();\n    (res.signals||[]).forEach(function(s){var row=tbody.insertRow();[s.name,s.type,String(s.lvalue)].forEach(function(v){row.insertCell().textContent=v;});});\n    var div=document.getElementById('io-tbl');div.innerHTML='';div.appendChild(tbl);\n  }).catch(function(){toast('t-iol','Connection error',false);});\n}\nfunction readDI(){\n  var sig=document.getElementById('di-sig').value.trim();if(!sig)return;\n  document.getElementById('di-r').textContent='Reading...';\n  post('/robot/io/di',{signal:sig}).then(function(res){document.getElementById('di-r').textContent=res.ok?sig+'='+res.value:'Error: '+(res.error||'failed');}).catch(function(){document.getElementById('di-r').textContent='Error';});\n}\nfunction readAI(){\n  var sig=document.getElementById('ai-sig').value.trim();if(!sig)return;\n  document.getElementById('ai-r').textContent='Reading...';\n  post('/robot/io/ai',{signal:sig}).then(function(res){document.getElementById('ai-r').textContent=res.ok?sig+'='+res.value:'Error: '+(res.error||'failed');}).catch(function(){document.getElementById('ai-r').textContent='Error';});\n}\nfunction writeDO(){\n  var sig=document.getElementById('do-sig').value.trim();\n  var val=parseInt(document.getElementById('do-val').value);\n  if(!sig)return;\n  toast('t-do','Writing '+sig+'='+val+'...');\n  post('/robot/io/do',{signal:sig,value:val}).then(function(res){toast('t-do',res.ok?sig+'='+res.value:'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-do','Connection error',false);});\n}\nfunction writeAO(){\n  var sig=document.getElementById('ao-sig').value.trim();\n  var val=parseFloat(document.getElementById('ao-val').value);\n  if(!sig)return;\n  toast('t-ao','Writing '+sig+'='+val+'...');\n  post('/robot/io/ao',{signal:sig,value:val}).then(function(res){toast('t-ao',res.ok?sig+'='+res.value:'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-ao','Connection error',false);});\n}\nfunction readVar(){\n  var task=document.getElementById('rv-task').value.trim()||'T_ROB1';\n  var mod=document.getElementById('rv-mod').value.trim()||'MainModule';\n  var v=document.getElementById('rv-var').value.trim();\n  if(!v)return;\n  document.getElementById('rv-r').textContent='Reading...';\n  post('/robot/rapidvar/read',{task:task,module:mod,variable:v}).then(function(res){document.getElementById('rv-r').textContent=res.ok?v+' = '+res.value:'Error: '+(res.error||'failed');}).catch(function(){document.getElementById('rv-r').textContent='Error';});\n}\nfunction writeVar(){\n  var task=document.getElementById('rw-task').value.trim()||'T_ROB1';\n  var mod=document.getElementById('rw-mod').value.trim()||'MainModule';\n  var v=document.getElementById('rw-var').value.trim();\n  var val=document.getElementById('rw-val').value.trim();\n  if(!v)return;\n  toast('t-rw','Writing '+v+'='+val+'...');\n  post('/robot/rapidvar/write',{task:task,module:mod,variable:v,value:val}).then(function(res){toast('t-rw',res.ok?v+' written OK':'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-rw','Connection error',false);});\n}\nfunction getSysInfo(){\n  document.getElementById('si-r').textContent='Reading...';\n  post('/robot/sysinfo',{}).then(function(res){\n    if(!res.ok){document.getElementById('si-r').textContent='Error: '+(res.error||'failed');return;}\n    var tbl=document.createElement('table');tbl.className='dtbl';\n    var tbody=tbl.createTBody();\n    ['rwVersion','rwBuildDate','ctrlName','ctrlId','ctrlType','ctrlMac'].forEach(function(k){if(res[k]){var row=tbody.insertRow();row.insertCell().textContent=k;row.insertCell().textContent=res[k];}});\n    var div=document.getElementById('si-r');div.innerHTML='';div.appendChild(tbl);\n  }).catch(function(){document.getElementById('si-r').textContent='Error';});\n}\nfunction getElog(){\n  document.getElementById('el-r').textContent='Loading...';\n  post('/robot/elog',{}).then(function(res){\n    if(!res.ok){document.getElementById('el-r').textContent='Error: '+(res.error||'failed');return;}\n    var entries=res.entries||[];\n    if(!entries.length){document.getElementById('el-r').textContent='No entries';return;}\n    var div=document.getElementById('el-r');div.innerHTML='';\n    entries.slice(0,50).forEach(function(e){\n      var entry=document.createElement('div');entry.className='elog-entry';\n      var time=document.createElement('div');time.className='et';time.textContent=(e.tstamp||'')+' ['+(e.msgtype||'')+'] '+(e.code||'');\n      var msg2=document.createElement('div');msg2.textContent=e.title||JSON.stringify(e);\n      entry.appendChild(time);entry.appendChild(msg2);div.appendChild(entry);\n    });\n  }).catch(function(){document.getElementById('el-r').textContent='Error';});\n}\nfunction readFile(){\n  var path=document.getElementById('fr-path').value.trim();if(!path)return;\n  document.getElementById('fr-r').value='Reading...';\n  post('/robot/file/read',{path:path}).then(function(res){document.getElementById('fr-r').value=res.ok?res.content:'Error: '+(res.error||'failed');}).catch(function(){document.getElementById('fr-r').value='Error';});\n}\nfunction uploadFile(){\n  var local=document.getElementById('fu-local').value.trim();\n  var remote=document.getElementById('fu-remote').value.trim();\n  if(!local)return;\n  toast('t-upload','Uploading...');\n  post('/robot/file/upload',{localPath:local,remotePath:remote}).then(function(res){toast('t-upload',res.ok?'Uploaded '+res.bytes+' bytes to '+res.remotePath:'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-upload','Connection error',false);});\n}\nupdate();\nsetInterval(update,200);\n</script>\n</body>\n</html>`;\nreturn msg;","outputs":1,"wires":[["pg_out"]]},
+  {"id":"pg_out","type":"http response","name":"","z":"tab_pal","x":560,"y":240,"wires":[]},
+
+  {"id":"dt_in","type":"http in","name":"GET /robot/data","z":"tab_pal","x":100,"y":340,"method":"get","url":"/robot/data","wires":[["dt_ptlist"]]},
+  {"id":"dt_ptlist","type":"gofa-point-list","name":"Point List","z":"tab_pal","x":340,"y":340,"robot":"cfg_robot","wires":[["dt_fn"]]},
+  {"id":"dt_fn","type":"function","name":"Serve data","z":"tab_pal","x":560,"y":340,"func":"var d=flow.get('robot_data')||{};msg.payload=Object.assign({},d,{points:msg.payload});msg.statusCode=200;return msg;","outputs":1,"wires":[["dt_out"]]},
+  {"id":"dt_out","type":"http response","name":"","z":"tab_pal","x":780,"y":340,"wires":[]},
+
+  {"id":"mv_in","type":"http in","name":"POST /robot/move","z":"tab_pal","x":100,"y":500,"method":"post","url":"/robot/move","wires":[["mv_route"]]},
+  {"id":"mv_route","type":"function","name":"Route move","z":"tab_pal","x":320,"y":500,"func":"var p=msg.payload||{};\nif(p.sethome){msg.payload={command:'SETHOME'};return [msg,null,null,null,null,null,null];}\nif(p.routine){msg.payload={command:p.routine.toUpperCase()};return [msg,null,null,null,null,null,null];}\nif(p.jog){msg.payload={axis:p.jog.slice(0,-1),dir:p.jog.slice(-1),step:p.step};return [null,msg,null,null,null,null,null];}\nif(p.joint){msg.payload={joint:p.joint.slice(0,-1),dir:p.joint.slice(-1),step:p.step};return [null,null,msg,null,null,null,null];}\nif(p.goto){msg.payload={name:p.goto,id:p.goto};return [null,null,null,msg,null,null,null];}\nif(p.movej){msg.payload=p.movej;return [null,null,null,null,msg,null,null];}\nif(p.stop){msg.payload={};return [null,null,null,null,null,msg,null];}\nmsg.statusCode=400;msg.payload={ok:false,error:'unknown command'};\nreturn [null,null,null,null,null,null,msg];","outputs":7,"wires":[["mv_home"],["mv_jog"],["mv_jjog"],["mv_gopt"],["mv_movej"],["mv_stop"],["mv_out"]]},
+  {"id":"mv_home","type":"gofa-move","name":"Home/SetHome","z":"tab_pal","x":580,"y":420,"robot":"cfg_robot","command":"HOME","wires":[["mv_resp"]]},
+  {"id":"mv_jog","type":"gofa-jog","name":"Jog","z":"tab_pal","x":580,"y":460,"robot":"cfg_robot","axis":"X","dir":"+","step":10,"wires":[["mv_resp"]]},
+  {"id":"mv_jjog","type":"gofa-joint-jog","name":"Joint Jog","z":"tab_pal","x":580,"y":500,"robot":"cfg_robot","joint":"J1","dir":"+","step":5,"wires":[["mv_resp"]]},
+  {"id":"mv_gopt","type":"gofa-go-point","name":"Go Point","z":"tab_pal","x":580,"y":540,"robot":"cfg_robot","pointName":"","wires":[["mv_resp"]]},
+  {"id":"mv_movej","type":"gofa-movej","name":"MoveJ","z":"tab_pal","x":580,"y":580,"robot":"cfg_robot","joints":[0,0,85,0,0,0],"wires":[["mv_resp"]]},
+  {"id":"mv_stop","type":"gofa-stop-motion","name":"Stop Motion","z":"tab_pal","x":580,"y":620,"robot":"cfg_robot","wires":[["mv_resp"]]},
+  {"id":"mv_resp","type":"function","name":"Move resp","z":"tab_pal","x":800,"y":500,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["mv_out"]]},
+  {"id":"mv_out","type":"http response","name":"","z":"tab_pal","x":1020,"y":500,"wires":[]},
+
+  {"id":"sp_in","type":"http in","name":"POST /robot/savepoint","z":"tab_pal","x":100,"y":720,"method":"post","url":"/robot/savepoint","wires":[["sp_prep"]]},
+  {"id":"sp_prep","type":"function","name":"Save prep","z":"tab_pal","x":320,"y":720,"func":"msg.payload={name:(msg.payload&&msg.payload.name)||''};return msg;","outputs":1,"wires":[["sp_node"]]},
+  {"id":"sp_node","type":"gofa-save-point","name":"Save Point","z":"tab_pal","x":540,"y":720,"robot":"cfg_robot","pointName":"","wires":[["sp_fn"]]},
+  {"id":"sp_fn","type":"function","name":"Save resp","z":"tab_pal","x":760,"y":720,"func":"msg.payload.name=msg.payload.point?msg.payload.point.name:'';msg.statusCode=200;return msg;","outputs":1,"wires":[["sp_out"]]},
+  {"id":"sp_out","type":"http response","name":"","z":"tab_pal","x":980,"y":720,"wires":[]},
+
+  {"id":"dp_in","type":"http in","name":"POST /robot/deletepoint","z":"tab_pal","x":100,"y":800,"method":"post","url":"/robot/deletepoint","wires":[["dp_prep"]]},
+  {"id":"dp_prep","type":"function","name":"Delete prep","z":"tab_pal","x":320,"y":800,"func":"msg.payload={id:msg.payload.id,name:msg.payload.id};return msg;","outputs":1,"wires":[["dp_node"]]},
+  {"id":"dp_node","type":"gofa-delete-point","name":"Delete Point","z":"tab_pal","x":540,"y":800,"robot":"cfg_robot","pointName":"","wires":[["dp_ok"]]},
+  {"id":"dp_ok","type":"function","name":"Delete resp","z":"tab_pal","x":760,"y":800,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["dp_out"]]},
+  {"id":"dp_out","type":"http response","name":"","z":"tab_pal","x":980,"y":800,"wires":[]},
+
+  {"id":"ct_in","type":"http in","name":"POST /robot/ctrlstate","z":"tab_pal","x":100,"y":880,"method":"post","url":"/robot/ctrlstate","wires":[["ct_prep"]]},
+  {"id":"ct_prep","type":"function","name":"Motor prep","z":"tab_pal","x":320,"y":880,"func":"msg.payload={action:msg.payload.state};return msg;","outputs":1,"wires":[["ct_node"]]},
+  {"id":"ct_node","type":"gofa-motor","name":"Motor","z":"tab_pal","x":540,"y":880,"robot":"cfg_robot","action":"motoron","wires":[["ct_ok"]]},
+  {"id":"ct_ok","type":"function","name":"Motor resp","z":"tab_pal","x":760,"y":880,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["ct_out"]]},
+  {"id":"ct_out","type":"http response","name":"","z":"tab_pal","x":980,"y":880,"wires":[]},
+
+  {"id":"sq_in","type":"http in","name":"POST /robot/sequence","z":"tab_pal","x":100,"y":980,"method":"post","url":"/robot/sequence","wires":[["sq_prep"]]},
+  {"id":"sq_prep","type":"function","name":"Seq prep","z":"tab_pal","x":320,"y":980,"func":"var p=msg.payload||{};var steps=p.steps||[];var reply={req:msg.req,res:msg.res,statusCode:200,payload:{ok:true,count:steps.length}};msg.payload={steps:steps,dwell:p.dwell!=null?p.dwell:800,loop:p.loop!=null?p.loop:false,pingpong:p.pingpong!=null?p.pingpong:false};return [reply,msg];","outputs":2,"wires":[["sq_out"],["sq_node"]]},
+  {"id":"sq_out","type":"http response","name":"","z":"tab_pal","x":540,"y":940,"wires":[]},
+  {"id":"sq_node","type":"gofa-sequencer","name":"Sequencer","z":"tab_pal","x":540,"y":1000,"robot":"cfg_robot","steps":[],"dwell":800,"loop":false,"pingpong":false,"wires":[[],[]]},
+
+  {"id":"ss_in","type":"http in","name":"POST /robot/sequence/stop","z":"tab_pal","x":100,"y":1080,"method":"post","url":"/robot/sequence/stop","wires":[["ss_node"]]},
+  {"id":"ss_node","type":"gofa-stop-seq","name":"Stop Seq","z":"tab_pal","x":340,"y":1080,"robot":"cfg_robot","wires":[["ss_ok"]]},
+  {"id":"ss_ok","type":"function","name":"StopSeq resp","z":"tab_pal","x":560,"y":1080,"func":"msg.statusCode=200;msg.payload={ok:true};return msg;","outputs":1,"wires":[["ss_out"]]},
+  {"id":"ss_out","type":"http response","name":"","z":"tab_pal","x":780,"y":1080,"wires":[]},
+
+  {"id":"pi_in","type":"http in","name":"POST /robot/ping","z":"tab_pal","x":100,"y":1160,"method":"post","url":"/robot/ping","wires":[["pi_node"]]},
+  {"id":"pi_node","type":"gofa-ping","name":"Ping","z":"tab_pal","x":320,"y":1160,"robot":"cfg_robot","wires":[["pi_resp"]]},
+  {"id":"pi_resp","type":"function","name":"Ping resp","z":"tab_pal","x":540,"y":1160,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["pi_out"]]},
+  {"id":"pi_out","type":"http response","name":"","z":"tab_pal","x":760,"y":1160,"wires":[]},
+
+  {"id":"gr_in","type":"http in","name":"POST /robot/gripper","z":"tab_pal","x":100,"y":1240,"method":"post","url":"/robot/gripper","wires":[["gr_node"]]},
+  {"id":"gr_node","type":"gofa-grip","name":"Grip","z":"tab_pal","x":320,"y":1240,"robot":"cfg_robot","action":"on","signal":"DO10_1","wires":[["gr_resp"]]},
+  {"id":"gr_resp","type":"function","name":"Grip resp","z":"tab_pal","x":540,"y":1240,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["gr_out"]]},
+  {"id":"gr_out","type":"http response","name":"","z":"tab_pal","x":760,"y":1240,"wires":[]},
+
+  {"id":"zn_in","type":"http in","name":"POST /robot/zone","z":"tab_pal","x":100,"y":1320,"method":"post","url":"/robot/zone","wires":[["zn_prep"]]},
+  {"id":"zn_prep","type":"function","name":"Zone prep","z":"tab_pal","x":320,"y":1320,"func":"msg.payload=msg.payload.zone||'Z10';return msg;","outputs":1,"wires":[["zn_node"]]},
+  {"id":"zn_node","type":"gofa-zone-set","name":"Zone Set","z":"tab_pal","x":540,"y":1320,"robot":"cfg_robot","zone":"Z10","wires":[["zn_resp"]]},
+  {"id":"zn_resp","type":"function","name":"Zone resp","z":"tab_pal","x":760,"y":1320,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["zn_out"]]},
+  {"id":"zn_out","type":"http response","name":"","z":"tab_pal","x":980,"y":1320,"wires":[]},
+
+  {"id":"spd_in","type":"http in","name":"POST /robot/speed","z":"tab_pal","x":100,"y":1400,"method":"post","url":"/robot/speed","wires":[["spd_prep"]]},
+  {"id":"spd_prep","type":"function","name":"Speed prep","z":"tab_pal","x":320,"y":1400,"func":"msg.payload=msg.payload.speed||50;return msg;","outputs":1,"wires":[["spd_node"]]},
+  {"id":"spd_node","type":"gofa-speed-set","name":"Speed Set","z":"tab_pal","x":540,"y":1400,"robot":"cfg_robot","speed":50,"wires":[["spd_resp"]]},
+  {"id":"spd_resp","type":"function","name":"Speed resp","z":"tab_pal","x":760,"y":1400,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["spd_out"]]},
+  {"id":"spd_out","type":"http response","name":"","z":"tab_pal","x":980,"y":1400,"wires":[]},
+
+  {"id":"rp_in","type":"http in","name":"POST /robot/rapid","z":"tab_pal","x":100,"y":1480,"method":"post","url":"/robot/rapid","wires":[["rp_node"]]},
+  {"id":"rp_node","type":"gofa-rapid-exec","name":"RAPID Exec","z":"tab_pal","x":340,"y":1480,"robot":"cfg_robot","action":"start","wires":[["rp_resp"]]},
+  {"id":"rp_resp","type":"function","name":"Rapid resp","z":"tab_pal","x":560,"y":1480,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["rp_out"]]},
+  {"id":"rp_out","type":"http response","name":"","z":"tab_pal","x":780,"y":1480,"wires":[]},
+
+  {"id":"lt_in","type":"http in","name":"POST /robot/leadthrough","z":"tab_pal","x":100,"y":1560,"method":"post","url":"/robot/leadthrough","wires":[["lt_route"]]},
+  {"id":"lt_route","type":"function","name":"LT route","z":"tab_pal","x":320,"y":1560,"func":"if(msg.payload&&msg.payload.action==='disable'){return [null,msg];}return [msg,null];","outputs":2,"wires":[["lt_en"],["lt_dis"]]},
+  {"id":"lt_en","type":"gofa-leadthrough-enable","name":"LT Enable","z":"tab_pal","x":540,"y":1540,"robot":"cfg_robot","wires":[["lt_resp"]]},
+  {"id":"lt_dis","type":"gofa-leadthrough-disable","name":"LT Disable","z":"tab_pal","x":540,"y":1580,"robot":"cfg_robot","wires":[["lt_resp"]]},
+  {"id":"lt_resp","type":"function","name":"LT resp","z":"tab_pal","x":760,"y":1560,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["lt_out"]]},
+  {"id":"lt_out","type":"http response","name":"","z":"tab_pal","x":980,"y":1560,"wires":[]},
+
+  {"id":"il_in","type":"http in","name":"POST /robot/io/list","z":"tab_pal","x":100,"y":1660,"method":"post","url":"/robot/io/list","wires":[["il_prep"]]},
+  {"id":"il_prep","type":"function","name":"IO list prep","z":"tab_pal","x":320,"y":1660,"func":"msg.payload={type:msg.payload&&msg.payload.type?msg.payload.type:''};return msg;","outputs":1,"wires":[["il_node"]]},
+  {"id":"il_node","type":"gofa-io-list","name":"IO List","z":"tab_pal","x":540,"y":1660,"robot":"cfg_robot","wires":[["il_resp"]]},
+  {"id":"il_resp","type":"function","name":"IO list resp","z":"tab_pal","x":760,"y":1660,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["il_out"]]},
+  {"id":"il_out","type":"http response","name":"","z":"tab_pal","x":980,"y":1660,"wires":[]},
+
+  {"id":"di_in","type":"http in","name":"POST /robot/io/di","z":"tab_pal","x":100,"y":1740,"method":"post","url":"/robot/io/di","wires":[["di_prep"]]},
+  {"id":"di_prep","type":"function","name":"DI prep","z":"tab_pal","x":320,"y":1740,"func":"msg.payload=msg.payload.signal||'DI10_1';return msg;","outputs":1,"wires":[["di_node"]]},
+  {"id":"di_node","type":"gofa-di-read","name":"DI Read","z":"tab_pal","x":540,"y":1740,"robot":"cfg_robot","signal":"DI10_1","wires":[["di_resp"]]},
+  {"id":"di_resp","type":"function","name":"DI resp","z":"tab_pal","x":760,"y":1740,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["di_out"]]},
+  {"id":"di_out","type":"http response","name":"","z":"tab_pal","x":980,"y":1740,"wires":[]},
+
+  {"id":"ai_in","type":"http in","name":"POST /robot/io/ai","z":"tab_pal","x":100,"y":1820,"method":"post","url":"/robot/io/ai","wires":[["ai_prep"]]},
+  {"id":"ai_prep","type":"function","name":"AI prep","z":"tab_pal","x":320,"y":1820,"func":"msg.payload=msg.payload.signal||'AI1';return msg;","outputs":1,"wires":[["ai_node"]]},
+  {"id":"ai_node","type":"gofa-ai-read","name":"AI Read","z":"tab_pal","x":540,"y":1820,"robot":"cfg_robot","signal":"AI1","wires":[["ai_resp"]]},
+  {"id":"ai_resp","type":"function","name":"AI resp","z":"tab_pal","x":760,"y":1820,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["ai_out"]]},
+  {"id":"ai_out","type":"http response","name":"","z":"tab_pal","x":980,"y":1820,"wires":[]},
+
+  {"id":"dw_in","type":"http in","name":"POST /robot/io/do","z":"tab_pal","x":100,"y":1900,"method":"post","url":"/robot/io/do","wires":[["dw_node"]]},
+  {"id":"dw_node","type":"gofa-do-write","name":"DO Write","z":"tab_pal","x":320,"y":1900,"robot":"cfg_robot","signal":"DO10_1","wires":[["dw_resp"]]},
+  {"id":"dw_resp","type":"function","name":"DO resp","z":"tab_pal","x":540,"y":1900,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["dw_out"]]},
+  {"id":"dw_out","type":"http response","name":"","z":"tab_pal","x":760,"y":1900,"wires":[]},
+
+  {"id":"aw_in","type":"http in","name":"POST /robot/io/ao","z":"tab_pal","x":100,"y":1980,"method":"post","url":"/robot/io/ao","wires":[["aw_node"]]},
+  {"id":"aw_node","type":"gofa-ao-write","name":"AO Write","z":"tab_pal","x":320,"y":1980,"robot":"cfg_robot","signal":"AO1","wires":[["aw_resp"]]},
+  {"id":"aw_resp","type":"function","name":"AO resp","z":"tab_pal","x":540,"y":1980,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["aw_out"]]},
+  {"id":"aw_out","type":"http response","name":"","z":"tab_pal","x":760,"y":1980,"wires":[]},
+
+  {"id":"rv_in","type":"http in","name":"POST /robot/rapidvar/read","z":"tab_pal","x":100,"y":2080,"method":"post","url":"/robot/rapidvar/read","wires":[["rv_node"]]},
+  {"id":"rv_node","type":"gofa-rapid-var-read","name":"Var Read","z":"tab_pal","x":340,"y":2080,"robot":"cfg_robot","task":"T_ROB1","module":"MainModule","variable":"","wires":[["rv_resp"]]},
+  {"id":"rv_resp","type":"function","name":"VarR resp","z":"tab_pal","x":560,"y":2080,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["rv_out"]]},
+  {"id":"rv_out","type":"http response","name":"","z":"tab_pal","x":780,"y":2080,"wires":[]},
+
+  {"id":"rw_in","type":"http in","name":"POST /robot/rapidvar/write","z":"tab_pal","x":100,"y":2160,"method":"post","url":"/robot/rapidvar/write","wires":[["rw_node"]]},
+  {"id":"rw_node","type":"gofa-rapid-var-write","name":"Var Write","z":"tab_pal","x":340,"y":2160,"robot":"cfg_robot","task":"T_ROB1","module":"MainModule","variable":"","wires":[["rw_resp"]]},
+  {"id":"rw_resp","type":"function","name":"VarW resp","z":"tab_pal","x":560,"y":2160,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["rw_out"]]},
+  {"id":"rw_out","type":"http response","name":"","z":"tab_pal","x":780,"y":2160,"wires":[]},
+
+  {"id":"si_in","type":"http in","name":"POST /robot/sysinfo","z":"tab_pal","x":100,"y":2260,"method":"post","url":"/robot/sysinfo","wires":[["si_node"]]},
+  {"id":"si_node","type":"gofa-system-info","name":"System Info","z":"tab_pal","x":340,"y":2260,"robot":"cfg_robot","wires":[["si_resp"]]},
+  {"id":"si_resp","type":"function","name":"SI resp","z":"tab_pal","x":560,"y":2260,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["si_out"]]},
+  {"id":"si_out","type":"http response","name":"","z":"tab_pal","x":780,"y":2260,"wires":[]},
+
+  {"id":"el_in","type":"http in","name":"POST /robot/elog","z":"tab_pal","x":100,"y":2340,"method":"post","url":"/robot/elog","wires":[["el_node"]]},
+  {"id":"el_node","type":"gofa-elog","name":"Event Log","z":"tab_pal","x":320,"y":2340,"robot":"cfg_robot","domain":"1","count":20,"wires":[["el_resp"]]},
+  {"id":"el_resp","type":"function","name":"Elog resp","z":"tab_pal","x":540,"y":2340,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["el_out"]]},
+  {"id":"el_out","type":"http response","name":"","z":"tab_pal","x":760,"y":2340,"wires":[]},
+
+  {"id":"fr_in","type":"http in","name":"POST /robot/file/read","z":"tab_pal","x":100,"y":2440,"method":"post","url":"/robot/file/read","wires":[["fr_prep"]]},
+  {"id":"fr_prep","type":"function","name":"File read prep","z":"tab_pal","x":320,"y":2440,"func":"msg.payload=msg.payload.path||'$HOME/Programs/MainModule.mod';return msg;","outputs":1,"wires":[["fr_node"]]},
+  {"id":"fr_node","type":"gofa-file-read","name":"File Read","z":"tab_pal","x":540,"y":2440,"robot":"cfg_robot","remotePath":"","wires":[["fr_resp"]]},
+  {"id":"fr_resp","type":"function","name":"File read resp","z":"tab_pal","x":760,"y":2440,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["fr_out"]]},
+  {"id":"fr_out","type":"http response","name":"","z":"tab_pal","x":980,"y":2440,"wires":[]},
+
+  {"id":"fu_in","type":"http in","name":"POST /robot/file/upload","z":"tab_pal","x":100,"y":2520,"method":"post","url":"/robot/file/upload","wires":[["fu_prep"]]},
+  {"id":"fu_prep","type":"function","name":"Upload prep","z":"tab_pal","x":320,"y":2520,"func":"var p=msg.payload||{};msg.payload={localPath:p.localPath||'',remotePath:p.remotePath||'$HOME/Programs/MainModule.mod'};if(p.localPath){msg.payload=p.localPath;}return msg;","outputs":1,"wires":[["fu_node"]]},
+  {"id":"fu_node","type":"gofa-upload-mod","name":"Upload Mod","z":"tab_pal","x":540,"y":2520,"robot":"cfg_robot","remotePath":"$HOME/Programs/MainModule.mod","wires":[["fu_resp"]]},
+  {"id":"fu_resp","type":"function","name":"Upload resp","z":"tab_pal","x":760,"y":2520,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["fu_out"]]},
+  {"id":"fu_out","type":"http response","name":"","z":"tab_pal","x":980,"y":2520,"wires":[]},
+
+  {"id":"pe_in","type":"http in","name":"POST /robot/points/export","z":"tab_pal","x":100,"y":2620,"method":"post","url":"/robot/points/export","wires":[["pe_node"]]},
+  {"id":"pe_node","type":"gofa-points-export","name":"Points Export","z":"tab_pal","x":340,"y":2620,"robot":"cfg_robot","wires":[["pe_resp"]]},
+  {"id":"pe_resp","type":"function","name":"Export resp","z":"tab_pal","x":560,"y":2620,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["pe_out"]]},
+  {"id":"pe_out","type":"http response","name":"","z":"tab_pal","x":780,"y":2620,"wires":[]},
+
+  {"id":"pim_in","type":"http in","name":"POST /robot/points/import","z":"tab_pal","x":100,"y":2700,"method":"post","url":"/robot/points/import","wires":[["pim_node"]]},
+  {"id":"pim_node","type":"gofa-points-import","name":"Points Import","z":"tab_pal","x":340,"y":2700,"robot":"cfg_robot","wires":[["pim_resp"]]},
+  {"id":"pim_resp","type":"function","name":"Import resp","z":"tab_pal","x":560,"y":2700,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["pim_out"]]},
+  {"id":"pim_out","type":"http response","name":"","z":"tab_pal","x":780,"y":2700,"wires":[]},
+
+  {"id":"sub_inj","type":"inject","name":"Subscribe (startup)","z":"tab_pal","x":100,"y":2800,"repeat":"","crontab":"","once":true,"onceDelay":2,"topic":"","payload":"","payloadType":"date","wires":[["sub_state","sub_pose","sub_io","sub_var"]]},
+  {"id":"sub_state","type":"gofa-subscribe-state","name":"Sub State","z":"tab_pal","x":380,"y":2760,"robot":"cfg_robot","wires":[["sub_fn"]]},
+  {"id":"sub_pose","type":"gofa-subscribe-pose","name":"Sub Pose","z":"tab_pal","x":380,"y":2800,"robot":"cfg_robot","wires":[["sub_fn"]]},
+  {"id":"sub_io","type":"gofa-subscribe-io","name":"Sub IO","z":"tab_pal","x":380,"y":2840,"robot":"cfg_robot","signal":"DI10_1","wires":[["sub_fn"]]},
+  {"id":"sub_var","type":"gofa-subscribe-var","name":"Sub Var","z":"tab_pal","x":380,"y":2880,"robot":"cfg_robot","task":"T_ROB1","module":"MainModule","variable":"","interval":1000,"wires":[["sub_fn"]]},
+  {"id":"sub_fn","type":"function","name":"Store sub data","z":"tab_pal","x":620,"y":2820,"func":"var d=flow.get('ws_data')||{};if(msg.payload&&msg.payload.state)d.ws_state=msg.payload.state;if(msg.payload&&msg.payload.signal)d['ws_io_'+msg.payload.signal]=msg.payload.value;flow.set('ws_data',d);return null;","outputs":1,"wires":[[]]}
 ]

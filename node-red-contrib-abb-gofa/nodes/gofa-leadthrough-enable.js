@@ -7,16 +7,13 @@ module.exports = function(RED) {
         node.on('input', function(msg, send, done) {
             if (!node.robot) { node.error('No robot configured', msg); return done(); }
             node.status({ fill: 'blue', shape: 'dot', text: 'enabling...' });
-            node.robot.rwsPost('/rw/motionsystem/mechunits/ROB_1/lead-through/activate', 'status=active')
+            node.robot.rwsPost('/rw/motionsystem/mechunits/ROB_1/lead-through', 'status=active')
             .then(function() {
                 msg.payload = { ok: true };
                 node.status({ fill: 'green', shape: 'dot', text: 'enabled' });
                 send(msg); done();
             }).catch(function(err) {
-                var hint = (err.message && err.message.indexOf('404') !== -1)
-                    ? 'Lead-through requires manual mode with enable switch held'
-                    : err.message;
-                msg.payload = { ok: false, error: err.message, hint: hint };
+                msg.payload = { ok: false, error: err.message };
                 node.status({ fill: 'red', shape: 'ring', text: 'error' });
                 node.error(err, msg); done(err);
             });

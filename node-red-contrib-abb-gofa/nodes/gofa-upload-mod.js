@@ -7,39 +7,42 @@ module.exports = function(RED) {
     function GoFaUploadModNode(config) {
         RED.nodes.createNode(this, config);
         this.robot      = RED.nodes.getNode(config.robot);
+        this.localPath  = config.localPath  || '';
         this.remotePath = config.remotePath || '$HOME/Programs/MainModule.mod';
         var node = this;
 
         node.on('input', function(msg, send, done) {
             if (!node.robot) { node.error('No robot configured', msg); return done(); }
 
-            var r = node.robot;
+            var r          = node.robot;
+            var localPath  = node.localPath;
             var remotePath = node.remotePath;
             var content;
 
-            // Resolve content and optional path override from msg.payload
-            if (msg.payload && typeof msg.payload === 'object' && !Buffer.isBuffer(msg.payload)) {
-                if (msg.payload.remotePath) remotePath = msg.payload.remotePath;
-                content = msg.payload.content;
-            } else {
+            // msg.payload overrides
+            if (Buffer.isBuffer(msg.payload)) {
                 content = msg.payload;
+            } else if (msg.payload && typeof msg.payload === 'object') {
+                if (msg.payload.localPath)  localPath  = msg.payload.localPath;
+                if (msg.payload.remotePath) remotePath = msg.payload.remotePath;
+            } else if (typeof msg.payload === 'string' && msg.payload !== '') {
+                localPath = msg.payload;
             }
 
-            // If content looks like a local file path, read it from disk
-            if (typeof content === 'string' && (content.startsWith('/') || content.startsWith('./'))) {
+            // Read from disk if we have a path but no content yet
+            if (!content) {
+                if (!localPath) {
+                    node.error('No local file path configured — set it in node properties or pass via msg.payload', msg);
+                    node.status({ fill: 'red', shape: 'ring', text: 'no local path' });
+                    return done();
+                }
                 try {
-                    content = fs.readFileSync(content);
+                    content = fs.readFileSync(localPath);
                 } catch(e) {
-                    node.error('Could not read file: ' + e.message, msg);
+                    node.error('Could not read file "' + localPath + '": ' + e.message, msg);
                     node.status({ fill: 'red', shape: 'ring', text: 'file read error' });
                     return done(e);
                 }
-            }
-
-            if (!content) {
-                node.error('No file content in msg.payload', msg);
-                node.status({ fill: 'red', shape: 'ring', text: 'no content' });
-                return done();
             }
 
             var body   = Buffer.isBuffer(content) ? content : Buffer.from(String(content));

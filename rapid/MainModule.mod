@@ -27,6 +27,11 @@ MODULE MainModule
     PERS zonedata zActive  := [FALSE, 10, 15, 15, 1.5, 15, 1.5];
     PERS bool bStopMotion  := FALSE;
 
+    ! Test variables for RAPID Var Read / Write nodes
+    ! Task: T_ROB1  Module: MainModule
+    PERS num    nTestVar := 0;
+    PERS string sTestMsg := "hello";
+
     ! Home = position robot was at during setup
     PERS robtarget pHome     := [[323.21,-81.81,807.00],
                                   [0.2671,0.1290,0.9536,-0.0528],
@@ -126,6 +131,8 @@ MODULE MainModule
     ! Parse one command, run the routine, send the ack
     PROC Dispatch(string raw)
         VAR string cmd;
+        VAR string rawclean;
+        rawclean := StripCtrl(raw);
         cmd := CleanCmd(raw);
         ! Ack first (snappy UI), then run the move. If the command is
         ! unknown, reply ERR and do not move.
@@ -173,6 +180,10 @@ MODULE MainModule
             ELSEIF TryMoveJ(cmd) THEN
                 ! handled (ack sent inside)
             ELSEIF TryZone(cmd) THEN
+                ! handled (ack sent inside)
+            ELSEIF TryGetVar(cmd) THEN
+                ! handled (ack sent inside)
+            ELSEIF TrySetVar(rawclean, cmd) THEN
                 ! handled (ack sent inside)
             ELSE
                 SocketSend clientSocket \Str:=("ERR:" + cmd + ByteToStr(10\Char));
@@ -480,6 +491,73 @@ MODULE MainModule
         DEFAULT: RETURN FALSE;
         ENDTEST
         SocketSend clientSocket \Str:=("OK:ZONE" + zname + ByteToStr(10\Char));
+        RETURN TRUE;
+    ENDFUNC
+
+    ! Strip only CR and LF so string variable values keep their spaces.
+    FUNC string StripCtrl(string raw)
+        VAR string out := "";
+        VAR string ch;
+        VAR num i;
+        VAR num b;
+        FOR i FROM 1 TO StrLen(raw) DO
+            ch := StrPart(raw, i, 1);
+            b  := StrToByte(ch\Char);
+            IF b <> 10 AND b <> 13 THEN
+                out := out + ch;
+            ENDIF
+        ENDFOR
+        RETURN out;
+    ENDFUNC
+
+    ! Read a PERS variable by name. Token (after CleanCmd): GETVAR:<VARNAME>
+    ! Sends VAL:<value> on success, ERR:UNKNOWN_VAR if not in the list.
+    FUNC bool TryGetVar(string cmd)
+        VAR string varname;
+        IF StrLen(cmd) < 8 RETURN FALSE;
+        IF StrPart(cmd, 1, 7) <> "GETVAR:" RETURN FALSE;
+        varname := StrPart(cmd, 8, StrLen(cmd) - 7);
+        IF varname = "NTESTVAR" THEN
+            SocketSend clientSocket \Str:=("VAL:" + NumToStr(nTestVar, 6) + ByteToStr(10\Char));
+        ELSEIF varname = "STESTMSG" THEN
+            SocketSend clientSocket \Str:=("VAL:" + sTestMsg + ByteToStr(10\Char));
+        ELSE
+            SocketSend clientSocket \Str:=("ERR:UNKNOWN_VAR" + ByteToStr(10\Char));
+        ENDIF
+        RETURN TRUE;
+    ENDFUNC
+
+    ! Write a PERS variable by name. rawclean preserves original case for string values.
+    ! Token (cmd is uppercased): SETVAR:<VARNAME>:<value>
+    FUNC bool TrySetVar(string rawclean, string cmd)
+        VAR string varname;
+        VAR string valstr;
+        VAR num colonPos := 0;
+        VAR num i;
+        IF StrLen(cmd) < 9 RETURN FALSE;
+        IF StrPart(cmd, 1, 7) <> "SETVAR:" RETURN FALSE;
+        ! Find the colon between varname and value (first colon after position 8)
+        FOR i FROM 8 TO StrLen(cmd) DO
+            IF StrPart(cmd, i, 1) = ":" AND colonPos = 0 THEN
+                colonPos := i;
+            ENDIF
+        ENDFOR
+        IF colonPos = 0 RETURN FALSE;
+        varname := StrPart(cmd, 8, colonPos - 8);
+        ! Use rawclean (original case, spaces preserved) for the value
+        valstr := StrPart(rawclean, colonPos + 1, StrLen(rawclean) - colonPos);
+        IF varname = "NTESTVAR" THEN
+            IF NOT StrToVal(valstr, nTestVar) THEN
+                SocketSend clientSocket \Str:=("ERR:PARSE" + ByteToStr(10\Char));
+                RETURN TRUE;
+            ENDIF
+            SocketSend clientSocket \Str:=("OK:SETVAR" + ByteToStr(10\Char));
+        ELSEIF varname = "STESTMSG" THEN
+            sTestMsg := valstr;
+            SocketSend clientSocket \Str:=("OK:SETVAR" + ByteToStr(10\Char));
+        ELSE
+            SocketSend clientSocket \Str:=("ERR:UNKNOWN_VAR" + ByteToStr(10\Char));
+        ENDIF
         RETURN TRUE;
     ENDFUNC
 

@@ -261,17 +261,19 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | Node | Protocol | What it does |
 |------|:--------:|-------------|
 | **gofa-rapid-exec** | RWS | `start` / `stop` / `resetpp` the RAPID program |
-| **gofa-rapid-var-read** | RWS | Read a RAPID PERS or VAR value |
-| **gofa-rapid-var-write** | RWS | Write a value to a RAPID PERS variable |
+| **gofa-rapid-var-read** | TCP | Read a RAPID PERS variable via `GETVAR:<name>` socket command |
+| **gofa-rapid-var-write** | TCP | Write a RAPID PERS variable via `SETVAR:<name>:<value>` socket command |
 
-> `gofa-rapid-exec` requires the RWS user to have **Remote Start** and **Remote Stop** grants (see Step 2). `resetpp` additionally acquires edit mastership automatically — no extra setup needed.
+> `gofa-rapid-exec` requires the RWS user to have **Remote Start** and **Remote Stop** grants (see Step 2). `resetpp` additionally acquires edit mastership automatically.
+
+> `gofa-rapid-var-read` / `gofa-rapid-var-write` use the TCP socket and work on standard OmniCore C30 without any extra RobotWare options. The variable must be listed in `TryGetVar` / `TrySetVar` in `MainModule.mod`. Built-in test variables: `nTestVar` (num) and `sTestMsg` (string). See [Adding RAPID variables](#adding-rapid-variables) below.
 
 ### Files and I/O
 
 | Node | Protocol | What it does |
 |------|:--------:|-------------|
 | **gofa-file-read** | RWS | Download a file from the controller filesystem |
-| **gofa-upload-mod** | RWS | Upload a `.mod` file to the controller filesystem |
+| **gofa-upload-mod** | RWS | Upload a `.mod` file — local path set in node properties or via `msg.payload` |
 | **gofa-io-list** | RWS | List all I/O signals |
 | **gofa-di-read** | RWS | Read a digital input (0 or 1) |
 | **gofa-ai-read** | RWS | Read an analog input |
@@ -282,10 +284,36 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 
 | Node | Protocol | What it does |
 |------|:--------:|-------------|
-| **gofa-subscribe-state** | WS | Push on every controller state change (motoron / motoroff / …) |
-| **gofa-subscribe-io** | WS | Push on every I/O signal change |
+| **gofa-subscribe-state** | WS | Push on every controller state change; one-shot mode polls once per inject |
+| **gofa-subscribe-io** | WS / poll | Push on every I/O signal change; falls back to 500 ms polling for signals that don't support WebSocket; one-shot mode polls once per inject |
 | **gofa-subscribe-var** | RWS poll | Poll a RAPID variable on an interval |
 | **gofa-subscribe-pose** | RWS poll | Poll TCP position on an interval |
+
+> **One-shot checkbox** — both `gofa-subscribe-state` and `gofa-subscribe-io` have a **One-shot** option in their properties. When checked, each inject triggers a single poll and returns the current value immediately without opening a persistent subscription.
+
+---
+
+## Adding RAPID variables
+
+`gofa-rapid-var-read` and `gofa-rapid-var-write` communicate via the TCP socket using `GETVAR:<name>` and `SETVAR:<name>:<value>` commands. The supported variables are declared inside `MainModule.mod` — you add one `ELSEIF` block per variable in two functions:
+
+```rapid
+! In TryGetVar — read side
+ELSEIF varname = "MYSPEED" THEN
+    SocketSend clientSocket \Str:=("VAL:" + NumToStr(nMySpeed, 6) + ByteToStr(10\Char));
+
+! In TrySetVar — write side
+ELSEIF varname = "MYSPEED" THEN
+    IF NOT StrToVal(valstr, nMySpeed) THEN
+        SocketSend clientSocket \Str:=("ERR:PARSE" + ByteToStr(10\Char));
+        RETURN TRUE;
+    ENDIF
+    SocketSend clientSocket \Str:=("OK:SETVAR" + ByteToStr(10\Char));
+```
+
+> Variable names in socket commands are **uppercased** automatically (`nMySpeed` → sent as `GETVAR:nMySpeed` → matched as `NMYSPEED`). String values sent to `SETVAR` preserve their original case and spaces.
+
+After editing `MainModule.mod`, re-upload it and reload on the FlexPendant.
 
 ---
 
@@ -295,7 +323,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 
 ```
 Node-RED ──TCP 1025──▶ RAPID socket server (MainModule.mod)
-                            └─ motion commands (jog, move, HOME …)
+                            └─ motion, GETVAR/SETVAR, PING …
 
 Node-RED ──HTTPS 443──▶ RWS built into OmniCore
                             └─ read state, motor on/off, RAPID start/stop, I/O
@@ -315,6 +343,10 @@ Saved points are stored in `points.json` on the Node-RED host — not on the rob
 2. Check `rapid/MainModule.mod` — `SERVER_IP` must match your robot's actual IP
 3. Re-upload the `.mod` and reload on the FlexPendant if you changed the IP
 4. Verify port 1025 is reachable: `nc -zv <ROBOT_IP> 1025`
+
+### RAPID Var Read/Write returns `ERR:UNKNOWN_VAR`
+
+The variable is not in the `TryGetVar` / `TrySetVar` handlers in `MainModule.mod`. Add an `ELSEIF` block for it (see [Adding RAPID variables](#adding-rapid-variables)), re-upload, and reload on the FlexPendant.
 
 ### RWS returns 401
 
@@ -336,6 +368,10 @@ cd /path/to/node-red-contrib-abb-gofa && npm install
 ```
 
 Then restart Node-RED.
+
+### Subscribe IO returns 400 on first inject for some signals
+
+Some signals (e.g. AS-Interface signals) do not support WebSocket subscription. `gofa-subscribe-io` automatically falls back to 500 ms polling for these signals — no action needed.
 
 ### RWS returns 405 (method not allowed)
 

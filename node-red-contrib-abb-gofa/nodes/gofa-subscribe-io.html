@@ -2,9 +2,10 @@
     RED.nodes.registerType('gofa-subscribe-io', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
-            name:   { value: '' },
-            robot:  { value: '', type: 'gofa-robot', required: true },
-            signal: { value: 'DI10_1' }
+            name:    { value: '' },
+            robot:   { value: '', type: 'gofa-robot', required: true },
+            signal:  { value: 'DI10_1' },
+            oneshot: { value: false }
         },
         inputs: 1, outputs: 1, icon: 'white-globe.svg',
         label: function() { return this.name || this.signal || 'Subscribe IO'; },
@@ -24,15 +25,25 @@
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Subscribe IO">
     </div>
+    <div class="form-row">
+        <label style="width:auto;margin-right:8px;" for="node-input-oneshot">
+            <input type="checkbox" id="node-input-oneshot" style="width:auto;vertical-align:middle;margin-right:4px;">
+            One-shot (poll once per inject, no continuous monitoring)
+        </label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-subscribe-io">
-    <p>Subscribes to a single I/O signal value via RWS WebSocket (priority High). Outputs a message each time the signal value changes.</p>
+    <p>Reads or monitors an I/O signal via RWS.</p>
     <h3>Input</h3>
-    <p>Send any message to start the subscription. To subscribe to a different signal at runtime, send a message with <code>msg.payload.signal</code> set to the new signal name — the existing subscription is closed and a new one is opened.</p>
+    <p>Send any message to trigger. Pass <code>msg.payload.signal</code> to override the configured signal name at runtime.</p>
     <h3>Output <code>msg.payload</code></h3>
     <dl class="message-properties">
         <dt>ok <span class="property-type">boolean</span></dt><dd><code>true</code></dd>
         <dt>signal <span class="property-type">string</span></dt><dd>Signal name</dd>
-        <dt>value <span class="property-type">number</span></dt><dd>Signal value (0 or 1 for digital signals)</dd>
+        <dt>value <span class="property-type">number</span></dt><dd>Signal value (0 or 1 for digital)</dd>
+        <dt>source <span class="property-type">string</span></dt><dd><code>ws</code> | <code>poll</code> | <code>oneshot</code></dd>
     </dl>
+    <h3>Modes</h3>
+    <p><b>One-shot unchecked (default):</b> First inject starts WebSocket subscription (falls back to 500ms polling if the signal doesn't support subscription). Emits current value on every inject and on every state change.</p>
+    <p><b>One-shot checked:</b> Each inject does a single GET and emits the current value. No persistent connection.</p>
 </script>
