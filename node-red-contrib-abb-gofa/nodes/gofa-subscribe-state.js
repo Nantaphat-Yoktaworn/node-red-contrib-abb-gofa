@@ -11,6 +11,7 @@ module.exports = function(RED) {
         var node = this;
         node._ws      = null;
         node._pollkey = null;
+        node._stopped = false;
 
         function startSubscription() {
             if (!node.robot) { node.error('No robot configured'); return; }
@@ -80,7 +81,12 @@ module.exports = function(RED) {
                 ws.on('close', function() {
                     if (node._ws) {
                         node._ws = null;
-                        node.status({ fill: 'grey', shape: 'ring', text: 'disconnected' });
+                        if (!node._stopped) {
+                            node.status({ fill: 'yellow', shape: 'ring', text: 'reconnecting...' });
+                            setTimeout(function() { if (!node._stopped) startSubscription(); }, 3000);
+                        } else {
+                            node.status({ fill: 'grey', shape: 'ring', text: 'disconnected' });
+                        }
                     }
                 });
             }).catch(function(err) {
@@ -120,6 +126,7 @@ module.exports = function(RED) {
         });
 
         node.on('close', function(done) {
+            node._stopped = true;
             var ws = node._ws;
             node._ws = null;
             if (ws) { ws.terminate(); }
