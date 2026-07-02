@@ -8,6 +8,7 @@ var gotoToken           = robot.gotoToken;
 var parseXhtml          = robot.parseXhtml;
 var atomicWriteFileSync = robot.atomicWriteFileSync;
 var fileMtimeMs         = robot.fileMtimeMs;
+var patchServerIp       = require('./nodes/gofa-upload-mod').patchServerIp;
 
 var passed = 0, failed = 0;
 function check(label, fn) {
@@ -200,6 +201,35 @@ check('gofa-robot: _savePoints warns when the file changed on disk since last re
     node.warnings = [];
     node.addPoint('pick2', { x: 2 });
     assert.ok(node.warnings.some(function(w) { return w.indexOf('changed on disk') >= 0; }));
+});
+
+// ── gofa-upload-mod: SERVER_IP injection ────────────────────────────────────
+var sampleMod = 'MODULE MainModule\n' +
+                '    CONST string SERVER_IP   := "192.168.20.15";\n' +
+                '    CONST num    SERVER_PORT := 1025;\n' +
+                'ENDMODULE\n';
+
+check('patchServerIp: replaces the quoted IP when the constant is present', function() {
+    var res = patchServerIp(sampleMod, '10.0.0.5');
+    assert.strictEqual(res.injected, true);
+    assert.ok(res.text.indexOf('CONST string SERVER_IP   := "10.0.0.5";') >= 0);
+});
+check('patchServerIp: is case-insensitive on the CONST/SERVER_IP keywords', function() {
+    var mod = 'const STRING server_ip := "1.2.3.4";';
+    var res = patchServerIp(mod, '9.9.9.9');
+    assert.strictEqual(res.injected, true);
+    assert.ok(res.text.indexOf('"9.9.9.9"') >= 0);
+});
+check('patchServerIp: leaves the rest of the file untouched', function() {
+    var res = patchServerIp(sampleMod, '10.0.0.5');
+    assert.ok(res.text.indexOf('CONST num    SERVER_PORT := 1025;') >= 0);
+    assert.ok(res.text.indexOf('MODULE MainModule') >= 0);
+});
+check('patchServerIp: no-ops when the constant is not present', function() {
+    var mod = 'MODULE Other\nENDMODULE\n';
+    var res = patchServerIp(mod, '10.0.0.5');
+    assert.strictEqual(res.injected, false);
+    assert.strictEqual(res.text, mod);
 });
 
 // ── gofa-asi-led ──────────────────────────────────────────────────────────────

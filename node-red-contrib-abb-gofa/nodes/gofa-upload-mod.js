@@ -3,12 +3,25 @@ const https = require('https');
 const http  = require('http');
 const fs    = require('fs');
 
+// Rewrite MainModule.mod's SERVER_IP constant to match the robot config
+// node's IP, so it can't drift out of sync with what Node-RED actually
+// connects to. No-ops (injected: false) if the constant isn't present.
+function patchServerIp(text, ip) {
+    var injected = false;
+    var patched = text.replace(/(CONST\s+string\s+SERVER_IP\s*:=\s*")[^"]*(")/i, function(m, p1, p2) {
+        injected = true;
+        return p1 + ip + p2;
+    });
+    return { text: patched, injected: injected };
+}
+
 module.exports = function(RED) {
     function GoFaUploadModNode(config) {
         RED.nodes.createNode(this, config);
-        this.robot      = RED.nodes.getNode(config.robot);
-        this.localPath  = config.localPath  || '';
-        this.remotePath = config.remotePath || '$HOME/Programs/MainModule.mod';
+        this.robot          = RED.nodes.getNode(config.robot);
+        this.localPath      = config.localPath  || '';
+        this.remotePath     = config.remotePath || '$HOME/Programs/MainModule.mod';
+        this.injectServerIp = config.injectServerIp !== false;
         var node = this;
 
         node.on('input', function(msg, send, done) {
@@ -43,6 +56,14 @@ module.exports = function(RED) {
                     node.status({ fill: 'red', shape: 'ring', text: 'file read error' });
                     return done(e);
                 }
+            }
+
+            var serverIpInjected = false;
+            if (node.injectServerIp) {
+                var isBuffer = Buffer.isBuffer(content);
+                var result = patchServerIp(isBuffer ? content.toString('utf8') : String(content), r.ip);
+                content = isBuffer ? Buffer.from(result.text, 'utf8') : result.text;
+                serverIpInjected = result.injected;
             }
 
             var body   = Buffer.isBuffer(content) ? content : Buffer.from(String(content));
@@ -92,7 +113,7 @@ module.exports = function(RED) {
                 });
             })
             .then(function() {
-                msg.payload = { ok: true, remotePath: remotePath, bytes: body.length };
+                msg.payload = { ok: true, remotePath: remotePath, bytes: body.length, serverIpInjected: serverIpInjected };
                 node.status({ fill: 'green', shape: 'dot', text: 'uploaded ' + body.length + 'B' });
                 send(msg); done();
             })
@@ -105,3 +126,5 @@ module.exports = function(RED) {
     }
     RED.nodes.registerType('gofa-upload-mod', GoFaUploadModNode);
 };
+
+module.exports.patchServerIp = patchServerIp;

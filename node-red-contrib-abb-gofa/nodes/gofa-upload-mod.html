@@ -5,7 +5,8 @@
             name:       { value: '' },
             robot:      { value: '', type: 'gofa-robot', required: true },
             localPath:  { value: '' },
-            remotePath: { value: '$HOME/Programs/MainModule.mod' }
+            remotePath: { value: '$HOME/Programs/MainModule.mod' },
+            injectServerIp: { value: true }
         },
         inputs: 1, outputs: 1, icon: 'white-globe.svg',
         label: function() { return this.name || 'Upload .mod'; },
@@ -26,6 +27,11 @@
         <input type="text" id="node-input-remotePath" placeholder="$HOME/Programs/MainModule.mod">
     </div>
     <div class="form-row">
+        <label for="node-input-injectServerIp"><i class="fa fa-map-marker"></i> Inject IP</label>
+        <input type="checkbox" id="node-input-injectServerIp" style="width:auto">
+        <span>replace SERVER_IP with the robot's configured IP before upload</span>
+    </div>
+    <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Upload .mod">
     </div>
@@ -40,8 +46,10 @@
         <li><b>Buffer</b> — uploaded as-is (skips disk read).</li>
         <li><b>Object</b> <code>{ localPath, remotePath }</code> — overrides either or both paths.</li>
     </ul>
+    <h3>Inject IP</h3>
+    <p>When checked (default), rewrites <code>CONST string SERVER_IP := "...";</code> in the uploaded content to the robot config node's IP before it's sent, so <code>MainModule.mod</code>'s socket-bind address can never drift out of sync with what Node-RED actually connects to. If the file doesn't contain that constant, this is a no-op.</p>
     <h3>Output</h3>
-    <p><code>msg.payload = { ok: true, remotePath: "$HOME/Programs/MainModule.mod", bytes: 1234 }</code></p>
+    <p><code>msg.payload = { ok: true, remotePath: "$HOME/Programs/MainModule.mod", bytes: 1234, serverIpInjected: true }</code></p>
     <h3>After upload</h3>
     <p>On the FlexPendant: Program Editor → Load → the uploaded file, then PP to Main → Play.</p>
 </script>

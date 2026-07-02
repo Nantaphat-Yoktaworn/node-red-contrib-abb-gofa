@@ -43,6 +43,8 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 
 **SETLED/RESETLED note**: ASI signals have `Rapid|LocalManual` write access — HTTP RWS cannot write them. All LED control must go through the RAPID socket server. `TrySetLed` in `MainModule.mod` handles the `SETLED` command via `SetGO` on `Asi1LedRed`, `Asi1LedGreen`, `Asi1LedBlue`, `Asi1LedPeriod`. Software-controlled counted blink (Node-RED side) is handled by `gofa-asi-led` when `blinkCount > 0`; in that case `period` is ignored and set to 0.
 
+**SERVER_IP note**: `MainModule.mod` binds its socket server with `CONST string SERVER_IP := "..."`, which RAPID's `SocketBind` requires to be a real configured interface address (no wildcard bind). If this drifts from the controller's actual IP, `SocketBind` silently fails and every socket command times out with no error on the controller side. `gofa-upload-mod` mitigates this by rewriting `SERVER_IP` to the `gofa-robot` config node's IP on every upload (toggle via the node's "Inject IP" option); the constant in the repo copy is just the fallback for a first upload or manual FlexPendant/SD-card load.
+
 ## Nodes (41 total)
 
 | Node | Transport | Description |
@@ -75,7 +77,7 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 | `gofa-rapid-var-read` | Socket | Read a RAPID PERS variable via `GETVAR:<name>` socket command |
 | `gofa-rapid-var-write` | Socket | Write a RAPID PERS variable via `SETVAR:<name>:<value>` socket command |
 | `gofa-file-read` | RWS | Download a file from controller filesystem |
-| `gofa-upload-mod` | RWS | Upload a `.mod` file to controller filesystem |
+| `gofa-upload-mod` | RWS | Upload a `.mod` file to controller filesystem; auto-syncs `SERVER_IP` to the config node's IP unless disabled |
 | `gofa-io-list` | RWS | List all I/O signals |
 | `gofa-ai-read` | RWS | Read analog input |
 | `gofa-ao-write` | RWS | Write analog output |

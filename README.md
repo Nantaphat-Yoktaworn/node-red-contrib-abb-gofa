@@ -394,7 +394,7 @@ Saved points are stored in `points.json` on the Node-RED host — not on the rob
 ### Socket commands time out (jog, HOME, ping …)
 
 1. Confirm RAPID is running on the FlexPendant (green play indicator)
-2. Check `rapid/MainModule.mod` — `SERVER_IP` must match your robot's actual IP
+2. Check `rapid/MainModule.mod` — `SERVER_IP` must match your robot's actual IP. If you upload via the `gofa-upload-mod` node (with its "Inject IP" option on, the default), this is kept in sync automatically from the `gofa-robot` config node's IP — no manual edit needed.
 3. Re-upload the `.mod` and reload on the FlexPendant if you changed the IP
 4. Verify port 1025 is reachable: `nc -zv <ROBOT_IP> 1025`
 
