@@ -160,13 +160,6 @@
   {"id":"pim_resp","type":"function","name":"Import resp","z":"tab_pal","x":560,"y":2700,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["pim_out"]]},
   {"id":"pim_out","type":"http response","name":"","z":"tab_pal","x":780,"y":2700,"wires":[]},
 
-  {"id":"sub_inj","type":"inject","name":"Subscribe (startup)","z":"tab_pal","x":100,"y":2800,"repeat":"","crontab":"","once":true,"onceDelay":2,"topic":"","payload":"","payloadType":"date","wires":[["sub_state","sub_pose","sub_io","sub_var"]]},
-  {"id":"sub_state","type":"gofa-subscribe-state","name":"Sub State","z":"tab_pal","x":380,"y":2760,"robot":"cfg_robot","wires":[["sub_fn"]]},
-  {"id":"sub_pose","type":"gofa-subscribe-pose","name":"Sub Pose","z":"tab_pal","x":380,"y":2800,"robot":"cfg_robot","wires":[["sub_fn"]]},
-  {"id":"sub_io","type":"gofa-subscribe-io","name":"Sub IO","z":"tab_pal","x":380,"y":2840,"robot":"cfg_robot","signal":"DI10_1","wires":[["sub_fn"]]},
-  {"id":"sub_var","type":"gofa-subscribe-var","name":"Sub Var","z":"tab_pal","x":380,"y":2880,"robot":"cfg_robot","task":"T_ROB1","module":"MainModule","variable":"","interval":1000,"wires":[["sub_fn"]]},
-  {"id":"sub_fn","type":"function","name":"Store sub data","z":"tab_pal","x":620,"y":2820,"func":"var d=flow.get('ws_data')||{};if(msg.payload&&msg.payload.state)d.ws_state=msg.payload.state;if(msg.payload&&msg.payload.signal)d['ws_io_'+msg.payload.signal]=msg.payload.value;flow.set('ws_data',d);return null;","outputs":1,"wires":[[]]},
-
   {"id":"led_in","type":"http in","name":"POST /robot/led","z":"tab_pal","x":100,"y":2960,"method":"post","url":"/robot/led","wires":[["led_node"]]},
   {"id":"led_node","type":"gofa-asi-led","name":"ASI LED","z":"tab_pal","x":340,"y":2960,"robot":"cfg_robot","red":0,"grn":0,"blu":0,"period":0,"blinkCount":0,"blinkMs":250,"wires":[["led_resp"]]},
   {"id":"led_resp","type":"function","name":"LED resp","z":"tab_pal","x":560,"y":2960,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["led_out"]]},
