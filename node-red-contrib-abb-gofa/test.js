@@ -65,15 +65,25 @@ var sample = { x: 323.219, y: -81.812, z: 807.001,
                q1: 0.26714, q2: 0.12904, q3: 0.95361, q4: -0.05281,
                cf1: -1, cf4: -1, cf6: 0, cfx: 0 };
 
-check('gotoToken: valid target produces GOTO string', function() {
+check('gotoToken: valid target produces GOTOJ string by default', function() {
     var tok = gotoToken(sample);
-    assert.ok(tok.startsWith('GOTO'), 'should start with GOTO');
+    assert.ok(tok.startsWith('GOTOJ'), 'should start with GOTOJ');
     assert.ok(tok.split(';').length === 11, 'should have 11 semicolon-separated values');
+});
+
+check('gotoToken: moveType "L" produces GOTOL string', function() {
+    var tok = gotoToken(sample, 'L');
+    assert.ok(tok.startsWith('GOTOL'), 'should start with GOTOL');
+});
+
+check('gotoToken: unrecognized moveType falls back to GOTOJ', function() {
+    var tok = gotoToken(sample, 'bogus');
+    assert.ok(tok.startsWith('GOTOJ'), 'should start with GOTOJ');
 });
 
 check('gotoToken: xyz rounds to 1 decimal place', function() {
     var tok = gotoToken(sample);
-    var parts = tok.slice(4).split(';');
+    var parts = tok.slice(5).split(';');
     assert.strictEqual(parts[0], '323.2');
     assert.strictEqual(parts[1], '-81.8');
     assert.strictEqual(parts[2], '807.0');
@@ -81,7 +91,7 @@ check('gotoToken: xyz rounds to 1 decimal place', function() {
 
 check('gotoToken: quaternion rounds to 4 decimal places', function() {
     var tok = gotoToken(sample);
-    var parts = tok.slice(4).split(';');
+    var parts = tok.slice(5).split(';');
     assert.strictEqual(parts[3], '0.2671');
     assert.strictEqual(parts[4], '0.1290');
     assert.strictEqual(parts[5], '0.9536');
@@ -90,7 +100,7 @@ check('gotoToken: quaternion rounds to 4 decimal places', function() {
 
 check('gotoToken: config flags are integers', function() {
     var tok = gotoToken(sample);
-    var parts = tok.slice(4).split(';');
+    var parts = tok.slice(5).split(';');
     assert.strictEqual(parts[7],  '-1');
     assert.strictEqual(parts[8],  '-1');
     assert.strictEqual(parts[9],  '0');
@@ -405,12 +415,46 @@ await checkAsync('gofa-points-export: write failure reports an error', async fun
     assert.ok(node.errors.length > 0);
 });
 
+// gofa-go-point ──────────────────────────────────────────────────────────────
+function makeGoPointRobot(pt) {
+    var calls = [];
+    return {
+        findPoint: function() { return pt; },
+        gotoToken: function(target, moveType) { calls.push(moveType); return 'GOTOJ' + JSON.stringify(target); },
+        socketSend: function(token) { return Promise.resolve('OK:' + token); },
+        _calls: calls
+    };
+}
+await checkAsync('gofa-go-point: uses the configured move type by default', async function() {
+    var mockRobot = makeGoPointRobot({ name: 'pick1', target: {} });
+    var node = new (loadNodeType('./nodes/gofa-go-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', moveType: 'L' });
+    var msg = { payload: {} };
+    await runInput(node, msg);
+    assert.deepStrictEqual(mockRobot._calls, ['L']);
+    assert.strictEqual(msg.payload.moveType, 'L');
+});
+await checkAsync('gofa-go-point: msg.payload.moveType overrides the configured value', async function() {
+    var mockRobot = makeGoPointRobot({ name: 'pick1', target: {} });
+    var node = new (loadNodeType('./nodes/gofa-go-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', moveType: 'J' });
+    var msg = { payload: { moveType: 'L' } };
+    await runInput(node, msg);
+    assert.deepStrictEqual(mockRobot._calls, ['L']);
+});
+await checkAsync('gofa-go-point: invalid msg.payload.moveType falls back to configured value', async function() {
+    var mockRobot = makeGoPointRobot({ name: 'pick1', target: {} });
+    var node = new (loadNodeType('./nodes/gofa-go-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', moveType: 'L' });
+    var msg = { payload: { moveType: 'sideways' } };
+    await runInput(node, msg);
+    assert.deepStrictEqual(mockRobot._calls, ['L']);
+});
+
 // gofa-sequencer + gofa-stop-seq ─────────────────────────────────────────────
 function makeSeqRobot(pointMap) {
+    var calls = [];
     return {
-        _seqStop: false, _seqRunning: false,
+        _seqStop: false, _seqRunning: false, _calls: calls,
         findPoint: function(name) { return pointMap[name] || null; },
-        gotoToken: function(target) { return 'GOTO' + JSON.stringify(target); },
+        gotoToken: function(target, moveType) { calls.push(moveType); return 'GOTO' + moveType + JSON.stringify(target); },
         socketSend: function(token) { return Promise.resolve('OK:' + token); }
     };
 }
@@ -446,6 +490,21 @@ await checkAsync('gofa-sequencer: loop respects count', async function() {
     await runInput(node, { payload: { steps: [{ name: 'a' }] } });
     assert.strictEqual(stepMsgs(node).length, 2);
     assert.deepStrictEqual(endMsg(node).payload, { done: true, loops: 2 });
+});
+await checkAsync('gofa-sequencer: uses the node-level default move type', async function() {
+    var points = { a: { name: 'a', target: {} }, b: { name: 'b', target: {} } };
+    var mockRobot = makeSeqRobot(points);
+    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: mockRobot } }))({ robot: 'r1', dwell: 0, moveType: 'L' });
+    await runInput(node, { payload: { steps: [{ name: 'a' }, { name: 'b' }] } });
+    assert.deepStrictEqual(mockRobot._calls, ['L', 'L']);
+    assert.strictEqual(stepMsgs(node)[0].payload.moveType, 'L');
+});
+await checkAsync('gofa-sequencer: a per-step move type overrides the default', async function() {
+    var points = { a: { name: 'a', target: {} }, b: { name: 'b', target: {} } };
+    var mockRobot = makeSeqRobot(points);
+    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: mockRobot } }))({ robot: 'r1', dwell: 0, moveType: 'J' });
+    await runInput(node, { payload: { steps: [{ name: 'a', moveType: 'L' }, { name: 'b' }] } });
+    assert.deepStrictEqual(mockRobot._calls, ['L', 'J']);
 });
 await checkAsync('gofa-sequencer: stops early once _seqStop is set', async function() {
     var points = { a: { name: 'a', target: {} }, b: { name: 'b', target: {} }, c: { name: 'c', target: {} } };

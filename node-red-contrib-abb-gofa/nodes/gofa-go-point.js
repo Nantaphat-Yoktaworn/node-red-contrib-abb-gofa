@@ -4,6 +4,7 @@ module.exports = function(RED) {
         RED.nodes.createNode(this, config);
         this.robot     = RED.nodes.getNode(config.robot);
         this.pointName = config.pointName || '';
+        this.moveType  = (config.moveType === 'L') ? 'L' : 'J';
         var node = this;
         node.on('input', function(msg, send, done) {
             if (!node.robot) { node.error('No robot configured', msg); return done(); }
@@ -14,15 +15,16 @@ module.exports = function(RED) {
                 msg.payload = { ok: false, error: 'Point not found: ' + nameOrId };
                 return send(msg), done();
             }
-            var token = node.robot.gotoToken(pt.target);
+            var moveType = (p.moveType === 'L' || p.moveType === 'J') ? p.moveType : node.moveType;
+            var token = node.robot.gotoToken(pt.target, moveType);
             if (!token) {
                 msg.payload = { ok: false, error: 'Point has invalid data (NaN): ' + pt.name };
                 return send(msg), done();
             }
-            node.status({ fill: 'blue', shape: 'dot', text: pt.name });
+            node.status({ fill: 'blue', shape: 'dot', text: pt.name + ' (' + moveType + ')' });
             node.robot.socketSend(token).then(function(ack) {
                 var ok = ack.startsWith('OK:');
-                msg.payload = { ok: ok, ack: ack, point: pt };
+                msg.payload = { ok: ok, ack: ack, point: pt, moveType: moveType };
                 node.status({ fill: ok ? 'green' : 'red', shape: 'dot', text: ack });
                 send(msg); done();
             }).catch(function(err) {

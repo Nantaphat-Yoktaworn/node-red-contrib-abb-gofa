@@ -8,7 +8,8 @@
             dwell:    { value: 800 },
             loop:     { value: false },
             pingpong: { value: false },
-            count:    { value: 0 }
+            count:    { value: 0 },
+            moveType: { value: 'J' }
         },
         inputs: 1, outputs: 2,
         outputLabels: ['step complete', 'sequence done / stopped'],
@@ -20,11 +21,20 @@
             var cachedPts = [];
 
             function buildSelect(val) {
-                var sel = $('<select style="flex:1;min-width:0">');
+                var sel = $('<select class="goto-point-select" style="flex:1;min-width:0">');
                 sel.append($('<option value="">-- select point --</option>'));
                 cachedPts.forEach(function(p) {
                     sel.append($('<option>').val(p.name).text(p.name).prop('selected', p.name === val));
                 });
+                return sel;
+            }
+
+            function buildMoveTypeSelect(val) {
+                var sel = $('<select>').css({ width: '110px', 'flex-shrink': '0' });
+                sel.append($('<option value="">default</option>'));
+                sel.append($('<option value="J">Joint</option>'));
+                sel.append($('<option value="L">Linear</option>'));
+                sel.val(val || '');
                 return sel;
             }
 
@@ -35,10 +45,12 @@
                     var dwellIn = $('<input type="number" min="0" placeholder="default ms">')
                         .css({ width: '110px', 'flex-shrink': '0' });
                     if (opt.dwell != null) dwellIn.val(opt.dwell);
-                    row.append(sel, dwellIn);
+                    var moveTypeSel = buildMoveTypeSelect(opt.moveType);
+                    row.append(sel, dwellIn, moveTypeSel);
                     container.append(row);
-                    opt._selInput   = sel;
-                    opt._dwellInput = dwellIn;
+                    opt._selInput      = sel;
+                    opt._dwellInput    = dwellIn;
+                    opt._moveTypeInput = moveTypeSel;
                 },
                 removable: true,
                 sortable: true
@@ -54,14 +66,14 @@
 
             loadPoints(node.robot, function() {
                 (node.steps || []).forEach(function(s) {
-                    $('#node-input-steps-container').editableList('addItem', { name: s.name, dwell: s.dwell != null ? s.dwell : null });
+                    $('#node-input-steps-container').editableList('addItem', { name: s.name, dwell: s.dwell != null ? s.dwell : null, moveType: s.moveType || '' });
                 });
             });
 
             $('#node-input-robot').change(function() {
                 loadPoints($(this).val(), function() {
                     $('#node-input-steps-container').editableList('items').each(function() {
-                        var sel = $(this).find('select');
+                        var sel = $(this).find('select.goto-point-select');
                         var cur = sel.val();
                         sel.empty().append($('<option value="">-- select point --</option>'));
                         cachedPts.forEach(function(p) {
@@ -81,11 +93,12 @@
         oneditsave: function() {
             var steps = [];
             $('#node-input-steps-container').editableList('items').each(function() {
-                var name = $(this).find('select').val();
+                var name = $(this).find('select.goto-point-select').val();
                 if (!name) return;
                 var dwellRaw = $(this).find('input[type=number]').val();
                 var dwell = dwellRaw !== '' ? parseInt(dwellRaw) : null;
-                steps.push({ name: name, dwell: dwell });
+                var moveType = $(this).find('select').not('.goto-point-select').val() || null;
+                steps.push({ name: name, dwell: dwell, moveType: moveType });
             });
             this.steps = steps;
         }
@@ -99,13 +112,20 @@
     <div class="form-row">
         <label><i class="fa fa-list"></i> Sequence Steps</label>
         <div style="margin-left:105px;font-size:0.8em;color:#888;margin-bottom:4px">
-            Point &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Dwell override (ms)
+            Point &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Dwell override (ms) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Move type
         </div>
         <ol id="node-input-steps-container"></ol>
     </div>
     <div class="form-row">
         <label for="node-input-dwell"><i class="fa fa-clock-o"></i> Default dwell (ms)</label>
         <input type="number" id="node-input-dwell" placeholder="800" min="0">
+    </div>
+    <div class="form-row">
+        <label for="node-input-moveType"><i class="fa fa-share"></i> Default move type</label>
+        <select id="node-input-moveType" style="width:150px">
+            <option value="J">Joint (MoveJ)</option>
+            <option value="L">Linear (MoveL)</option>
+        </select>
     </div>
     <div class="form-row">
         <label for="node-input-loop"><i class="fa fa-repeat"></i> Loop</label>
@@ -127,20 +147,23 @@
 <script type="text/html" data-help-name="gofa-sequencer">
     <p>Runs a sequence of saved points when triggered.</p>
     <h3>Steps</h3>
-    <p>Each row: pick a saved point and optionally set a dwell override (ms) for that step. Leave dwell blank to use the node-level <em>Default dwell</em>.</p>
+    <p>Each row: pick a saved point, optionally set a dwell override (ms), and optionally pick a move type for that step. Leave dwell blank / move type on "default" to use the node-level settings below.</p>
+    <h3>Move type</h3>
+    <p><b>Joint (MoveJ)</b> — joint-interpolated; more predictable/reliable since it won't fault or slow drastically near a singularity. This is the default whenever a step or the node-level default is left unset ("default"/blank) or set to an invalid value. <b>Linear (MoveL)</b> — straight-line TCP path; can hit singularities/joint limits along the line that a joint move to the same target would avoid.</p>
     <h3>Loop count</h3>
     <p>When <em>Loop</em> is checked, set <em>Loop count</em> to the number of full passes (0 = loop forever until Stop Sequence fires).</p>
     <h3>msg.payload overrides</h3>
     <ul>
-        <li><code>steps</code> — array of <code>{name, dwell?}</code> replacing the configured list</li>
+        <li><code>steps</code> — array of <code>{name, dwell?, moveType?}</code> replacing the configured list</li>
         <li><code>dwell</code> — default dwell in ms</li>
+        <li><code>moveType</code> — default move type ("J" or "L") for steps that don't set their own</li>
         <li><code>loop</code> / <code>pingpong</code> — boolean flags</li>
         <li><code>count</code> — loop count (0 = infinite)</li>
         <li><code>startStep</code> — 1-based step index to start from</li>
     </ul>
     <h3>Outputs</h3>
     <ol>
-        <li>After each step: <code>{ step, total, name, ack, loop }</code></li>
+        <li>After each step: <code>{ step, total, name, ack, loop, moveType }</code></li>
         <li>When done or stopped: <code>{ done, loops }</code> or <code>{ done: false, stopped: true, loops }</code></li>
     </ol>
 </script>

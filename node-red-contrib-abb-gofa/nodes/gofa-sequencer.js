@@ -8,6 +8,7 @@ module.exports = function(RED) {
         this.loop     = config.loop     || false;
         this.pingpong = config.pingpong || false;
         this.count    = parseInt(config.count)  || 0;   // 0 = infinite
+        this.moveType = (config.moveType === 'L') ? 'L' : 'J';
         var node = this;
 
         node.on('input', function(msg, send, done) {
@@ -21,6 +22,7 @@ module.exports = function(RED) {
             var loop      = (p.loop      != null) ? p.loop      : node.loop;
             var pingpong  = (p.pingpong  != null) ? p.pingpong  : node.pingpong;
             var count     = (p.count     != null) ? p.count     : node.count;
+            var moveType  = (p.moveType === 'L' || p.moveType === 'J') ? p.moveType : node.moveType;
             // startStep is 1-based; clamp to valid range after cmds is built
             var startStep = (p.startStep != null) ? Math.max(1, parseInt(p.startStep) || 1) : 1;
 
@@ -30,9 +32,10 @@ module.exports = function(RED) {
             for (var i = 0; i < steps.length; i++) {
                 var pt = r.findPoint(steps[i].name);
                 if (!pt) { node.warn('Point not found: ' + steps[i].name); continue; }
-                var tok = r.gotoToken(pt.target);
+                var stepMoveType = (steps[i].moveType === 'L' || steps[i].moveType === 'J') ? steps[i].moveType : moveType;
+                var tok = r.gotoToken(pt.target, stepMoveType);
                 if (!tok) { node.warn('Point has invalid data (NaN): ' + pt.name); continue; }
-                cmds.push({ name: pt.name, token: tok, dwell: steps[i].dwell != null ? steps[i].dwell : null });
+                cmds.push({ name: pt.name, token: tok, moveType: stepMoveType, dwell: steps[i].dwell != null ? steps[i].dwell : null });
             }
             if (!cmds.length) { node.error('No valid points in sequence'); return done(); }
 
@@ -79,7 +82,7 @@ module.exports = function(RED) {
                         node.warn('Step ' + (idx + 1) + ' (' + c.name + ') got: ' + ack);
                     }
                     var stepMsg = RED.util.cloneMessage(msg);
-                    stepMsg.payload = { step: idx + 1, total: total, name: c.name, ack: ack, loop: loopCount + 1 };
+                    stepMsg.payload = { step: idx + 1, total: total, name: c.name, ack: ack, loop: loopCount + 1, moveType: c.moveType };
                     send([stepMsg, null]);
                     setTimeout(function() { runStep(idx + 1); }, stepDwell);
                 }).catch(function(err) {

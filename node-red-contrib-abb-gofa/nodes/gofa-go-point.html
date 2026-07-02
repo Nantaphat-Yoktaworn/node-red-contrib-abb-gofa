@@ -4,7 +4,8 @@
         defaults: {
             name:      { value: '' },
             robot:     { value: '', type: 'gofa-robot', required: true },
-            pointName: { value: '' }
+            pointName: { value: '' },
+            moveType:  { value: 'J' }
         },
         inputs: 1, outputs: 1, icon: 'white-globe.svg',
         label: function() { return this.name || ('Go to ' + (this.pointName || '...')); },
@@ -37,6 +38,13 @@
         <select id="node-input-pointName" style="width:70%"></select>
     </div>
     <div class="form-row">
+        <label for="node-input-moveType"><i class="fa fa-share"></i> Move type</label>
+        <select id="node-input-moveType" style="width:150px">
+            <option value="J">Joint (MoveJ)</option>
+            <option value="L">Linear (MoveL)</option>
+        </select>
+    </div>
+    <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Go to Point">
     </div>
@@ -44,4 +52,8 @@
 <script type="text/html" data-help-name="gofa-go-point">
     <p>Moves the robot to a saved point by name or ID.</p>
     <p><code>msg.payload.name</code> or <code>msg.payload.id</code> overrides the property.</p>
+    <h3>Move type</h3>
+    <p><b>Joint (MoveJ)</b> — joint-interpolated. Each axis moves independently so the path can curve; more predictable/reliable since it won't fault or slow drastically near a singularity. This is the default whenever move type is left unset or an invalid value is passed.</p>
+    <p><b>Linear (MoveL)</b> — straight-line TCP path to the target. Useful for controlled approach/retract moves, but can hit singularities or joint limits along the line that a joint move to the same target would route around.</p>
+    <p><code>msg.payload.moveType</code> (<code>"J"</code> or <code>"L"</code>) overrides the configured value per message; anything other than exactly <code>"L"</code> falls back to Joint (MoveJ).</p>
 </script>

@@ -88,19 +88,20 @@ The built-in `Admin` account cannot start or stop RAPID remotely. You need to cr
 2. **Controller** tab → **Add Controller** → enter your robot's IP → connect
 3. Log in as `Admin` / `robotics` when prompted
 
-### Create the user
+### Create a role and assign it to the user
 
-4. In the **Controller** tab ribbon → click **Edit User Accounts**
+4. Click **Authenticate** in the ribbon and log in with an admin account — UAS edits require this first
 
-   *(If you don't see it: try right-clicking the controller name in the left panel → look for Authorization or User Accounts)*
+   *(If you don't see **Edit User Accounts**: try right-clicking the controller name in the left panel → look for Authorization or User Accounts)*
 
-5. Click **Add User**
-6. Set a username (e.g. `nodeuser`) and password (e.g. `robotics`)
-7. In the **Grants** / **Permissions** list, enable:
+5. Click **Edit User Accounts**
+6. In the **Role** tab → click **Add Role**
+7. Set a role name (e.g. `RemoteControl`) → leave the rest as-is → in the **Grants** / **Permissions** list, enable:
    - ✅ **Remote Start** (allows `start` action via RWS)
    - ✅ **Remote Stop** (allows `stop` and `resetpp` actions via RWS)
    - ✅ All other grants you want (read-only operations work without grants)
-8. Click **OK** → **Apply**
+8. Switch to the **User** tab → either change an existing user's role to the one you just created, or click **Add User** to create a new user (e.g. `nodeuser` / `robotics`) and assign it the new role
+9. Click **OK** → **Apply**
 
 > **What about `resetpp`?** It requires edit mastership in addition to Remote Stop — the palette handles this automatically using `/rw/mastership/edit/request`.
 
@@ -249,13 +250,15 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | Node | Protocol | What it does |
 |------|:--------:|-------------|
 | **gofa-save-point** | RWS + Local | Read current pose, save as named point in `points.json` |
-| **gofa-go-point** | TCP + Local | Look up a saved point and move to it |
+| **gofa-go-point** | TCP + Local | Look up a saved point and move to it — move type (Joint/MoveJ or Linear/MoveL) selectable |
 | **gofa-point-list** | Local | Output the full saved-points array |
 | **gofa-delete-point** | Local | Remove a saved point by name |
 | **gofa-points-export** | Local | Dump points list to `msg.payload` |
 | **gofa-points-import** | Local | Replace points list from `msg.payload` |
-| **gofa-sequencer** | TCP + Local | Visit saved points in order — per-step dwell, loop count, ping-pong, startStep |
+| **gofa-sequencer** | TCP + Local | Visit saved points in order — per-step dwell + move type override, loop count, ping-pong, startStep |
 | **gofa-stop-seq** | TCP + Local | Stop sequencer immediately (sends `STOP` socket + sets flag) |
+
+> **Move type — Joint (MoveJ) vs Linear (MoveL):** `gofa-go-point` and `gofa-sequencer` let you pick how the robot reaches a saved point. **Joint (MoveJ)** is joint-interpolated and is the default whenever a move type isn't set or an invalid value is passed — it's the more predictable/reliable choice because RAPID has freedom in how each axis gets there, so it won't fault or slow drastically near a singularity. **Linear (MoveL)** forces a straight-line TCP path, which is useful for a controlled approach/retract near a workpiece but can hit a singularity or joint limit along that line even when both endpoints are fine on their own.
 
 ### RAPID program control
 
@@ -339,7 +342,7 @@ msg.payload  →  node property (editor)  →  built-in default
 | **gofa-jog** | `{ axis, dir, step }` | X, +, 10 |
 | **gofa-joint-jog** | `{ joint, dir, step }` | J1, +, 5 |
 | **gofa-movej** | `[j1,j2,j3,j4,j5,j6]` or `{ j1, j2, j3, j4, j5, j6 }` | `[0,0,85,0,0,0]` |
-| **gofa-go-point** | `{ name }` or `{ id }` | (property) |
+| **gofa-go-point** | `{ name, moveType? }` or `{ id, moveType? }` — `moveType`: `"J"` or `"L"` | (property) |
 | **gofa-save-point** | `{ name }` | (property) |
 | **gofa-delete-point** | `{ name }` or `{ id }` | (property) |
 | **gofa-rapid-var-read** | `{ task, module, variable }` | T_ROB1 / MainModule / (property) |
@@ -357,7 +360,7 @@ msg.payload  →  node property (editor)  →  built-in default
 | **gofa-points-import** | file path (string) · `{ loadPath }` · array · `{ points: [...] }` | (property / clear) |
 | **gofa-elog** | `{ domain, count }` | domain: 1, count: 10 |
 | **gofa-asi-led** | `'red'`/`'green'`/`'yellow'`/`'off'`/etc. · `false`/`0` (off) · `{ color, r, g, b, period, blinkCount, blinkMs }` · `'reset'` (restore default) | node defaults |
-| **gofa-sequencer** | `{ steps, dwell, loop, pingpong, count, startStep }` | (property) |
+| **gofa-sequencer** | `{ steps, dwell, moveType, loop, pingpong, count, startStep }` — `steps[i].moveType` overrides per-step | (property) |
 
 ### Trigger-only nodes (no payload needed)
 

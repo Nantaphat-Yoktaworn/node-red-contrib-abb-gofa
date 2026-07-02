@@ -59,7 +59,7 @@ MODULE MainModule
     ! -------------------------------------------------------
     ! Socket server state
     ! -------------------------------------------------------
-    CONST string SERVER_IP   := "192.168.20.12";
+    CONST string SERVER_IP   := "192.168.20.18";
     CONST num    SERVER_PORT  := 1025;
 
     ! Persisted home pose (survives restart AND module reload). One line of
@@ -335,17 +335,35 @@ MODULE MainModule
     ! (11 numbers, the full robtarget). Node-RED only ever sends stored,
     ! real poses, so the target is inherently reachable. Returns FALSE
     ! (no ack) if it isn't a GOTO token.
+    ! Token: GOTOJ<11 nums> or GOTOL<11 nums> selects MoveJ (joint-interpolated,
+    ! default) or MoveL (straight-line TCP path) to the target. Bare GOTO<11 nums>
+    ! (no J/L letter) is accepted as an alias for GOTOJ for backward compatibility.
+    ! MoveL follows a straight line and can hit singularities/joint limits that
+    ! MoveJ would route around to reach the same target - caller's choice.
     FUNC bool TryGoTo(string cmd)
         VAR num n;
         VAR num qn;
         VAR num vals{11};
         VAR robtarget t;
+        VAR bool linear;
+        VAR num prefixLen;
         n := StrLen(cmd);
         IF n < 5 RETURN FALSE;
-        IF StrPart(cmd, 1, 4) <> "GOTO" RETURN FALSE;
-        IF NOT ParseNums(StrPart(cmd, 5, n - 4), vals) RETURN FALSE;
+        IF StrPart(cmd, 1, 5) = "GOTOJ" THEN
+            linear := FALSE;
+            prefixLen := 5;
+        ELSEIF StrPart(cmd, 1, 5) = "GOTOL" THEN
+            linear := TRUE;
+            prefixLen := 5;
+        ELSEIF StrPart(cmd, 1, 4) = "GOTO" THEN
+            linear := FALSE;
+            prefixLen := 4;
+        ELSE
+            RETURN FALSE;
+        ENDIF
+        IF NOT ParseNums(StrPart(cmd, prefixLen + 1, n - prefixLen), vals) RETURN FALSE;
         ! Re-normalize the quaternion (Node-RED rounds it to keep the token
-        ! under RAPID's 80-char string limit), else MoveJ rejects it.
+        ! under RAPID's 80-char string limit), else MoveJ/MoveL rejects it.
         qn := Sqrt(vals{4} * vals{4} + vals{5} * vals{5} + vals{6} * vals{6} + vals{7} * vals{7});
         IF qn = 0 RETURN FALSE;
         t.trans   := [vals{1}, vals{2}, vals{3}];
@@ -354,7 +372,11 @@ MODULE MainModule
         t.extax   := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
         ! Valid -> ack first (snappy UI), then move
         SocketSend clientSocket \Str:=("OK:GOTO" + ByteToStr(10\Char));
-        MoveJ \Conc, t, vGoto, fine, tGripper \WObj:=wobj1;
+        IF linear THEN
+            MoveL \Conc, t, vGoto, fine, tGripper \WObj:=wobj1;
+        ELSE
+            MoveJ \Conc, t, vGoto, fine, tGripper \WObj:=wobj1;
+        ENDIF
         RETURN TRUE;
     ENDFUNC
 

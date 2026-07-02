@@ -22,7 +22,8 @@ Rule: **motion always goes through the socket; read-only data and motor control 
 |---------|-------------|
 | `HOME` | Move to home position |
 | `SETHOME` | Capture current pose as home, persist to `HOME:/Programs/gofa_home.cfg` |
-| `GOTOx;y;z;q1;q2;q3;q4;cf1;cf4;cf6;cfx` | Move to absolute pose (11 `;`-separated numbers) |
+| `GOTOJx;y;z;q1;q2;q3;q4;cf1;cf4;cf6;cfx` | Move to absolute pose via MoveJ (joint-interpolated, 11 `;`-separated numbers) |
+| `GOTOLx;y;z;q1;q2;q3;q4;cf1;cf4;cf6;cfx` | Move to absolute pose via MoveL (straight-line TCP path) |
 | `X+20` / `Y-10` / `Z+5` | Translate TCP ±mm in base frame (max 50 mm) |
 | `RX+5` / `RY-10` / `RZ+15` | Rotate TCP ±° in tool frame (max 30°) |
 | `J1+10` / `J3-5` | Jog single joint ±° (max 30°, joints 1–6) |
@@ -45,6 +46,8 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 
 **SERVER_IP note**: `MainModule.mod` binds its socket server with `CONST string SERVER_IP := "..."`, which RAPID's `SocketBind` requires to be a real configured interface address (no wildcard bind). If this drifts from the controller's actual IP, `SocketBind` silently fails and every socket command times out with no error on the controller side. `gofa-upload-mod` mitigates this by rewriting `SERVER_IP` to the `gofa-robot` config node's IP on every upload (toggle via the node's "Inject IP" option); the constant in the repo copy is just the fallback for a first upload or manual FlexPendant/SD-card load.
 
+**GOTOJ/GOTOL note**: bare `GOTO<11 nums>` (no `J`/`L` letter) is still accepted by `TryGoTo` as an alias for `GOTOJ`, for backward compatibility. `gofa-go-point` and `gofa-sequencer` always send the explicit `J`/`L` form based on their "Move type" dropdown. `MoveJ` (joint-interpolated) is the more predictable/reliable choice — RAPID has freedom in how each axis gets there, so it won't fault or slow drastically near a singularity — and is therefore the default at every fallback point: `gotoToken(t, moveType)` in `gofa-robot.js` maps anything other than exactly `'L'` to `'J'`, and both nodes' config defaults are `'J'`. `MoveL` follows a straight line to the target and can hit singularities or joint limits along that line that `MoveJ` would route around, so it's opt-in, not a safer default.
+
 ## Nodes (41 total)
 
 | Node | Transport | Description |
@@ -66,12 +69,12 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 | `gofa-stop-motion` | Socket | Halt motion immediately |
 | `gofa-ping` | Socket | Connectivity test, measures round-trip time |
 | `gofa-save-point` | RWS + disk | Read pose via RWS, save as named point in `points.json` |
-| `gofa-go-point` | Socket + disk | Look up saved point, send GOTO token |
+| `gofa-go-point` | Socket + disk | Look up saved point, send GOTO token; move type (MoveJ/MoveL) selectable per-node or per-message |
 | `gofa-point-list` | disk | Output full saved-point array |
 | `gofa-delete-point` | disk | Remove a saved point by name |
 | `gofa-points-export` | disk | Dump points list to `msg.payload` |
 | `gofa-points-import` | disk | Replace points list from `msg.payload` |
-| `gofa-sequencer` | Socket + disk | Visit saved points in order; per-step dwell, loop count, ping-pong, startStep |
+| `gofa-sequencer` | Socket + disk | Visit saved points in order; per-step dwell + move type override, loop count, ping-pong, startStep |
 | `gofa-stop-seq` | Socket + in-memory | Sets `_seqStop` flag and sends immediate `STOP` socket command |
 | `gofa-rapid-exec` | RWS | Start/stop/resetPP RAPID program *(requires Remote Start/Stop UAS grants)* |
 | `gofa-rapid-var-read` | Socket | Read a RAPID PERS variable via `GETVAR:<name>` socket command |

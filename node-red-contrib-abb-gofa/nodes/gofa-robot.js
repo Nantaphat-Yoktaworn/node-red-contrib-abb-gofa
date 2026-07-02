@@ -23,12 +23,13 @@ function fileMtimeMs(filePath) {
     catch (e) { return null; }
 }
 
-// Build GOTO token — rounded to stay under RAPID's 80-char string limit; null on bad data
-function gotoToken(t) {
+// Build GOTO token — rounded to stay under RAPID's 80-char string limit; null on bad data.
+// moveType 'L' selects MoveL (straight-line TCP path); anything else (default) selects MoveJ.
+function gotoToken(t, moveType) {
     var vals = [t.x, t.y, t.z, t.q1, t.q2, t.q3, t.q4, t.cf1, t.cf4, t.cf6, t.cfx];
     if (vals.some(function(v) { return !isFinite(v); })) return null;
     function r(v, d) { return Number(v).toFixed(d); }
-    return 'GOTO' + [
+    return 'GOTO' + (moveType === 'L' ? 'L' : 'J') + [
         r(t.x,1), r(t.y,1), r(t.z,1),
         r(t.q1,4), r(t.q2,4), r(t.q3,4), r(t.q4,4),
         Math.round(t.cf1), Math.round(t.cf4), Math.round(t.cf6), Math.round(t.cfx)
