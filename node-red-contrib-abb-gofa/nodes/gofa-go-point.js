@@ -1,10 +1,11 @@
 'use strict';
+var resolveMoveType = require('./gofa-robot').resolveMoveType;
 module.exports = function(RED) {
     function GoFaGoPointNode(config) {
         RED.nodes.createNode(this, config);
         this.robot     = RED.nodes.getNode(config.robot);
         this.pointName = config.pointName || '';
-        this.moveType  = (config.moveType === 'L') ? 'L' : 'J';
+        this.moveType  = resolveMoveType(config.moveType, 'J');
         var node = this;
         node.on('input', function(msg, send, done) {
             if (!node.robot) { node.error('No robot configured', msg); return done(); }
@@ -15,7 +16,7 @@ module.exports = function(RED) {
                 msg.payload = { ok: false, error: 'Point not found: ' + nameOrId };
                 return send(msg), done();
             }
-            var moveType = (p.moveType === 'L' || p.moveType === 'J') ? p.moveType : node.moveType;
+            var moveType = resolveMoveType(p.moveType, node.moveType);
             var token = node.robot.gotoToken(pt.target, moveType);
             if (!token) {
                 msg.payload = { ok: false, error: 'Point has invalid data (NaN): ' + pt.name };

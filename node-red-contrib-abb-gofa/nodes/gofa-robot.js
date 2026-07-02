@@ -23,13 +23,18 @@ function fileMtimeMs(filePath) {
     catch (e) { return null; }
 }
 
+// Validates a move-type value ('J' or 'L'); anything else resolves to fallback.
+function resolveMoveType(v, fallback) {
+    return (v === 'L' || v === 'J') ? v : fallback;
+}
+
 // Build GOTO token — rounded to stay under RAPID's 80-char string limit; null on bad data.
 // moveType 'L' selects MoveL (straight-line TCP path); anything else (default) selects MoveJ.
 function gotoToken(t, moveType) {
     var vals = [t.x, t.y, t.z, t.q1, t.q2, t.q3, t.q4, t.cf1, t.cf4, t.cf6, t.cfx];
     if (vals.some(function(v) { return !isFinite(v); })) return null;
     function r(v, d) { return Number(v).toFixed(d); }
-    return 'GOTO' + (moveType === 'L' ? 'L' : 'J') + [
+    return 'GOTO' + resolveMoveType(moveType, 'J') + [
         r(t.x,1), r(t.y,1), r(t.z,1),
         r(t.q1,4), r(t.q2,4), r(t.q3,4), r(t.q4,4),
         Math.round(t.cf1), Math.round(t.cf4), Math.round(t.cf6), Math.round(t.cfx)
@@ -178,13 +183,12 @@ module.exports = function(RED) {
         var node = this;
         return this._getSession().then(function() { return node._request('PUT', p, b, false); });
     };
+    // Edit mastership is the only domain OmniCore allows requesting explicitly —
+    // general mastership is always held internally by the RAPID runtime.
     GoFaRobotNode.prototype.withMastership = function(fn) {
-        return this._withMastershipDomain('edit', fn);
-    };
-    GoFaRobotNode.prototype._withMastershipDomain = function(domain, fn) {
         var node = this;
-        var req = '/rw/mastership/' + domain + '/request';
-        var rel = '/rw/mastership/' + domain + '/release';
+        var req = '/rw/mastership/edit/request';
+        var rel = '/rw/mastership/edit/release';
         return node._getSession()
             .then(function() { return node._request('POST', req, '', false); })
             .then(function() {
@@ -238,5 +242,6 @@ module.exports = function(RED) {
 
 module.exports.parseXhtml          = parseXhtml;
 module.exports.gotoToken           = gotoToken;
+module.exports.resolveMoveType     = resolveMoveType;
 module.exports.atomicWriteFileSync = atomicWriteFileSync;
 module.exports.fileMtimeMs         = fileMtimeMs;

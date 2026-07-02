@@ -118,7 +118,7 @@ Edit mastership is a separate domain from motion mastership. It works even while
 - Read-only RWS calls
 - I/O reads
 
-The palette uses `GoFaRobotNode.prototype.withMastership(fn)` which wraps `_withMastershipDomain('edit', fn)`. Always release in both success and error handlers.
+The palette uses `GoFaRobotNode.prototype.withMastership(fn)`, hardcoded to the `edit` domain (general mastership is always blocked on OmniCore, so there's no other domain to parameterize). Always release in both success and error handlers.
 
 ---
 

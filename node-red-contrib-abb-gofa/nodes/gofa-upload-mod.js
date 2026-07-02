@@ -18,10 +18,9 @@ function patchServerIp(text, ip) {
 module.exports = function(RED) {
     function GoFaUploadModNode(config) {
         RED.nodes.createNode(this, config);
-        this.robot          = RED.nodes.getNode(config.robot);
-        this.localPath      = config.localPath  || '';
-        this.remotePath     = config.remotePath || '$HOME/Programs/MainModule.mod';
-        this.injectServerIp = config.injectServerIp !== false;
+        this.robot      = RED.nodes.getNode(config.robot);
+        this.localPath  = config.localPath  || '';
+        this.remotePath = config.remotePath || '$HOME/Programs/MainModule.mod';
         var node = this;
 
         node.on('input', function(msg, send, done) {
@@ -58,13 +57,9 @@ module.exports = function(RED) {
                 }
             }
 
-            var serverIpInjected = false;
-            if (node.injectServerIp) {
-                var isBuffer = Buffer.isBuffer(content);
-                var result = patchServerIp(isBuffer ? content.toString('utf8') : String(content), r.ip);
-                content = isBuffer ? Buffer.from(result.text, 'utf8') : result.text;
-                serverIpInjected = result.injected;
-            }
+            var isBuffer = Buffer.isBuffer(content);
+            var result = patchServerIp(isBuffer ? content.toString('utf8') : String(content), r.ip);
+            content = isBuffer ? Buffer.from(result.text, 'utf8') : result.text;
 
             var body   = Buffer.isBuffer(content) ? content : Buffer.from(String(content));
             var urlPath = '/fileservice/' + remotePath;
@@ -113,7 +108,7 @@ module.exports = function(RED) {
                 });
             })
             .then(function() {
-                msg.payload = { ok: true, remotePath: remotePath, bytes: body.length, serverIpInjected: serverIpInjected };
+                msg.payload = { ok: true, remotePath: remotePath, bytes: body.length, serverIpInjected: result.injected };
                 node.status({ fill: 'green', shape: 'dot', text: 'uploaded ' + body.length + 'B' });
                 send(msg); done();
             })

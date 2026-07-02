@@ -8,6 +8,7 @@ var gotoToken           = robot.gotoToken;
 var parseXhtml          = robot.parseXhtml;
 var atomicWriteFileSync = robot.atomicWriteFileSync;
 var fileMtimeMs         = robot.fileMtimeMs;
+var resolveMoveType     = robot.resolveMoveType;
 var patchServerIp       = require('./nodes/gofa-upload-mod').patchServerIp;
 
 var passed = 0, failed = 0;
@@ -79,6 +80,16 @@ check('gotoToken: moveType "L" produces GOTOL string', function() {
 check('gotoToken: unrecognized moveType falls back to GOTOJ', function() {
     var tok = gotoToken(sample, 'bogus');
     assert.ok(tok.startsWith('GOTOJ'), 'should start with GOTOJ');
+});
+
+check('resolveMoveType: passes through "J" and "L"', function() {
+    assert.strictEqual(resolveMoveType('J', 'L'), 'J');
+    assert.strictEqual(resolveMoveType('L', 'J'), 'L');
+});
+check('resolveMoveType: falls back on anything else', function() {
+    assert.strictEqual(resolveMoveType('bogus', 'J'), 'J');
+    assert.strictEqual(resolveMoveType(undefined, 'J'), 'J');
+    assert.strictEqual(resolveMoveType(null, 'L'), 'L');
 });
 
 check('gotoToken: xyz rounds to 1 decimal place', function() {
