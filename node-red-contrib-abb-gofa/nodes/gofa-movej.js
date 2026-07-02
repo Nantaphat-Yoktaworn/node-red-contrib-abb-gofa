@@ -7,7 +7,7 @@ module.exports = function(RED) {
         var node = this;
 
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
 
             var j;
             if (msg.payload !== null && msg.payload !== undefined) {
@@ -31,23 +31,26 @@ module.exports = function(RED) {
                 try {
                     j = JSON.parse(node.joints);
                 } catch(e) {
+                    msg.payload = { ok: false, error: 'Invalid joints config: ' + node.joints };
                     node.error('Invalid joints config: ' + node.joints, msg);
                     node.status({ fill: 'red', shape: 'ring', text: 'bad joints' });
-                    return done();
+                    send(msg); return done();
                 }
             }
 
             if (!Array.isArray(j) || j.length !== 6) {
+                msg.payload = { ok: false, error: 'joints must be a 6-element array' };
                 node.error('joints must be a 6-element array', msg);
                 node.status({ fill: 'red', shape: 'ring', text: 'bad joints' });
-                return done();
+                send(msg); return done();
             }
 
             var nums = j.map(function(v) { return parseFloat(v); });
             if (nums.some(function(v) { return isNaN(v); })) {
+                msg.payload = { ok: false, error: 'joints contains non-numeric values' };
                 node.error('joints contains non-numeric values', msg);
                 node.status({ fill: 'red', shape: 'ring', text: 'bad joints' });
-                return done();
+                send(msg); return done();
             }
 
             var cmd = 'MOVEJ' + nums.map(function(v) { return v.toFixed(2); }).join(';');
@@ -61,7 +64,8 @@ module.exports = function(RED) {
             }).catch(function(err) {
                 msg.payload = { ok: false, error: err.message };
                 node.status({ fill: 'red', shape: 'ring', text: 'error' });
-                node.error(err, msg); done(err);
+                node.error(err, msg);
+                send(msg); done(err);
             });
         });
     }

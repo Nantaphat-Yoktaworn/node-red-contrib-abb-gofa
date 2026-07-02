@@ -6,7 +6,7 @@ module.exports = function(RED) {
         this.pointName = config.pointName || '';
         var node = this;
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
             var name = (msg.payload && msg.payload.name) || node.pointName || '';
             var r = node.robot;
             node.status({ fill: 'blue', shape: 'dot', text: 'reading pose...' });
@@ -28,8 +28,10 @@ module.exports = function(RED) {
                 node.status({ fill: 'green', shape: 'dot', text: 'saved: ' + pt.name });
                 send(msg); done();
             }).catch(function(err) {
+                msg.payload = { ok: false, error: err.message };
                 node.status({ fill: 'red', shape: 'ring', text: 'error' });
-                node.error(err, msg); done(err);
+                node.error(err, msg);
+                send(msg); done(err);
             });
         });
     }

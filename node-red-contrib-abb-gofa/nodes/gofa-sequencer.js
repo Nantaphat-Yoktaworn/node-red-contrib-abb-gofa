@@ -38,7 +38,7 @@ module.exports = function(RED) {
                 if (!tok) { node.warn('Point has invalid data (NaN): ' + pt.name); continue; }
                 cmds.push({ name: pt.name, token: tok, moveType: stepMoveType, dwell: steps[i].dwell != null ? steps[i].dwell : null });
             }
-            if (!cmds.length) { node.error('No valid points in sequence'); return done(); }
+            if (!cmds.length) { node.error('No valid points in sequence', msg); return done(); }
 
             if (pingpong) {
                 cmds = cmds.concat(cmds.slice(0, cmds.length - 1).reverse());
@@ -88,7 +88,10 @@ module.exports = function(RED) {
                     setTimeout(function() { runStep(idx + 1); }, stepDwell);
                 }).catch(function(err) {
                     node.status({ fill: 'red', shape: 'ring', text: 'error at step ' + (idx + 1) });
-                    node.error(err, msg); finish(err);
+                    var errMsg = RED.util.cloneMessage(msg);
+                    errMsg.payload = { ok: false, error: err.message, step: idx + 1, name: c.name };
+                    node.error(err, msg);
+                    send([null, errMsg]); finish(err);
                 });
             }
 

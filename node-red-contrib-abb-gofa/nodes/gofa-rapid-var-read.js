@@ -9,16 +9,17 @@ module.exports = function(RED) {
         var node = this;
 
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
 
             var task     = (msg.payload && msg.payload.task)     || node.task;
             var module   = (msg.payload && msg.payload.module)   || node.module;
             var variable = (msg.payload && msg.payload.variable) || node.variable;
 
             if (!variable) {
+                msg.payload = { ok: false, error: 'No variable name specified' };
                 node.error('No variable name specified', msg);
                 node.status({ fill: 'red', shape: 'ring', text: 'no variable' });
-                return done();
+                send(msg); return done();
             }
 
             node.status({ fill: 'blue', shape: 'dot', text: variable });
@@ -68,7 +69,8 @@ module.exports = function(RED) {
                 .catch(function(err2) {
                     msg.payload = { ok: false, error: err2.message };
                     node.status({ fill: 'red', shape: 'ring', text: 'error' });
-                    node.error(err2.message, msg); done(err2);
+                    node.error(err2.message, msg);
+                    send(msg); done(err2);
                 });
             });
         });

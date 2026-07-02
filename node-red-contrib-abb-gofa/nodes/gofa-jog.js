@@ -8,7 +8,7 @@ module.exports = function(RED) {
         this.step  = parseFloat(config.step) || 10;
         var node = this;
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
             var p    = msg.payload || {};
             var axis = p.axis !== undefined ? p.axis : node.axis;
             var dir  = p.dir  !== undefined ? p.dir  : node.dir;
@@ -23,8 +23,10 @@ module.exports = function(RED) {
                 node.status({ fill: ok ? 'green' : 'red', shape: 'dot', text: ack });
                 send(msg); done();
             }).catch(function(err) {
+                msg.payload = { ok: false, error: err.message };
                 node.status({ fill: 'red', shape: 'ring', text: 'error' });
-                node.error(err, msg); done(err);
+                node.error(err, msg);
+                send(msg); done(err);
             });
         });
     }

@@ -132,5 +132,5 @@ GOTO token rounds to 1 dp (xyz) / 4 dp (quaternion) to stay under RAPID's 80-cha
 node-red-contrib-abb-gofa/        ← npm palette package
 rapid/MainModule.mod               ← RAPID socket server (must run on controller)
 flows/gofa_demo_flow.json          ← one inject per node, for testing
-flows/robot_palette_flow.json      ← full robot control palette flow
+flows/dashboard_flow.json          ← full robot control palette flow
 ```

@@ -5,7 +5,7 @@ module.exports = function(RED) {
         this.robot = RED.nodes.getNode(config.robot);
         var node = this;
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
             var r = node.robot;
             r.rwsGet('/rw/motionsystem/mechunits/ROB_1/robtarget?tool=tool0&wobj=wobj0&coordinate=Base')
             .then(function(body) {
@@ -16,7 +16,11 @@ module.exports = function(RED) {
                     cf1: p('cf1'), cf4: p('cf4'), cf6: p('cf6'), cfx: p('cfx')
                 };
                 send(msg); done();
-            }).catch(function(err) { node.error(err, msg); done(err); });
+            }).catch(function(err) {
+                msg.payload = { ok: false, error: err.message };
+                node.error(err, msg);
+                send(msg); done(err);
+            });
         });
     }
     RED.nodes.registerType('gofa-pose', GoFaPoseNode);

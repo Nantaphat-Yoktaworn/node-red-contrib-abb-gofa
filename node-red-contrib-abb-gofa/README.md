@@ -24,7 +24,7 @@ Then restart Node-RED. A `gofa-robot` config node and 41 `gofa-*` nodes appear u
 
 1. Add a `gofa-robot` config node — set the robot IP, RWS/socket ports, username, and password (see the repo-root README for creating an RWS user with the right grants).
 2. Wire up any `gofa-*` node and point it at that config node.
-3. See `flows/gofa_demo_flow.json` and `flows/robot_palette_flow.json` in the parent repo for ready-made flows covering every node.
+3. See `flows/gofa_demo_flow.json` and `flows/dashboard_flow.json` in the parent repo for ready-made flows covering every node.
 
 Two transports are used under the hood: motion commands go through the RAPID TCP socket (port 1025), everything else (telemetry, motor on/off, I/O, file transfer) goes through RWS over HTTPS (port 443). See the repo-root README for the full node reference and RAPID socket protocol.
 

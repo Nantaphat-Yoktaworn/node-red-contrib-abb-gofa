@@ -7,7 +7,7 @@ module.exports = function(RED) {
         var node = this;
 
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
 
             var raw    = msg.payload;
             var action = (typeof raw === 'string' && raw) ? raw
@@ -24,9 +24,10 @@ module.exports = function(RED) {
             var labels = { start: 'running', stop: 'stopped', resetpp: 'PP reset' };
 
             if (!bodies.hasOwnProperty(action)) {
+                msg.payload = { ok: false, error: 'Unknown action: ' + action + ' (use start, stop, or resetpp)' };
                 node.error('Unknown action: ' + action + ' (use start, stop, or resetpp)', msg);
                 node.status({ fill: 'red', shape: 'ring', text: 'bad action' });
-                return done();
+                send(msg); return done();
             }
 
             // RWS 2.0 (OmniCore) path-based actions.
@@ -50,7 +51,8 @@ module.exports = function(RED) {
                 }
                 msg.payload = { ok: false, error: err.message + hint };
                 node.status({ fill: 'red', shape: 'ring', text: 'error' });
-                node.error(err.message + hint, msg); done(err);
+                node.error(err.message + hint, msg);
+                send(msg); done(err);
             });
         });
     }

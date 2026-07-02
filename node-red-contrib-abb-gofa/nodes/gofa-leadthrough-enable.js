@@ -5,7 +5,7 @@ module.exports = function(RED) {
         this.robot = RED.nodes.getNode(config.robot);
         var node = this;
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
             node.status({ fill: 'blue', shape: 'dot', text: 'stopping motion...' });
             // Clear any queued \Conc moves before activating lead-through, otherwise
             // in-flight moves keep executing autonomously while hand-guiding is active.
@@ -22,7 +22,8 @@ module.exports = function(RED) {
             }).catch(function(err) {
                 msg.payload = { ok: false, error: err.message };
                 node.status({ fill: 'red', shape: 'ring', text: 'error' });
-                node.error(err, msg); done(err);
+                node.error(err, msg);
+                send(msg); done(err);
             });
         });
     }

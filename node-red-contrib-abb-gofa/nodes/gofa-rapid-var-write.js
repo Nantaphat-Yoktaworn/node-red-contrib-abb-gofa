@@ -8,7 +8,7 @@ module.exports = function(RED) {
         var node = this;
 
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
 
             var variable = node.variable;
             var value    = node.value;
@@ -23,9 +23,10 @@ module.exports = function(RED) {
             }
 
             if (!variable) {
+                msg.payload = { ok: false, error: 'No variable name configured' };
                 node.error('No variable name configured', msg);
                 node.status({ fill: 'red', shape: 'ring', text: 'no variable' });
-                return done();
+                send(msg); return done();
             }
 
             node.status({ fill: 'blue', shape: 'dot', text: variable + '=' + value });
@@ -47,13 +48,15 @@ module.exports = function(RED) {
                     var fullMsg = reply + hint;
                     msg.payload = { ok: false, error: fullMsg };
                     node.status({ fill: 'red', shape: 'ring', text: reply });
-                    node.error(fullMsg, msg); done(new Error(fullMsg));
+                    node.error(fullMsg, msg);
+                    send(msg); done(new Error(fullMsg));
                 }
             })
             .catch(function(err) {
                 msg.payload = { ok: false, error: err.message };
                 node.status({ fill: 'red', shape: 'ring', text: 'error' });
-                node.error(err.message, msg); done(err);
+                node.error(err.message, msg);
+                send(msg); done(err);
             });
         });
     }

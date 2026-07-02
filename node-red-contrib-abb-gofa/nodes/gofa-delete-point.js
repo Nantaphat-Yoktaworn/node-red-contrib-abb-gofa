@@ -6,7 +6,7 @@ module.exports = function(RED) {
         this.pointName = config.pointName || '';
         var node = this;
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
             var p = msg.payload || {};
             var nameOrId = p.name || p.id || node.pointName;
             var pt = node.robot.findPoint(nameOrId);

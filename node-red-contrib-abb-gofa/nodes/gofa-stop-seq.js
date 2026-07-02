@@ -5,7 +5,7 @@ module.exports = function(RED) {
         this.robot = RED.nodes.getNode(config.robot);
         var node = this;
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
             node.robot._seqStop = true;
             // Abort the in-progress \Conc move immediately so the robot doesn't
             // finish the current move + full dwell before the flag is checked.

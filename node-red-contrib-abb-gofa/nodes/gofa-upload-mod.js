@@ -24,7 +24,7 @@ module.exports = function(RED) {
         var node = this;
 
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
 
             var r          = node.robot;
             var localPath  = node.localPath;
@@ -44,16 +44,18 @@ module.exports = function(RED) {
             // Read from disk if we have a path but no content yet
             if (!content) {
                 if (!localPath) {
+                    msg.payload = { ok: false, error: 'No local file path configured — set it in node properties or pass via msg.payload' };
                     node.error('No local file path configured — set it in node properties or pass via msg.payload', msg);
                     node.status({ fill: 'red', shape: 'ring', text: 'no local path' });
-                    return done();
+                    send(msg); return done();
                 }
                 try {
                     content = fs.readFileSync(localPath);
                 } catch(e) {
+                    msg.payload = { ok: false, error: 'Could not read file "' + localPath + '": ' + e.message };
                     node.error('Could not read file "' + localPath + '": ' + e.message, msg);
                     node.status({ fill: 'red', shape: 'ring', text: 'file read error' });
-                    return done(e);
+                    send(msg); return done(e);
                 }
             }
 
@@ -115,7 +117,8 @@ module.exports = function(RED) {
             .catch(function(err) {
                 msg.payload = { ok: false, error: err.message };
                 node.status({ fill: 'red', shape: 'ring', text: 'error' });
-                node.error(err, msg); done(err);
+                node.error(err, msg);
+                send(msg); done(err);
             });
         });
     }

@@ -7,7 +7,7 @@ module.exports = function(RED) {
         this.loadPath = config.loadPath || '';
         var node = this;
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
             var loadPath;
             if (typeof msg.payload === 'string' && msg.payload) {
                 loadPath = msg.payload;
@@ -29,7 +29,8 @@ module.exports = function(RED) {
                 } catch (err) {
                     msg.payload = { ok: false, error: 'File read failed: ' + err.message };
                     node.status({ fill: 'red', shape: 'ring', text: 'read error' });
-                    node.error(err, msg); return done(err);
+                    node.error(err, msg);
+                    send(msg); return done(err);
                 }
             } else {
                 arr = Array.isArray(msg.payload) ? msg.payload

@@ -8,7 +8,7 @@ module.exports = function(RED) {
         var node = this;
 
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
 
             var signal = node.signal;
             var value  = node.value;
@@ -24,9 +24,10 @@ module.exports = function(RED) {
 
             value = parseInt(value);
             if (isNaN(value) || (value !== 0 && value !== 1)) {
+                msg.payload = { ok: false, error: 'Invalid digital value (must be 0 or 1): ' + value };
                 node.error('Invalid digital value (must be 0 or 1): ' + value, msg);
                 node.status({ fill: 'red', shape: 'ring', text: 'bad value' });
-                return done();
+                send(msg); return done();
             }
 
             node.status({ fill: 'blue', shape: 'dot', text: signal + '=' + value });
@@ -40,7 +41,8 @@ module.exports = function(RED) {
             .catch(function(err) {
                 msg.payload = { ok: false, error: err.message };
                 node.status({ fill: 'red', shape: 'ring', text: 'error' });
-                node.error(err, msg); done(err);
+                node.error(err, msg);
+                send(msg); done(err);
             });
         });
     }

@@ -9,7 +9,7 @@ module.exports = function(RED) {
         var node = this;
 
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
 
             var zone;
             if (typeof msg.payload === 'string' && msg.payload !== '') {
@@ -19,9 +19,10 @@ module.exports = function(RED) {
             }
 
             if (VALID_ZONES.indexOf(zone) === -1) {
+                msg.payload = { ok: false, error: 'Invalid zone: ' + zone + '. Must be one of: ' + VALID_ZONES.join(', ') };
                 node.error('Invalid zone: ' + zone + '. Must be one of: ' + VALID_ZONES.join(', '), msg);
                 node.status({ fill: 'red', shape: 'ring', text: 'bad zone' });
-                return done();
+                send(msg); return done();
             }
 
             var cmd = 'ZONE' + zone.toUpperCase();
@@ -35,7 +36,8 @@ module.exports = function(RED) {
             }).catch(function(err) {
                 msg.payload = { ok: false, error: err.message };
                 node.status({ fill: 'red', shape: 'ring', text: 'error' });
-                node.error(err, msg); done(err);
+                node.error(err, msg);
+                send(msg); done(err);
             });
         });
     }

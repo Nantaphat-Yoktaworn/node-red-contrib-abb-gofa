@@ -11,7 +11,7 @@ rapid/
   GoFaControl.pgf                ← Program group file
 flows/
   gofa_demo_flow.json            ← Demo flow — one inject per node
-  robot_palette_flow.json        ← Full robot control palette flow
+  dashboard_flow.json            ← Full robot control palette flow
 dist/
   node-red-contrib-abb-gofa-*.tgz ← Packaged releases
 ```
@@ -72,7 +72,7 @@ find . -type f \( -name "*.js" -o -name "*.html" -o -name "*.json" -o -name "*.m
 | `node-red-contrib-abb-gofa/nodes/gofa-robot.js` | Default IP in the config node |
 | `node-red-contrib-abb-gofa/nodes/gofa-robot.html` | Placeholder in the UI |
 | `flows/gofa_demo_flow.json` | Stored IP in the demo flow config |
-| `flows/robot_palette_flow.json` | Stored IP in the dashboard flow config |
+| `flows/dashboard_flow.json` | Stored IP in the dashboard flow config |
 
 > **Why MainModule.mod?** The RAPID socket server explicitly binds to the controller's own IP address. If this doesn't match the actual IP, the socket server silently fails to start and all TCP commands will time out.
 
@@ -115,7 +115,7 @@ sed -i "s/NNNN/nodeuser/g" \
   node-red-contrib-abb-gofa/nodes/gofa-robot.js \
   node-red-contrib-abb-gofa/nodes/gofa-robot.html \
   flows/gofa_demo_flow.json \
-  flows/robot_palette_flow.json
+  flows/dashboard_flow.json
 ```
 
 ---
@@ -207,7 +207,7 @@ Click **Update** → **Deploy**.
 | Flow | What it does |
 |------|-------------|
 | `flows/gofa_demo_flow.json` | One inject per node — good for testing each feature |
-| `flows/robot_palette_flow.json` | Full robot control palette flow |
+| `flows/dashboard_flow.json` | Full robot control palette flow |
 
 After importing, open the **gofa-robot** config node (click any GoFa node → pencil icon) and verify the IP and credentials match your setup.
 

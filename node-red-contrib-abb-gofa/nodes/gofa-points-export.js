@@ -7,7 +7,7 @@ module.exports = function(RED) {
         this.savePath = config.savePath || '';
         var node = this;
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
             var points   = node.robot.getPoints();
             var raw      = msg.payload;
             var savePath = (typeof raw === 'string' && raw) ? raw
@@ -28,7 +28,8 @@ module.exports = function(RED) {
             } catch (err) {
                 msg.payload = { ok: false, error: 'File write failed: ' + err.message };
                 node.status({ fill: 'red', shape: 'ring', text: 'write error' });
-                node.error(err, msg); done(err);
+                node.error(err, msg);
+                send(msg); done(err);
             }
         });
     }

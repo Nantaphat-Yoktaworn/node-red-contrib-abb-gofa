@@ -71,7 +71,7 @@ module.exports = function(RED) {
         var node = this;
 
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
 
             // 'reset' restores the LED to the normal RAPID-running state (static green)
             if (msg.payload === 'reset' || (msg.payload && msg.payload.action === 'reset')) {
@@ -84,7 +84,8 @@ module.exports = function(RED) {
                 }).catch(function(err) {
                     msg.payload = { ok: false, error: err.message };
                     node.status({ fill: 'red', shape: 'ring', text: 'error' });
-                    node.error(err, msg); done(err);
+                    node.error(err, msg);
+                    send(msg); done(err);
                 });
                 return;
             }
@@ -94,9 +95,10 @@ module.exports = function(RED) {
                 msg.payload
             );
             if (result.error) {
+                msg.payload = { ok: false, error: result.error };
                 node.error(result.error, msg);
                 node.status({ fill: 'red', shape: 'ring', text: 'bad payload' });
-                return done();
+                send(msg); return done();
             }
 
             var p = msg.payload;
@@ -117,8 +119,10 @@ module.exports = function(RED) {
                             node.status({ fill: 'grey', shape: 'dot', text: 'done ' + blinkCount + '\xd7' });
                             send(msg); done();
                         }).catch(function(err) {
+                            msg.payload = { ok: false, error: err.message };
                             node.status({ fill: 'red', shape: 'ring', text: 'error' });
-                            node.error(err, msg); done(err);
+                            node.error(err, msg);
+                            send(msg); done(err);
                         });
                         return;
                     }
@@ -130,10 +134,10 @@ module.exports = function(RED) {
                             setTimeout(function() {
                                 node.robot.socketSend('SETLED:0;0;0;0')
                                     .then(function() { setTimeout(doBlink, blinkMs); })
-                                    .catch(function(err) { node.status({ fill: 'red', shape: 'ring', text: 'error' }); node.error(err, msg); done(err); });
+                                    .catch(function(err) { msg.payload = { ok: false, error: err.message }; node.status({ fill: 'red', shape: 'ring', text: 'error' }); node.error(err, msg); send(msg); done(err); });
                             }, blinkMs);
                         })
-                        .catch(function(err) { node.status({ fill: 'red', shape: 'ring', text: 'error' }); node.error(err, msg); done(err); });
+                        .catch(function(err) { msg.payload = { ok: false, error: err.message }; node.status({ fill: 'red', shape: 'ring', text: 'error' }); node.error(err, msg); send(msg); done(err); });
                 }
                 doBlink();
                 return;
@@ -153,7 +157,8 @@ module.exports = function(RED) {
             }).catch(function(err) {
                 msg.payload = { ok: false, error: err.message };
                 node.status({ fill: 'red', shape: 'ring', text: 'error' });
-                node.error(err, msg); done(err);
+                node.error(err, msg);
+                send(msg); done(err);
             });
         });
     }

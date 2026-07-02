@@ -5,7 +5,7 @@ module.exports = function(RED) {
         this.robot = RED.nodes.getNode(config.robot);
         var node = this;
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
             var r = node.robot;
             r.rwsGet('/rw/motionsystem/mechunits/ROB_1/jointtarget')
             .then(function(body) {
@@ -15,7 +15,11 @@ module.exports = function(RED) {
                     j4: p('rax_4'), j5: p('rax_5'), j6: p('rax_6')
                 };
                 send(msg); done();
-            }).catch(function(err) { node.error(err, msg); done(err); });
+            }).catch(function(err) {
+                msg.payload = { ok: false, error: err.message };
+                node.error(err, msg);
+                send(msg); done(err);
+            });
         });
     }
     RED.nodes.registerType('gofa-joints', GoFaJointsNode);

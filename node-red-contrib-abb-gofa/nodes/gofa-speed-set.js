@@ -7,7 +7,7 @@ module.exports = function(RED) {
         var node = this;
 
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { node.error('No robot configured', msg); return done(); }
+            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
 
             var raw;
             if (typeof msg.payload === 'number') {
@@ -20,9 +20,10 @@ module.exports = function(RED) {
 
             var speed = parseInt(raw);
             if (isNaN(speed)) {
+                msg.payload = { ok: false, error: 'Invalid speed value: ' + raw };
                 node.error('Invalid speed value: ' + raw, msg);
                 node.status({ fill: 'red', shape: 'ring', text: 'bad value' });
-                return done();
+                send(msg); return done();
             }
             if (speed < 1)   { node.warn('Speed clamped to 1');   speed = 1;   }
             if (speed > 100) { node.warn('Speed clamped to 100'); speed = 100; }
@@ -37,7 +38,8 @@ module.exports = function(RED) {
             }).catch(function(err) {
                 msg.payload = { ok: false, error: err.message };
                 node.status({ fill: 'red', shape: 'ring', text: 'error' });
-                node.error(err, msg); done(err);
+                node.error(err, msg);
+                send(msg); done(err);
             });
         });
     }
