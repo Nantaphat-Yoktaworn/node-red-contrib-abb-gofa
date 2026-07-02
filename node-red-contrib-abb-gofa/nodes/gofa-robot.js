@@ -5,6 +5,23 @@ const net   = require('net');
 const fs    = require('fs');
 const path  = require('path');
 
+function parseXhtml(body, cls) {
+    var m = body.match(new RegExp('class="' + cls + '">([^<]+)<'));
+    return m ? m[1].trim() : null;
+}
+
+// Build GOTO token — rounded to stay under RAPID's 80-char string limit; null on bad data
+function gotoToken(t) {
+    var vals = [t.x, t.y, t.z, t.q1, t.q2, t.q3, t.q4, t.cf1, t.cf4, t.cf6, t.cfx];
+    if (vals.some(function(v) { return !isFinite(v); })) return null;
+    function r(v, d) { return Number(v).toFixed(d); }
+    return 'GOTO' + [
+        r(t.x,1), r(t.y,1), r(t.z,1),
+        r(t.q1,4), r(t.q2,4), r(t.q3,4), r(t.q4,4),
+        Math.round(t.cf1), Math.round(t.cf4), Math.round(t.cf6), Math.round(t.cfx)
+    ].join(';');
+}
+
 module.exports = function(RED) {
     function GoFaRobotNode(config) {
         RED.nodes.createNode(this, config);
@@ -177,22 +194,8 @@ module.exports = function(RED) {
         });
     };
 
-    GoFaRobotNode.prototype.parseXhtml = function(body, cls) {
-        var m = body.match(new RegExp('class="' + cls + '">([^<]+)<'));
-        return m ? m[1].trim() : null;
-    };
-
-    // Build GOTO token — rounded to stay under RAPID's 80-char string limit; null on bad data
-    GoFaRobotNode.prototype.gotoToken = function(t) {
-        var vals = [t.x, t.y, t.z, t.q1, t.q2, t.q3, t.q4, t.cf1, t.cf4, t.cf6, t.cfx];
-        if (vals.some(function(v) { return !isFinite(v); })) return null;
-        function r(v, d) { return Number(v).toFixed(d); }
-        return 'GOTO' + [
-            r(t.x,1), r(t.y,1), r(t.z,1),
-            r(t.q1,4), r(t.q2,4), r(t.q3,4), r(t.q4,4),
-            Math.round(t.cf1), Math.round(t.cf4), Math.round(t.cf6), Math.round(t.cfx)
-        ].join(';');
-    };
+    GoFaRobotNode.prototype.parseXhtml = parseXhtml;
+    GoFaRobotNode.prototype.gotoToken  = gotoToken;
 
     RED.httpAdmin.get('/gofa-robot/:id/points', RED.auth.needsPermission('gofa-robot.read'), function(req, res) {
         var node = RED.nodes.getNode(req.params.id);
@@ -203,3 +206,6 @@ module.exports = function(RED) {
         credentials: { password: { type: 'password' } }
     });
 };
+
+module.exports.parseXhtml = parseXhtml;
+module.exports.gotoToken  = gotoToken;

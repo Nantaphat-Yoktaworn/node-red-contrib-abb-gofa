@@ -39,7 +39,7 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 
 **GETVAR/SETVAR note**: variable names are uppercased by CleanCmd in RAPID (`nTestVar` → matched as `NTESTVAR`). String values are extracted from `rawclean` (preserves original case/spaces). To expose a new PERS variable, add an `ELSEIF` block in both `TryGetVar` and `TrySetVar` in `MainModule.mod`. Built-in: `nTestVar` (num), `sTestMsg` (string).
 
-## Nodes (14 total)
+## Nodes (40 total)
 
 | Node | Transport | Description |
 |------|-----------|-------------|
@@ -68,14 +68,21 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 | `gofa-sequencer` | Socket + disk | Visit saved points in order; dwell, loop, ping-pong |
 | `gofa-stop-seq` | in-memory | Sets `_seqStop` flag on the robot config node |
 | `gofa-rapid-exec` | RWS | Start/stop/resetPP RAPID program *(requires PC Interface option)* |
-| `gofa-rapid-var-read` | RWS | Read a RAPID PERS/VAR value |
-| `gofa-rapid-var-write` | RWS | Write a RAPID PERS variable *(requires PC Interface option)* |
+| `gofa-rapid-var-read` | Socket | Read a RAPID PERS variable via `GETVAR:<name>` socket command |
+| `gofa-rapid-var-write` | Socket | Write a RAPID PERS variable via `SETVAR:<name>:<value>` socket command |
 | `gofa-file-read` | RWS | Download a file from controller filesystem |
 | `gofa-upload-mod` | RWS | Upload a `.mod` file to controller filesystem |
+| `gofa-io-list` | RWS | List all I/O signals |
 | `gofa-ai-read` | RWS | Read analog input |
 | `gofa-ao-write` | RWS | Write analog output |
 | `gofa-di-read` | RWS | Read digital input |
 | `gofa-do-write` | RWS | Write digital output |
+| `gofa-leadthrough-enable` | RWS | Activate hand-guiding (manual mode + enable switch required) |
+| `gofa-leadthrough-disable` | RWS | Deactivate hand-guiding |
+| `gofa-subscribe-state` | RWS WS | Push on every controller state change; one-shot mode polls once per inject |
+| `gofa-subscribe-io` | RWS WS | Push on every I/O signal change; falls back to 500 ms polling if signal lacks WS support; one-shot mode available |
+| `gofa-subscribe-var` | RWS poll | Poll a RAPID variable on an interval; toggles on/off per inject |
+| `gofa-subscribe-pose` | RWS poll | Poll TCP position on an interval; stops if inject has no payload |
 
 ## Saved points format
 
@@ -112,7 +119,9 @@ GOTO token rounds to 1 dp (xyz) / 4 dp (quaternion) to stay under RAPID's 80-cha
 ## Repo layout
 
 ```
-node-red-contrib-abb-gofa/   ← npm palette package
-rapid/MainModule.mod          ← RAPID socket server (must run on controller)
-flows/gofa_demo_flow.json     ← one inject per node, for testing
+node-red-contrib-abb-gofa/        ← npm palette package
+rapid/MainModule.mod               ← RAPID socket server (must run on controller)
+flows/gofa_demo_flow.json          ← one inject per node, for testing
+flows/robot_palette_flow.json      ← full robot control palette flow
+flows/gofa_payload_test_flow.json  ← msg.payload override tests for 6 nodes
 ```

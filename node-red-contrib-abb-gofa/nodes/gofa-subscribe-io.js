@@ -15,6 +15,7 @@ module.exports = function(RED) {
         node._signal    = null;
         node._pollTimer = null;
         node._lastValue = null;
+        node._stopped   = false;
 
         function stopAll(callback) {
             if (node._pollTimer) { clearInterval(node._pollTimer); node._pollTimer = null; }
@@ -121,7 +122,12 @@ module.exports = function(RED) {
                 ws.on('close', function() {
                     if (node._ws) {
                         node._ws = null;
-                        node.status({ fill: 'grey', shape: 'ring', text: signal + ' disconnected' });
+                        if (!node._stopped) {
+                            node.status({ fill: 'yellow', shape: 'ring', text: signal + ' reconnecting...' });
+                            setTimeout(function() { if (!node._stopped) startSubscription(signal); }, 3000);
+                        } else {
+                            node.status({ fill: 'grey', shape: 'ring', text: signal + ' disconnected' });
+                        }
                     }
                 });
             }).catch(function(err) {
@@ -176,6 +182,7 @@ module.exports = function(RED) {
         });
 
         node.on('close', function(done) {
+            node._stopped = true;
             stopAll(done);
         });
     }

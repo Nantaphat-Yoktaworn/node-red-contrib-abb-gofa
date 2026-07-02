@@ -10,7 +10,7 @@ module.exports = function(RED) {
         node._running = false;
 
         function poll() {
-            if (!node.robot) return;
+            if (!node.robot || !node._running) return;
             node.robot.rwsGet('/rw/motionsystem/mechunits/ROB_1/robtarget?tool=tool0&wobj=wobj0&coordinate=Base')
             .then(function(body) {
                 var p = node.robot.parseXhtml;
@@ -24,10 +24,12 @@ module.exports = function(RED) {
                 node.status({ fill: 'green', shape: 'dot',
                     text: 'x=' + x.toFixed(1) + ' y=' + y.toFixed(1) });
                 node.send({ payload: { ok: true, x: x, y: y, z: z, q1: q1, q2: q2, q3: q3, q4: q4 } });
+                if (node._running) node._timer = setTimeout(poll, node.interval);
             })
             .catch(function(err) {
                 node.status({ fill: 'red', shape: 'ring', text: 'error' });
                 node.error(err);
+                if (node._running) node._timer = setTimeout(poll, node.interval);
             });
         }
 
@@ -36,12 +38,11 @@ module.exports = function(RED) {
             node._running = true;
             node.status({ fill: 'yellow', shape: 'ring', text: 'polling' });
             poll();
-            node._timer = setInterval(poll, node.interval);
         }
 
         function stopPolling() {
             node._running = false;
-            if (node._timer) { clearInterval(node._timer); node._timer = null; }
+            if (node._timer) { clearTimeout(node._timer); node._timer = null; }
             node.status({ fill: 'grey', shape: 'ring', text: 'stopped' });
         }
 
