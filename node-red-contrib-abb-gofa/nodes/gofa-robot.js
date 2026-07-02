@@ -10,6 +10,19 @@ function parseXhtml(body, cls) {
     return m ? m[1].trim() : null;
 }
 
+// Write via temp-file + rename so a crash/interruption mid-write can never
+// leave points.json truncated or half-written.
+function atomicWriteFileSync(filePath, contents) {
+    var tmpPath = filePath + '.' + process.pid + '.' + Date.now() + '.tmp';
+    fs.writeFileSync(tmpPath, contents);
+    fs.renameSync(tmpPath, filePath);
+}
+
+function fileMtimeMs(filePath) {
+    try { return fs.statSync(filePath).mtimeMs; }
+    catch (e) { return null; }
+}
+
 // Build GOTO token — rounded to stay under RAPID's 80-char string limit; null on bad data
 function gotoToken(t) {
     var vals = [t.x, t.y, t.z, t.q1, t.q2, t.q3, t.q4, t.cf1, t.cf4, t.cf6, t.cfx];
@@ -29,12 +42,16 @@ module.exports = function(RED) {
         this.rwsPort    = parseInt(config.rwsPort)    || 443;
         this.socketPort = parseInt(config.socketPort) || 1025;
         this.username   = config.username   || 'NNNN';
-        this.password   = (this.credentials && this.credentials.password) || 'robotics';
+        this.password   = (this.credentials && this.credentials.password) || '';
+        if (!this.password) {
+            this.warn('gofa-robot: no password configured — set one in the node credentials');
+        }
         this.pointsFile = config.pointsFile || path.join(RED.settings.userDir || '.', 'points.json');
 
         this._cookie       = null;
         this._loginPromise = null;
         this._points       = [];
+        this._pointsMtime  = null;
         this._seqStop      = false;
         this._seqRunning   = false;
 
@@ -44,12 +61,23 @@ module.exports = function(RED) {
     }
 
     GoFaRobotNode.prototype._loadPoints = function() {
-        try { this._points = JSON.parse(fs.readFileSync(this.pointsFile, 'utf8')); }
-        catch(e) { this._points = []; }
+        try {
+            this._points = JSON.parse(fs.readFileSync(this.pointsFile, 'utf8'));
+            this._pointsMtime = fileMtimeMs(this.pointsFile);
+        }
+        catch(e) { this._points = []; this._pointsMtime = null; }
     };
 
     GoFaRobotNode.prototype._savePoints = function() {
-        try { fs.writeFileSync(this.pointsFile, JSON.stringify(this._points, null, 2)); }
+        var onDisk = fileMtimeMs(this.pointsFile);
+        if (this._pointsMtime !== null && onDisk !== null && onDisk !== this._pointsMtime) {
+            this.warn('points.json changed on disk since it was last read (another flow or ' +
+                      'config node using the same file?) — this save will overwrite those changes');
+        }
+        try {
+            atomicWriteFileSync(this.pointsFile, JSON.stringify(this._points, null, 2));
+            this._pointsMtime = fileMtimeMs(this.pointsFile);
+        }
         catch(e) { this.warn('points.json write failed: ' + e.message); }
     };
 
@@ -207,5 +235,7 @@ module.exports = function(RED) {
     });
 };
 
-module.exports.parseXhtml = parseXhtml;
-module.exports.gotoToken  = gotoToken;
+module.exports.parseXhtml          = parseXhtml;
+module.exports.gotoToken           = gotoToken;
+module.exports.atomicWriteFileSync = atomicWriteFileSync;
+module.exports.fileMtimeMs         = fileMtimeMs;
