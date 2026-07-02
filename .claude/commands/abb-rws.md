@@ -303,7 +303,7 @@ Returns: `204 No Content`
 
 ## Notes for This Project
 
-- Controller IP: `192.168.20.15`, credentials: `NNNN:robotics`
+- Controller IP: `192.168.20.12`, credentials: `NNNN:robotics`
 - `rejectUnauthorized: false` is set in all HTTPS requests (self-signed cert on controller)
 - The project uses Basic auth (not Digest) on first request, then cookie for subsequent requests
 - Cookie is stored in `robot._cookie` on the config node and cleared on 401

@@ -12,7 +12,6 @@ rapid/
 flows/
   gofa_demo_flow.json            ← Demo flow — one inject per node
   robot_palette_flow.json        ← Full robot control palette flow
-  gofa_payload_test_flow.json    ← Payload override tests for 6 updated nodes
 dist/
   node-red-contrib-abb-gofa-*.tgz ← Packaged releases
 ```
@@ -33,7 +32,7 @@ No extra RobotWare options required. RWS (Robot Web Services) is built into ever
 
 ## Quick start
 
-1. [Set your robot's IP address](#1-set-your-robot-ip) (if different from `192.168.20.15`)
+1. [Set your robot's IP address](#1-set-your-robot-ip) (if different from `192.168.20.12`)
 2. [Create an RWS user with Remote Start/Stop permission](#2-create-an-rws-user-robotstudio)
 3. [Upload and run the RAPID program](#3-upload-and-run-the-rapid-program)
 4. [Install the Node-RED palette](#4-install-the-node-red-palette)
@@ -43,7 +42,7 @@ No extra RobotWare options required. RWS (Robot Web Services) is built into ever
 
 ## 1. Set your robot IP
 
-If your robot's IP address is **not** `192.168.20.15`, you need to update it in three places before doing anything else.
+If your robot's IP address is **not** `192.168.20.12`, you need to update it in three places before doing anything else.
 
 ### Find your robot's IP
 
@@ -55,7 +54,7 @@ Run this in your terminal from the repo root (replace `X.X.X.X` with your IP):
 
 **Windows (PowerShell):**
 ```powershell
-$old = "192.168.20.15"; $new = "X.X.X.X"
+$old = "192.168.20.12"; $new = "X.X.X.X"
 Get-ChildItem -Recurse -Include *.js,*.html,*.json,*.mod,*.md |
   ForEach-Object { (Get-Content $_) -replace $old, $new | Set-Content $_ }
 ```
@@ -189,7 +188,7 @@ Every GoFa node shares a single **gofa-robot** config node. Open any GoFa node �
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| Robot IP | `192.168.20.15` | Controller IP — must match Step 1 |
+| Robot IP | `192.168.20.12` | Controller IP — must match Step 1 |
 | RWS Port | `443` | HTTPS port (built-in, do not change) |
 | Socket Port | `1025` | TCP port for the RAPID socket server |
 | Username | `NNNN` | The user you created in Step 2 |
@@ -208,7 +207,6 @@ Click **Update** → **Deploy**.
 |------|-------------|
 | `flows/gofa_demo_flow.json` | One inject per node — good for testing each feature |
 | `flows/robot_palette_flow.json` | Full robot control palette flow |
-| `flows/gofa_payload_test_flow.json` | msg.payload override tests for the 6 updated nodes |
 
 After importing, open the **gofa-robot** config node (click any GoFa node → pencil icon) and verify the IP and credentials match your setup.
 
@@ -242,8 +240,9 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | **gofa-stop-motion** | TCP | Halt motion immediately |
 | **gofa-ping** | TCP | Round-trip latency test |
 | **gofa-grip** | TCP | GRIPON / GRIPOFF via digital output |
-| **gofa-leadthrough-enable** | RWS | Activate hand-guiding (manual mode + enable switch required) |
+| **gofa-leadthrough-enable** | TCP + RWS | Send STOP (clears queued moves), then activate hand-guiding |
 | **gofa-leadthrough-disable** | RWS | Deactivate hand-guiding |
+| **gofa-asi-led** | TCP | Set ASI status light RGB color (`0–255`) and blink; supports counted software blink |
 
 ### Saved points
 
@@ -255,8 +254,8 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | **gofa-delete-point** | Local | Remove a saved point by name |
 | **gofa-points-export** | Local | Dump points list to `msg.payload` |
 | **gofa-points-import** | Local | Replace points list from `msg.payload` |
-| **gofa-sequencer** | TCP + Local | Visit saved points in order — dwell, loop, ping-pong |
-| **gofa-stop-seq** | Local | Signal the sequencer to stop after current step |
+| **gofa-sequencer** | TCP + Local | Visit saved points in order — per-step dwell, loop count, ping-pong, startStep |
+| **gofa-stop-seq** | TCP + Local | Stop sequencer immediately (sends `STOP` socket + sets flag) |
 
 ### RAPID program control
 
@@ -357,7 +356,8 @@ msg.payload  →  node property (editor)  →  built-in default
 | **gofa-points-export** | file path (string) · `{ savePath }` | (property / no file) |
 | **gofa-points-import** | file path (string) · `{ loadPath }` · array · `{ points: [...] }` | (property / clear) |
 | **gofa-elog** | `{ domain, count }` | domain: 1, count: 10 |
-| **gofa-sequencer** | `{ steps, dwell, loop, pingpong }` | (property) |
+| **gofa-asi-led** | `'red'`/`'green'`/`'yellow'`/`'off'`/etc. · `false`/`0` (off) · `{ color, r, g, b, period, blinkCount, blinkMs }` · `'reset'` (restore default) | node defaults |
+| **gofa-sequencer** | `{ steps, dwell, loop, pingpong, count, startStep }` | (property) |
 
 ### Trigger-only nodes (no payload needed)
 
@@ -366,6 +366,8 @@ These nodes fire on any input message and ignore `msg.payload`:
 `gofa-status` · `gofa-pose` · `gofa-joints` · `gofa-system-info` · `gofa-ping` ·
 `gofa-stop-motion` · `gofa-stop-seq` · `gofa-point-list` ·
 `gofa-leadthrough-enable` · `gofa-leadthrough-disable`
+
+> **gofa-asi-led** — `msg.payload` is required. Use a color string (`'yellow'`), a preset object (`{ color: 'green', blinkCount: 3, blinkMs: 250 }`), or `'reset'` to restore the controller's default green LED. Omit `blinkCount` (or set to `0`) to use the hardware `period` signal for continuous blinking instead.
 
 ---
 
@@ -421,9 +423,9 @@ cd /path/to/node-red-contrib-abb-gofa && npm install
 
 Then restart Node-RED.
 
-### Subscribe IO returns 400 on first inject for some signals
+### Subscribe IO falls back to polling for some signals
 
-Some signals (e.g. AS-Interface signals) do not support WebSocket subscription. `gofa-subscribe-io` automatically falls back to 500 ms polling for these signals — no action needed.
+Some signals (e.g. AS-Interface / ASI signals) do not support WebSocket subscription. `gofa-subscribe-io` automatically falls back to 500 ms polling for these signals — no action needed and no warning is shown.
 
 ### RWS returns 405 (method not allowed)
 
@@ -435,7 +437,7 @@ This palette targets **OmniCore / RWS 2.0** which uses path-based actions (e.g. 
 
 | Setting | Value |
 |---------|-------|
-| Robot IP | `192.168.20.15` |
+| Robot IP | `192.168.20.12` |
 | RWS port | `443` (HTTPS, self-signed cert) |
 | Socket port | `1025` |
 | Username | `NNNN` |

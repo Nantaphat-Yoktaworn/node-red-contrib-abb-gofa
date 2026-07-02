@@ -28,7 +28,10 @@
       "Read(//c/Users/anapa/.node-red/**)",
       "Bash(npm install *)",
       "Bash(gh auth *)",
-      "Bash(gh issue *)"
+      "Bash(gh issue *)",
+      "Bash(node test.js)",
+      "Bash(node *)",
+      "PowerShell(node node-red-contrib-abb-gofa/test.js)"
     ]
   }
 }

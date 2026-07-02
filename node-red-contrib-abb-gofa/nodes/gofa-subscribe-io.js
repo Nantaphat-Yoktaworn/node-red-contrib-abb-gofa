@@ -132,7 +132,6 @@ module.exports = function(RED) {
                 });
             }).catch(function(err) {
                 if (/HTTP 400/.test(err.message)) {
-                    node.warn(signal + ': WebSocket subscription not supported, falling back to 500ms polling');
                     startPolling(signal);
                 } else {
                     node.status({ fill: 'red', shape: 'ring', text: 'error' });

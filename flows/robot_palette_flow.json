@@ -1,6 +1,6 @@
 [
   {"id":"tab_pal","type":"tab","label":"ABB-GoFa-12 Dashboard","disabled":false,"info":""},
-  {"id":"cfg_robot","type":"gofa-robot","name":"ABB-GoFa-12","ip":"192.168.20.15","rwsPort":"443","socketPort":"1025","username":"NNNN","pointsFile":"points.json","credentials":{}},
+  {"id":"cfg_robot","type":"gofa-robot","name":"ABB-GoFa-12","ip":"192.168.20.12","rwsPort":"443","socketPort":"1025","username":"NNNN","pointsFile":"points.json","credentials":{}},
 
   {"id":"p_inj","type":"inject","name":"Poll 200ms","z":"tab_pal","x":100,"y":60,"repeat":"0.2","crontab":"","once":true,"onceDelay":0.1,"topic":"","payload":"","payloadType":"date","wires":[["p_status","p_pose","p_joints"]]},
   {"id":"p_status","type":"gofa-status","name":"Status","z":"tab_pal","x":340,"y":40,"robot":"cfg_robot","wires":[["p_merge"]]},

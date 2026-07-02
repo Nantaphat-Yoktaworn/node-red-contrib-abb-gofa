@@ -34,12 +34,16 @@ Rule: **motion always goes through the socket; read-only data and motor control 
 | `GRIPON` / `GRIPOFF` | Gripper control via digital output |
 | `GETVAR:<name>` | Read a PERS variable; replies `VAL:<value>` or `ERR:UNKNOWN_VAR` |
 | `SETVAR:<name>:<value>` | Write a PERS variable; replies `OK:SETVAR`, `ERR:UNKNOWN_VAR`, or `ERR:PARSE` |
+| `SETLED:<r>;<g>;<b>;<period>` | Set ASI status light color (0–255 each) and hardware blink period; replies `OK:SETLED` |
+| `RESETLED` | Restore ASI LED to default RAPID-running state (solid green); replies `OK:RESETLED` |
 
 Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPath/StartMove) keeps the server alive on motion faults.
 
 **GETVAR/SETVAR note**: variable names are uppercased by CleanCmd in RAPID (`nTestVar` → matched as `NTESTVAR`). String values are extracted from `rawclean` (preserves original case/spaces). To expose a new PERS variable, add an `ELSEIF` block in both `TryGetVar` and `TrySetVar` in `MainModule.mod`. Built-in: `nTestVar` (num), `sTestMsg` (string).
 
-## Nodes (40 total)
+**SETLED/RESETLED note**: ASI signals have `Rapid|LocalManual` write access — HTTP RWS cannot write them. All LED control must go through the RAPID socket server. `TrySetLed` in `MainModule.mod` handles the `SETLED` command via `SetGO` on `Asi1LedRed`, `Asi1LedGreen`, `Asi1LedBlue`, `Asi1LedPeriod`. Software-controlled counted blink (Node-RED side) is handled by `gofa-asi-led` when `blinkCount > 0`; in that case `period` is ignored and set to 0.
+
+## Nodes (41 total)
 
 | Node | Transport | Description |
 |------|-----------|-------------|
@@ -65,9 +69,9 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 | `gofa-delete-point` | disk | Remove a saved point by name |
 | `gofa-points-export` | disk | Dump points list to `msg.payload` |
 | `gofa-points-import` | disk | Replace points list from `msg.payload` |
-| `gofa-sequencer` | Socket + disk | Visit saved points in order; dwell, loop, ping-pong |
-| `gofa-stop-seq` | in-memory | Sets `_seqStop` flag on the robot config node |
-| `gofa-rapid-exec` | RWS | Start/stop/resetPP RAPID program *(requires PC Interface option)* |
+| `gofa-sequencer` | Socket + disk | Visit saved points in order; per-step dwell, loop count, ping-pong, startStep |
+| `gofa-stop-seq` | Socket + in-memory | Sets `_seqStop` flag and sends immediate `STOP` socket command |
+| `gofa-rapid-exec` | RWS | Start/stop/resetPP RAPID program *(requires Remote Start/Stop UAS grants)* |
 | `gofa-rapid-var-read` | Socket | Read a RAPID PERS variable via `GETVAR:<name>` socket command |
 | `gofa-rapid-var-write` | Socket | Write a RAPID PERS variable via `SETVAR:<name>:<value>` socket command |
 | `gofa-file-read` | RWS | Download a file from controller filesystem |
@@ -77,8 +81,9 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 | `gofa-ao-write` | RWS | Write analog output |
 | `gofa-di-read` | RWS | Read digital input |
 | `gofa-do-write` | RWS | Write digital output |
-| `gofa-leadthrough-enable` | RWS | Activate hand-guiding (manual mode + enable switch required) |
+| `gofa-leadthrough-enable` | Socket + RWS | Send STOP (clears queued moves), then activate hand-guiding via RWS |
 | `gofa-leadthrough-disable` | RWS | Deactivate hand-guiding |
+| `gofa-asi-led` | Socket | Set ASI status light RGB color + counted software blink via `SETLED` / `RESETLED` |
 | `gofa-subscribe-state` | RWS WS | Push on every controller state change; one-shot mode polls once per inject |
 | `gofa-subscribe-io` | RWS WS | Push on every I/O signal change; falls back to 500 ms polling if signal lacks WS support; one-shot mode available |
 | `gofa-subscribe-var` | RWS poll | Poll a RAPID variable on an interval; toggles on/off per inject |
@@ -103,14 +108,14 @@ GOTO token rounds to 1 dp (xyz) / 4 dp (quaternion) to stay under RAPID's 80-cha
 | `GET /rw/motionsystem/mechunits/ROB_1/robtarget?tool=tool0&wobj=wobj0&coordinate=Base` | GET | x,y,z mm + q1..q4 + cf1,cf4,cf6,cfx |
 | `GET /rw/motionsystem/mechunits/ROB_1/jointtarget` | GET | rax_1..rax_6 degrees |
 | `POST /rw/panel/ctrl-state` | POST | body: `ctrl-state=motoron` or `ctrl-state=motoroff` |
-| `POST /rw/rapid/execution?action=start\|stop\|resetpp` | POST | *(requires PC Interface option)* |
+| `POST /rw/rapid/execution/start` · `/stop` · `/resetpp` | POST | *(requires Remote Start/Stop UAS grants; resetpp also needs edit mastership — acquired automatically)* |
 | `PUT /fileservice/$HOME/Programs/<file>` | PUT | Upload file to controller |
 
 ## Default connection settings
 
 | Setting | Value |
 |---------|-------|
-| Robot IP | `192.168.20.15` |
+| Robot IP | `192.168.20.12` |
 | RWS port | `443` (HTTPS, self-signed cert — `rejectUnauthorized: false`) |
 | Socket port | `1025` |
 | Username | `NNNN` |
@@ -123,5 +128,4 @@ node-red-contrib-abb-gofa/        ← npm palette package
 rapid/MainModule.mod               ← RAPID socket server (must run on controller)
 flows/gofa_demo_flow.json          ← one inject per node, for testing
 flows/robot_palette_flow.json      ← full robot control palette flow
-flows/gofa_payload_test_flow.json  ← msg.payload override tests for 6 nodes
 ```

@@ -7,6 +7,7 @@ module.exports = function(RED) {
         this.dwell    = parseInt(config.dwell) || 800;
         this.loop     = config.loop     || false;
         this.pingpong = config.pingpong || false;
+        this.count    = parseInt(config.count)  || 0;   // 0 = infinite
         var node = this;
 
         node.on('input', function(msg, send, done) {
@@ -14,12 +15,14 @@ module.exports = function(RED) {
             var r = node.robot;
             if (r._seqRunning) { node.warn('Sequence already running'); return done(); }
 
-            // runtime overrides from msg.payload (used by HTTP dashboard endpoint)
             var p = msg.payload || {};
-            var steps    = (p.steps    != null) ? p.steps    : node.steps;
-            var dwell    = (p.dwell    != null) ? p.dwell    : node.dwell;
-            var loop     = (p.loop     != null) ? p.loop     : node.loop;
-            var pingpong = (p.pingpong != null) ? p.pingpong : node.pingpong;
+            var steps     = (p.steps     != null) ? p.steps     : node.steps;
+            var dwell     = (p.dwell     != null) ? p.dwell     : node.dwell;
+            var loop      = (p.loop      != null) ? p.loop      : node.loop;
+            var pingpong  = (p.pingpong  != null) ? p.pingpong  : node.pingpong;
+            var count     = (p.count     != null) ? p.count     : node.count;
+            // startStep is 1-based; clamp to valid range after cmds is built
+            var startStep = (p.startStep != null) ? Math.max(1, parseInt(p.startStep) || 1) : 1;
 
             if (!steps || !steps.length) { node.warn('No steps configured'); return done(); }
 
@@ -29,7 +32,7 @@ module.exports = function(RED) {
                 if (!pt) { node.warn('Point not found: ' + steps[i].name); continue; }
                 var tok = r.gotoToken(pt.target);
                 if (!tok) { node.warn('Point has invalid data (NaN): ' + pt.name); continue; }
-                cmds.push({ name: pt.name, token: tok });
+                cmds.push({ name: pt.name, token: tok, dwell: steps[i].dwell != null ? steps[i].dwell : null });
             }
             if (!cmds.length) { node.error('No valid points in sequence'); return done(); }
 
@@ -37,9 +40,13 @@ module.exports = function(RED) {
                 cmds = cmds.concat(cmds.slice(0, cmds.length - 1).reverse());
             }
 
+            // clamp startStep to valid index (0-based internally)
+            var startIdx = Math.min(startStep - 1, cmds.length - 1);
+
             r._seqStop = false;
             r._seqRunning = true;
             var total = cmds.length;
+            var loopCount = 0;
             node.status({ fill: 'blue', shape: 'dot', text: 'running...' });
 
             function finish(err) { r._seqRunning = false; done(err); }
@@ -47,29 +54,41 @@ module.exports = function(RED) {
             function runStep(idx) {
                 if (r._seqStop) {
                     node.status({ fill: 'yellow', shape: 'ring', text: 'stopped' });
-                    send([null, { payload: { done: false, stopped: true } }]);
+                    var stopMsg = RED.util.cloneMessage(msg);
+                    stopMsg.payload = { done: false, stopped: true, loops: loopCount };
+                    send([null, stopMsg]);
                     return finish();
                 }
                 if (idx >= cmds.length) {
-                    if (loop) return runStep(0);
+                    loopCount++;
+                    if (loop && (count === 0 || loopCount < count)) {
+                        return runStep(0);
+                    }
                     node.status({ fill: 'green', shape: 'dot', text: 'done' });
-                    send([null, { payload: { done: true } }]);
+                    var doneMsg = RED.util.cloneMessage(msg);
+                    doneMsg.payload = { done: true, loops: loopCount };
+                    send([null, doneMsg]);
                     return finish();
                 }
                 var c = cmds[idx];
-                node.status({ fill: 'blue', shape: 'dot', text: (idx + 1) + '/' + total + ' ' + c.name });
+                var stepDwell = (c.dwell != null) ? c.dwell : dwell;
+                var loopLabel = (loop && count > 0) ? ' [' + (loopCount + 1) + '/' + count + ']' : '';
+                node.status({ fill: 'blue', shape: 'dot', text: (idx + 1) + '/' + total + ' ' + c.name + loopLabel });
                 r.socketSend(c.token).then(function(ack) {
+                    if (!ack.startsWith('OK:')) {
+                        node.warn('Step ' + (idx + 1) + ' (' + c.name + ') got: ' + ack);
+                    }
                     var stepMsg = RED.util.cloneMessage(msg);
-                    stepMsg.payload = { step: idx + 1, total: total, name: c.name, ack: ack };
+                    stepMsg.payload = { step: idx + 1, total: total, name: c.name, ack: ack, loop: loopCount + 1 };
                     send([stepMsg, null]);
-                    setTimeout(function() { runStep(idx + 1); }, dwell);
+                    setTimeout(function() { runStep(idx + 1); }, stepDwell);
                 }).catch(function(err) {
                     node.status({ fill: 'red', shape: 'ring', text: 'error at step ' + (idx + 1) });
                     node.error(err, msg); finish(err);
                 });
             }
 
-            runStep(0);
+            runStep(startIdx);
         });
     }
     RED.nodes.registerType('gofa-sequencer', GoFaSequencerNode);

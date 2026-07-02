@@ -59,7 +59,7 @@ MODULE MainModule
     ! -------------------------------------------------------
     ! Socket server state
     ! -------------------------------------------------------
-    CONST string SERVER_IP   := "192.168.20.15";
+    CONST string SERVER_IP   := "192.168.20.12";
     CONST num    SERVER_PORT  := 1025;
 
     ! Persisted home pose (survives restart AND module reload). One line of
@@ -166,6 +166,13 @@ MODULE MainModule
             SocketSend clientSocket \Str:=("OK:GRIPON" + ByteToStr(10\Char));
         CASE "GRIPOFF":
             SocketSend clientSocket \Str:=("OK:GRIPOFF" + ByteToStr(10\Char));
+        CASE "RESETLED":
+            ! Restore LED to normal RAPID-running state (static green)
+            SetGO Asi1LedRed,    0;
+            SetGO Asi1LedGreen,  255;
+            SetGO Asi1LedBlue,   0;
+            SetGO Asi1LedPeriod, 0;
+            SocketSend clientSocket \Str:=("OK:RESETLED" + ByteToStr(10\Char));
         DEFAULT:
             ! Not a named point - try GOTO <11 nums>, jog (X+20...),
             ! joint jog (J1+5), then speed override (SPEED50)
@@ -184,6 +191,8 @@ MODULE MainModule
             ELSEIF TryGetVar(cmd) THEN
                 ! handled (ack sent inside)
             ELSEIF TrySetVar(rawclean, cmd) THEN
+                ! handled (ack sent inside)
+            ELSEIF TrySetLed(cmd) THEN
                 ! handled (ack sent inside)
             ELSE
                 SocketSend clientSocket \Str:=("ERR:" + cmd + ByteToStr(10\Char));
@@ -558,6 +567,21 @@ MODULE MainModule
         ELSE
             SocketSend clientSocket \Str:=("ERR:UNKNOWN_VAR" + ByteToStr(10\Char));
         ENDIF
+        RETURN TRUE;
+    ENDFUNC
+
+    ! Set ASI RGB LED. Token: SETLED:<r>;<g>;<b>;<period>  (0-255 each).
+    ! Uses SetGO — requires RAPID write access on the ASI signals.
+    FUNC bool TrySetLed(string cmd)
+        VAR num vals{4};
+        IF StrLen(cmd) < 9 RETURN FALSE;
+        IF StrPart(cmd, 1, 7) <> "SETLED:" RETURN FALSE;
+        IF NOT ParseNums(StrPart(cmd, 8, StrLen(cmd) - 7), vals) RETURN FALSE;
+        SetGO Asi1LedRed,    vals{1};
+        SetGO Asi1LedGreen,  vals{2};
+        SetGO Asi1LedBlue,   vals{3};
+        SetGO Asi1LedPeriod, vals{4};
+        SocketSend clientSocket \Str:=("OK:SETLED" + ByteToStr(10\Char));
         RETURN TRUE;
     ENDFUNC
 

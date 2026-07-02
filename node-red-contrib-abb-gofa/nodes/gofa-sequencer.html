@@ -7,7 +7,8 @@
             steps:    { value: [] },
             dwell:    { value: 800 },
             loop:     { value: false },
-            pingpong: { value: false }
+            pingpong: { value: false },
+            count:    { value: 0 }
         },
         inputs: 1, outputs: 2,
         outputLabels: ['step complete', 'sequence done / stopped'],
@@ -19,7 +20,7 @@
             var cachedPts = [];
 
             function buildSelect(val) {
-                var sel = $('<select style="flex:1">');
+                var sel = $('<select style="flex:1;min-width:0">');
                 sel.append($('<option value="">-- select point --</option>'));
                 cachedPts.forEach(function(p) {
                     sel.append($('<option>').val(p.name).text(p.name).prop('selected', p.name === val));
@@ -29,11 +30,15 @@
 
             $('#node-input-steps-container').editableList({
                 addItem: function(container, i, opt) {
-                    var row = $('<div style="display:flex;align-items:center;gap:8px;width:100%">');
+                    var row = $('<div style="display:flex;align-items:center;gap:6px;width:100%">');
                     var sel = buildSelect(opt.name || '');
-                    row.append(sel);
+                    var dwellIn = $('<input type="number" min="0" placeholder="default ms">')
+                        .css({ width: '110px', 'flex-shrink': '0' });
+                    if (opt.dwell != null) dwellIn.val(opt.dwell);
+                    row.append(sel, dwellIn);
                     container.append(row);
-                    opt._input = sel;
+                    opt._selInput   = sel;
+                    opt._dwellInput = dwellIn;
                 },
                 removable: true,
                 sortable: true
@@ -49,7 +54,7 @@
 
             loadPoints(node.robot, function() {
                 (node.steps || []).forEach(function(s) {
-                    $('#node-input-steps-container').editableList('addItem', { name: s.name });
+                    $('#node-input-steps-container').editableList('addItem', { name: s.name, dwell: s.dwell != null ? s.dwell : null });
                 });
             });
 
@@ -65,12 +70,22 @@
                     });
                 });
             });
+
+            // show loop-count row only when loop is checked
+            function toggleCountRow() {
+                $('#loop-count-row').toggle($('#node-input-loop').prop('checked'));
+            }
+            $('#node-input-loop').on('change', toggleCountRow);
+            toggleCountRow();
         },
         oneditsave: function() {
             var steps = [];
             $('#node-input-steps-container').editableList('items').each(function() {
-                var v = $(this).find('select').val();
-                if (v) steps.push({ name: v });
+                var name = $(this).find('select').val();
+                if (!name) return;
+                var dwellRaw = $(this).find('input[type=number]').val();
+                var dwell = dwellRaw !== '' ? parseInt(dwellRaw) : null;
+                steps.push({ name: name, dwell: dwell });
             });
             this.steps = steps;
         }
@@ -83,15 +98,22 @@
     </div>
     <div class="form-row">
         <label><i class="fa fa-list"></i> Sequence Steps</label>
+        <div style="margin-left:105px;font-size:0.8em;color:#888;margin-bottom:4px">
+            Point &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Dwell override (ms)
+        </div>
         <ol id="node-input-steps-container"></ol>
     </div>
     <div class="form-row">
-        <label for="node-input-dwell"><i class="fa fa-clock-o"></i> Dwell (ms)</label>
+        <label for="node-input-dwell"><i class="fa fa-clock-o"></i> Default dwell (ms)</label>
         <input type="number" id="node-input-dwell" placeholder="800" min="0">
     </div>
     <div class="form-row">
         <label for="node-input-loop"><i class="fa fa-repeat"></i> Loop</label>
         <input type="checkbox" id="node-input-loop" style="width:auto">
+    </div>
+    <div class="form-row" id="loop-count-row">
+        <label for="node-input-count"><i class="fa fa-hashtag"></i> Loop count</label>
+        <input type="number" id="node-input-count" placeholder="0 = infinite" min="0" style="width:120px">
     </div>
     <div class="form-row">
         <label for="node-input-pingpong"><i class="fa fa-exchange"></i> Back-and-forth</label>
@@ -103,10 +125,22 @@
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-sequencer">
-    <p>Runs a sequence of saved points when triggered. Add point names in the Steps list in the properties panel.</p>
+    <p>Runs a sequence of saved points when triggered.</p>
+    <h3>Steps</h3>
+    <p>Each row: pick a saved point and optionally set a dwell override (ms) for that step. Leave dwell blank to use the node-level <em>Default dwell</em>.</p>
+    <h3>Loop count</h3>
+    <p>When <em>Loop</em> is checked, set <em>Loop count</em> to the number of full passes (0 = loop forever until Stop Sequence fires).</p>
+    <h3>msg.payload overrides</h3>
+    <ul>
+        <li><code>steps</code> — array of <code>{name, dwell?}</code> replacing the configured list</li>
+        <li><code>dwell</code> — default dwell in ms</li>
+        <li><code>loop</code> / <code>pingpong</code> — boolean flags</li>
+        <li><code>count</code> — loop count (0 = infinite)</li>
+        <li><code>startStep</code> — 1-based step index to start from</li>
+    </ul>
     <h3>Outputs</h3>
     <ol>
-        <li>After each step: <code>{ step, total, name, ack }</code></li>
-        <li>When done or stopped: <code>{ done: true }</code> or <code>{ done: false, stopped: true }</code></li>
+        <li>After each step: <code>{ step, total, name, ack, loop }</code></li>
+        <li>When done or stopped: <code>{ done, loops }</code> or <code>{ done: false, stopped: true, loops }</code></li>
     </ol>
 </script>

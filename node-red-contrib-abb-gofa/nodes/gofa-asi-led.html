@@ -1,0 +1,127 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-asi-led', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:       { value: '' },
+            robot:      { value: '', type: 'gofa-robot', required: true },
+            red:        { value: 0 },
+            grn:        { value: 0 },
+            blu:        { value: 0 },
+            period:     { value: 0 },
+            blinkCount: { value: 0 },
+            blinkMs:    { value: 250 }
+        },
+        inputs: 1, outputs: 1, icon: 'light.svg',
+        label: function() { return this.name || 'ASI LED'; },
+        paletteLabel: 'ASI LED',
+        oneditprepare: function() {
+            var PRESETS = {
+                custom:  null,
+                off:     [0,   0,   0  ],
+                red:     [255, 0,   0  ],
+                green:   [0,   255, 0  ],
+                blue:    [0,   0,   255],
+                yellow:  [255, 255, 0  ],
+                cyan:    [0,   255, 255],
+                magenta: [255, 0,   255],
+                white:   [255, 255, 255],
+                orange:  [255, 128, 0  ]
+            };
+
+            var sel = $('#led-preset');
+            Object.keys(PRESETS).forEach(function(name) {
+                sel.append($('<option>').val(name).text(name.charAt(0).toUpperCase() + name.slice(1)));
+            });
+
+            sel.on('change', function() {
+                var p = PRESETS[$(this).val()];
+                if (p) {
+                    $('#node-input-red').val(p[0]);
+                    $('#node-input-grn').val(p[1]);
+                    $('#node-input-blu').val(p[2]);
+                    updateSwatch();
+                }
+            });
+
+            function updateSwatch() {
+                var r = parseInt($('#node-input-red').val()) || 0;
+                var g = parseInt($('#node-input-grn').val()) || 0;
+                var b = parseInt($('#node-input-blu').val()) || 0;
+                $('#led-swatch').css('background', 'rgb(' + r + ',' + g + ',' + b + ')');
+            }
+
+            function toggleBlinkMs() {
+                var count = parseInt($('#node-input-blinkCount').val()) || 0;
+                $('#blink-ms-row').toggle(count > 0);
+            }
+
+            $('#node-input-red, #node-input-grn, #node-input-blu').on('input', updateSwatch);
+            $('#node-input-blinkCount').on('input', toggleBlinkMs);
+
+            setTimeout(function() {
+                updateSwatch();
+                toggleBlinkMs();
+            }, 0);
+        }
+    });
+</script>
+<script type="text/html" data-template-name="gofa-asi-led">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label><i class="fa fa-paint-brush"></i> Preset</label>
+        <select id="led-preset" style="width:140px"></select>
+        <span id="led-swatch" style="display:inline-block;width:24px;height:24px;border-radius:4px;border:1px solid #555;margin-left:8px;vertical-align:middle"></span>
+    </div>
+    <div class="form-row">
+        <label for="node-input-red"><i class="fa fa-circle" style="color:#e55"></i> Red (0–255)</label>
+        <input type="text" inputmode="numeric" id="node-input-red" placeholder="0" style="width:80px">
+    </div>
+    <div class="form-row">
+        <label for="node-input-grn"><i class="fa fa-circle" style="color:#5c5"></i> Green (0–255)</label>
+        <input type="text" inputmode="numeric" id="node-input-grn" placeholder="0" style="width:80px">
+    </div>
+    <div class="form-row">
+        <label for="node-input-blu"><i class="fa fa-circle" style="color:#55e"></i> Blue (0–255)</label>
+        <input type="text" inputmode="numeric" id="node-input-blu" placeholder="0" style="width:80px">
+    </div>
+    <div class="form-row">
+        <label for="node-input-period"><i class="fa fa-flash"></i> Blink period</label>
+        <input type="text" inputmode="numeric" id="node-input-period" placeholder="0" style="width:80px">
+        <span style="color:#888;font-size:0.85em;margin-left:6px">0 = solid (hardware signal)</span>
+    </div>
+    <div class="form-row">
+        <label for="node-input-blinkCount"><i class="fa fa-repeat"></i> Blink count</label>
+        <input type="text" inputmode="numeric" id="node-input-blinkCount" placeholder="0" style="width:80px">
+        <span style="color:#888;font-size:0.85em;margin-left:6px">0 = use period signal above</span>
+    </div>
+    <div class="form-row" id="blink-ms-row" style="display:none">
+        <label for="node-input-blinkMs"><i class="fa fa-clock-o"></i> Flash time (ms)</label>
+        <input type="text" inputmode="numeric" id="node-input-blinkMs" placeholder="250" style="width:80px">
+        <span style="color:#888;font-size:0.85em;margin-left:6px">on + off duration per flash</span>
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="ASI LED">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-asi-led">
+    <p>Controls an ASI RGB LED on the ABB GoFa controller via the RAPID socket server (TCP port 1025).</p>
+    <p><b>RAPID must be running</b> for this node to work (ASI signals have Rapid-only write access).</p>
+    <h3>Blink count</h3>
+    <p>When <em>Blink count</em> = 0 (default): sends a single <code>SETLED</code> command using the hardware <code>Asi1LedPeriod</code> signal for continuous blinking.</p>
+    <p>When <em>Blink count</em> &gt; 0: Node-RED software-controls N on/off cycles (ignores period signal). <em>Flash time</em> sets how long the LED stays on and off per flash (default 250 ms each).</p>
+    <h3>msg.payload overrides</h3>
+    <ul>
+        <li><code>'red'</code> / <code>'green'</code> / <code>'blue'</code> / <code>'yellow'</code> / <code>'white'</code> / <code>'off'</code> etc. — named colour preset</li>
+        <li><code>false</code> or <code>0</code> — turn off</li>
+        <li><code>{ r, g, b, period, blinkCount, blinkMs }</code> — full override</li>
+        <li><code>{ color: 'red', blinkCount: 3, blinkMs: 200 }</code> — preset + counted blink</li>
+        <li><code>'reset'</code> or <code>{ action: 'reset' }</code> — restore normal LED (static green)</li>
+        <li><code>null</code> / not set — uses node editor values</li>
+    </ul>
+    <h3>Output</h3>
+    <p><code>msg.payload = { ok: true, r, g, b, blinks }</code> on success.</p>
+</script>

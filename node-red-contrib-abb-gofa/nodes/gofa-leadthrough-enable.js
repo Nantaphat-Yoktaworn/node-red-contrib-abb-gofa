@@ -6,8 +6,15 @@ module.exports = function(RED) {
         var node = this;
         node.on('input', function(msg, send, done) {
             if (!node.robot) { node.error('No robot configured', msg); return done(); }
-            node.status({ fill: 'blue', shape: 'dot', text: 'enabling...' });
-            node.robot.rwsPost('/rw/motionsystem/mechunits/ROB_1/lead-through', 'status=active')
+            node.status({ fill: 'blue', shape: 'dot', text: 'stopping motion...' });
+            // Clear any queued \Conc moves before activating lead-through, otherwise
+            // in-flight moves keep executing autonomously while hand-guiding is active.
+            node.robot.socketSend('STOP')
+            .catch(function() { /* ignore — socket may not be running */ })
+            .then(function() {
+                node.status({ fill: 'blue', shape: 'dot', text: 'enabling...' });
+                return node.robot.rwsPost('/rw/motionsystem/mechunits/ROB_1/lead-through', 'status=active');
+            })
             .then(function() {
                 msg.payload = { ok: true };
                 node.status({ fill: 'green', shape: 'dot', text: 'enabled' });

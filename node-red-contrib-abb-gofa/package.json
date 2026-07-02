@@ -53,7 +53,8 @@
       "gofa-subscribe-state": "nodes/gofa-subscribe-state.js",
       "gofa-subscribe-io": "nodes/gofa-subscribe-io.js",
       "gofa-subscribe-var": "nodes/gofa-subscribe-var.js",
-      "gofa-subscribe-pose": "nodes/gofa-subscribe-pose.js"
+      "gofa-subscribe-pose": "nodes/gofa-subscribe-pose.js",
+      "gofa-asi-led": "nodes/gofa-asi-led.js"
     }
   }
 }
