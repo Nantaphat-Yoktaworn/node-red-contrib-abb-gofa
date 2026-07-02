@@ -1,6 +1,6 @@
-# ABB GoFa CRB 15000 — Claude Code Context
+# ABB GoFa 12 (CRB 15000-12/1.27) — Claude Code Context
 
-Custom Node-RED palette (`node-red-contrib-abb-gofa`) for controlling an ABB GoFa CRB 15000 collaborative robot over a local network. No extra ABB licenses required.
+Custom Node-RED palette (`node-red-contrib-abb-gofa`) for controlling an ABB GoFa 12 (CRB 15000-12/1.27) collaborative robot over a local network. No extra ABB licenses required.
 
 ## Skills available
 

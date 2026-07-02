@@ -1,6 +1,6 @@
-# ABB GoFa CRB 15000 — Node-RED Palette
+# ABB GoFa 12 (CRB 15000-12/1.27) — Node-RED Palette
 
-Node-RED palette for controlling the **ABB GoFa CRB 15000** collaborative robot over the network — no extra ABB licenses or hardware required beyond the standard OmniCore C30 controller.
+Node-RED palette for controlling the **ABB GoFa 12** (CRB 15000-12/1.27) collaborative robot over the network — no extra ABB licenses or hardware required beyond the standard OmniCore C30 controller.
 
 ## What's in this repo
 
@@ -20,7 +20,7 @@ dist/
 
 ## Requirements
 
-- ABB GoFa CRB 15000 with OmniCore C30 controller
+- ABB GoFa 12 (CRB 15000-12/1.27) with OmniCore C30 controller
 - RobotWare 7.x (tested on 7.21.0)
 - Node-RED v3+
 - Node.js v18+
