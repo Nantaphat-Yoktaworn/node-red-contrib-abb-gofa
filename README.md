@@ -11,6 +11,7 @@ rapid/
 flows/
   gofa_demo_flow.json            ← Demo flow — one inject per node
   dashboard_flow.json            ← Full robot control palette flow
+  teach_workflow_flow.json       ← Physical-button teach workflow (see below)
 dist/
   node-red-contrib-abb-gofa-*.tgz ← Packaged releases
 ```
@@ -206,8 +207,38 @@ Click **Update** → **Deploy**.
 |------|-------------|
 | `flows/gofa_demo_flow.json` | One inject per node — good for testing each feature |
 | `flows/dashboard_flow.json` | Full robot control palette flow |
+| `flows/teach_workflow_flow.json` | Physical-button teach workflow (see below) |
 
 After importing, open the **gofa-robot** config node (click any GoFa node → pencil icon) and verify the IP and credentials match your setup.
+
+---
+
+## Teach workflow (physical ASI buttons)
+
+`flows/teach_workflow_flow.json` is a standalone flow — its own tab, its own copy of the
+`gofa-robot` config node (same `cfg1` id as the demo flow, so importing both is safe; Node-RED
+de-dupes config nodes by id). It uses the two physical buttons on the GoFa's arm
+(`Asi1Button1`/`Asi1Button2` — plain digital signals, readable/subscribable regardless of what
+the FlexPendant's Wizard menu has them assigned to) to hand-guide the arm without touching the
+FlexPendant at all:
+
+**Precondition: robot already in Auto mode, Motors On, RAPID running** — this flow doesn't set
+that up, it assumes it and checks for it.
+
+1. **Press Button 1** — stops RAPID, confirms it actually reached the stopped state (bounded
+   live poll, not a fixed guess-and-hope delay), then enables lead-through.
+2. Hand-guide the arm.
+3. **Press Button 2** (any time while lead-through is active) — saves the current pose as a new
+   point. Pressing it while *not* in teach mode is safely ignored with a clear message instead
+   of silently saving an unintended pose.
+4. **Press Button 1 again** — disables lead-through, resets the program pointer, restarts
+   RAPID — back to exactly the state before step 1.
+
+Every press re-reads live robot state (`gofa-status`) to decide what to do rather than trusting
+an internal flag, so it's self-healing across a Node-RED restart mid-session. Every multi-step
+sequence is gated on the previous step's success (a failed RAPID stop won't blindly proceed into
+enabling lead-through, etc.) and every step's result is visible in its own debug output — check
+the debug sidebar if a press doesn't seem to do anything.
 
 ---
 

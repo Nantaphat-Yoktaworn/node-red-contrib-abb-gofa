@@ -109,6 +109,14 @@ Read operating mode.
 Response class: `opmode`  
 Values: `auto` | `manualreduced` | `manualfull`
 
+> **Casing note:** confirmed live on this controller that `opmode` actually returns **`AUTO`
+> (uppercase)**, not the lowercase `auto` shown above (which matches the general RWS
+> documentation) — `ctrlstate` and `ctrlexecstate` do come back lowercase (`motoron`,
+> `running`/`stopped`) as documented, so this is specific to `opmode`. Caught by curling the
+> live endpoint before wiring a case-sensitive comparison into a flow — compare
+> case-insensitively (e.g. JSONata `$lowercase(payload.opmode) = "auto"`) rather than trusting
+> the documented casing.
+
 #### GET /rw/panel/speedratio
 Read current speed override percentage.  
 Response class: `speedratio`  
