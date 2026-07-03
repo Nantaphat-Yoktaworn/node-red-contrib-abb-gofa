@@ -65,7 +65,7 @@ module.exports = function(RED) {
         function startSubscription(signal) {
             if (!node.robot) { node.error('No robot configured'); return; }
             var robot        = node.robot;
-            var resourcePath = '/rw/iosystem/signals/' + encodeURIComponent(signal) + ';lvalue';
+            var resourcePath = '/rw/iosystem/signals/' + encodeURIComponent(signal) + ';state';
             var priority     = 2;
 
             node._signal = signal;
