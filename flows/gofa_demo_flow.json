@@ -322,7 +322,7 @@
         "x": 825,
         "y": 10,
         "w": 750,
-        "h": 2397
+        "h": 2452
     },
     {
         "id": "8003b2b082186ea0",
@@ -488,12 +488,15 @@
             "792f357a51abc7cf",
             "cf962b6f180fe957",
             "354b13c7e1b27a40",
-            "e2ac0ab0e596fab9"
+            "e2ac0ab0e596fab9",
+            "ca530d33e81c8a5b",
+            "ed898c93ddeec3fe",
+            "b528af5e00c76425"
         ],
         "x": 855,
         "y": 1327,
         "w": 635,
-        "h": 360,
+        "h": 415,
         "g": "43809a414eac99f5"
     },
     {
@@ -517,7 +520,7 @@
             "0bc2884c0e3c54c0"
         ],
         "x": 855,
-        "y": 1727,
+        "y": 1782,
         "w": 690,
         "h": 135,
         "g": "43809a414eac99f5"
@@ -547,7 +550,7 @@
             "68b5a31875bdb44f"
         ],
         "x": 855,
-        "y": 1902,
+        "y": 1957,
         "w": 690,
         "h": 245,
         "g": "43809a414eac99f5"
@@ -576,7 +579,7 @@
             "a35a14fe914e0b0d"
         ],
         "x": 855,
-        "y": 2187,
+        "y": 2242,
         "w": 690,
         "h": 190,
         "g": "43809a414eac99f5"
@@ -1625,7 +1628,7 @@
         "payload": "",
         "payloadType": "date",
         "x": 895,
-        "y": 1822,
+        "y": 1877,
         "wires": [
             [
                 "a4492942585fb9f6"
@@ -1641,7 +1644,7 @@
         "robot": "cfg1",
         "pointName": "Point 1",
         "x": 1130,
-        "y": 1822,
+        "y": 1877,
         "wires": [
             [
                 "0bc2884c0e3c54c0"
@@ -1661,7 +1664,7 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 1365,
-        "y": 1822,
+        "y": 1877,
         "wires": []
     },
     {
@@ -1730,7 +1733,7 @@
         "name": "Run Sequence: visits each saved point in order  |  Output 1 = after each step  |  Output 2 = done/stopped  |  Stop: halts after current step",
         "info": "",
         "x": 1060,
-        "y": 1942,
+        "y": 1997,
         "wires": []
     },
     {
@@ -1752,7 +1755,7 @@
         "payload": "",
         "payloadType": "date",
         "x": 895,
-        "y": 1997,
+        "y": 2052,
         "wires": [
             [
                 "c5bc1905303759a5"
@@ -1778,7 +1781,7 @@
         "loop": false,
         "pingpong": false,
         "x": 1130,
-        "y": 1997,
+        "y": 2052,
         "wires": [
             [
                 "4c8e442b34976b41"
@@ -1801,7 +1804,7 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 1365,
-        "y": 1997,
+        "y": 2052,
         "wires": []
     },
     {
@@ -1817,7 +1820,7 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 1365,
-        "y": 2052,
+        "y": 2107,
         "wires": []
     },
     {
@@ -1839,7 +1842,7 @@
         "payload": "",
         "payloadType": "date",
         "x": 895,
-        "y": 2107,
+        "y": 2162,
         "wires": [
             [
                 "014e6b5e2295b80f"
@@ -1854,7 +1857,7 @@
         "name": "",
         "robot": "cfg1",
         "x": 1130,
-        "y": 2107,
+        "y": 2162,
         "wires": [
             [
                 "68b5a31875bdb44f"
@@ -1874,7 +1877,7 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 1365,
-        "y": 2107,
+        "y": 2162,
         "wires": []
     },
     {
@@ -2337,7 +2340,7 @@
         "type": "debug",
         "z": "08f5b46ae379bad0",
         "g": "7be2a12fbae30fa8",
-        "name": "{ ok, variable, value, source }",
+        "name": "{ ok, variable, value, source, stale?, warning? }",
         "active": true,
         "tosidebar": true,
         "console": false,
@@ -3430,7 +3433,7 @@
         "type": "debug",
         "z": "08f5b46ae379bad0",
         "g": "f8a8b940376ab91b",
-        "name": "{ ok, variable, value, source }",
+        "name": "{ ok, variable, value, source, stale?, warning? }",
         "active": true,
         "tosidebar": true,
         "console": false,
@@ -3758,7 +3761,7 @@
         "type": "debug",
         "z": "08f5b46ae379bad0",
         "g": "7be2a12fbae30fa8",
-        "name": "{ ok, variable, value, source }",
+        "name": "{ ok, variable, value, source, stale?, warning? }",
         "active": true,
         "tosidebar": true,
         "console": false,
@@ -3826,10 +3829,70 @@
         "id": "ec0efcba089239f0",
         "type": "comment",
         "z": "08f5b46ae379bad0",
-        "name": "SPEED: override 1–100%  |  GETVAR/SETVAR: read/write a RAPID PERS variable by name — built-in test vars: nTestVar (num), sTestMsg (string)",
+        "name": "SPEED: override 1–100%  |  GETVAR/SETVAR: read/write a RAPID PERS variable by name — built-in test vars: nTestVar (num), sTestMsg (string)  |  bStopMotion below is NOT allow-listed — demonstrates the stale module-text fallback",
         "info": "",
         "x": 1060,
         "y": 1367,
+        "wires": [],
+        "g": "7be2a12fbae30fa8"
+    },
+    {
+        "id": "ca530d33e81c8a5b",
+        "type": "inject",
+        "z": "08f5b46ae379bad0",
+        "name": "Read bStopMotion (not allow-listed)",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 905,
+        "y": 1702,
+        "wires": [
+            [
+                "ed898c93ddeec3fe"
+            ]
+        ],
+        "g": "7be2a12fbae30fa8"
+    },
+    {
+        "id": "ed898c93ddeec3fe",
+        "type": "gofa-rapid-var-read",
+        "z": "08f5b46ae379bad0",
+        "name": "bStopMotion (stale demo)",
+        "robot": "cfg1",
+        "task": "T_ROB1",
+        "module": "MainModule",
+        "variable": "bStopMotion",
+        "x": 1070,
+        "y": 1702,
+        "wires": [
+            [
+                "b528af5e00c76425"
+            ]
+        ],
+        "g": "7be2a12fbae30fa8"
+    },
+    {
+        "id": "b528af5e00c76425",
+        "type": "debug",
+        "z": "08f5b46ae379bad0",
+        "name": "{ ok, variable, value, source:\"module-text\", stale:true, warning }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 1305,
+        "y": 1702,
         "wires": [],
         "g": "7be2a12fbae30fa8"
     },
@@ -3840,7 +3903,7 @@
         "name": "Look up a saved point by name/id and move to it via GOTOJ/GOTOL  |  msg.payload.moveType: \"J\" (default, joint-interpolated) or \"L\" (linear)",
         "info": "",
         "x": 1060,
-        "y": 1767,
+        "y": 1822,
         "wires": [],
         "g": "2ed3903228d3b214"
     },
@@ -3851,7 +3914,7 @@
         "name": "SETLED: color + optional hardware blink period  |  RESETLED: restore default solid green  |  blinkCount>0 runs a software-timed blink instead of the hardware period",
         "info": "",
         "x": 1060,
-        "y": 2227,
+        "y": 2282,
         "wires": [],
         "g": "a8f59b69c2fa1e4a"
     },
@@ -3867,7 +3930,7 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 1365,
-        "y": 2282,
+        "y": 2337,
         "wires": [],
         "g": "a8f59b69c2fa1e4a"
     },
@@ -3884,7 +3947,7 @@
         "blinkCount": 0,
         "blinkMs": 250,
         "x": 1130,
-        "y": 2282,
+        "y": 2337,
         "wires": [
             [
                 "490d619dac46bc07"
@@ -3910,7 +3973,7 @@
         "payload": "{\"color\":\"yellow\",\"blinkCount\":3,\"blinkMs\":250}",
         "payloadType": "json",
         "x": 895,
-        "y": 2282,
+        "y": 2337,
         "wires": [
             [
                 "2d60d56b4a97e997"
@@ -3930,7 +3993,7 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 1365,
-        "y": 2337,
+        "y": 2392,
         "wires": [],
         "g": "a8f59b69c2fa1e4a"
     },
@@ -3947,7 +4010,7 @@
         "blinkCount": 0,
         "blinkMs": 250,
         "x": 1130,
-        "y": 2337,
+        "y": 2392,
         "wires": [
             [
                 "a35a14fe914e0b0d"
@@ -3973,7 +4036,7 @@
         "payload": "reset",
         "payloadType": "str",
         "x": 895,
-        "y": 2337,
+        "y": 2392,
         "wires": [
             [
                 "5e59a833c5f230a0"
