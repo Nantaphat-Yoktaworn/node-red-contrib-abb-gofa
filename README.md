@@ -8,7 +8,6 @@ Node-RED palette for controlling the **ABB GoFa 12** (CRB 15000-12/1.27) collabo
 node-red-contrib-abb-gofa/       ← Node-RED palette (npm installable)
 rapid/
   MainModule.mod                 ← RAPID socket server (must run on controller)
-  GoFaControl.pgf                ← Program group file
 flows/
   gofa_demo_flow.json            ← Demo flow — one inject per node
   dashboard_flow.json            ← Full robot control palette flow
@@ -295,7 +294,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | Node | Protocol | What it does |
 |------|:--------:|-------------|
 | **gofa-subscribe-state** | WS | Push on every controller state change; one-shot mode polls once per inject |
-| **gofa-subscribe-io** | WS / poll | Push on every I/O signal change; falls back to 500 ms polling for signals that don't support WebSocket; one-shot mode polls once per inject |
+| **gofa-subscribe-io** | WS / poll | Push on every I/O signal change (real WebSocket push); falls back to 500 ms polling only if the subscription request itself fails (e.g. `400`); one-shot mode polls once per inject |
 | **gofa-subscribe-var** | RWS poll | Poll a RAPID variable on an interval |
 | **gofa-subscribe-pose** | RWS poll | Poll TCP position on an interval |
 
@@ -442,9 +441,9 @@ cd /path/to/node-red-contrib-abb-gofa && npm install
 
 Then restart Node-RED.
 
-### Subscribe IO falls back to polling for some signals
+### Subscribe IO used to always fall back to polling (fixed)
 
-Some signals (e.g. AS-Interface / ASI signals) do not support WebSocket subscription. `gofa-subscribe-io` automatically falls back to 500 ms polling for these signals — no action needed and no warning is shown.
+`gofa-subscribe-io` previously requested WebSocket subscriptions with resource suffix `;lvalue`, which OmniCore rejects with `400 Invalid resource URI` for **every** signal — not just ASI ones. The `.catch` on that 400 silently started the 500 ms poll fallback, so this node was never actually using WebSocket push; it was polling for every signal, always. This is fixed as of the commit that changed the suffix to `;state` (the correct fixed resource-type keyword OmniCore expects for I/O signal subscriptions — confirmed live, including on ASI signals like `Asi1Button1`/`Asi1Button2`). If you're on an older build and see it always polling, update.
 
 ### RWS returns 405 (method not allowed)
 

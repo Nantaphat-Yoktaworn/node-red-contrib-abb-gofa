@@ -18,7 +18,6 @@ node-red-contrib-abb-gofa/package-lock.json
 # RAPID program
 !rapid/
 !rapid/MainModule.mod
-!rapid/GoFaControl.pgf
 
 # Packaged releases
 !dist/

@@ -295,6 +295,27 @@ Priority levels:
 
 Limits: 1000 resources (low/medium), 64 resources (high priority)
 
+**`{resource-path}` suffix is a fixed per-resource keyword, not the value's own attribute name.**
+It's tempting to build `{resource-path}` as `{GET path};{class-name-from-the-GET-response}`, but
+that's wrong — each RWS resource defines its own resource-type keyword for subscriptions,
+independent of what a plain GET happens to name the value:
+
+| Resource | GET returns value in class | Correct subscription suffix |
+|----------|------------------------------|------------------------------|
+| `/rw/panel/ctrl-state` | `ctrlstate` | `;ctrlstate` (same name here, coincidentally) |
+| `/rw/iosystem/signals/{name}` | `lvalue` | `;state` (**not** `;lvalue`) |
+
+Confirmed live on this OmniCore controller: `POST /subscription` with resource
+`/rw/iosystem/signals/{name};lvalue` returns `400 Invalid resource URI in Create Subscription
+request` for **every** signal tried — a top-level one (`GOFA_MotorsOn`) and a device-scoped one
+(`Asi1Button2`) both 400 with that suffix and both succeed (`201`) with `;state` instead, same
+path otherwise. The push event body then names the value `class="lvalue"` again (e.g.
+`<li class="ios-signalstate-ev"><span class="lvalue">1</span>...`) — so the GET attribute name
+and the subscription keyword are simply two different things for this resource. Don't assume
+the pattern from one working resource (`ctrlstate`) generalizes to another (`iosystem/signals`)
+without testing live — this exact assumption caused `gofa-subscribe-io` to silently fall back to
+polling on every signal for a while (see the "IO subscription note" in the top-level CLAUDE.md).
+
 #### PUT /subscription/{id}
 Update subscription resource list.
 

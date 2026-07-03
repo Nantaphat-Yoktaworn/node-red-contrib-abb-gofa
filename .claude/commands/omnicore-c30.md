@@ -155,6 +155,18 @@ one if `T_GOFA_LED` reacts to specific events rather than polling continuously.
 this project's code), plus `GOFA_ASI_Procedures`, `BASE`, `Wizard_Params` (`SysMod` — ABB/
 system-provided, not part of this repo).
 
+**ASI arm buttons (`Asi1Button1`/`Asi1Button2`) are visible over RWS even under Wizard.** The
+FlexPendant's ASI menu lets you assign each physical button to a Wizard function (e.g. "Add a
+move position" — inserts a move block into a Wizard-authored program). Tested live whether that
+assignment hides the press from RWS: polled `GET /rw/iosystem/signals/Asi1Button{1,2}` (plain
+`DI`, `lvalue`) while the user tapped button 2 with "Add a move position" still assigned in the
+FlexPendant UI — caught a real `0→1→0` edge over RWS, then confirmed again via a genuine
+WebSocket subscription (see the IO-subscription suffix finding in the `abb-rws` skill) which
+pushed the same edge with no polling delay. So `Wizard_Params`/`GOFA_ASI_Procedures` read the
+signal rather than intercepting it — the button is a normal DI regardless of what the
+FlexPendant menu says it's "for," readable with `gofa-di-read` and subscribable with
+`gofa-subscribe-io` today, no new node required.
+
 **Multitasking option [3114-1]**, per ABB's OmniCore C-line product manual (3HAC065034-001):
 enables running up to 20 concurrent RAPID tasks (beyond the base motion task), used for things
 like supervising signals or driving peripheral equipment in parallel with robot motion. This
