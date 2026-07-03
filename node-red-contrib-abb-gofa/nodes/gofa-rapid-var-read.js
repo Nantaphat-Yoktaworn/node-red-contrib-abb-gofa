@@ -24,7 +24,9 @@ module.exports = function(RED) {
 
             node.status({ fill: 'blue', shape: 'dot', text: variable });
 
-            // Primary: use TCP socket GETVAR command (works on compiled .modx, no PC Interface needed)
+            // Primary: use TCP socket GETVAR command — proven and simple. RWS's generic
+            // symbol endpoint is a possible alternative but its OmniCore call syntax isn't
+            // fully worked out yet (see abb-rws skill); this isn't a licensing workaround.
             node.robot.socketSend('GETVAR:' + variable)
             .then(function(reply) {
                 // reply is "VAL:<value>" or "ERR:<reason>"

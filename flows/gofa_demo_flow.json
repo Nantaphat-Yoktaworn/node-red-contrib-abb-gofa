@@ -33,7 +33,7 @@
         "x": 10,
         "y": 10,
         "w": 765,
-        "h": 2380
+        "h": 2435
     },
     {
         "id": "02f20aa739cb1478",
@@ -149,12 +149,15 @@
             "9c50e7342ca7418e",
             "3f881d352fec8b4b",
             "982b7ddef2c9f46b",
-            "dd9102dcea4ccef6"
+            "dd9102dcea4ccef6",
+            "9e525dda7d5217b7",
+            "85d3383ad6e8ba1d",
+            "dc08b8494f415479"
         ],
         "x": 40,
         "y": 760,
         "w": 690,
-        "h": 300,
+        "h": 355,
         "g": "ddf39a7facd45efe"
     },
     {
@@ -191,7 +194,7 @@
             "9d5827a2cb7f777e"
         ],
         "x": 40,
-        "y": 1100,
+        "y": 1155,
         "w": 690,
         "h": 355,
         "g": "ddf39a7facd45efe"
@@ -220,7 +223,7 @@
             "cacf48f16615005c"
         ],
         "x": 40,
-        "y": 1495,
+        "y": 1550,
         "w": 690,
         "h": 190,
         "g": "ddf39a7facd45efe"
@@ -255,7 +258,7 @@
             "569ad33614eae2e3"
         ],
         "x": 40,
-        "y": 1725,
+        "y": 1780,
         "w": 705,
         "h": 300,
         "g": "ddf39a7facd45efe"
@@ -287,7 +290,7 @@
             "9909447faf50b98f"
         ],
         "x": 40,
-        "y": 2065,
+        "y": 2120,
         "w": 660,
         "h": 295,
         "g": "ddf39a7facd45efe"
@@ -2403,7 +2406,7 @@
         "type": "comment",
         "z": "08f5b46ae379bad0",
         "g": "f7d0d36e1c083a16",
-        "name": "SYSTEM-INFO: RW version + ctrl identity  |  ELOG: controller event log  |  FILE-READ: download file  |  UPLOAD-MOD: deploy RAPID .mod",
+        "name": "SYSTEM-INFO: RW version + ctrl identity  |  ELOG: controller event log  |  FILE-READ: download file  |  UPLOAD-MOD: deploy RAPID .mod  |  RAPID-TASKS: list RAPID tasks + modules loaded on the controller",
         "info": "",
         "x": 245,
         "y": 800,
@@ -2638,6 +2641,64 @@
         "wires": []
     },
     {
+        "id": "9e525dda7d5217b7",
+        "type": "inject",
+        "z": "08f5b46ae379bad0",
+        "name": "List Tasks & Modules",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 80,
+        "y": 1075,
+        "wires": [
+            [
+                "85d3383ad6e8ba1d"
+            ]
+        ],
+        "g": "f7d0d36e1c083a16"
+    },
+    {
+        "id": "85d3383ad6e8ba1d",
+        "type": "gofa-rapid-tasks",
+        "z": "08f5b46ae379bad0",
+        "name": "",
+        "robot": "cfg1",
+        "task": "T_ROB1",
+        "x": 315,
+        "y": 1075,
+        "wires": [
+            [
+                "dc08b8494f415479"
+            ]
+        ],
+        "g": "f7d0d36e1c083a16"
+    },
+    {
+        "id": "dc08b8494f415479",
+        "type": "debug",
+        "z": "08f5b46ae379bad0",
+        "name": "{ ok, tasks, task, modules }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 550,
+        "y": 1075,
+        "wires": [],
+        "g": "f7d0d36e1c083a16"
+    },
+    {
         "id": "d54d46e4f4d75da7",
         "type": "comment",
         "z": "08f5b46ae379bad0",
@@ -2645,7 +2706,7 @@
         "name": "IO-LIST: enumerate all signals  |  DI-READ: digital in (built-in)  |  AI-READ / AO-WRITE / DO-WRITE: require external I/O module — HTTP 404 on standard OmniCore C30",
         "info": "",
         "x": 245,
-        "y": 1140,
+        "y": 1195,
         "wires": []
     },
     {
@@ -2667,7 +2728,7 @@
         "payload": "",
         "payloadType": "date",
         "x": 80,
-        "y": 1195,
+        "y": 1250,
         "wires": [
             [
                 "c234d84f31e43d23"
@@ -2682,7 +2743,7 @@
         "name": "",
         "robot": "cfg1",
         "x": 315,
-        "y": 1195,
+        "y": 1250,
         "wires": [
             [
                 "f5b2d6c1f808c498"
@@ -2702,7 +2763,7 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 550,
-        "y": 1195,
+        "y": 1250,
         "wires": []
     },
     {
@@ -2724,7 +2785,7 @@
         "payload": "",
         "payloadType": "date",
         "x": 80,
-        "y": 1250,
+        "y": 1305,
         "wires": [
             [
                 "2aabfe45542c96bb"
@@ -2740,7 +2801,7 @@
         "robot": "cfg1",
         "signal": "Asi1Button1",
         "x": 315,
-        "y": 1250,
+        "y": 1305,
         "wires": [
             [
                 "09c76d4d5f00b97a"
@@ -2760,7 +2821,7 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 550,
-        "y": 1250,
+        "y": 1305,
         "wires": []
     },
     {
@@ -2782,7 +2843,7 @@
         "payload": "",
         "payloadType": "date",
         "x": 80,
-        "y": 1305,
+        "y": 1360,
         "wires": [
             [
                 "f8696607a486e515"
@@ -2798,7 +2859,7 @@
         "robot": "cfg1",
         "signal": "AI1",
         "x": 315,
-        "y": 1305,
+        "y": 1360,
         "wires": [
             [
                 "18ebf7c1f87e6160"
@@ -2818,7 +2879,7 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 550,
-        "y": 1305,
+        "y": 1360,
         "wires": []
     },
     {
@@ -2840,7 +2901,7 @@
         "payload": "1",
         "payloadType": "num",
         "x": 80,
-        "y": 1360,
+        "y": 1415,
         "wires": [
             [
                 "634aa64a8eae9692"
@@ -2857,7 +2918,7 @@
         "signal": "DO10_1",
         "value": "1",
         "x": 315,
-        "y": 1360,
+        "y": 1415,
         "wires": [
             [
                 "7baaa610f520276c"
@@ -2877,7 +2938,7 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 550,
-        "y": 1360,
+        "y": 1415,
         "wires": []
     },
     {
@@ -2899,7 +2960,7 @@
         "payload": "{\"signal\":\"AO1\",\"value\":2.5}",
         "payloadType": "json",
         "x": 80,
-        "y": 1415,
+        "y": 1470,
         "wires": [
             [
                 "a9481d95d12b362a"
@@ -2916,7 +2977,7 @@
         "signal": "AO1",
         "value": "0",
         "x": 315,
-        "y": 1415,
+        "y": 1470,
         "wires": [
             [
                 "9d5827a2cb7f777e"
@@ -2936,7 +2997,7 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 550,
-        "y": 1415,
+        "y": 1470,
         "wires": []
     },
     {
@@ -2947,7 +3008,7 @@
         "name": "Enable/disable robot lead-through (hand-guiding) via RWS  |  Requires manual mode + enable switch held on FlexPendant",
         "info": "",
         "x": 245,
-        "y": 1535,
+        "y": 1590,
         "wires": []
     },
     {
@@ -2969,7 +3030,7 @@
         "payload": "",
         "payloadType": "date",
         "x": 80,
-        "y": 1590,
+        "y": 1645,
         "wires": [
             [
                 "6e594510d6242c79"
@@ -2984,7 +3045,7 @@
         "name": "",
         "robot": "cfg1",
         "x": 315,
-        "y": 1590,
+        "y": 1645,
         "wires": [
             [
                 "c5910929b5f41396"
@@ -3004,7 +3065,7 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 550,
-        "y": 1590,
+        "y": 1645,
         "wires": []
     },
     {
@@ -3026,7 +3087,7 @@
         "payload": "",
         "payloadType": "date",
         "x": 80,
-        "y": 1645,
+        "y": 1700,
         "wires": [
             [
                 "c19f2b32477ee11f"
@@ -3041,7 +3102,7 @@
         "name": "",
         "robot": "cfg1",
         "x": 315,
-        "y": 1645,
+        "y": 1700,
         "wires": [
             [
                 "cacf48f16615005c"
@@ -3061,7 +3122,7 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 550,
-        "y": 1645,
+        "y": 1700,
         "wires": []
     },
     {
@@ -3199,7 +3260,7 @@
         "name": "STATE/IO: WebSocket push from controller  |  VAR/POSE: polling (toggle on/off with any input)  |  Messages stream to debug until toggled off or redeployed",
         "info": "",
         "x": 245,
-        "y": 1765,
+        "y": 1820,
         "wires": []
     },
     {
@@ -3221,7 +3282,7 @@
         "payload": "",
         "payloadType": "date",
         "x": 80,
-        "y": 1820,
+        "y": 1875,
         "wires": [
             [
                 "ae567fc23e20c35b"
@@ -3237,7 +3298,7 @@
         "robot": "cfg1",
         "oneshot": true,
         "x": 315,
-        "y": 1820,
+        "y": 1875,
         "wires": [
             [
                 "e875da96515d4973"
@@ -3257,7 +3318,7 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 565,
-        "y": 1825,
+        "y": 1880,
         "wires": []
     },
     {
@@ -3279,7 +3340,7 @@
         "payload": "",
         "payloadType": "date",
         "x": 80,
-        "y": 1875,
+        "y": 1930,
         "wires": [
             [
                 "13031f8511711815"
@@ -3296,7 +3357,7 @@
         "signal": "Asi1Button1",
         "oneshot": true,
         "x": 315,
-        "y": 1875,
+        "y": 1930,
         "wires": [
             [
                 "c2539b438777b9ad"
@@ -3316,7 +3377,7 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 550,
-        "y": 1875,
+        "y": 1930,
         "wires": []
     },
     {
@@ -3338,7 +3399,7 @@
         "payload": "",
         "payloadType": "date",
         "x": 80,
-        "y": 1930,
+        "y": 1985,
         "wires": [
             [
                 "2b7b22a7f2634d6b"
@@ -3357,7 +3418,7 @@
         "variable": "zActive",
         "interval": "1000",
         "x": 315,
-        "y": 1930,
+        "y": 1985,
         "wires": [
             [
                 "704df29d067223b7"
@@ -3377,7 +3438,7 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 550,
-        "y": 1930,
+        "y": 1985,
         "wires": []
     },
     {
@@ -3399,7 +3460,7 @@
         "payload": "",
         "payloadType": "date",
         "x": 80,
-        "y": 1985,
+        "y": 2040,
         "wires": [
             [
                 "8939a35e84cbc5bd"
@@ -3415,7 +3476,7 @@
         "robot": "cfg1",
         "interval": "500",
         "x": 315,
-        "y": 1985,
+        "y": 2040,
         "wires": [
             [
                 "569ad33614eae2e3"
@@ -3435,7 +3496,7 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 550,
-        "y": 1985,
+        "y": 2040,
         "wires": []
     },
     {
@@ -3446,7 +3507,7 @@
         "name": "⚠ AI Read / AO Write / DO Write require an external I/O expansion module — will fail with HTTP 404 on the base OmniCore C30 (CRB 15000 default)",
         "info": "",
         "x": 295,
-        "y": 1270,
+        "y": 1325,
         "wires": []
     },
     {
@@ -3457,7 +3518,7 @@
         "name": "RAPID-EXEC: start / stop / resetpp the RAPID program  |  Requires Remote Start/Stop UAS grant (RobotStudio → Edit User Accounts) + Auto mode + Motors on  |  resetpp acquires edit mastership automatically",
         "info": "",
         "x": 290,
-        "y": 2105,
+        "y": 2160,
         "wires": []
     },
     {
@@ -3469,7 +3530,7 @@
         "robot": "cfg1",
         "action": "resetpp",
         "x": 280,
-        "y": 2200,
+        "y": 2255,
         "wires": [
             [
                 "7b8d9314e8f1f1d2"
@@ -3489,7 +3550,7 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 520,
-        "y": 2200,
+        "y": 2255,
         "wires": []
     },
     {
@@ -3515,7 +3576,7 @@
         "payload": "",
         "payloadType": "date",
         "x": 90,
-        "y": 2200,
+        "y": 2255,
         "wires": [
             [
                 "2c33863a6308e309"
@@ -3531,7 +3592,7 @@
         "robot": "cfg1",
         "action": "start",
         "x": 240,
-        "y": 2260,
+        "y": 2315,
         "wires": [
             [
                 "213922eb67e496b7"
@@ -3551,7 +3612,7 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 520,
-        "y": 2260,
+        "y": 2315,
         "wires": []
     },
     {
@@ -3577,7 +3638,7 @@
         "payload": "",
         "payloadType": "date",
         "x": 80,
-        "y": 2260,
+        "y": 2315,
         "wires": [
             [
                 "0a9c5608e3b2ac79"
@@ -3593,7 +3654,7 @@
         "robot": "cfg1",
         "action": "stop",
         "x": 240,
-        "y": 2320,
+        "y": 2375,
         "wires": [
             [
                 "9909447faf50b98f"
@@ -3615,7 +3676,7 @@
         "statusVal": "",
         "statusType": "auto",
         "x": 520,
-        "y": 2320,
+        "y": 2375,
         "wires": []
     },
     {
@@ -3641,7 +3702,7 @@
         "payload": "",
         "payloadType": "date",
         "x": 80,
-        "y": 2320,
+        "y": 2375,
         "wires": [
             [
                 "9ea1ae20458cbf3f"

@@ -273,7 +273,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 
 > `gofa-rapid-var-read` / `gofa-rapid-var-write` use the TCP socket and work on standard OmniCore C30 without any extra RobotWare options. The variable must be listed in `TryGetVar` / `TrySetVar` in `MainModule.mod`. Built-in test variables: `nTestVar` (num) and `sTestMsg` (string). See [Adding RAPID variables](#adding-rapid-variables) below.
 >
-> **Why not a generic RWS variable read/write node?** RWS has a generic `/rw/rapid/symbol/data/...` endpoint that can read/write any RAPID variable without editing RAPID code, but it requires the paid **PC Interface** RobotWare option (confirmed: `404 SYS_CTRL_E_UNRESOLVED_URL` on a standard OmniCore C30). The socket-based approach above needs no extra license, at the cost of having to allow-list each variable in `MainModule.mod`.
+> **Why not a generic RWS variable read/write node?** RWS has a generic endpoint that can read/write any RAPID variable without editing RAPID code, but it 404s on this controller (`SYS_CTRL_E_UNRESOLVED_URL`) — not because of a missing license (that was checked and ruled out against ABB's own product manual), but because OmniCore restructured it into a search-based resource whose exact call syntax hasn't been fully worked out yet. See the `abb-rws` skill for the investigation. The socket-based approach above is proven and needs no extra license, at the cost of having to allow-list each variable in `MainModule.mod`.
 >
 > `gofa-rapid-tasks` is a plain read (no mastership needed) — useful for confirming what's actually loaded/running on the controller, e.g. after an upload or when a socket command mysteriously times out.
 

@@ -1,6 +1,9 @@
 # OmniCore C30 Type A — Controller Reference
 
-Source: Product manual 3HAC089064-001, Rev F (2026)  
+Sources: Product manual 3HAC089064-001 Rev F; Product specification 3HAC065034-001 Rev W
+(OmniCore C line); Application Manual "Controller Software" 3HAC066554 and System Parameters
+3HAC065041 (from the local RobotStudio doc package `ABB.RobotWareDoc.OmniCore-7.10`); live
+queries against the controller itself.  
 Used with: ABB GoFa CRB 15000 in this project
 
 ---
@@ -126,6 +129,63 @@ RWS `/rw/panel/opmode` returns: `auto`, `manualreduced`, `manualfull`
 - Port: 443 (HTTPS, self-signed cert — use `-k` with curl)
 - Auth: Basic `Admin:robotics` → cookie session (auto-refresh on 401)
 - See `/abb-rws` skill for full endpoint reference
+
+---
+
+## RAPID Task Architecture
+
+Confirmed live via `GET /rw/rapid/tasks` — this controller runs **3 RAPID tasks**, not just
+the one you write RAPID for:
+
+| Task | Type | Purpose (inferred) |
+|------|------|---------------------|
+| `T_ROB1` | normal, motion task | Your program — runs `MainModule.mod` |
+| `SC_CBC` | semistatic | Built-in, likely safety/collision-related (GoFa's "safety controller"); name uncontirmed beyond the abbreviation |
+| `T_GOFA_LED` | semistatic | Built-in — controls the ASI status light hardware. `T_ROB1`'s own `TrySetLed`/`SETLED` handler works via `SetGO` on signals (`Asi1LedRed` etc.) provided by the `GOFA_ASI_Procedures` SysMod loaded into `T_ROB1` — separate from this task |
+
+`T_ROB1`'s loaded modules (`GET /rw/rapid/tasks/T_ROB1/modules`): `MainModule` (`ProgMod` —
+this project's code), plus `GOFA_ASI_Procedures`, `BASE`, `Wizard_Params` (`SysMod` — ABB/
+system-provided, not part of this repo).
+
+**Multitasking option [3114-1]**, per ABB's OmniCore C-line product manual (3HAC065034-001):
+enables running up to 20 concurrent RAPID tasks (beyond the base motion task), used for things
+like supervising signals or driving peripheral equipment in parallel with robot motion. This
+controller clearly runs 3 tasks, so either Multitasking is installed, or `SC_CBC`/
+`T_GOFA_LED` ship as baseline background tasks on the collaborative-robot bundle regardless of
+that option (not confirmed either way — `GET /rw/rapid/tasks` doesn't expose which option
+gated a given task).
+
+---
+
+## RobotWare Options & Licensing — corrections
+
+**`RobotStudio Connect [3119-1]` is not "PC Interface" and is not about the RWS REST API.**
+Per the product manual: it "allows RobotStudio to connect to the robot using the public
+network interface (WAN)" — i.e. it's about the **RobotStudio desktop application** reaching
+the controller over a network beyond the local service port. "PC Interface" is the old
+IRC5-era option name (`616-1`) for a *different*, non-HTTP protocol (PC SDK) — neither name
+has anything to do with Robot Web Services.
+
+**Robot Web Services itself is a standard, base-included RobotWare feature**, listed in the
+manual's "Communications technology" section alongside socket messaging — no option/license
+attaches to it. If an RWS endpoint 404s, look for an OmniCore RWS-2.0-vs-documented-RWS-1.0
+path/shape difference first (see the `abb-rws` skill's generic-symbol-data investigation)
+before assuming a missing license — that assumption was made once on this project, stated as
+fact without a real source, and was wrong.
+
+**Second, independent confirmation** (RobotStudio's own offline documentation package,
+`ABB.RobotWareDoc.OmniCore-7.10`, Application Manual "Controller Software" 3HAC066554):
+zero mentions of "Robot Web Services" or "RWS" anywhere in that manual (177 pages) or in the
+System Parameters manual 3HAC065041 (857 pages) — confirms the REST API isn't documented in
+RobotWare's bundled/offline docs at all (it's Developer Center-only, online). `RobotStudio
+Connect [3119-1]` does turn up twice there, and both mentions are consistent with the product
+manual: it's what **RAPID Message Queue** (task-to-task or task-to-PC-application messaging
+via PC SDK) runs on, alongside `Multitasking [3114-1]` — still nothing to do with RWS.
+
+*If you download more RobotWare doc packages later looking for the RWS REST API reference:
+don't bother checking the RobotWare Manuals bundle (Controller Software / System Parameters /
+RAPID references) — checked and confirmed empty for this. The `abb-rws` skill's Developer
+Center source is the only place this project has found real RWS 2.0 API detail.*
 
 ---
 

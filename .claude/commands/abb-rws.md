@@ -5,6 +5,43 @@ Applies to: OmniCore C30 controller, RobotWare 7.x
 
 ---
 
+## Development workflow: verify before building
+
+When implementing or changing anything that talks to the real robot — a new RWS endpoint,
+a new RAPID socket command, a fix to how one is called — **always work in this order**:
+
+1. **Look for the right command first.** Curl the RWS endpoint (or send the raw socket
+   command, e.g. via a PowerShell `TcpClient` one-off) against the live controller
+   (`192.168.20.33`) before writing any node code. Confirm it exists, confirm the response
+   shape, confirm it behaves the way you're about to assume it does. Don't trust a
+   remembered/documented path blindly — this OmniCore (RWS 2.0) controller diverges from the
+   general RWS reference in several confirmed places (path-based vs query-based actions;
+   `symbols` vs `symbol`). A handful of well-motivated path variants is a reasonable effort if
+   the first attempt fails; don't guess indefinitely — report a negative result rather than
+   building on an unverified foundation.
+2. **Only build once step 1 succeeds.** If the live test fails, stop and report the finding
+   (with the actual error/response) instead of writing a node around behavior you haven't
+   confirmed.
+3. **After building, test again — against the real robot, not just mocks.** Mocked unit tests
+   prove the code does what you told it to do; they can't catch a wrong assumption about what
+   RWS/RAPID actually returns. Re-run the finished node's logic (not just curl) against the
+   live controller before calling the work done.
+4. **When you explain *why* something failed, verify the explanation too — don't just
+   pattern-match a plausible-sounding cause.** A 404 doesn't announce its own root cause. This
+   file used to claim the generic RAPID symbol endpoint needed a "PC Interface" RobotWare
+   option — that was copied from an old, never-verified code comment, stated as fact, and was
+   wrong on every level (wrong option name for OmniCore, wrong subsystem entirely — see the
+   corrected note under `GET /rw/rapid/tasks/{task}/modules`). It only got caught because the
+   user pushed back and asked for real evidence. Cite an actual source (official manual, the
+   controller's own response, a confirmed working example) before writing a root-cause claim
+   into project docs — not just "it 404'd, so it's probably X."
+
+This is the process that caught `gofa-rapid-exec`'s motors-off false-success bug, confirmed
+`gofa-rapid-tasks` works, and — after initially getting the *reason* wrong — correctly
+diagnosed why a generic RWS variable-write node doesn't (yet) work here.
+
+---
+
 ## Base URL & Transport
 
 ```
@@ -162,7 +199,20 @@ List modules loaded in a task.
 Response: one `<li class="rap-module-info-li">` per module, with span classes `name`, `type` (`ProgMod` = your program module, `SysMod` = system/installed module).  
 No mastership required. This is the closest RWS equivalent to "what program is loaded" — RAPID doesn't have a single-file "program" concept, just a task's set of loaded modules.
 
-> **Generic RAPID symbol data — requires PC Interface, confirmed unavailable without it:** `GET`/`PUT /rw/rapid/symbol/data/RAPID/{task}/{module}/{symbol}` is documented as the generic way to read/write *any* RAPID variable. On a standard OmniCore C30 (no extra RobotWare options) it returns `404 SYS_CTRL_E_UNRESOLVED_URL` — confirmed live, six path variants tried (with/without the `RAPID/` prefix, query-param form, module-relative `symbol/{name}` and `symbol/{name}/data`). This resource requires the paid **PC Interface** option. This project's `gofa-rapid-var-read`/`gofa-rapid-var-write` nodes use the custom TCP `GETVAR:`/`SETVAR:` protocol instead specifically to avoid needing it.
+> **Generic RAPID symbol data — 404s on OmniCore, root cause is NOT licensing (corrected below).**
+>
+> `GET`/`PUT /rw/rapid/symbol/data/RAPID/{task}/{module}/{symbol}` is the documented (RWS 1.0 / IRC5-era) generic way to read/write any RAPID variable. On this OmniCore C30 controller it returns `404 SYS_CTRL_E_UNRESOLVED_URL` for every path variant tried. **An earlier version of this note wrongly blamed a missing "PC Interface" RobotWare option — that was unverified guesswork copied from an old code comment, and it's flatly wrong.** Verified against ABB's own OmniCore C-line product manual (3HAC065034-001): "Robot web services" is listed as a *standard, base-included* RobotWare communications technology (same section as socket messaging, no option/license attached). The actual OmniCore option in this space, **RobotStudio Connect [3119-1]**, is about letting the *RobotStudio desktop app* connect over a public/WAN interface — completely unrelated to the RWS REST API.
+>
+> **What's actually going on:** `GET /rw/rapid` on this controller advertises a `symbols` resource — **plural**, not the singular `symbol` from the endpoint above. This is the same RWS 1.0 (IRC5) vs RWS 2.0 (OmniCore) naming/shape split already documented elsewhere in this file (`execution?action=start` → `execution/start`, IO `?action=set` → `/set`). `/rw/rapid/symbols` is real and implemented (confirmed via its error messages referencing live server source files `rws_resource_rapid_symbols.cpp` / `rws_resource_rapid_module.cpp`, not a stub) — but it's a **search-based** resource (`?action=search-symbols` with `view`/`blockurl`/`regexp`/`posl`/`posc` filters per ABB's docs), not a flat GET-by-name path. Attempts so far and their results:
+> - `GET /rw/rapid/symbols` (with or without any query string, incl. `?action=search-symbols` + full param set) → always **200, empty state** — GET on this resource appears to silently ignore all query params rather than executing a search; self-link in the response never echoes them back
+> - `POST /rw/rapid/symbols?action=search-symbols` (params in query string, body has `view`/`blockurl`/`regexp`/etc) → **405 Method Not Allowed**
+> - `POST /rw/rapid/symbols` (no query string at all, `action=search-symbols` as just another body field alongside `view`/`blockurl`/`regexp`) → **405 Method Not Allowed** — same result regardless of where `action` lives, so it isn't a query-vs-body placement issue
+> - `POST /rw/rapid/symbols/search-symbols` (path-based action, no query) → **404** — not the right path shape either
+> - `GET /rw/rapid/tasks/{task}/modules/{module}/symbol?view=...&posl=...&posc=...` (module-scoped sibling resource, distinct from the root `symbols`) → 200 but always empty, params silently ignored — likely a code-position-scoped browser (for an editor's "what's in scope at line X, col Y", per `posl`/`posc` naming) rather than a name search
+>
+> Since POST is rejected at `/rw/rapid/symbols` itself no matter how the action is expressed, the real invocation almost certainly lives at a different path entirely that hasn't been found yet (not a parameter-encoding problem at the paths tried).
+>
+> **Status: unresolved, not a license blocker.** This project's `gofa-rapid-var-read`/`gofa-rapid-var-write` nodes use the custom TCP `GETVAR:`/`SETVAR:` protocol instead — proven and simple, not a workaround for a missing option. See the `omnicore-c30` skill for the RobotStudio Connect / Multitasking option findings that debunked the original claim. **Do not build a generic RWS variable node on top of this until the real invocation is confirmed working live** — per the workflow above, an unverified 405/404 is not a foundation to build on.
 
 #### Remote Start/Stop — UAS grants (not RMMP)
 
