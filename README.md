@@ -135,10 +135,9 @@ curl -sk -u <username>:<password> -X PUT -H "Content-Type: text/plain;v=2.0" \
 
 ### Load and start on the FlexPendant
 
-1. Key switch → **AUTO** mode
-2. Enable motors (green button or ABB menu → **Production Window** → motors on)
-3. **Program Editor** → **File** → **Load Program** → navigate to `$HOME/Programs/` → select `MainModule.mod`
-4. **PP to Main** → press **Play** (▶)
+1. **Load the module**: **Home** → **Code** → **⋮** (top right) → **Load Module** → navigate to `/HOME/Programs/` → set the file type filter (bottom right) to `.mod` → `MainModule.mod` appears → select it → **Load** (top right) → back to **Home**
+2. **Set Main and check the program**: **Code** → **☰** (hamburger, top left) → **Modules** → select `MainModule` → select `main` → show-menu button (right) → **Check Program** → **Debug** → **PP to Main**
+3. **Start**: **⋮** (top right) → **Control** → **Auto** → **Motors on** → **Play** (▶)
 
 The robot is now listening for socket commands on port **1025**.
 
