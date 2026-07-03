@@ -31,6 +31,7 @@
       "gofa-rapid-exec": "nodes/gofa-rapid-exec.js",
       "gofa-rapid-var-read": "nodes/gofa-rapid-var-read.js",
       "gofa-rapid-var-write": "nodes/gofa-rapid-var-write.js",
+      "gofa-rapid-tasks": "nodes/gofa-rapid-tasks.js",
       "gofa-elog": "nodes/gofa-elog.js",
       "gofa-system-info": "nodes/gofa-system-info.js",
       "gofa-speed-set": "nodes/gofa-speed-set.js",

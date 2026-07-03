@@ -152,6 +152,18 @@ Error `org_code:-4501` = edit mastership not held.
 
 > **OmniCore note:** All three use **path-based** URLs (RWS 2.0). The IRC5 format `POST /rw/rapid/execution?action=start` returns **HTTP 405** on OmniCore.
 
+#### GET /rw/rapid/tasks
+List every RAPID task on the controller.  
+Response: one `<li class="rap-task-li">` per task, with span classes `name`, `type` (normal/semistatic), `taskstate`, `excstate` (started/stopped), and — for the main motion task only — `active`, `motiontask`.  
+No mastership required. On a GoFa 12, expect more than just your program's task — e.g. built-in `SC_CBC` and an ASI-LED-handling task alongside `T_ROB1`.
+
+#### GET /rw/rapid/tasks/{task}/modules
+List modules loaded in a task.  
+Response: one `<li class="rap-module-info-li">` per module, with span classes `name`, `type` (`ProgMod` = your program module, `SysMod` = system/installed module).  
+No mastership required. This is the closest RWS equivalent to "what program is loaded" — RAPID doesn't have a single-file "program" concept, just a task's set of loaded modules.
+
+> **Generic RAPID symbol data — requires PC Interface, confirmed unavailable without it:** `GET`/`PUT /rw/rapid/symbol/data/RAPID/{task}/{module}/{symbol}` is documented as the generic way to read/write *any* RAPID variable. On a standard OmniCore C30 (no extra RobotWare options) it returns `404 SYS_CTRL_E_UNRESOLVED_URL` — confirmed live, six path variants tried (with/without the `RAPID/` prefix, query-param form, module-relative `symbol/{name}` and `symbol/{name}/data`). This resource requires the paid **PC Interface** option. This project's `gofa-rapid-var-read`/`gofa-rapid-var-write` nodes use the custom TCP `GETVAR:`/`SETVAR:` protocol instead specifically to avoid needing it.
+
 #### Remote Start/Stop — UAS grants (not RMMP)
 
 To start/stop RAPID via RWS, the RWS user needs UAS grants, not RMMP privileges:

@@ -267,10 +267,15 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | **gofa-rapid-exec** | RWS | `start` / `stop` / `resetpp` the RAPID program |
 | **gofa-rapid-var-read** | TCP | Read a RAPID PERS variable via `GETVAR:<name>` socket command |
 | **gofa-rapid-var-write** | TCP | Write a RAPID PERS variable via `SETVAR:<name>:<value>` socket command |
+| **gofa-rapid-tasks** | RWS | List RAPID tasks on the controller and the modules loaded in one of them |
 
 > `gofa-rapid-exec` requires the RWS user to have **Remote Start** and **Remote Stop** grants (see Step 2). `resetpp` additionally acquires edit mastership automatically.
 
 > `gofa-rapid-var-read` / `gofa-rapid-var-write` use the TCP socket and work on standard OmniCore C30 without any extra RobotWare options. The variable must be listed in `TryGetVar` / `TrySetVar` in `MainModule.mod`. Built-in test variables: `nTestVar` (num) and `sTestMsg` (string). See [Adding RAPID variables](#adding-rapid-variables) below.
+>
+> **Why not a generic RWS variable read/write node?** RWS has a generic `/rw/rapid/symbol/data/...` endpoint that can read/write any RAPID variable without editing RAPID code, but it requires the paid **PC Interface** RobotWare option (confirmed: `404 SYS_CTRL_E_UNRESOLVED_URL` on a standard OmniCore C30). The socket-based approach above needs no extra license, at the cost of having to allow-list each variable in `MainModule.mod`.
+>
+> `gofa-rapid-tasks` is a plain read (no mastership needed) — useful for confirming what's actually loaded/running on the controller, e.g. after an upload or when a socket command mysteriously times out.
 
 ### Files and I/O
 
@@ -347,6 +352,7 @@ msg.payload  →  node property (editor)  →  built-in default
 | **gofa-delete-point** | `{ name }` or `{ id }` | (property) |
 | **gofa-rapid-var-read** | `{ task, module, variable }` | T_ROB1 / MainModule / (property) |
 | **gofa-rapid-var-write** | bare value · `{ variable, value }` | (property) |
+| **gofa-rapid-tasks** | `{ task }` — overrides which task's modules to list | T_ROB1 / (property) |
 | **gofa-do-write** | `0` or `1` (number) · `{ signal, value }` | signal: DO10_1, value: 0 |
 | **gofa-ao-write** | float (number) · `{ signal, value }` | signal: AO1, value: 0.0 |
 | **gofa-ai-read** | signal name (string) | `AI1` |

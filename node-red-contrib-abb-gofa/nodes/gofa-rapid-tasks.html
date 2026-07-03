@@ -1,0 +1,70 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-rapid-tasks', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:  { value: '' },
+            robot: { value: '', type: 'gofa-robot', required: true },
+            task:  { value: 'T_ROB1' }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || 'RAPID Tasks'; },
+        paletteLabel: 'RAPID Tasks'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-rapid-tasks">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-task"><i class="fa fa-list"></i> Task</label>
+        <input type="text" id="node-input-task" placeholder="T_ROB1">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="RAPID Tasks">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-rapid-tasks">
+    <p>Reads the controller's RAPID tasks and the modules loaded in one of them, via RWS.
+    Useful for confirming what's actually loaded/running on the controller — e.g. after an
+    upload, or when diagnosing why a socket command isn't responding.</p>
+
+    <h3>Input</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span> <span class="property-type">optional</span></dt>
+        <dd><code>{ task: 'T_ROB1' }</code> — overrides which task's modules to list.
+        Any other payload (or none) triggers a read using the <em>Task</em> property.</dd>
+    </dl>
+
+    <h3>Output</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>
+<pre>{
+  ok: true,
+  tasks: [
+    { name: "T_ROB1", type: "normal", taskstate: "initiated",
+      excstate: "started", active: "On", motiontask: "True" },
+    { name: "SC_CBC", type: "semistatic", taskstate: "initiated", excstate: "started" },
+    ...
+  ],
+  task: "T_ROB1",
+  modules: [
+    { name: "MainModule", type: "ProgMod" },
+    { name: "BASE", type: "SysMod" },
+    ...
+  ]
+}</pre>
+        On failure: <code>{ ok: false, error: '...' }</code>
+        </dd>
+    </dl>
+
+    <h3>Notes</h3>
+    <p><code>tasks</code> lists every RAPID task on the controller (a GoFa 12 typically has more
+    than just the one you write RAPID for — e.g. built-in tasks for the ASI status light or
+    collision detection). <code>modules</code> lists what's loaded into the requested task:
+    <code>ProgMod</code> is your program module (e.g. <b>MainModule.mod</b>), <code>SysMod</code>
+    entries are system/installed modules.</p>
+    <p>Both calls are plain reads — no mastership required, safe to poll.</p>
+</script>

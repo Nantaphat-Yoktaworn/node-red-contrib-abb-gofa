@@ -50,7 +50,9 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 
 **RAPID start note**: `POST /rw/rapid/execution/start` returns HTTP 200 even when the controller immediately rejects the start (e.g. RAPID error 20055, "program must start in Motor On state") — the rejection isn't surfaced as an HTTP error, so a naive implementation reports `{ ok: true }` for a start that never ran. `gofa-rapid-exec` guards against this for the `start` action only: it reads `/rw/panel/ctrl-state` first and fails fast if motors aren't on, then polls `/rw/rapid/execution` (`ctrlexecstate`) for up to 1.5s after the POST to confirm it actually reached `running`. `stop`/`resetpp` don't have this silent-rejection failure mode and aren't checked.
 
-## Nodes (41 total)
+**RAPID symbol data note**: RWS's generic `/rw/rapid/symbol/data/RAPID/{task}/{module}/{symbol}` (documented endpoint for reading/writing *any* RAPID variable without touching RAPID code) returns `404 SYS_CTRL_E_UNRESOLVED_URL` on this controller — confirmed live, six path variants tried. Root cause: it requires the paid **PC Interface** RobotWare option, which this project deliberately avoids needing (see README's "no extra RobotWare options required"; `gofa-rapid-var-read.js`'s own comment already flagged this: "works on compiled .modx, no PC Interface needed"). This is why variable read/write goes through the custom TCP `GETVAR:`/`SETVAR:` protocol (allow-listed per variable in `TryGetVar`/`TrySetVar`) instead of a generic RWS node. Side effect: `gofa-subscribe-var`'s "primary: rws" path (`readVar()` in `gofa-subscribe-var.js`) silently 404s and falls through to its module-text-regex fallback on every poll on hardware without PC Interface — `source: 'rws'` in its output is effectively dead on this project's target hardware.
+
+## Nodes (42 total)
 
 | Node | Transport | Description |
 |------|-----------|-------------|
@@ -81,6 +83,7 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 | `gofa-rapid-exec` | RWS | Start/stop/resetPP RAPID program *(requires Remote Start/Stop UAS grants)* |
 | `gofa-rapid-var-read` | Socket | Read a RAPID PERS variable via `GETVAR:<name>` socket command |
 | `gofa-rapid-var-write` | Socket | Write a RAPID PERS variable via `SETVAR:<name>:<value>` socket command |
+| `gofa-rapid-tasks` | RWS | List RAPID tasks and the modules loaded in one of them |
 | `gofa-file-read` | RWS | Download a file from controller filesystem |
 | `gofa-upload-mod` | RWS | Upload a `.mod` file to controller filesystem; auto-syncs `SERVER_IP` to the config node's IP unless disabled |
 | `gofa-io-list` | RWS | List all I/O signals |
@@ -117,6 +120,8 @@ GOTO token rounds to 1 dp (xyz) / 4 dp (quaternion) to stay under RAPID's 80-cha
 | `POST /rw/panel/ctrl-state` | POST | body: `ctrl-state=motoron` or `ctrl-state=motoroff` |
 | `POST /rw/rapid/execution/start` · `/stop` · `/resetpp` | POST | *(requires Remote Start/Stop UAS grants; resetpp also needs edit mastership — acquired automatically)* |
 | `PUT /fileservice/$HOME/Programs/<file>` | PUT | Upload file to controller |
+| `GET /rw/rapid/tasks` | GET | List of RAPID tasks: name, type, taskstate, excstate, active, motiontask |
+| `GET /rw/rapid/tasks/{task}/modules` | GET | Modules loaded in a task: name, type (ProgMod/SysMod) |
 
 ## Default connection settings
 

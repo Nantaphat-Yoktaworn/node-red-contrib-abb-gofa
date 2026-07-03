@@ -10,6 +10,7 @@ var atomicWriteFileSync = robot.atomicWriteFileSync;
 var fileMtimeMs         = robot.fileMtimeMs;
 var resolveMoveType     = robot.resolveMoveType;
 var patchServerIp       = require('./nodes/gofa-upload-mod').patchServerIp;
+var parseLiSpans        = require('./nodes/gofa-rapid-tasks').parseLiSpans;
 
 var passed = 0, failed = 0;
 function check(label, fn) {
@@ -141,6 +142,24 @@ check('parseXhtml: trims whitespace', function() {
 check('parseXhtml: returns null when class not found', function() {
     var body = '<span class="other">value</span>';
     assert.strictEqual(parseXhtml(body, 'ctrlstate'), null);
+});
+
+// ── gofa-rapid-tasks: parseLiSpans (real RWS response samples) ──────────────
+var tasksBody = '<ul><li class="rap-task-li" title="SC_CBC"> <a href="tasks/SC_CBC" rel="self"></a> <span class="name">SC_CBC</span> <span class="type">semistatic</span><span class="taskstate">initiated</span><span class="excstate">started</span></li> <li class="rap-task-li" title="T_ROB1"> <a href="tasks/T_ROB1" rel="self"></a> <span class="name">T_ROB1</span> <span class="type">normal</span><span class="taskstate">initiated</span><span class="excstate">started</span> <span class="active">On</span><span class="motiontask">TRUE</span></li></ul>';
+var modulesBody = '<ul><li class="rap-module-info-li" title="T_ROB1/BASE"><span class="name">BASE</span><span class="type">SysMod</span></li><li class="rap-module-info-li" title="T_ROB1/MainModule"><span class="name">MainModule</span><span class="type">ProgMod</span></li></ul>';
+
+check('parseLiSpans: extracts one object per task li, only listed fields', function() {
+    var tasks = parseLiSpans(tasksBody, 'rap-task-li', ['name', 'type', 'taskstate', 'excstate', 'active', 'motiontask']);
+    assert.strictEqual(tasks.length, 2);
+    assert.deepStrictEqual(tasks[0], { name: 'SC_CBC', type: 'semistatic', taskstate: 'initiated', excstate: 'started' });
+    assert.deepStrictEqual(tasks[1], { name: 'T_ROB1', type: 'normal', taskstate: 'initiated', excstate: 'started', active: 'On', motiontask: 'TRUE' });
+});
+check('parseLiSpans: extracts modules with a different li class/field set', function() {
+    var modules = parseLiSpans(modulesBody, 'rap-module-info-li', ['name', 'type']);
+    assert.deepStrictEqual(modules, [{ name: 'BASE', type: 'SysMod' }, { name: 'MainModule', type: 'ProgMod' }]);
+});
+check('parseLiSpans: returns empty array when no matching li blocks', function() {
+    assert.deepStrictEqual(parseLiSpans('<ul></ul>', 'rap-task-li', ['name']), []);
 });
 
 // ── gofa-robot: atomic points.json writes ───────────────────────────────────
@@ -603,6 +622,50 @@ await checkAsync('gofa-rapid-exec: resetpp acquires mastership and does not chec
     var msg = {};
     await runInput(node, msg);
     assert.deepStrictEqual(msg.payload, { ok: true, action: 'resetpp' });
+});
+
+// gofa-rapid-tasks ───────────────────────────────────────────────────────────
+await checkAsync('gofa-rapid-tasks: reads tasks and the default task\'s modules', async function() {
+    var calls = [];
+    var mockRobot = {
+        rwsGet: function(p) {
+            calls.push(p);
+            if (p === '/rw/rapid/tasks') return Promise.resolve(tasksBody);
+            if (p === '/rw/rapid/tasks/T_ROB1/modules') return Promise.resolve(modulesBody);
+            return Promise.reject(new Error('unexpected GET ' + p));
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-rapid-tasks', { nodesById: { r1: mockRobot } }))({ robot: 'r1', task: 'T_ROB1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.tasks.length, 2);
+    assert.strictEqual(msg.payload.task, 'T_ROB1');
+    assert.deepStrictEqual(msg.payload.modules, [{ name: 'BASE', type: 'SysMod' }, { name: 'MainModule', type: 'ProgMod' }]);
+    assert.deepStrictEqual(calls, ['/rw/rapid/tasks', '/rw/rapid/tasks/T_ROB1/modules']);
+});
+await checkAsync('gofa-rapid-tasks: msg.payload.task overrides which task\'s modules are fetched', async function() {
+    var requestedModulePath;
+    var mockRobot = {
+        rwsGet: function(p) {
+            if (p === '/rw/rapid/tasks') return Promise.resolve(tasksBody);
+            requestedModulePath = p;
+            return Promise.resolve('<ul></ul>');
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-rapid-tasks', { nodesById: { r1: mockRobot } }))({ robot: 'r1', task: 'T_ROB1' });
+    var msg = { payload: { task: 'SC_CBC' } };
+    await runInput(node, msg);
+    assert.strictEqual(requestedModulePath, '/rw/rapid/tasks/SC_CBC/modules');
+    assert.strictEqual(msg.payload.task, 'SC_CBC');
+});
+await checkAsync('gofa-rapid-tasks: reports failure on RWS error', async function() {
+    var mockRobot = { rwsGet: function() { return Promise.reject(new Error('HTTP 500')); } };
+    var node = new (loadNodeType('./nodes/gofa-rapid-tasks', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(msg.payload.error.indexOf('HTTP 500') >= 0);
 });
 
 fs.rmSync(tmpDir, { recursive: true, force: true });
