@@ -41,12 +41,12 @@
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-subscribe-var">
-    <p>Polls the controller every N ms for the RAPID variable value. Send a message to start polling; send again to stop (toggle). Uses a two-stage read: direct symbol endpoint first, falls back to module source text for PERS variables.</p>
+    <p>Polls the controller every N ms for a RAPID variable's value. Send a message to start polling; send again to stop (toggle).</p>
     <h3>Configuration</h3>
     <dl class="message-properties">
         <dt>Task</dt><dd>RAPID task name (default: <code>T_ROB1</code>)</dd>
         <dt>Module</dt><dd>RAPID module name (e.g. <code>MainModule</code>)</dd>
-        <dt>Variable</dt><dd>Variable name (e.g. <code>mySpeed</code>)</dd>
+        <dt>Variable</dt><dd>Variable name (e.g. <code>nTestVar</code>)</dd>
         <dt>Interval (ms)</dt><dd>Poll interval in milliseconds (default: <code>1000</code>)</dd>
     </dl>
     <h3>Input</h3>
@@ -57,7 +57,21 @@
         <dt>task <span class="property-type">string</span></dt><dd>RAPID task name</dd>
         <dt>module <span class="property-type">string</span></dt><dd>RAPID module name</dd>
         <dt>variable <span class="property-type">string</span></dt><dd>Variable name</dd>
-        <dt>value <span class="property-type">string</span></dt><dd>Current variable value</dd>
-        <dt>source <span class="property-type">string</span></dt><dd><code>rws</code> or <code>module-text</code></dd>
+        <dt>value <span class="property-type">string</span></dt><dd>Variable value — see Notes below on how current this is</dd>
+        <dt>source <span class="property-type">string</span></dt><dd>always <code>"module-text"</code></dd>
+        <dt>stale <span class="property-type">boolean</span></dt><dd>always <code>true</code> — see Notes</dd>
+        <dt>warning <span class="property-type">string</span></dt><dd>explains why the value may not be current</dd>
     </dl>
+    <h3>Notes</h3>
+    <p>This node reads the module's source text off the controller filesystem and
+    regex-matches <code>name := value</code>. <b>Confirmed live against a real OmniCore
+    controller that this returns the compiled/declared value, not the variable's current
+    runtime value</b> — writing a new value and polling here still shows the old one until the
+    module is reloaded. RWS's generic live-symbol endpoint 404s on OmniCore (see the
+    <code>abb-rws</code> skill), so there is currently no working way to poll a truly live
+    value for a variable this way. For a genuinely live value, add the variable to
+    <code>TryGetVar</code>/<code>TrySetVar</code> in <code>MainModule.mod</code> and use
+    <code>gofa-rapid-var-read</code> (socket path) instead — this node's poll loop then
+    round-trips a plain RWS file read every interval, which won't reflect changes made via
+    <code>SETVAR</code> either.</p>
 </script>

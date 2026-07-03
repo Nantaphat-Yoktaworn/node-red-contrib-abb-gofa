@@ -668,6 +668,98 @@ await checkAsync('gofa-rapid-tasks: reports failure on RWS error', async functio
     assert.ok(msg.payload.error.indexOf('HTTP 500') >= 0);
 });
 
+// gofa-subscribe-var ─────────────────────────────────────────────────────────
+async function flush() { for (var i = 0; i < 6; i++) await Promise.resolve(); }
+
+await checkAsync('gofa-subscribe-var: reads via module-text only, never attempts the dead RWS symbol path', async function() {
+    var calls = [];
+    var mockRobot = {
+        rwsGet: function(p) {
+            calls.push(p);
+            if (p === '/rw/rapid/tasks/T_ROB1/modules/MainModule/text') {
+                return Promise.resolve('<span class="file-path">TEMP/MainModule.mod</span>');
+            }
+            if (p === '/fileservice/TEMP/MainModule.mod') {
+                return Promise.resolve('PERS num nTestVar := 7;');
+            }
+            return Promise.reject(new Error('unexpected GET ' + p));
+        },
+        parseXhtml: parseXhtml
+    };
+    var node = new (loadNodeType('./nodes/gofa-subscribe-var', { nodesById: { r1: mockRobot } }))(
+        { robot: 'r1', task: 'T_ROB1', module: 'MainModule', variable: 'nTestVar', interval: '100000' });
+    await runInput(node, {}); // toggle on -> first poll fires immediately
+    await flush();
+    node._polling = false; if (node._timer) clearTimeout(node._timer); // stop before the next tick fires
+
+    assert.ok(!calls.some(function(p) { return p.indexOf('/rw/rapid/symbol/data/') >= 0; }), 'must not attempt the dead RWS symbol endpoint');
+    assert.strictEqual(node.sent.length, 1);
+    assert.strictEqual(node.sent[0].payload.value, '7');
+    assert.strictEqual(node.sent[0].payload.source, 'module-text');
+    assert.strictEqual(node.sent[0].payload.stale, true, 'module-text reads must be flagged stale — confirmed live to return the compiled value, not the current one');
+});
+await checkAsync('gofa-subscribe-var: toggles off on the second input without sending another message', async function() {
+    var mockRobot = {
+        rwsGet: function(p) {
+            if (p.indexOf('/text') >= 0) return Promise.resolve('<span class="file-path">TEMP/MainModule.mod</span>');
+            return Promise.resolve('PERS num nTestVar := 1;');
+        },
+        parseXhtml: parseXhtml
+    };
+    var node = new (loadNodeType('./nodes/gofa-subscribe-var', { nodesById: { r1: mockRobot } }))(
+        { robot: 'r1', task: 'T_ROB1', module: 'MainModule', variable: 'nTestVar', interval: '100000' });
+    await runInput(node, {});
+    await flush();
+    assert.strictEqual(node.sent.length, 1);
+    await runInput(node, {}); // toggle off
+    assert.strictEqual(node._polling, false);
+    await flush();
+    assert.strictEqual(node.sent.length, 1, 'no further message after stopping');
+});
+await checkAsync('gofa-subscribe-var: reports an error status when the variable is not found', async function() {
+    var mockRobot = {
+        rwsGet: function(p) {
+            if (p.indexOf('/text') >= 0) return Promise.resolve('<span class="file-path">TEMP/MainModule.mod</span>');
+            return Promise.resolve('PERS num somethingElse := 1;');
+        },
+        parseXhtml: parseXhtml
+    };
+    var node = new (loadNodeType('./nodes/gofa-subscribe-var', { nodesById: { r1: mockRobot } }))(
+        { robot: 'r1', task: 'T_ROB1', module: 'MainModule', variable: 'nTestVar', interval: '100000' });
+    await runInput(node, {});
+    await flush();
+    node._polling = false; if (node._timer) clearTimeout(node._timer);
+    assert.strictEqual(node.sent.length, 0);
+    assert.ok(node.errors.some(function(e) { return e.indexOf('not found') >= 0; }));
+});
+
+// gofa-rapid-var-read ────────────────────────────────────────────────────────
+await checkAsync('gofa-rapid-var-read: uses the live socket value when the variable is known to GETVAR', async function() {
+    var mockRobot = { socketSend: function(cmd) { return Promise.resolve('VAL:9.000000'); } };
+    var node = new (loadNodeType('./nodes/gofa-rapid-var-read', { nodesById: { r1: mockRobot } }))({ robot: 'r1', variable: 'nTestVar' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.deepStrictEqual(msg.payload, { ok: true, variable: 'nTestVar', value: 9, source: 'socket' });
+});
+await checkAsync('gofa-rapid-var-read: falls back to module-text when GETVAR doesn\'t know the variable, flagged stale', async function() {
+    var mockRobot = {
+        socketSend: function() { return Promise.resolve('ERR:UNKNOWN_VAR'); },
+        rwsGet: function(p) {
+            if (p.indexOf('/text') >= 0) return Promise.resolve('<span class="file-path">TEMP/MainModule.mod</span>');
+            return Promise.resolve('PERS num nOther := 42;');
+        },
+        parseXhtml: parseXhtml
+    };
+    var node = new (loadNodeType('./nodes/gofa-rapid-var-read', { nodesById: { r1: mockRobot } }))({ robot: 'r1', variable: 'nOther' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.value, '42');
+    assert.strictEqual(msg.payload.source, 'module-text');
+    assert.strictEqual(msg.payload.stale, true, 'module-text reads must be flagged stale — confirmed live to return the compiled value, not the current one');
+    assert.ok(msg.payload.warning, 'should explain why the value may not be current');
+});
+
 fs.rmSync(tmpDir, { recursive: true, force: true });
 console.log('\n' + passed + ' passed, ' + failed + ' failed.');
 if (failed) process.exit(1);

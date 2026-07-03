@@ -11,41 +11,40 @@ module.exports = function(RED) {
         node._timer   = null;
         node._polling = false;
 
+        // RWS's generic /rw/rapid/symbol/data/RAPID/{task}/{module}/{name} (RWS 1.0 shape)
+        // is confirmed to always 404 on OmniCore — it advertises a different, plural,
+        // search-based /rw/rapid/symbols resource instead (see abb-rws skill). Reading the
+        // module's current text via the fileservice and regex-matching the variable is the
+        // only path that actually works on this hardware, so it's the only one attempted.
+        //
+        // Confirmed live against the real controller that this path is STALE: it reflects the
+        // module's compiled/declared value, not the variable's current runtime value (write via
+        // SETVAR, poll here, and you'll still see the old value). There is currently no working
+        // RWS path to a live value for variables outside the GETVAR allow-list, so this is
+        // reported with a `stale: true` flag rather than silently presented as current.
         function readVar(task, module, variable, cb) {
-            var symPath = '/rw/rapid/symbol/data/RAPID/' +
-                encodeURIComponent(task) + '/' +
-                encodeURIComponent(module) + '/' +
-                encodeURIComponent(variable);
+            var textPath = '/rw/rapid/tasks/' +
+                encodeURIComponent(task) + '/modules/' +
+                encodeURIComponent(module) + '/text';
 
-            node.robot.rwsGet(symPath)
-            .then(function(body) {
-                var value = node.robot.parseXhtml(body, 'value');
-                cb(null, value, 'rws');
+            node.robot.rwsGet(textPath)
+            .then(function(metaBody) {
+                var filePath = node.robot.parseXhtml(metaBody, 'file-path');
+                if (!filePath) throw new Error('Cannot locate module source for ' + module);
+                return node.robot.rwsGet('/fileservice/' + filePath);
             })
-            .catch(function() {
-                var textPath = '/rw/rapid/tasks/' +
-                    encodeURIComponent(task) + '/modules/' +
-                    encodeURIComponent(module) + '/text';
-
-                node.robot.rwsGet(textPath)
-                .then(function(metaBody) {
-                    var filePath = node.robot.parseXhtml(metaBody, 'file-path');
-                    if (!filePath) throw new Error('Cannot locate module source for ' + module);
-                    return node.robot.rwsGet('/fileservice/' + filePath);
-                })
-                .then(function(src) {
-                    var esc = variable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    var re  = new RegExp('\\b' + esc + '\\s*:=\\s*([^;]+);', 'i');
-                    var m   = src.match(re);
-                    if (!m) {
-                        cb(new Error('Variable ' + variable + ' not found in module ' + module));
-                        return;
-                    }
-                    var value = m[1].trim().replace(/^"(.*)"$/, '$1');
-                    cb(null, value, 'module-text');
-                })
-                .catch(function(err2) { cb(err2); });
-            });
+            .then(function(src) {
+                var esc = variable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                var re  = new RegExp('\\b' + esc + '\\s*:=\\s*([^;]+);', 'i');
+                var m   = src.match(re);
+                if (!m) {
+                    cb(new Error('Variable ' + variable + ' not found in module ' + module));
+                    return;
+                }
+                var value = m[1].trim().replace(/^"(.*)"$/, '$1');
+                cb(null, value, 'module-text');
+            })
+            .catch(function(err) { cb(err); });
         }
 
         function startPolling(task, module, variable) {
@@ -67,8 +66,9 @@ module.exports = function(RED) {
                         node.status({ fill: 'red', shape: 'ring', text: 'error' });
                         node.error(err.message);
                     } else {
-                        node.status({ fill: 'green', shape: 'dot', text: variable + '=' + value });
-                        node.send({ payload: { ok: true, task: task, module: module, variable: variable, value: value, source: source } });
+                        node.status({ fill: 'yellow', shape: 'dot', text: variable + '=' + value + ' (stale?)' });
+                        node.send({ payload: { ok: true, task: task, module: module, variable: variable, value: value, source: source, stale: true,
+                            warning: 'value is the compiled/declared value, not necessarily the live current value — add this variable to GETVAR in MainModule.mod for a live read' } });
                     }
                     if (node._polling) {
                         node._timer = setTimeout(poll, node.interval);

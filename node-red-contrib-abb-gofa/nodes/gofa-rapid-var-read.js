@@ -64,8 +64,13 @@ module.exports = function(RED) {
                             ' — add it to the GETVAR handler in MainModule.mod for live value access');
                     }
                     var value = m[1].trim().replace(/^"(.*)"$/, '$1');
-                    msg.payload = { ok: true, variable: variable, value: value, source: 'module-text' };
-                    node.status({ fill: 'green', shape: 'dot', text: variable + ' = ' + value });
+                    // Confirmed live against the real controller: this text export reflects the
+                    // module's compiled/declared value, not the variable's current runtime value
+                    // (write via SETVAR, re-read here, and you'll still see the old value). Flag
+                    // it rather than presenting it with the same confidence as a live socket read.
+                    msg.payload = { ok: true, variable: variable, value: value, source: 'module-text', stale: true,
+                        warning: 'value is the compiled/declared value, not necessarily the live current value — add this variable to GETVAR in MainModule.mod for a live read' };
+                    node.status({ fill: 'yellow', shape: 'ring', text: variable + ' = ' + value + ' (stale?)' });
                     send(msg); done();
                 })
                 .catch(function(err2) {

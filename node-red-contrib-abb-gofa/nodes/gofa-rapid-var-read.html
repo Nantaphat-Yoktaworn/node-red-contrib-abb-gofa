@@ -36,12 +36,12 @@
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-rapid-var-read">
-    <p>Reads the value of a RAPID variable from the robot controller via RWS.</p>
+    <p>Reads the value of a RAPID variable from the robot controller.</p>
     <h3>Configuration</h3>
     <dl class="message-properties">
-        <dt>Task</dt><dd>RAPID task name (default: <code>T_ROB1</code>)</dd>
-        <dt>Module</dt><dd>RAPID module name (default: <code>MainModule</code>)</dd>
-        <dt>Variable</dt><dd>Variable name to read (e.g. <code>mySpeed</code>)</dd>
+        <dt>Task</dt><dd>RAPID task name (default: <code>T_ROB1</code>) — only used for the module-text fallback below</dd>
+        <dt>Module</dt><dd>RAPID module name (default: <code>MainModule</code>) — only used for the module-text fallback below</dd>
+        <dt>Variable</dt><dd>Variable name to read (e.g. <code>nTestVar</code>)</dd>
     </dl>
     <h3>Input</h3>
     <p><code>msg.payload</code> may be an object with <code>{ task, module, variable }</code>
@@ -52,17 +52,28 @@
         <dd><code>true</code> on success, <code>false</code> on error</dd>
         <dt>payload.variable <span class="property-type">string</span></dt>
         <dd>The variable name that was read</dd>
-        <dt>payload.value <span class="property-type">string</span></dt>
-        <dd>The variable value as a string</dd>
-        <dt>payload.raw <span class="property-type">string</span></dt>
-        <dd>Full XHTML response body from the controller</dd>
+        <dt>payload.value <span class="property-type">number | string</span></dt>
+        <dd>The variable's value</dd>
+        <dt>payload.source <span class="property-type">string</span></dt>
+        <dd><code>"socket"</code> (live) or <code>"module-text"</code> (stale — see Notes)</dd>
+        <dt>payload.stale <span class="property-type">boolean</span></dt>
+        <dd>Present and <code>true</code> only when <code>source</code> is <code>"module-text"</code></dd>
+        <dt>payload.warning <span class="property-type">string</span></dt>
+        <dd>Present alongside <code>stale</code>, explains why the value may not be current</dd>
     </dl>
     <h3>Notes</h3>
-    <p>If the controller has the <b>PC Interface</b> RobotWare option, values are read live
-    via <code>/rw/rapid/symbol/data</code>. Otherwise the node falls back to reading the
-    module source text — this works for <code>PERS</code> variables (whose current value is
-    stored in the module file) but will return only the initial value for <code>VAR</code>
-    declarations.</p>
-    <p><code>msg.payload.source</code> will be <code>"rws"</code> or <code>"module-text"</code>
-    so you can tell which path was taken.</p>
+    <p><b>Primary path — live and accurate:</b> the socket <code>GETVAR:&lt;name&gt;</code>
+    command. Only works for variables explicitly added to <code>TryGetVar</code> in
+    <code>MainModule.mod</code> (built-in: <code>nTestVar</code>, <code>sTestMsg</code>). This
+    is what runs when <code>source</code> is <code>"socket"</code> — no caveats, trust it.</p>
+    <p><b>Fallback path — works for any variable, but stale:</b> if the variable isn't in the
+    GETVAR allow-list, this node reads the module's source text off the controller filesystem
+    and regex-matches <code>name := value</code>. <b>Confirmed live against a real OmniCore
+    controller that this returns the compiled/declared value, not the variable's current
+    runtime value</b> — writing a new value and re-reading here still shows the old one. There
+    is currently no working RWS path to a live value for variables outside the GETVAR
+    allow-list (RWS's generic symbol endpoint 404s on OmniCore — see the <code>abb-rws</code>
+    skill), so this fallback is offered for convenience but always marked
+    <code>stale: true</code> rather than presented with false confidence. For a live read, add
+    the variable to <code>TryGetVar</code> instead.</p>
 </script>

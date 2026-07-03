@@ -143,6 +143,14 @@ the one you write RAPID for:
 | `SC_CBC` | semistatic | Built-in, likely safety/collision-related (GoFa's "safety controller"); name uncontirmed beyond the abbreviation |
 | `T_GOFA_LED` | semistatic | Built-in — controls the ASI status light hardware. `T_ROB1`'s own `TrySetLed`/`SETLED` handler works via `SetGO` on signals (`Asi1LedRed` etc.) provided by the `GOFA_ASI_Procedures` SysMod loaded into `T_ROB1` — separate from this task |
 
+**Checked for a conflict with `gofa-asi-led`, none found (~23s window):** set the LED to a
+distinctive solid color via socket `SETLED`, confirmed via RWS (`Asi1LedRed/Green/Blue`
+signals) that it held steady at +0s/+8s/+23s, and the user visually confirmed no change on the
+physical light either. No evidence `T_GOFA_LED` overwrites colors set via this project's
+`SETLED`/`RESETLED` — but this was a short window with the robot otherwise idle; a longer
+observation or a state-change trigger (e.g. a RAPID error, motor on/off) could still reveal
+one if `T_GOFA_LED` reacts to specific events rather than polling continuously.
+
 `T_ROB1`'s loaded modules (`GET /rw/rapid/tasks/T_ROB1/modules`): `MainModule` (`ProgMod` —
 this project's code), plus `GOFA_ASI_Procedures`, `BASE`, `Wizard_Params` (`SysMod` — ABB/
 system-provided, not part of this repo).
