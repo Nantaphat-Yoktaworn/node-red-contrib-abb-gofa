@@ -7,15 +7,44 @@
         "info": ""
     },
     {
-        "id": "6efa757f8eb6b4de",
+        "id": "ddf39a7facd45efe",
         "type": "group",
         "z": "08f5b46ae379bad0",
-        "name": "1 - Read Robot State",
+        "name": "1 - RWS (HTTPS 443)",
         "style": {
             "stroke": "#0099cc",
             "stroke-opacity": "1",
             "fill": "#e8f4f8",
             "fill-opacity": "0.5",
+            "label": true,
+            "label-position": "nw",
+            "color": "#0099cc"
+        },
+        "nodes": [
+            "02f20aa739cb1478",
+            "7d5808facaf72755",
+            "523bcdd0036411cb",
+            "f7d0d36e1c083a16",
+            "7d417214b94fc5a7",
+            "ef294b40f09cc1ed",
+            "f8a8b940376ab91b",
+            "7198e5afe7b422d6"
+        ],
+        "x": 10,
+        "y": 10,
+        "w": 765,
+        "h": 2380
+    },
+    {
+        "id": "02f20aa739cb1478",
+        "type": "group",
+        "z": "08f5b46ae379bad0",
+        "name": "Read Robot State",
+        "style": {
+            "stroke": "#0099cc",
+            "stroke-opacity": "1",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
             "label": true,
             "label-position": "nw",
             "color": "#0099cc"
@@ -32,21 +61,276 @@
             "a9234840b28d5703",
             "bed494f4ef2d9cb2"
         ],
-        "x": 9,
-        "y": 39,
-        "w": 772,
-        "h": 247
+        "x": 40,
+        "y": 70,
+        "w": 690,
+        "h": 245,
+        "g": "ddf39a7facd45efe"
     },
     {
-        "id": "b55ea3d6c2e06b93",
+        "id": "7d5808facaf72755",
         "type": "group",
         "z": "08f5b46ae379bad0",
-        "name": "2 - Move Home / Set Home",
+        "name": "Motor Control",
+        "style": {
+            "stroke": "#0099cc",
+            "stroke-opacity": "1",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
+            "label": true,
+            "label-position": "nw",
+            "color": "#0099cc"
+        },
+        "nodes": [
+            "d4e263089ef26cd5",
+            "695e2fc98e1cf353",
+            "94c76e423494b175",
+            "4450e546dbb53822",
+            "824a72bbd8b23d74",
+            "a9de9f680c8959fa",
+            "a4906a494e3d755b"
+        ],
+        "x": 40,
+        "y": 355,
+        "w": 690,
+        "h": 190,
+        "g": "ddf39a7facd45efe"
+    },
+    {
+        "id": "523bcdd0036411cb",
+        "type": "group",
+        "z": "08f5b46ae379bad0",
+        "name": "Save Point",
+        "style": {
+            "stroke": "#0099cc",
+            "stroke-opacity": "1",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
+            "label": true,
+            "label-position": "nw",
+            "color": "#0099cc"
+        },
+        "nodes": [
+            "f86919c88aa4e591",
+            "a47aa1d9270e4d63",
+            "8a15af31da8fa29d",
+            "d1d873fca48b8179"
+        ],
+        "x": 40,
+        "y": 585,
+        "w": 690,
+        "h": 135,
+        "g": "ddf39a7facd45efe"
+    },
+    {
+        "id": "f7d0d36e1c083a16",
+        "type": "group",
+        "z": "08f5b46ae379bad0",
+        "name": "System, Log & Files",
+        "style": {
+            "stroke": "#0099cc",
+            "stroke-opacity": "1",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
+            "label": true,
+            "label-position": "nw",
+            "color": "#0099cc"
+        },
+        "nodes": [
+            "77ab97f9a9554f86",
+            "0262d4fb93b74869",
+            "38ed547b1df8aed8",
+            "c59850f4b05c204d",
+            "85928c42bdb21748",
+            "553adc05ad2aad92",
+            "97d446f92fd87684",
+            "d6d66dfd29409aaa",
+            "40cc295bbcea070a",
+            "9c50e7342ca7418e",
+            "3f881d352fec8b4b",
+            "982b7ddef2c9f46b",
+            "dd9102dcea4ccef6"
+        ],
+        "x": 40,
+        "y": 760,
+        "w": 690,
+        "h": 300,
+        "g": "ddf39a7facd45efe"
+    },
+    {
+        "id": "7d417214b94fc5a7",
+        "type": "group",
+        "z": "08f5b46ae379bad0",
+        "name": "I/O Signals",
+        "style": {
+            "stroke": "#0099cc",
+            "stroke-opacity": "1",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
+            "label": true,
+            "label-position": "nw",
+            "color": "#0099cc"
+        },
+        "nodes": [
+            "d54d46e4f4d75da7",
+            "aa93ee39491afdea",
+            "c234d84f31e43d23",
+            "f5b2d6c1f808c498",
+            "942c877661144f0f",
+            "2aabfe45542c96bb",
+            "09c76d4d5f00b97a",
+            "60ac642aa637e94f",
+            "f8696607a486e515",
+            "18ebf7c1f87e6160",
+            "9e81c9ae510419c2",
+            "aceaef2c35f1c2d8",
+            "634aa64a8eae9692",
+            "7baaa610f520276c",
+            "a24ee262888cd83a",
+            "a9481d95d12b362a",
+            "9d5827a2cb7f777e"
+        ],
+        "x": 40,
+        "y": 1100,
+        "w": 690,
+        "h": 355,
+        "g": "ddf39a7facd45efe"
+    },
+    {
+        "id": "ef294b40f09cc1ed",
+        "type": "group",
+        "z": "08f5b46ae379bad0",
+        "name": "Lead-through",
+        "style": {
+            "stroke": "#0099cc",
+            "stroke-opacity": "1",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
+            "label": true,
+            "label-position": "nw",
+            "color": "#0099cc"
+        },
+        "nodes": [
+            "46790a352faaca0c",
+            "7bf5942f54eda996",
+            "6e594510d6242c79",
+            "c5910929b5f41396",
+            "c1b0bb0ca1378da1",
+            "c19f2b32477ee11f",
+            "cacf48f16615005c"
+        ],
+        "x": 40,
+        "y": 1495,
+        "w": 690,
+        "h": 190,
+        "g": "ddf39a7facd45efe"
+    },
+    {
+        "id": "f8a8b940376ab91b",
+        "type": "group",
+        "z": "08f5b46ae379bad0",
+        "name": "Real-time Subscriptions",
+        "style": {
+            "stroke": "#0099cc",
+            "stroke-opacity": "1",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
+            "label": true,
+            "label-position": "nw",
+            "color": "#0099cc"
+        },
+        "nodes": [
+            "a64b069f2c96c13d",
+            "6c5ca306c6f10492",
+            "ae567fc23e20c35b",
+            "e875da96515d4973",
+            "52a8970840bed03c",
+            "13031f8511711815",
+            "c2539b438777b9ad",
+            "dedc2b3c0203a0b8",
+            "2b7b22a7f2634d6b",
+            "704df29d067223b7",
+            "60c8a197bd07a117",
+            "8939a35e84cbc5bd",
+            "569ad33614eae2e3"
+        ],
+        "x": 40,
+        "y": 1725,
+        "w": 705,
+        "h": 300,
+        "g": "ddf39a7facd45efe"
+    },
+    {
+        "id": "7198e5afe7b422d6",
+        "type": "group",
+        "z": "08f5b46ae379bad0",
+        "name": "RAPID Execution Control",
+        "style": {
+            "stroke": "#0099cc",
+            "stroke-opacity": "1",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
+            "label": true,
+            "label-position": "nw",
+            "color": "#0099cc"
+        },
+        "nodes": [
+            "4aeca92f79544cf1",
+            "809536b31c66cc90",
+            "2c33863a6308e309",
+            "7b8d9314e8f1f1d2",
+            "e6dd55a40839e852",
+            "0a9c5608e3b2ac79",
+            "213922eb67e496b7",
+            "4185396556f153d8",
+            "9ea1ae20458cbf3f",
+            "9909447faf50b98f"
+        ],
+        "x": 40,
+        "y": 2065,
+        "w": 660,
+        "h": 295,
+        "g": "ddf39a7facd45efe"
+    },
+    {
+        "id": "43809a414eac99f5",
+        "type": "group",
+        "z": "08f5b46ae379bad0",
+        "name": "2 - TCP Socket (port 1025)",
         "style": {
             "stroke": "#00aa44",
             "stroke-opacity": "1",
             "fill": "#e8f5ec",
             "fill-opacity": "0.5",
+            "label": true,
+            "label-position": "nw",
+            "color": "#00aa44"
+        },
+        "nodes": [
+            "8003b2b082186ea0",
+            "42b42a89736d5e7c",
+            "e1a94073e7ee4df9",
+            "a3101dd7efcb9af0",
+            "7be2a12fbae30fa8",
+            "2ed3903228d3b214",
+            "c6d990e280c9fb6c",
+            "a8f59b69c2fa1e4a"
+        ],
+        "x": 825,
+        "y": 10,
+        "w": 750,
+        "h": 2397
+    },
+    {
+        "id": "8003b2b082186ea0",
+        "type": "group",
+        "z": "08f5b46ae379bad0",
+        "name": "Move Home / Set Home",
+        "style": {
+            "stroke": "#00aa44",
+            "stroke-opacity": "1",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
             "label": true,
             "label-position": "nw",
             "color": "#00aa44"
@@ -60,52 +344,25 @@
             "9fa0426fd871fb56",
             "9fe967eb4ebd0fe4"
         ],
-        "x": 14,
-        "y": 299,
-        "w": 817,
-        "h": 199
+        "x": 855,
+        "y": 70,
+        "w": 690,
+        "h": 197,
+        "g": "43809a414eac99f5"
     },
     {
-        "id": "b22d9e61ec3ef436",
+        "id": "42b42a89736d5e7c",
         "type": "group",
         "z": "08f5b46ae379bad0",
-        "name": "3 - Motor Control",
+        "name": "Cartesian Jog",
         "style": {
-            "stroke": "#ff6600",
+            "stroke": "#00aa44",
             "stroke-opacity": "1",
-            "fill": "#fff0e8",
-            "fill-opacity": "0.5",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
             "label": true,
             "label-position": "nw",
-            "color": "#ff6600"
-        },
-        "nodes": [
-            "d4e263089ef26cd5",
-            "695e2fc98e1cf353",
-            "94c76e423494b175",
-            "4450e546dbb53822",
-            "824a72bbd8b23d74",
-            "a9de9f680c8959fa",
-            "a4906a494e3d755b"
-        ],
-        "x": 14,
-        "y": 519,
-        "w": 787,
-        "h": 192
-    },
-    {
-        "id": "621d3a84b4813c70",
-        "type": "group",
-        "z": "08f5b46ae379bad0",
-        "name": "4 - Cartesian Jog",
-        "style": {
-            "stroke": "#6600cc",
-            "stroke-opacity": "1",
-            "fill": "#f0e8ff",
-            "fill-opacity": "0.5",
-            "label": true,
-            "label-position": "nw",
-            "color": "#6600cc"
+            "color": "#00aa44"
         },
         "nodes": [
             "fb777ca185f1491e",
@@ -122,24 +379,25 @@
             "db2e16a626bd1c43",
             "c2e784c3019e4cfc"
         ],
-        "x": 14,
-        "y": 739,
-        "w": 837,
-        "h": 302
+        "x": 855,
+        "y": 307,
+        "w": 690,
+        "h": 300,
+        "g": "43809a414eac99f5"
     },
     {
-        "id": "9450844589f3cc3b",
+        "id": "e1a94073e7ee4df9",
         "type": "group",
         "z": "08f5b46ae379bad0",
-        "name": "5 - Joint Jog",
+        "name": "Joint Jog",
         "style": {
-            "stroke": "#009999",
+            "stroke": "#00aa44",
             "stroke-opacity": "1",
-            "fill": "#e8f5f5",
-            "fill-opacity": "0.5",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
             "label": true,
             "label-position": "nw",
-            "color": "#009999"
+            "color": "#00aa44"
         },
         "nodes": [
             "802d892946f03412",
@@ -150,84 +408,22 @@
             "efa1b9a68a0f9225",
             "6958ee151f683f81"
         ],
-        "x": 14,
-        "y": 1059,
-        "w": 767,
-        "h": 192
+        "x": 855,
+        "y": 647,
+        "w": 690,
+        "h": 190,
+        "g": "43809a414eac99f5"
     },
     {
-        "id": "aebc7d8025a15a6c",
+        "id": "a3101dd7efcb9af0",
         "type": "group",
         "z": "08f5b46ae379bad0",
-        "name": "6 - Saved Points",
-        "style": {
-            "stroke": "#007744",
-            "stroke-opacity": "1",
-            "fill": "#e8f5ee",
-            "fill-opacity": "0.5",
-            "label": true,
-            "label-position": "nw",
-            "color": "#007744"
-        },
-        "nodes": [
-            "f86919c88aa4e591",
-            "a47aa1d9270e4d63",
-            "8a15af31da8fa29d",
-            "d1d873fca48b8179",
-            "6478e7781d7622dc",
-            "62ce2c83f922715d",
-            "666a09f4a86b1e86",
-            "fb9f7eea7696e42c",
-            "a4492942585fb9f6",
-            "0bc2884c0e3c54c0",
-            "fb211e6b1b90f2e8",
-            "57db523c8431d101",
-            "b70f96b2c70f009e"
-        ],
-        "x": 14,
-        "y": 1279,
-        "w": 917,
-        "h": 302
-    },
-    {
-        "id": "939e565b9375950b",
-        "type": "group",
-        "z": "08f5b46ae379bad0",
-        "name": "7 - Sequence Runner",
-        "style": {
-            "stroke": "#cc0044",
-            "stroke-opacity": "1",
-            "fill": "#ffe8ee",
-            "fill-opacity": "0.5",
-            "label": true,
-            "label-position": "nw",
-            "color": "#cc0044"
-        },
-        "nodes": [
-            "7baa4181f6a6215f",
-            "8753b79a708764d7",
-            "c5bc1905303759a5",
-            "4c8e442b34976b41",
-            "83e30323fd0929e3",
-            "5c9a981ced248162",
-            "014e6b5e2295b80f",
-            "68b5a31875bdb44f"
-        ],
-        "x": 14,
-        "y": 1599,
-        "w": 967,
-        "h": 247
-    },
-    {
-        "id": "ce386d0a14edb1c3",
-        "type": "group",
-        "z": "08f5b46ae379bad0",
-        "name": "8 - TCP Motion (new)",
+        "name": "TCP Motion",
         "style": {
             "stroke": "#00aa44",
             "stroke-opacity": "1",
-            "fill": "#e8f5ec",
-            "fill-opacity": "0.5",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
             "label": true,
             "label-position": "nw",
             "color": "#00aa44"
@@ -253,26 +449,28 @@
             "5fe1b12a6a8bc182",
             "1675f30f22b895f8"
         ],
-        "x": 854,
-        "y": 39,
-        "w": 887,
-        "h": 412
+        "x": 855,
+        "y": 877,
+        "w": 690,
+        "h": 410,
+        "g": "43809a414eac99f5"
     },
     {
-        "id": "95885e1dae1670e1",
+        "id": "7be2a12fbae30fa8",
         "type": "group",
         "z": "08f5b46ae379bad0",
-        "name": "9 - Speed & RAPID Control (new)",
+        "name": "Speed & RAPID Variables",
         "style": {
-            "stroke": "#6600cc",
+            "stroke": "#00aa44",
             "stroke-opacity": "1",
-            "fill": "#f0e8ff",
-            "fill-opacity": "0.5",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
             "label": true,
             "label-position": "nw",
-            "color": "#6600cc"
+            "color": "#00aa44"
         },
         "nodes": [
+            "ec0efcba089239f0",
             "46a79067828c8e24",
             "91c0b8dedc6ee07d",
             "08b9ef17da3783ee",
@@ -285,123 +483,163 @@
             "d36bcbfb3b85e8ea",
             "d8b18774c89eeca9",
             "792f357a51abc7cf",
-            "e2ac0ab0e596fab9",
-            "354b13c7e1b27a40"
+            "cf962b6f180fe957",
+            "354b13c7e1b27a40",
+            "e2ac0ab0e596fab9"
         ],
-        "x": 974,
-        "y": 479,
-        "w": 727,
-        "h": 307
+        "x": 855,
+        "y": 1327,
+        "w": 635,
+        "h": 360,
+        "g": "43809a414eac99f5"
     },
     {
-        "id": "95115084ad496f64",
+        "id": "2ed3903228d3b214",
         "type": "group",
         "z": "08f5b46ae379bad0",
-        "name": "10 - System, Log & Files (new)",
+        "name": "Go To Point",
         "style": {
-            "stroke": "#0099cc",
+            "stroke": "#00aa44",
             "stroke-opacity": "1",
-            "fill": "#e8f4f8",
-            "fill-opacity": "0.5",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
             "label": true,
             "label-position": "nw",
-            "color": "#0099cc"
+            "color": "#00aa44"
         },
         "nodes": [
-            "77ab97f9a9554f86",
-            "0262d4fb93b74869",
-            "38ed547b1df8aed8",
-            "c59850f4b05c204d",
-            "85928c42bdb21748",
-            "553adc05ad2aad92",
-            "97d446f92fd87684",
-            "d6d66dfd29409aaa",
-            "40cc295bbcea070a",
-            "9c50e7342ca7418e",
-            "3f881d352fec8b4b",
-            "982b7ddef2c9f46b",
-            "dd9102dcea4ccef6"
+            "535dd1860f16d3ce",
+            "fb9f7eea7696e42c",
+            "a4492942585fb9f6",
+            "0bc2884c0e3c54c0"
         ],
-        "x": 874,
-        "y": 819,
-        "w": 987,
-        "h": 302
+        "x": 855,
+        "y": 1727,
+        "w": 690,
+        "h": 135,
+        "g": "43809a414eac99f5"
     },
     {
-        "id": "78704319019a587d",
+        "id": "c6d990e280c9fb6c",
         "type": "group",
         "z": "08f5b46ae379bad0",
-        "name": "11 - I/O Signals (new)",
+        "name": "Sequence Runner",
         "style": {
-            "stroke": "#ff6600",
+            "stroke": "#00aa44",
             "stroke-opacity": "1",
-            "fill": "#fff0e8",
-            "fill-opacity": "0.5",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
             "label": true,
             "label-position": "nw",
-            "color": "#ff6600"
+            "color": "#00aa44"
         },
         "nodes": [
-            "d54d46e4f4d75da7",
-            "aa93ee39491afdea",
-            "c234d84f31e43d23",
-            "f5b2d6c1f808c498",
-            "942c877661144f0f",
-            "2aabfe45542c96bb",
-            "09c76d4d5f00b97a",
-            "60ac642aa637e94f",
-            "f8696607a486e515",
-            "18ebf7c1f87e6160",
-            "aceaef2c35f1c2d8",
-            "634aa64a8eae9692",
-            "7baaa610f520276c",
-            "a24ee262888cd83a",
-            "a9481d95d12b362a",
-            "9d5827a2cb7f777e"
+            "7baa4181f6a6215f",
+            "8753b79a708764d7",
+            "c5bc1905303759a5",
+            "4c8e442b34976b41",
+            "83e30323fd0929e3",
+            "5c9a981ced248162",
+            "014e6b5e2295b80f",
+            "68b5a31875bdb44f"
         ],
-        "x": 974,
-        "y": 1139,
-        "w": 1152,
-        "h": 357
+        "x": 855,
+        "y": 1902,
+        "w": 690,
+        "h": 245,
+        "g": "43809a414eac99f5"
     },
     {
-        "id": "ca25a46575f6e6b8",
+        "id": "a8f59b69c2fa1e4a",
         "type": "group",
         "z": "08f5b46ae379bad0",
-        "name": "12 - Lead-through (new)",
+        "name": "ASI Status LED",
         "style": {
-            "stroke": "#cc0044",
+            "stroke": "#00aa44",
             "stroke-opacity": "1",
-            "fill": "#ffe8ee",
-            "fill-opacity": "0.5",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
             "label": true,
             "label-position": "nw",
-            "color": "#cc0044"
+            "color": "#00aa44"
         },
         "nodes": [
-            "46790a352faaca0c",
-            "7bf5942f54eda996",
-            "6e594510d6242c79",
-            "c5910929b5f41396",
-            "c1b0bb0ca1378da1",
-            "c19f2b32477ee11f",
-            "cacf48f16615005c"
+            "936688ee320b30fd",
+            "f7327c01cdfa4f2b",
+            "2d60d56b4a97e997",
+            "490d619dac46bc07",
+            "f0bc60d39cc132eb",
+            "5e59a833c5f230a0",
+            "a35a14fe914e0b0d"
         ],
-        "x": 994,
-        "y": 1519,
-        "w": 872,
-        "h": 192
+        "x": 855,
+        "y": 2187,
+        "w": 690,
+        "h": 190,
+        "g": "43809a414eac99f5"
     },
     {
-        "id": "fca205bc4645be7d",
+        "id": "73150fb47d555f62",
         "type": "group",
         "z": "08f5b46ae379bad0",
-        "name": "13 - Points Transfer (new)",
+        "name": "3 - Local (No Network)",
         "style": {
             "stroke": "#009999",
             "stroke-opacity": "1",
             "fill": "#e8f5f5",
             "fill-opacity": "0.5",
+            "label": true,
+            "label-position": "nw",
+            "color": "#009999"
+        },
+        "nodes": [
+            "01563c802b1192d1",
+            "a9c28bd89cdaff24"
+        ],
+        "x": 1625,
+        "y": 10,
+        "w": 750,
+        "h": 565
+    },
+    {
+        "id": "01563c802b1192d1",
+        "type": "group",
+        "z": "08f5b46ae379bad0",
+        "name": "Point List & Delete",
+        "style": {
+            "stroke": "#009999",
+            "stroke-opacity": "1",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
+            "label": true,
+            "label-position": "nw",
+            "color": "#009999"
+        },
+        "nodes": [
+            "365fa4a9141c280d",
+            "6478e7781d7622dc",
+            "62ce2c83f922715d",
+            "666a09f4a86b1e86",
+            "fb211e6b1b90f2e8",
+            "57db523c8431d101",
+            "b70f96b2c70f009e"
+        ],
+        "x": 1655,
+        "y": 70,
+        "w": 690,
+        "h": 245,
+        "g": "73150fb47d555f62"
+    },
+    {
+        "id": "a9c28bd89cdaff24",
+        "type": "group",
+        "z": "08f5b46ae379bad0",
+        "name": "Points Transfer",
+        "style": {
+            "stroke": "#009999",
+            "stroke-opacity": "1",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
             "label": true,
             "label-position": "nw",
             "color": "#009999"
@@ -415,92 +653,28 @@
             "d743bf3886792049",
             "c7fe26fb1f5892a1"
         ],
-        "x": 1014,
-        "y": 1739,
-        "w": 1072,
-        "h": 192
-    },
-    {
-        "id": "eb77a9bd9c4a0f0f",
-        "type": "group",
-        "z": "08f5b46ae379bad0",
-        "name": "14 - Real-time Subscriptions (new)",
-        "style": {
-            "stroke": "#003399",
-            "stroke-opacity": "1",
-            "fill": "#e8eeff",
-            "fill-opacity": "0.5",
-            "label": true,
-            "label-position": "nw",
-            "color": "#003399"
-        },
-        "nodes": [
-            "a64b069f2c96c13d",
-            "6c5ca306c6f10492",
-            "ae567fc23e20c35b",
-            "e875da96515d4973",
-            "52a8970840bed03c",
-            "13031f8511711815",
-            "c2539b438777b9ad",
-            "dedc2b3c0203a0b8",
-            "2b7b22a7f2634d6b",
-            "704df29d067223b7",
-            "60c8a197bd07a117",
-            "8939a35e84cbc5bd",
-            "569ad33614eae2e3"
-        ],
-        "x": 994,
-        "y": 1959,
-        "w": 1052,
-        "h": 302
-    },
-    {
-        "id": "558444dd40c0ccd4",
-        "type": "group",
-        "z": "08f5b46ae379bad0",
-        "name": "15 - RAPID Execution Control",
-        "style": {
-            "stroke": "#cc6600",
-            "stroke-opacity": "1",
-            "fill": "#fff5e8",
-            "fill-opacity": "0.5",
-            "label": true,
-            "label-position": "nw",
-            "color": "#cc6600"
-        },
-        "nodes": [
-            "4aeca92f79544cf1",
-            "2c33863a6308e309",
-            "7b8d9314e8f1f1d2",
-            "809536b31c66cc90",
-            "0a9c5608e3b2ac79",
-            "213922eb67e496b7",
-            "e6dd55a40839e852",
-            "9909447faf50b98f",
-            "4185396556f153d8",
-            "9ea1ae20458cbf3f"
-        ],
-        "x": 704,
-        "y": 2284,
-        "w": 1392,
-        "h": 297
+        "x": 1655,
+        "y": 355,
+        "w": 690,
+        "h": 190,
+        "g": "73150fb47d555f62"
     },
     {
         "id": "a8f41093367be720",
         "type": "comment",
         "z": "08f5b46ae379bad0",
-        "g": "6efa757f8eb6b4de",
+        "g": "02f20aa739cb1478",
         "name": "Input: any msg  |  Output: ctrlstate / opmode / speed / rapid / x,y,z / j1-j6",
         "info": "",
-        "x": 290,
-        "y": 80,
+        "x": 245,
+        "y": 110,
         "wires": []
     },
     {
         "id": "fc09b35bf2c82ae0",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "6efa757f8eb6b4de",
+        "g": "02f20aa739cb1478",
         "name": "Read Status",
         "props": [
             {
@@ -514,8 +688,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 125,
-        "y": 135,
+        "x": 80,
+        "y": 165,
         "wires": [
             [
                 "26fc174d27c4b390"
@@ -526,11 +700,11 @@
         "id": "26fc174d27c4b390",
         "type": "gofa-status",
         "z": "08f5b46ae379bad0",
-        "g": "6efa757f8eb6b4de",
+        "g": "02f20aa739cb1478",
         "name": "",
         "robot": "cfg1",
-        "x": 360,
-        "y": 135,
+        "x": 315,
+        "y": 165,
         "wires": [
             [
                 "eb366bf816928c58"
@@ -541,7 +715,7 @@
         "id": "eb366bf816928c58",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "6efa757f8eb6b4de",
+        "g": "02f20aa739cb1478",
         "name": "{ ctrlstate, opmode, speed, rapid }",
         "active": true,
         "tosidebar": true,
@@ -549,15 +723,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 595,
-        "y": 135,
+        "x": 550,
+        "y": 165,
         "wires": []
     },
     {
         "id": "d13bf1eb41652f57",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "6efa757f8eb6b4de",
+        "g": "02f20aa739cb1478",
         "name": "Read Pose",
         "props": [
             {
@@ -571,8 +745,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 125,
-        "y": 190,
+        "x": 80,
+        "y": 220,
         "wires": [
             [
                 "7c4ada756e9365cc"
@@ -583,11 +757,11 @@
         "id": "7c4ada756e9365cc",
         "type": "gofa-pose",
         "z": "08f5b46ae379bad0",
-        "g": "6efa757f8eb6b4de",
+        "g": "02f20aa739cb1478",
         "name": "",
         "robot": "cfg1",
-        "x": 360,
-        "y": 190,
+        "x": 315,
+        "y": 220,
         "wires": [
             [
                 "850d69e7759eaeb2"
@@ -598,7 +772,7 @@
         "id": "850d69e7759eaeb2",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "6efa757f8eb6b4de",
+        "g": "02f20aa739cb1478",
         "name": "{ x, y, z, q1-q4, cf1/4/6/x }",
         "active": true,
         "tosidebar": true,
@@ -606,15 +780,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 595,
-        "y": 190,
+        "x": 550,
+        "y": 220,
         "wires": []
     },
     {
         "id": "8631282940098f50",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "6efa757f8eb6b4de",
+        "g": "02f20aa739cb1478",
         "name": "Read Joints",
         "props": [
             {
@@ -628,8 +802,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 125,
-        "y": 245,
+        "x": 80,
+        "y": 275,
         "wires": [
             [
                 "a9234840b28d5703"
@@ -640,11 +814,11 @@
         "id": "a9234840b28d5703",
         "type": "gofa-joints",
         "z": "08f5b46ae379bad0",
-        "g": "6efa757f8eb6b4de",
+        "g": "02f20aa739cb1478",
         "name": "",
         "robot": "cfg1",
-        "x": 360,
-        "y": 245,
+        "x": 315,
+        "y": 275,
         "wires": [
             [
                 "bed494f4ef2d9cb2"
@@ -655,7 +829,7 @@
         "id": "bed494f4ef2d9cb2",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "6efa757f8eb6b4de",
+        "g": "02f20aa739cb1478",
         "name": "{ j1, j2, j3, j4, j5, j6 } degrees",
         "active": true,
         "tosidebar": true,
@@ -663,26 +837,26 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 595,
-        "y": 245,
+        "x": 550,
+        "y": 275,
         "wires": []
     },
     {
         "id": "254ed5cae40809a3",
         "type": "comment",
         "z": "08f5b46ae379bad0",
-        "g": "b55ea3d6c2e06b93",
+        "g": "8003b2b082186ea0",
         "name": "HOME: robot moves to saved home position  |  SETHOME: saves current pose as the new home",
         "info": "",
-        "x": 370,
-        "y": 340,
+        "x": 1070,
+        "y": 110,
         "wires": []
     },
     {
         "id": "d866c29430d7253f",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "b55ea3d6c2e06b93",
+        "g": "8003b2b082186ea0",
         "name": "Move HOME",
         "props": [
             {
@@ -696,8 +870,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 195,
-        "y": 402,
+        "x": 895,
+        "y": 172,
         "wires": [
             [
                 "ef4dc1023e30fbd5"
@@ -708,12 +882,12 @@
         "id": "ef4dc1023e30fbd5",
         "type": "gofa-move",
         "z": "08f5b46ae379bad0",
-        "g": "b55ea3d6c2e06b93",
+        "g": "8003b2b082186ea0",
         "name": "HOME",
         "robot": "cfg1",
         "command": "HOME",
-        "x": 430,
-        "y": 402,
+        "x": 1130,
+        "y": 172,
         "wires": [
             [
                 "62086bca420c7177"
@@ -724,7 +898,7 @@
         "id": "62086bca420c7177",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "b55ea3d6c2e06b93",
+        "g": "8003b2b082186ea0",
         "name": "{ ok, ack:'OK:HOME' }",
         "active": true,
         "tosidebar": true,
@@ -732,15 +906,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 665,
-        "y": 402,
+        "x": 1365,
+        "y": 172,
         "wires": []
     },
     {
         "id": "98e77329e4cebe1d",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "b55ea3d6c2e06b93",
+        "g": "8003b2b082186ea0",
         "name": "Set Home (here)",
         "props": [
             {
@@ -754,8 +928,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 195,
-        "y": 457,
+        "x": 895,
+        "y": 227,
         "wires": [
             [
                 "9fa0426fd871fb56"
@@ -766,12 +940,12 @@
         "id": "9fa0426fd871fb56",
         "type": "gofa-move",
         "z": "08f5b46ae379bad0",
-        "g": "b55ea3d6c2e06b93",
+        "g": "8003b2b082186ea0",
         "name": "SETHOME",
         "robot": "cfg1",
         "command": "SETHOME",
-        "x": 430,
-        "y": 457,
+        "x": 1130,
+        "y": 227,
         "wires": [
             [
                 "9fe967eb4ebd0fe4"
@@ -782,7 +956,7 @@
         "id": "9fe967eb4ebd0fe4",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "b55ea3d6c2e06b93",
+        "g": "8003b2b082186ea0",
         "name": "{ ok, ack:'OK:SETHOME' }",
         "active": true,
         "tosidebar": true,
@@ -790,26 +964,26 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 665,
-        "y": 457,
+        "x": 1365,
+        "y": 227,
         "wires": []
     },
     {
         "id": "d4e263089ef26cd5",
         "type": "comment",
         "z": "08f5b46ae379bad0",
-        "g": "b22d9e61ec3ef436",
+        "g": "7d5808facaf72755",
         "name": "Controls motor power via RWS  |  Override: msg.payload.action = 'motoron' | 'motoroff'",
         "info": "",
-        "x": 330,
-        "y": 560,
+        "x": 245,
+        "y": 395,
         "wires": []
     },
     {
         "id": "695e2fc98e1cf353",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "b22d9e61ec3ef436",
+        "g": "7d5808facaf72755",
         "name": "Motors ON",
         "props": [
             {
@@ -823,8 +997,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 165,
-        "y": 615,
+        "x": 80,
+        "y": 450,
         "wires": [
             [
                 "94c76e423494b175"
@@ -835,12 +1009,12 @@
         "id": "94c76e423494b175",
         "type": "gofa-motor",
         "z": "08f5b46ae379bad0",
-        "g": "b22d9e61ec3ef436",
+        "g": "7d5808facaf72755",
         "name": "Motors ON",
         "robot": "cfg1",
         "action": "motoron",
-        "x": 400,
-        "y": 615,
+        "x": 315,
+        "y": 450,
         "wires": [
             [
                 "4450e546dbb53822"
@@ -851,7 +1025,7 @@
         "id": "4450e546dbb53822",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "b22d9e61ec3ef436",
+        "g": "7d5808facaf72755",
         "name": "{ ok:true, action:'motoron' }",
         "active": true,
         "tosidebar": true,
@@ -859,15 +1033,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 635,
-        "y": 615,
+        "x": 550,
+        "y": 450,
         "wires": []
     },
     {
         "id": "824a72bbd8b23d74",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "b22d9e61ec3ef436",
+        "g": "7d5808facaf72755",
         "name": "Motors OFF",
         "props": [
             {
@@ -881,8 +1055,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 165,
-        "y": 670,
+        "x": 80,
+        "y": 505,
         "wires": [
             [
                 "a9de9f680c8959fa"
@@ -893,12 +1067,12 @@
         "id": "a9de9f680c8959fa",
         "type": "gofa-motor",
         "z": "08f5b46ae379bad0",
-        "g": "b22d9e61ec3ef436",
+        "g": "7d5808facaf72755",
         "name": "Motors OFF",
         "robot": "cfg1",
         "action": "motoroff",
-        "x": 400,
-        "y": 670,
+        "x": 315,
+        "y": 505,
         "wires": [
             [
                 "a4906a494e3d755b"
@@ -909,7 +1083,7 @@
         "id": "a4906a494e3d755b",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "b22d9e61ec3ef436",
+        "g": "7d5808facaf72755",
         "name": "{ ok:true, action:'motoroff' }",
         "active": true,
         "tosidebar": true,
@@ -917,26 +1091,26 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 635,
-        "y": 670,
+        "x": 550,
+        "y": 505,
         "wires": []
     },
     {
         "id": "fb777ca185f1491e",
         "type": "comment",
         "z": "08f5b46ae379bad0",
-        "g": "621d3a84b4813c70",
+        "g": "42b42a89736d5e7c",
         "name": "Moves TCP relative to current pose  |  X/Y/Z = base frame mm (max 50)  |  RX/RY/RZ = tool frame deg (max 30)",
         "info": "",
-        "x": 410,
-        "y": 780,
+        "x": 1060,
+        "y": 347,
         "wires": []
     },
     {
         "id": "47d460e2889dcbed",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "621d3a84b4813c70",
+        "g": "42b42a89736d5e7c",
         "name": "Jog X +20 mm",
         "props": [
             {
@@ -950,8 +1124,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 245,
-        "y": 835,
+        "x": 895,
+        "y": 402,
         "wires": [
             [
                 "2aa0c4bc221998be"
@@ -962,14 +1136,14 @@
         "id": "2aa0c4bc221998be",
         "type": "gofa-jog",
         "z": "08f5b46ae379bad0",
-        "g": "621d3a84b4813c70",
+        "g": "42b42a89736d5e7c",
         "name": "Jog X +20 mm",
         "robot": "cfg1",
         "axis": "X",
         "dir": "+",
         "step": 20,
-        "x": 480,
-        "y": 835,
+        "x": 1130,
+        "y": 402,
         "wires": [
             [
                 "483877edddba7e7a"
@@ -980,7 +1154,7 @@
         "id": "483877edddba7e7a",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "621d3a84b4813c70",
+        "g": "42b42a89736d5e7c",
         "name": "{ ok, ack, token }",
         "active": true,
         "tosidebar": true,
@@ -988,15 +1162,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 715,
-        "y": 835,
+        "x": 1365,
+        "y": 402,
         "wires": []
     },
     {
         "id": "f4a5ee4c5b0506eb",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "621d3a84b4813c70",
+        "g": "42b42a89736d5e7c",
         "name": "Jog Y +20 mm",
         "props": [
             {
@@ -1010,8 +1184,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 245,
-        "y": 890,
+        "x": 895,
+        "y": 457,
         "wires": [
             [
                 "822b3ccfdbaed159"
@@ -1022,14 +1196,14 @@
         "id": "822b3ccfdbaed159",
         "type": "gofa-jog",
         "z": "08f5b46ae379bad0",
-        "g": "621d3a84b4813c70",
+        "g": "42b42a89736d5e7c",
         "name": "Jog Y +20 mm",
         "robot": "cfg1",
         "axis": "Y",
         "dir": "+",
         "step": 20,
-        "x": 480,
-        "y": 890,
+        "x": 1130,
+        "y": 457,
         "wires": [
             [
                 "80b64825031bc030"
@@ -1040,7 +1214,7 @@
         "id": "80b64825031bc030",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "621d3a84b4813c70",
+        "g": "42b42a89736d5e7c",
         "name": "{ ok, ack, token }",
         "active": true,
         "tosidebar": true,
@@ -1048,15 +1222,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 715,
-        "y": 890,
+        "x": 1365,
+        "y": 457,
         "wires": []
     },
     {
         "id": "3b144dde667fb24a",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "621d3a84b4813c70",
+        "g": "42b42a89736d5e7c",
         "name": "Jog Z +20 mm",
         "props": [
             {
@@ -1070,8 +1244,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 245,
-        "y": 945,
+        "x": 895,
+        "y": 512,
         "wires": [
             [
                 "fe6b8d898444e9e6"
@@ -1082,14 +1256,14 @@
         "id": "fe6b8d898444e9e6",
         "type": "gofa-jog",
         "z": "08f5b46ae379bad0",
-        "g": "621d3a84b4813c70",
+        "g": "42b42a89736d5e7c",
         "name": "Jog Z +20 mm",
         "robot": "cfg1",
         "axis": "Z",
         "dir": "+",
         "step": 20,
-        "x": 480,
-        "y": 945,
+        "x": 1130,
+        "y": 512,
         "wires": [
             [
                 "84ded9d71d7bd1db"
@@ -1100,7 +1274,7 @@
         "id": "84ded9d71d7bd1db",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "621d3a84b4813c70",
+        "g": "42b42a89736d5e7c",
         "name": "{ ok, ack, token }",
         "active": true,
         "tosidebar": true,
@@ -1108,15 +1282,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 715,
-        "y": 945,
+        "x": 1365,
+        "y": 512,
         "wires": []
     },
     {
         "id": "29a042df4798ea9b",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "621d3a84b4813c70",
+        "g": "42b42a89736d5e7c",
         "name": "Jog RZ +5 deg",
         "props": [
             {
@@ -1130,8 +1304,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 245,
-        "y": 1000,
+        "x": 895,
+        "y": 567,
         "wires": [
             [
                 "db2e16a626bd1c43"
@@ -1142,14 +1316,14 @@
         "id": "db2e16a626bd1c43",
         "type": "gofa-jog",
         "z": "08f5b46ae379bad0",
-        "g": "621d3a84b4813c70",
+        "g": "42b42a89736d5e7c",
         "name": "Jog RZ +5 deg",
         "robot": "cfg1",
         "axis": "RZ",
         "dir": "+",
         "step": 5,
-        "x": 480,
-        "y": 1000,
+        "x": 1130,
+        "y": 567,
         "wires": [
             [
                 "c2e784c3019e4cfc"
@@ -1160,7 +1334,7 @@
         "id": "c2e784c3019e4cfc",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "621d3a84b4813c70",
+        "g": "42b42a89736d5e7c",
         "name": "{ ok, ack, token }",
         "active": true,
         "tosidebar": true,
@@ -1168,26 +1342,26 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 715,
-        "y": 1000,
+        "x": 1365,
+        "y": 567,
         "wires": []
     },
     {
         "id": "802d892946f03412",
         "type": "comment",
         "z": "08f5b46ae379bad0",
-        "g": "9450844589f3cc3b",
+        "g": "e1a94073e7ee4df9",
         "name": "Rotates one joint by a relative angle (max 30 deg)  |  Override: msg.payload.{joint,dir,step}",
         "info": "",
-        "x": 340,
-        "y": 1100,
+        "x": 1060,
+        "y": 687,
         "wires": []
     },
     {
         "id": "8d152d7db3e182c3",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "9450844589f3cc3b",
+        "g": "e1a94073e7ee4df9",
         "name": "Joint J1 +5 deg",
         "props": [
             {
@@ -1201,8 +1375,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 175,
-        "y": 1155,
+        "x": 895,
+        "y": 742,
         "wires": [
             [
                 "48fa155af9dddeef"
@@ -1213,14 +1387,14 @@
         "id": "48fa155af9dddeef",
         "type": "gofa-joint-jog",
         "z": "08f5b46ae379bad0",
-        "g": "9450844589f3cc3b",
+        "g": "e1a94073e7ee4df9",
         "name": "Joint J1 +5 deg",
         "robot": "cfg1",
         "joint": "J1",
         "dir": "+",
         "step": 5,
-        "x": 410,
-        "y": 1155,
+        "x": 1130,
+        "y": 742,
         "wires": [
             [
                 "cff347e38ce631a7"
@@ -1231,7 +1405,7 @@
         "id": "cff347e38ce631a7",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "9450844589f3cc3b",
+        "g": "e1a94073e7ee4df9",
         "name": "{ ok, ack, token }",
         "active": true,
         "tosidebar": true,
@@ -1239,15 +1413,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 645,
-        "y": 1155,
+        "x": 1365,
+        "y": 742,
         "wires": []
     },
     {
         "id": "2103f7a0a003f1de",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "9450844589f3cc3b",
+        "g": "e1a94073e7ee4df9",
         "name": "Joint J2 +5 deg",
         "props": [
             {
@@ -1261,8 +1435,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 175,
-        "y": 1210,
+        "x": 895,
+        "y": 797,
         "wires": [
             [
                 "efa1b9a68a0f9225"
@@ -1273,14 +1447,14 @@
         "id": "efa1b9a68a0f9225",
         "type": "gofa-joint-jog",
         "z": "08f5b46ae379bad0",
-        "g": "9450844589f3cc3b",
+        "g": "e1a94073e7ee4df9",
         "name": "Joint J2 +5 deg",
         "robot": "cfg1",
         "joint": "J2",
         "dir": "+",
         "step": 5,
-        "x": 410,
-        "y": 1210,
+        "x": 1130,
+        "y": 797,
         "wires": [
             [
                 "6958ee151f683f81"
@@ -1291,7 +1465,7 @@
         "id": "6958ee151f683f81",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "9450844589f3cc3b",
+        "g": "e1a94073e7ee4df9",
         "name": "{ ok, ack, token }",
         "active": true,
         "tosidebar": true,
@@ -1299,26 +1473,26 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 645,
-        "y": 1210,
+        "x": 1365,
+        "y": 797,
         "wires": []
     },
     {
         "id": "f86919c88aa4e591",
         "type": "comment",
         "z": "08f5b46ae379bad0",
-        "g": "aebc7d8025a15a6c",
-        "name": "Run in order: 1-Save  2-List  3-Go To  4-Delete  |  Point name in node properties or msg.payload.name / msg.payload.id",
+        "g": "523bcdd0036411cb",
+        "name": "Read current pose via RWS and save it as a named point in points.json  |  Go to a saved point: TCP Socket group → Go To Point  |  List/Delete saved points: Local group → Point List & Delete",
         "info": "",
-        "x": 430,
-        "y": 1320,
+        "x": 245,
+        "y": 625,
         "wires": []
     },
     {
         "id": "a47aa1d9270e4d63",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "aebc7d8025a15a6c",
+        "g": "523bcdd0036411cb",
         "name": "1. Save Current Pose",
         "props": [
             {
@@ -1332,8 +1506,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 265,
-        "y": 1375,
+        "x": 80,
+        "y": 680,
         "wires": [
             [
                 "8a15af31da8fa29d"
@@ -1344,12 +1518,12 @@
         "id": "8a15af31da8fa29d",
         "type": "gofa-save-point",
         "z": "08f5b46ae379bad0",
-        "g": "aebc7d8025a15a6c",
+        "g": "523bcdd0036411cb",
         "name": "1. Save Current Pose",
         "robot": "cfg1",
         "pointName": "",
-        "x": 500,
-        "y": 1375,
+        "x": 315,
+        "y": 680,
         "wires": [
             [
                 "d1d873fca48b8179"
@@ -1360,7 +1534,7 @@
         "id": "d1d873fca48b8179",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "aebc7d8025a15a6c",
+        "g": "523bcdd0036411cb",
         "name": "{ ok, point:{id,name,target}, points:[] }",
         "active": true,
         "tosidebar": true,
@@ -1368,15 +1542,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 735,
-        "y": 1375,
+        "x": 550,
+        "y": 680,
         "wires": []
     },
     {
         "id": "6478e7781d7622dc",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "aebc7d8025a15a6c",
+        "g": "01563c802b1192d1",
         "name": "2. List All Points",
         "props": [
             {
@@ -1390,8 +1564,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 265,
-        "y": 1430,
+        "x": 1695,
+        "y": 165,
         "wires": [
             [
                 "62ce2c83f922715d"
@@ -1402,11 +1576,11 @@
         "id": "62ce2c83f922715d",
         "type": "gofa-point-list",
         "z": "08f5b46ae379bad0",
-        "g": "aebc7d8025a15a6c",
+        "g": "01563c802b1192d1",
         "name": "2. List All Points",
         "robot": "cfg1",
-        "x": 500,
-        "y": 1430,
+        "x": 1930,
+        "y": 165,
         "wires": [
             [
                 "666a09f4a86b1e86"
@@ -1417,7 +1591,7 @@
         "id": "666a09f4a86b1e86",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "aebc7d8025a15a6c",
+        "g": "01563c802b1192d1",
         "name": "[ {id, name, target}, ... ]",
         "active": true,
         "tosidebar": true,
@@ -1425,15 +1599,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 735,
-        "y": 1430,
+        "x": 2165,
+        "y": 165,
         "wires": []
     },
     {
         "id": "fb9f7eea7696e42c",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "aebc7d8025a15a6c",
+        "g": "2ed3903228d3b214",
         "name": "3. Go to Point",
         "props": [
             {
@@ -1447,8 +1621,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 265,
-        "y": 1485,
+        "x": 895,
+        "y": 1822,
         "wires": [
             [
                 "a4492942585fb9f6"
@@ -1459,12 +1633,12 @@
         "id": "a4492942585fb9f6",
         "type": "gofa-go-point",
         "z": "08f5b46ae379bad0",
-        "g": "aebc7d8025a15a6c",
+        "g": "2ed3903228d3b214",
         "name": "3. Go to Point",
         "robot": "cfg1",
         "pointName": "Point 1",
-        "x": 500,
-        "y": 1485,
+        "x": 1130,
+        "y": 1822,
         "wires": [
             [
                 "0bc2884c0e3c54c0"
@@ -1475,7 +1649,7 @@
         "id": "0bc2884c0e3c54c0",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "aebc7d8025a15a6c",
+        "g": "2ed3903228d3b214",
         "name": "{ ok, ack, point }",
         "active": true,
         "tosidebar": true,
@@ -1483,15 +1657,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 735,
-        "y": 1485,
+        "x": 1365,
+        "y": 1822,
         "wires": []
     },
     {
         "id": "fb211e6b1b90f2e8",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "aebc7d8025a15a6c",
+        "g": "01563c802b1192d1",
         "name": "4. Delete Point",
         "props": [
             {
@@ -1505,8 +1679,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 265,
-        "y": 1540,
+        "x": 1695,
+        "y": 275,
         "wires": [
             [
                 "57db523c8431d101"
@@ -1517,12 +1691,12 @@
         "id": "57db523c8431d101",
         "type": "gofa-delete-point",
         "z": "08f5b46ae379bad0",
-        "g": "aebc7d8025a15a6c",
+        "g": "01563c802b1192d1",
         "name": "4. Delete Point",
         "robot": "cfg1",
         "pointName": "Demo Point",
-        "x": 500,
-        "y": 1540,
+        "x": 1930,
+        "y": 275,
         "wires": [
             [
                 "b70f96b2c70f009e"
@@ -1533,7 +1707,7 @@
         "id": "b70f96b2c70f009e",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "aebc7d8025a15a6c",
+        "g": "01563c802b1192d1",
         "name": "{ ok, deleted, points:[] }",
         "active": true,
         "tosidebar": true,
@@ -1541,26 +1715,26 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 735,
-        "y": 1540,
+        "x": 2165,
+        "y": 275,
         "wires": []
     },
     {
         "id": "7baa4181f6a6215f",
         "type": "comment",
         "z": "08f5b46ae379bad0",
-        "g": "939e565b9375950b",
+        "g": "c6d990e280c9fb6c",
         "name": "Run Sequence: visits each saved point in order  |  Output 1 = after each step  |  Output 2 = done/stopped  |  Stop: halts after current step",
         "info": "",
-        "x": 480,
-        "y": 1640,
+        "x": 1060,
+        "y": 1942,
         "wires": []
     },
     {
         "id": "8753b79a708764d7",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "939e565b9375950b",
+        "g": "c6d990e280c9fb6c",
         "name": "Run Sequence",
         "props": [
             {
@@ -1574,8 +1748,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 315,
-        "y": 1695,
+        "x": 895,
+        "y": 1997,
         "wires": [
             [
                 "c5bc1905303759a5"
@@ -1586,7 +1760,7 @@
         "id": "c5bc1905303759a5",
         "type": "gofa-sequencer",
         "z": "08f5b46ae379bad0",
-        "g": "939e565b9375950b",
+        "g": "c6d990e280c9fb6c",
         "name": "Demo Sequence",
         "robot": "cfg1",
         "steps": [
@@ -1600,8 +1774,8 @@
         "dwell": 1000,
         "loop": false,
         "pingpong": false,
-        "x": 550,
-        "y": 1695,
+        "x": 1130,
+        "y": 1997,
         "wires": [
             [
                 "4c8e442b34976b41"
@@ -1615,7 +1789,7 @@
         "id": "4c8e442b34976b41",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "939e565b9375950b",
+        "g": "c6d990e280c9fb6c",
         "name": "{ step, total, name, ack }",
         "active": true,
         "tosidebar": true,
@@ -1623,15 +1797,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 785,
-        "y": 1695,
+        "x": 1365,
+        "y": 1997,
         "wires": []
     },
     {
         "id": "83e30323fd0929e3",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "939e565b9375950b",
+        "g": "c6d990e280c9fb6c",
         "name": "{ done:true } or { stopped:true }",
         "active": true,
         "tosidebar": true,
@@ -1639,15 +1813,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 785,
-        "y": 1750,
+        "x": 1365,
+        "y": 2052,
         "wires": []
     },
     {
         "id": "5c9a981ced248162",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "939e565b9375950b",
+        "g": "c6d990e280c9fb6c",
         "name": "Stop Sequence",
         "props": [
             {
@@ -1661,8 +1835,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 315,
-        "y": 1805,
+        "x": 895,
+        "y": 2107,
         "wires": [
             [
                 "014e6b5e2295b80f"
@@ -1673,11 +1847,11 @@
         "id": "014e6b5e2295b80f",
         "type": "gofa-stop-seq",
         "z": "08f5b46ae379bad0",
-        "g": "939e565b9375950b",
+        "g": "c6d990e280c9fb6c",
         "name": "",
         "robot": "cfg1",
-        "x": 550,
-        "y": 1805,
+        "x": 1130,
+        "y": 2107,
         "wires": [
             [
                 "68b5a31875bdb44f"
@@ -1688,7 +1862,7 @@
         "id": "68b5a31875bdb44f",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "939e565b9375950b",
+        "g": "c6d990e280c9fb6c",
         "name": "{ ok:true, message:'stop requested' }",
         "active": true,
         "tosidebar": true,
@@ -1696,26 +1870,26 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 785,
-        "y": 1805,
+        "x": 1365,
+        "y": 2107,
         "wires": []
     },
     {
         "id": "fc5d62083705fe0c",
         "type": "comment",
         "z": "08f5b46ae379bad0",
-        "g": "ce386d0a14edb1c3",
+        "g": "a3101dd7efcb9af0",
         "name": "PING: connectivity test  |  MOVEJ: absolute joint target  |  GRIPON/OFF: gripper  |  ZONE: blend radius  |  STOP: halt motion",
         "info": "",
-        "x": 1280,
-        "y": 80,
+        "x": 1060,
+        "y": 917,
         "wires": []
     },
     {
         "id": "1fbacc1edd27287b",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "ce386d0a14edb1c3",
+        "g": "a3101dd7efcb9af0",
         "name": "Ping",
         "props": [
             {
@@ -1729,8 +1903,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1115,
-        "y": 135,
+        "x": 895,
+        "y": 972,
         "wires": [
             [
                 "c3f2154a32b9f203"
@@ -1741,11 +1915,11 @@
         "id": "c3f2154a32b9f203",
         "type": "gofa-ping",
         "z": "08f5b46ae379bad0",
-        "g": "ce386d0a14edb1c3",
+        "g": "a3101dd7efcb9af0",
         "name": "",
         "robot": "cfg1",
-        "x": 1350,
-        "y": 135,
+        "x": 1130,
+        "y": 972,
         "wires": [
             [
                 "ce89704b8f36322a"
@@ -1756,7 +1930,7 @@
         "id": "ce89704b8f36322a",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "ce386d0a14edb1c3",
+        "g": "a3101dd7efcb9af0",
         "name": "{ ok, ack:'OK:PING', rtt }",
         "active": true,
         "tosidebar": true,
@@ -1764,15 +1938,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1585,
-        "y": 135,
+        "x": 1365,
+        "y": 972,
         "wires": []
     },
     {
         "id": "c9ceadcaf831bc26",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "ce386d0a14edb1c3",
+        "g": "a3101dd7efcb9af0",
         "name": "MoveJ [0,0,85,0,0,0]",
         "props": [
             {
@@ -1786,8 +1960,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1115,
-        "y": 190,
+        "x": 895,
+        "y": 1027,
         "wires": [
             [
                 "2f2808433ca4fa37"
@@ -1798,12 +1972,12 @@
         "id": "2f2808433ca4fa37",
         "type": "gofa-movej",
         "z": "08f5b46ae379bad0",
-        "g": "ce386d0a14edb1c3",
+        "g": "a3101dd7efcb9af0",
         "name": "",
         "robot": "cfg1",
         "joints": "[0,0,85,0,0,0]",
-        "x": 1350,
-        "y": 190,
+        "x": 1130,
+        "y": 1027,
         "wires": [
             [
                 "40f3e7f64151b74c"
@@ -1814,7 +1988,7 @@
         "id": "40f3e7f64151b74c",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "ce386d0a14edb1c3",
+        "g": "a3101dd7efcb9af0",
         "name": "{ ok, joints:[0,0,85,0,0,0] }",
         "active": true,
         "tosidebar": true,
@@ -1822,15 +1996,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1585,
-        "y": 190,
+        "x": 1365,
+        "y": 1027,
         "wires": []
     },
     {
         "id": "1580ac8dbca96a2b",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "ce386d0a14edb1c3",
+        "g": "a3101dd7efcb9af0",
         "name": "Grip ON",
         "props": [
             {
@@ -1844,8 +2018,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1115,
-        "y": 245,
+        "x": 895,
+        "y": 1082,
         "wires": [
             [
                 "2788087a1f5247fb"
@@ -1856,13 +2030,13 @@
         "id": "2788087a1f5247fb",
         "type": "gofa-grip",
         "z": "08f5b46ae379bad0",
-        "g": "ce386d0a14edb1c3",
+        "g": "a3101dd7efcb9af0",
         "name": "GRIPON",
         "robot": "cfg1",
         "action": "on",
         "signal": "DO10_1",
-        "x": 1350,
-        "y": 245,
+        "x": 1130,
+        "y": 1082,
         "wires": [
             [
                 "ae3a9af1fbdd8338"
@@ -1873,7 +2047,7 @@
         "id": "ae3a9af1fbdd8338",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "ce386d0a14edb1c3",
+        "g": "a3101dd7efcb9af0",
         "name": "{ ok, action:'on', signal }",
         "active": true,
         "tosidebar": true,
@@ -1881,15 +2055,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1585,
-        "y": 245,
+        "x": 1365,
+        "y": 1082,
         "wires": []
     },
     {
         "id": "0d8e18cf39a70ad2",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "ce386d0a14edb1c3",
+        "g": "a3101dd7efcb9af0",
         "name": "Grip OFF",
         "props": [
             {
@@ -1903,8 +2077,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1115,
-        "y": 300,
+        "x": 895,
+        "y": 1137,
         "wires": [
             [
                 "2807be23166d17fe"
@@ -1915,13 +2089,13 @@
         "id": "2807be23166d17fe",
         "type": "gofa-grip",
         "z": "08f5b46ae379bad0",
-        "g": "ce386d0a14edb1c3",
+        "g": "a3101dd7efcb9af0",
         "name": "GRIPOFF",
         "robot": "cfg1",
         "action": "off",
         "signal": "DO10_1",
-        "x": 1350,
-        "y": 300,
+        "x": 1130,
+        "y": 1137,
         "wires": [
             [
                 "7003965712d79fe1"
@@ -1932,7 +2106,7 @@
         "id": "7003965712d79fe1",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "ce386d0a14edb1c3",
+        "g": "a3101dd7efcb9af0",
         "name": "{ ok, action:'off', signal }",
         "active": true,
         "tosidebar": true,
@@ -1940,15 +2114,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1585,
-        "y": 300,
+        "x": 1365,
+        "y": 1137,
         "wires": []
     },
     {
         "id": "58c1258ac9220503",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "ce386d0a14edb1c3",
+        "g": "a3101dd7efcb9af0",
         "name": "Zone z10",
         "props": [
             {
@@ -1962,8 +2136,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1115,
-        "y": 355,
+        "x": 895,
+        "y": 1192,
         "wires": [
             [
                 "97f6b684d80e2596"
@@ -1974,12 +2148,12 @@
         "id": "97f6b684d80e2596",
         "type": "gofa-zone-set",
         "z": "08f5b46ae379bad0",
-        "g": "ce386d0a14edb1c3",
+        "g": "a3101dd7efcb9af0",
         "name": "",
         "robot": "cfg1",
         "zone": "fine",
-        "x": 1350,
-        "y": 355,
+        "x": 1130,
+        "y": 1192,
         "wires": [
             [
                 "b86f572f8194b8dd"
@@ -1990,7 +2164,7 @@
         "id": "b86f572f8194b8dd",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "ce386d0a14edb1c3",
+        "g": "a3101dd7efcb9af0",
         "name": "{ ok, zone:'z10' }",
         "active": true,
         "tosidebar": true,
@@ -1998,15 +2172,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1585,
-        "y": 355,
+        "x": 1365,
+        "y": 1192,
         "wires": []
     },
     {
         "id": "c1bfeab9dace5ec1",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "ce386d0a14edb1c3",
+        "g": "a3101dd7efcb9af0",
         "name": "Stop Motion",
         "props": [
             {
@@ -2020,8 +2194,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1115,
-        "y": 410,
+        "x": 895,
+        "y": 1247,
         "wires": [
             [
                 "5fe1b12a6a8bc182"
@@ -2032,11 +2206,11 @@
         "id": "5fe1b12a6a8bc182",
         "type": "gofa-stop-motion",
         "z": "08f5b46ae379bad0",
-        "g": "ce386d0a14edb1c3",
+        "g": "a3101dd7efcb9af0",
         "name": "",
         "robot": "cfg1",
-        "x": 1350,
-        "y": 410,
+        "x": 1130,
+        "y": 1247,
         "wires": [
             [
                 "1675f30f22b895f8"
@@ -2047,7 +2221,7 @@
         "id": "1675f30f22b895f8",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "ce386d0a14edb1c3",
+        "g": "a3101dd7efcb9af0",
         "name": "{ ok, ack:'OK:STOP' }",
         "active": true,
         "tosidebar": true,
@@ -2055,15 +2229,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1585,
-        "y": 410,
+        "x": 1365,
+        "y": 1247,
         "wires": []
     },
     {
         "id": "46a79067828c8e24",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "95885e1dae1670e1",
+        "g": "7be2a12fbae30fa8",
         "name": "Set Speed 75%",
         "props": [],
         "repeat": "",
@@ -2071,8 +2245,8 @@
         "once": false,
         "onceDelay": 0.1,
         "topic": "",
-        "x": 1100,
-        "y": 520,
+        "x": 895,
+        "y": 1422,
         "wires": [
             [
                 "91c0b8dedc6ee07d"
@@ -2083,12 +2257,12 @@
         "id": "91c0b8dedc6ee07d",
         "type": "gofa-speed-set",
         "z": "08f5b46ae379bad0",
-        "g": "95885e1dae1670e1",
+        "g": "7be2a12fbae30fa8",
         "name": "",
         "robot": "cfg1",
         "speed": "100",
-        "x": 1275,
-        "y": 520,
+        "x": 1070,
+        "y": 1422,
         "wires": [
             [
                 "08b9ef17da3783ee"
@@ -2099,7 +2273,7 @@
         "id": "08b9ef17da3783ee",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "95885e1dae1670e1",
+        "g": "7be2a12fbae30fa8",
         "name": "{ ok, speed:75 }",
         "active": true,
         "tosidebar": true,
@@ -2107,15 +2281,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1510,
-        "y": 520,
+        "x": 1305,
+        "y": 1422,
         "wires": []
     },
     {
         "id": "0ef0eaf62bea7655",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "95885e1dae1670e1",
+        "g": "7be2a12fbae30fa8",
         "name": "Read",
         "props": [
             {
@@ -2129,8 +2303,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1110,
-        "y": 580,
+        "x": 905,
+        "y": 1482,
         "wires": [
             [
                 "7787591525e2cc38"
@@ -2141,14 +2315,14 @@
         "id": "7787591525e2cc38",
         "type": "gofa-rapid-var-read",
         "z": "08f5b46ae379bad0",
-        "g": "95885e1dae1670e1",
+        "g": "7be2a12fbae30fa8",
         "name": "",
         "robot": "cfg1",
         "task": "T_ROB1",
         "module": "MainModule",
         "variable": "nTestVar",
-        "x": 1275,
-        "y": 575,
+        "x": 1070,
+        "y": 1477,
         "wires": [
             [
                 "643f27df43e440d3"
@@ -2159,7 +2333,7 @@
         "id": "643f27df43e440d3",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "95885e1dae1670e1",
+        "g": "7be2a12fbae30fa8",
         "name": "{ ok, variable, value, source }",
         "active": true,
         "tosidebar": true,
@@ -2167,15 +2341,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1510,
-        "y": 575,
+        "x": 1305,
+        "y": 1477,
         "wires": []
     },
     {
         "id": "bbb2cf7f31e5fdee",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "95885e1dae1670e1",
+        "g": "7be2a12fbae30fa8",
         "name": "Write",
         "props": [],
         "repeat": "",
@@ -2183,8 +2357,8 @@
         "once": false,
         "onceDelay": 0.1,
         "topic": "",
-        "x": 1110,
-        "y": 680,
+        "x": 905,
+        "y": 1582,
         "wires": [
             [
                 "4d350807ef5d575e"
@@ -2195,13 +2369,13 @@
         "id": "4d350807ef5d575e",
         "type": "gofa-rapid-var-write",
         "z": "08f5b46ae379bad0",
-        "g": "95885e1dae1670e1",
+        "g": "7be2a12fbae30fa8",
         "name": "",
         "robot": "cfg1",
         "variable": "nTestVar",
         "value": "9",
-        "x": 1260,
-        "y": 685,
+        "x": 1055,
+        "y": 1587,
         "wires": [
             [
                 "3f7b086feeb3dfa8"
@@ -2212,7 +2386,7 @@
         "id": "3f7b086feeb3dfa8",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "95885e1dae1670e1",
+        "g": "7be2a12fbae30fa8",
         "name": "{ ok, variable, value } or { ok:false }",
         "active": true,
         "tosidebar": true,
@@ -2220,26 +2394,26 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1495,
-        "y": 685,
+        "x": 1290,
+        "y": 1587,
         "wires": []
     },
     {
         "id": "77ab97f9a9554f86",
         "type": "comment",
         "z": "08f5b46ae379bad0",
-        "g": "95115084ad496f64",
+        "g": "f7d0d36e1c083a16",
         "name": "SYSTEM-INFO: RW version + ctrl identity  |  ELOG: controller event log  |  FILE-READ: download file  |  UPLOAD-MOD: deploy RAPID .mod",
         "info": "",
-        "x": 1350,
-        "y": 860,
+        "x": 245,
+        "y": 800,
         "wires": []
     },
     {
         "id": "0262d4fb93b74869",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "95115084ad496f64",
+        "g": "f7d0d36e1c083a16",
         "name": "System Info",
         "props": [
             {
@@ -2253,8 +2427,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1185,
-        "y": 915,
+        "x": 80,
+        "y": 855,
         "wires": [
             [
                 "38ed547b1df8aed8"
@@ -2265,11 +2439,11 @@
         "id": "38ed547b1df8aed8",
         "type": "gofa-system-info",
         "z": "08f5b46ae379bad0",
-        "g": "95115084ad496f64",
+        "g": "f7d0d36e1c083a16",
         "name": "",
         "robot": "cfg1",
-        "x": 1420,
-        "y": 915,
+        "x": 315,
+        "y": 855,
         "wires": [
             [
                 "c59850f4b05c204d"
@@ -2280,7 +2454,7 @@
         "id": "c59850f4b05c204d",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "95115084ad496f64",
+        "g": "f7d0d36e1c083a16",
         "name": "{ ok, rwVersion, ctrlId, ctrlType, ctrlMac }",
         "active": true,
         "tosidebar": true,
@@ -2288,15 +2462,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1655,
-        "y": 915,
+        "x": 550,
+        "y": 855,
         "wires": []
     },
     {
         "id": "85928c42bdb21748",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "95115084ad496f64",
+        "g": "f7d0d36e1c083a16",
         "name": "Read Elog",
         "props": [
             {
@@ -2310,8 +2484,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1185,
-        "y": 970,
+        "x": 80,
+        "y": 910,
         "wires": [
             [
                 "553adc05ad2aad92"
@@ -2322,13 +2496,13 @@
         "id": "553adc05ad2aad92",
         "type": "gofa-elog",
         "z": "08f5b46ae379bad0",
-        "g": "95115084ad496f64",
+        "g": "f7d0d36e1c083a16",
         "name": "",
         "robot": "cfg1",
         "domain": "1",
         "count": 10,
-        "x": 1420,
-        "y": 970,
+        "x": 315,
+        "y": 910,
         "wires": [
             [
                 "97d446f92fd87684"
@@ -2339,7 +2513,7 @@
         "id": "97d446f92fd87684",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "95115084ad496f64",
+        "g": "f7d0d36e1c083a16",
         "name": "{ ok, domain, entries:[{code,title,tstamp}] }",
         "active": true,
         "tosidebar": true,
@@ -2347,15 +2521,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1655,
-        "y": 970,
+        "x": 550,
+        "y": 910,
         "wires": []
     },
     {
         "id": "d6d66dfd29409aaa",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "95115084ad496f64",
+        "g": "f7d0d36e1c083a16",
         "name": "Read MainModule.mod",
         "props": [
             {
@@ -2369,8 +2543,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1185,
-        "y": 1025,
+        "x": 80,
+        "y": 965,
         "wires": [
             [
                 "40cc295bbcea070a"
@@ -2381,13 +2555,13 @@
         "id": "40cc295bbcea070a",
         "type": "gofa-file-read",
         "z": "08f5b46ae379bad0",
-        "g": "95115084ad496f64",
+        "g": "f7d0d36e1c083a16",
         "name": "",
         "robot": "cfg1",
         "remotePath": "$HOME/Programs/MainModule.mod",
         "encoding": "utf8",
-        "x": 1420,
-        "y": 1025,
+        "x": 315,
+        "y": 965,
         "wires": [
             [
                 "9c50e7342ca7418e"
@@ -2398,7 +2572,7 @@
         "id": "9c50e7342ca7418e",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "95115084ad496f64",
+        "g": "f7d0d36e1c083a16",
         "name": "{ ok, remotePath, content, bytes }",
         "active": true,
         "tosidebar": true,
@@ -2406,15 +2580,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1655,
-        "y": 1025,
+        "x": 550,
+        "y": 965,
         "wires": []
     },
     {
         "id": "3f881d352fec8b4b",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "95115084ad496f64",
+        "g": "f7d0d36e1c083a16",
         "name": "Upload MainModule.mod (update path!)",
         "props": [],
         "repeat": "",
@@ -2422,8 +2596,8 @@
         "once": false,
         "onceDelay": 0.1,
         "topic": "",
-        "x": 1185,
-        "y": 1080,
+        "x": 80,
+        "y": 1020,
         "wires": [
             [
                 "982b7ddef2c9f46b"
@@ -2434,13 +2608,13 @@
         "id": "982b7ddef2c9f46b",
         "type": "gofa-upload-mod",
         "z": "08f5b46ae379bad0",
-        "g": "95115084ad496f64",
+        "g": "f7d0d36e1c083a16",
         "name": "",
         "robot": "cfg1",
-        "localPath": "C:\\Users\\anapa\\nnnn\\ABB-GoFa-12\\rapid\\MainModule.mod",
+        "localPath": "C:\\Users\\RD2\\nnnn\\node-red-contrib-abb-gofa\\rapid\\MainModule.mod",
         "remotePath": "$HOME/Programs/MainModuleTest.mod",
-        "x": 1420,
-        "y": 1080,
+        "x": 315,
+        "y": 1020,
         "wires": [
             [
                 "dd9102dcea4ccef6"
@@ -2451,7 +2625,7 @@
         "id": "dd9102dcea4ccef6",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "95115084ad496f64",
+        "g": "f7d0d36e1c083a16",
         "name": "{ ok, remotePath, bytes }",
         "active": true,
         "tosidebar": true,
@@ -2459,26 +2633,26 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1655,
-        "y": 1080,
+        "x": 550,
+        "y": 1020,
         "wires": []
     },
     {
         "id": "d54d46e4f4d75da7",
         "type": "comment",
         "z": "08f5b46ae379bad0",
-        "g": "78704319019a587d",
+        "g": "7d417214b94fc5a7",
         "name": "IO-LIST: enumerate all signals  |  DI-READ: digital in (built-in)  |  AI-READ / AO-WRITE / DO-WRITE: require external I/O module — HTTP 404 on standard OmniCore C30",
         "info": "",
-        "x": 1550,
-        "y": 1180,
+        "x": 245,
+        "y": 1140,
         "wires": []
     },
     {
         "id": "aa93ee39491afdea",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "78704319019a587d",
+        "g": "7d417214b94fc5a7",
         "name": "List All Signals",
         "props": [
             {
@@ -2492,8 +2666,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1385,
-        "y": 1235,
+        "x": 80,
+        "y": 1195,
         "wires": [
             [
                 "c234d84f31e43d23"
@@ -2504,11 +2678,11 @@
         "id": "c234d84f31e43d23",
         "type": "gofa-io-list",
         "z": "08f5b46ae379bad0",
-        "g": "78704319019a587d",
+        "g": "7d417214b94fc5a7",
         "name": "",
         "robot": "cfg1",
-        "x": 1620,
-        "y": 1235,
+        "x": 315,
+        "y": 1195,
         "wires": [
             [
                 "f5b2d6c1f808c498"
@@ -2519,7 +2693,7 @@
         "id": "f5b2d6c1f808c498",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "78704319019a587d",
+        "g": "7d417214b94fc5a7",
         "name": "{ ok, count, signals:[{name,type,lvalue}] }",
         "active": true,
         "tosidebar": true,
@@ -2527,15 +2701,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1855,
-        "y": 1235,
+        "x": 550,
+        "y": 1195,
         "wires": []
     },
     {
         "id": "942c877661144f0f",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "78704319019a587d",
+        "g": "7d417214b94fc5a7",
         "name": "Read Asi1Button1",
         "props": [
             {
@@ -2549,8 +2723,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1385,
-        "y": 1290,
+        "x": 80,
+        "y": 1250,
         "wires": [
             [
                 "2aabfe45542c96bb"
@@ -2561,12 +2735,12 @@
         "id": "2aabfe45542c96bb",
         "type": "gofa-di-read",
         "z": "08f5b46ae379bad0",
-        "g": "78704319019a587d",
+        "g": "7d417214b94fc5a7",
         "name": "",
         "robot": "cfg1",
         "signal": "Asi1Button1",
-        "x": 1620,
-        "y": 1290,
+        "x": 315,
+        "y": 1250,
         "wires": [
             [
                 "09c76d4d5f00b97a"
@@ -2577,7 +2751,7 @@
         "id": "09c76d4d5f00b97a",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "78704319019a587d",
+        "g": "7d417214b94fc5a7",
         "name": "{ ok, signal, value:0|1 }",
         "active": true,
         "tosidebar": true,
@@ -2585,15 +2759,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1855,
-        "y": 1290,
+        "x": 550,
+        "y": 1250,
         "wires": []
     },
     {
         "id": "60ac642aa637e94f",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "78704319019a587d",
+        "g": "7d417214b94fc5a7",
         "name": "Read AI1 (analog in)",
         "props": [
             {
@@ -2607,8 +2781,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1385,
-        "y": 1345,
+        "x": 80,
+        "y": 1305,
         "wires": [
             [
                 "f8696607a486e515"
@@ -2619,12 +2793,12 @@
         "id": "f8696607a486e515",
         "type": "gofa-ai-read",
         "z": "08f5b46ae379bad0",
-        "g": "78704319019a587d",
+        "g": "7d417214b94fc5a7",
         "name": "",
         "robot": "cfg1",
         "signal": "AI1",
-        "x": 1620,
-        "y": 1345,
+        "x": 315,
+        "y": 1305,
         "wires": [
             [
                 "18ebf7c1f87e6160"
@@ -2635,7 +2809,7 @@
         "id": "18ebf7c1f87e6160",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "78704319019a587d",
+        "g": "7d417214b94fc5a7",
         "name": "{ ok, signal, value } or { ok:false }",
         "active": true,
         "tosidebar": true,
@@ -2643,15 +2817,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1855,
-        "y": 1345,
+        "x": 550,
+        "y": 1305,
         "wires": []
     },
     {
         "id": "aceaef2c35f1c2d8",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "78704319019a587d",
+        "g": "7d417214b94fc5a7",
         "name": "DO10_1 = 1",
         "props": [
             {
@@ -2665,8 +2839,8 @@
         "topic": "",
         "payload": "1",
         "payloadType": "num",
-        "x": 1385,
-        "y": 1400,
+        "x": 80,
+        "y": 1360,
         "wires": [
             [
                 "634aa64a8eae9692"
@@ -2677,13 +2851,13 @@
         "id": "634aa64a8eae9692",
         "type": "gofa-do-write",
         "z": "08f5b46ae379bad0",
-        "g": "78704319019a587d",
+        "g": "7d417214b94fc5a7",
         "name": "",
         "robot": "cfg1",
         "signal": "DO10_1",
         "value": "1",
-        "x": 1620,
-        "y": 1400,
+        "x": 315,
+        "y": 1360,
         "wires": [
             [
                 "7baaa610f520276c"
@@ -2694,7 +2868,7 @@
         "id": "7baaa610f520276c",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "78704319019a587d",
+        "g": "7d417214b94fc5a7",
         "name": "{ ok, signal, value } or { ok:false }",
         "active": true,
         "tosidebar": true,
@@ -2702,15 +2876,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1855,
-        "y": 1400,
+        "x": 550,
+        "y": 1360,
         "wires": []
     },
     {
         "id": "a24ee262888cd83a",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "78704319019a587d",
+        "g": "7d417214b94fc5a7",
         "name": "AO1 = 2.5",
         "props": [
             {
@@ -2724,8 +2898,8 @@
         "topic": "",
         "payload": "{\"signal\":\"AO1\",\"value\":2.5}",
         "payloadType": "json",
-        "x": 1385,
-        "y": 1455,
+        "x": 80,
+        "y": 1415,
         "wires": [
             [
                 "a9481d95d12b362a"
@@ -2736,13 +2910,13 @@
         "id": "a9481d95d12b362a",
         "type": "gofa-ao-write",
         "z": "08f5b46ae379bad0",
-        "g": "78704319019a587d",
+        "g": "7d417214b94fc5a7",
         "name": "",
         "robot": "cfg1",
         "signal": "AO1",
         "value": "0",
-        "x": 1620,
-        "y": 1455,
+        "x": 315,
+        "y": 1415,
         "wires": [
             [
                 "9d5827a2cb7f777e"
@@ -2753,7 +2927,7 @@
         "id": "9d5827a2cb7f777e",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "78704319019a587d",
+        "g": "7d417214b94fc5a7",
         "name": "{ ok, signal, value } or { ok:false }",
         "active": true,
         "tosidebar": true,
@@ -2761,26 +2935,26 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1855,
-        "y": 1455,
+        "x": 550,
+        "y": 1415,
         "wires": []
     },
     {
         "id": "46790a352faaca0c",
         "type": "comment",
         "z": "08f5b46ae379bad0",
-        "g": "ca25a46575f6e6b8",
+        "g": "ef294b40f09cc1ed",
         "name": "Enable/disable robot lead-through (hand-guiding) via RWS  |  Requires manual mode + enable switch held on FlexPendant",
         "info": "",
-        "x": 1430,
-        "y": 1560,
+        "x": 245,
+        "y": 1535,
         "wires": []
     },
     {
         "id": "7bf5942f54eda996",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "ca25a46575f6e6b8",
+        "g": "ef294b40f09cc1ed",
         "name": "Enable Lead-through",
         "props": [
             {
@@ -2794,8 +2968,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1265,
-        "y": 1615,
+        "x": 80,
+        "y": 1590,
         "wires": [
             [
                 "6e594510d6242c79"
@@ -2806,11 +2980,11 @@
         "id": "6e594510d6242c79",
         "type": "gofa-leadthrough-enable",
         "z": "08f5b46ae379bad0",
-        "g": "ca25a46575f6e6b8",
+        "g": "ef294b40f09cc1ed",
         "name": "",
         "robot": "cfg1",
-        "x": 1500,
-        "y": 1615,
+        "x": 315,
+        "y": 1590,
         "wires": [
             [
                 "c5910929b5f41396"
@@ -2821,7 +2995,7 @@
         "id": "c5910929b5f41396",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "ca25a46575f6e6b8",
+        "g": "ef294b40f09cc1ed",
         "name": "{ ok:true }",
         "active": true,
         "tosidebar": true,
@@ -2829,15 +3003,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1735,
-        "y": 1615,
+        "x": 550,
+        "y": 1590,
         "wires": []
     },
     {
         "id": "c1b0bb0ca1378da1",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "ca25a46575f6e6b8",
+        "g": "ef294b40f09cc1ed",
         "name": "Disable Lead-through",
         "props": [
             {
@@ -2851,8 +3025,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1265,
-        "y": 1670,
+        "x": 80,
+        "y": 1645,
         "wires": [
             [
                 "c19f2b32477ee11f"
@@ -2863,11 +3037,11 @@
         "id": "c19f2b32477ee11f",
         "type": "gofa-leadthrough-disable",
         "z": "08f5b46ae379bad0",
-        "g": "ca25a46575f6e6b8",
+        "g": "ef294b40f09cc1ed",
         "name": "",
         "robot": "cfg1",
-        "x": 1500,
-        "y": 1670,
+        "x": 315,
+        "y": 1645,
         "wires": [
             [
                 "cacf48f16615005c"
@@ -2878,7 +3052,7 @@
         "id": "cacf48f16615005c",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "ca25a46575f6e6b8",
+        "g": "ef294b40f09cc1ed",
         "name": "{ ok:true }",
         "active": true,
         "tosidebar": true,
@@ -2886,26 +3060,26 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1735,
-        "y": 1670,
+        "x": 550,
+        "y": 1645,
         "wires": []
     },
     {
         "id": "73f00499315b6f19",
         "type": "comment",
         "z": "08f5b46ae379bad0",
-        "g": "fca205bc4645be7d",
+        "g": "a9c28bd89cdaff24",
         "name": "EXPORT: dump saved-points list to msg.payload  |  IMPORT: replace list from msg.payload array (connect Export output to Import input for backup/restore)",
         "info": "",
-        "x": 1550,
-        "y": 1780,
+        "x": 1860,
+        "y": 395,
         "wires": []
     },
     {
         "id": "0c67d3e1391a22ae",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "fca205bc4645be7d",
+        "g": "a9c28bd89cdaff24",
         "name": "Export Points",
         "props": [
             {
@@ -2919,8 +3093,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1385,
-        "y": 1835,
+        "x": 1695,
+        "y": 450,
         "wires": [
             [
                 "4f78b1dfaa0d78a3"
@@ -2931,12 +3105,12 @@
         "id": "4f78b1dfaa0d78a3",
         "type": "gofa-points-export",
         "z": "08f5b46ae379bad0",
-        "g": "fca205bc4645be7d",
+        "g": "a9c28bd89cdaff24",
         "name": "",
         "robot": "cfg1",
         "savePath": "NoPoint",
-        "x": 1620,
-        "y": 1835,
+        "x": 1930,
+        "y": 450,
         "wires": [
             [
                 "3c7034fdf3edb252"
@@ -2947,7 +3121,7 @@
         "id": "3c7034fdf3edb252",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "fca205bc4645be7d",
+        "g": "a9c28bd89cdaff24",
         "name": "{ ok, count, points:[...] }",
         "active": true,
         "tosidebar": true,
@@ -2955,15 +3129,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1855,
-        "y": 1835,
+        "x": 2165,
+        "y": 450,
         "wires": []
     },
     {
         "id": "d24cec3aada47429",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "fca205bc4645be7d",
+        "g": "a9c28bd89cdaff24",
         "name": "Import [] (clear all)",
         "props": [
             {
@@ -2977,8 +3151,8 @@
         "topic": "",
         "payload": "[]",
         "payloadType": "json",
-        "x": 1385,
-        "y": 1890,
+        "x": 1695,
+        "y": 505,
         "wires": [
             [
                 "d743bf3886792049"
@@ -2989,12 +3163,12 @@
         "id": "d743bf3886792049",
         "type": "gofa-points-import",
         "z": "08f5b46ae379bad0",
-        "g": "fca205bc4645be7d",
+        "g": "a9c28bd89cdaff24",
         "name": "",
         "robot": "cfg1",
         "loadPath": "2Point",
-        "x": 1620,
-        "y": 1890,
+        "x": 1930,
+        "y": 505,
         "wires": [
             [
                 "c7fe26fb1f5892a1"
@@ -3005,7 +3179,7 @@
         "id": "c7fe26fb1f5892a1",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "fca205bc4645be7d",
+        "g": "a9c28bd89cdaff24",
         "name": "{ ok, count }",
         "active": true,
         "tosidebar": true,
@@ -3013,26 +3187,26 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1855,
-        "y": 1890,
+        "x": 2165,
+        "y": 505,
         "wires": []
     },
     {
         "id": "a64b069f2c96c13d",
         "type": "comment",
         "z": "08f5b46ae379bad0",
-        "g": "eb77a9bd9c4a0f0f",
+        "g": "f8a8b940376ab91b",
         "name": "STATE/IO: WebSocket push from controller  |  VAR/POSE: polling (toggle on/off with any input)  |  Messages stream to debug until toggled off or redeployed",
         "info": "",
-        "x": 1520,
-        "y": 2000,
+        "x": 245,
+        "y": 1765,
         "wires": []
     },
     {
         "id": "6c5ca306c6f10492",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "eb77a9bd9c4a0f0f",
+        "g": "f8a8b940376ab91b",
         "name": "Subscribe ctrl-state",
         "props": [
             {
@@ -3046,8 +3220,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1355,
-        "y": 2055,
+        "x": 80,
+        "y": 1820,
         "wires": [
             [
                 "ae567fc23e20c35b"
@@ -3058,12 +3232,12 @@
         "id": "ae567fc23e20c35b",
         "type": "gofa-subscribe-state",
         "z": "08f5b46ae379bad0",
-        "g": "eb77a9bd9c4a0f0f",
+        "g": "f8a8b940376ab91b",
         "name": "",
         "robot": "cfg1",
         "oneshot": true,
-        "x": 1590,
-        "y": 2055,
+        "x": 315,
+        "y": 1820,
         "wires": [
             [
                 "e875da96515d4973"
@@ -3074,7 +3248,7 @@
         "id": "e875da96515d4973",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "eb77a9bd9c4a0f0f",
+        "g": "f8a8b940376ab91b",
         "name": "{ ok, state:'motoron'|'motoroff'|... }",
         "active": true,
         "tosidebar": true,
@@ -3082,15 +3256,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1840,
-        "y": 2060,
+        "x": 565,
+        "y": 1825,
         "wires": []
     },
     {
         "id": "52a8970840bed03c",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "eb77a9bd9c4a0f0f",
+        "g": "f8a8b940376ab91b",
         "name": "Subscribe Asi1Button1",
         "props": [
             {
@@ -3104,8 +3278,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1355,
-        "y": 2110,
+        "x": 80,
+        "y": 1875,
         "wires": [
             [
                 "13031f8511711815"
@@ -3116,13 +3290,13 @@
         "id": "13031f8511711815",
         "type": "gofa-subscribe-io",
         "z": "08f5b46ae379bad0",
-        "g": "eb77a9bd9c4a0f0f",
+        "g": "f8a8b940376ab91b",
         "name": "",
         "robot": "cfg1",
         "signal": "Asi1Button1",
         "oneshot": true,
-        "x": 1590,
-        "y": 2110,
+        "x": 315,
+        "y": 1875,
         "wires": [
             [
                 "c2539b438777b9ad"
@@ -3133,7 +3307,7 @@
         "id": "c2539b438777b9ad",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "eb77a9bd9c4a0f0f",
+        "g": "f8a8b940376ab91b",
         "name": "{ ok, signal, value:0|1 }",
         "active": true,
         "tosidebar": true,
@@ -3141,15 +3315,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1825,
-        "y": 2110,
+        "x": 550,
+        "y": 1875,
         "wires": []
     },
     {
         "id": "dedc2b3c0203a0b8",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "eb77a9bd9c4a0f0f",
+        "g": "f8a8b940376ab91b",
         "name": "Toggle poll zActive",
         "props": [
             {
@@ -3163,8 +3337,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1355,
-        "y": 2165,
+        "x": 80,
+        "y": 1930,
         "wires": [
             [
                 "2b7b22a7f2634d6b"
@@ -3175,15 +3349,15 @@
         "id": "2b7b22a7f2634d6b",
         "type": "gofa-subscribe-var",
         "z": "08f5b46ae379bad0",
-        "g": "eb77a9bd9c4a0f0f",
+        "g": "f8a8b940376ab91b",
         "name": "",
         "robot": "cfg1",
         "task": "T_ROB1",
         "module": "MainModule",
         "variable": "zActive",
         "interval": "1000",
-        "x": 1590,
-        "y": 2165,
+        "x": 315,
+        "y": 1930,
         "wires": [
             [
                 "704df29d067223b7"
@@ -3194,7 +3368,7 @@
         "id": "704df29d067223b7",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "eb77a9bd9c4a0f0f",
+        "g": "f8a8b940376ab91b",
         "name": "{ ok, variable, value, source }",
         "active": true,
         "tosidebar": true,
@@ -3202,15 +3376,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1825,
-        "y": 2165,
+        "x": 550,
+        "y": 1930,
         "wires": []
     },
     {
         "id": "60c8a197bd07a117",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "eb77a9bd9c4a0f0f",
+        "g": "f8a8b940376ab91b",
         "name": "Toggle poll pose",
         "props": [
             {
@@ -3224,8 +3398,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1355,
-        "y": 2220,
+        "x": 80,
+        "y": 1985,
         "wires": [
             [
                 "8939a35e84cbc5bd"
@@ -3236,12 +3410,12 @@
         "id": "8939a35e84cbc5bd",
         "type": "gofa-subscribe-pose",
         "z": "08f5b46ae379bad0",
-        "g": "eb77a9bd9c4a0f0f",
+        "g": "f8a8b940376ab91b",
         "name": "",
         "robot": "cfg1",
         "interval": "500",
-        "x": 1590,
-        "y": 2220,
+        "x": 315,
+        "y": 1985,
         "wires": [
             [
                 "569ad33614eae2e3"
@@ -3252,7 +3426,7 @@
         "id": "569ad33614eae2e3",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "eb77a9bd9c4a0f0f",
+        "g": "f8a8b940376ab91b",
         "name": "{ ok, x, y, z, q1, q2, q3, q4 }",
         "active": true,
         "tosidebar": true,
@@ -3260,42 +3434,42 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1825,
-        "y": 2220,
+        "x": 550,
+        "y": 1985,
         "wires": []
     },
     {
         "id": "9e81c9ae510419c2",
         "type": "comment",
         "z": "08f5b46ae379bad0",
-        "g": "78704319019a587d",
+        "g": "7d417214b94fc5a7",
         "name": "⚠ AI Read / AO Write / DO Write require an external I/O expansion module — will fail with HTTP 404 on the base OmniCore C30 (CRB 15000 default)",
         "info": "",
-        "x": 1600,
-        "y": 1310,
+        "x": 295,
+        "y": 1270,
         "wires": []
     },
     {
         "id": "4aeca92f79544cf1",
         "type": "comment",
         "z": "08f5b46ae379bad0",
-        "g": "558444dd40c0ccd4",
+        "g": "7198e5afe7b422d6",
         "name": "RAPID-EXEC: start / stop / resetpp the RAPID program  |  Requires Remote Start/Stop UAS grant (RobotStudio → Edit User Accounts) + Auto mode + Motors on  |  resetpp acquires edit mastership automatically",
         "info": "",
-        "x": 1400,
-        "y": 2325,
+        "x": 290,
+        "y": 2105,
         "wires": []
     },
     {
         "id": "2c33863a6308e309",
         "type": "gofa-rapid-exec",
         "z": "08f5b46ae379bad0",
-        "g": "558444dd40c0ccd4",
+        "g": "7198e5afe7b422d6",
         "name": "",
         "robot": "cfg1",
         "action": "resetpp",
-        "x": 1390,
-        "y": 2420,
+        "x": 280,
+        "y": 2200,
         "wires": [
             [
                 "7b8d9314e8f1f1d2"
@@ -3306,7 +3480,7 @@
         "id": "7b8d9314e8f1f1d2",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "558444dd40c0ccd4",
+        "g": "7198e5afe7b422d6",
         "name": "{ ok, action } or { ok:false, error }",
         "active": true,
         "tosidebar": true,
@@ -3314,15 +3488,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1630,
-        "y": 2420,
+        "x": 520,
+        "y": 2200,
         "wires": []
     },
     {
         "id": "809536b31c66cc90",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "558444dd40c0ccd4",
+        "g": "7198e5afe7b422d6",
         "name": "Reset Program",
         "props": [
             {
@@ -3340,8 +3514,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1200,
-        "y": 2420,
+        "x": 90,
+        "y": 2200,
         "wires": [
             [
                 "2c33863a6308e309"
@@ -3352,12 +3526,12 @@
         "id": "0a9c5608e3b2ac79",
         "type": "gofa-rapid-exec",
         "z": "08f5b46ae379bad0",
-        "g": "558444dd40c0ccd4",
+        "g": "7198e5afe7b422d6",
         "name": "",
         "robot": "cfg1",
         "action": "start",
-        "x": 1350,
-        "y": 2480,
+        "x": 240,
+        "y": 2260,
         "wires": [
             [
                 "213922eb67e496b7"
@@ -3368,7 +3542,7 @@
         "id": "213922eb67e496b7",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "558444dd40c0ccd4",
+        "g": "7198e5afe7b422d6",
         "name": "{ ok, action } or { ok:false, error }",
         "active": true,
         "tosidebar": true,
@@ -3376,15 +3550,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1630,
-        "y": 2480,
+        "x": 520,
+        "y": 2260,
         "wires": []
     },
     {
         "id": "e6dd55a40839e852",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "558444dd40c0ccd4",
+        "g": "7198e5afe7b422d6",
         "name": "Start RAPID",
         "props": [
             {
@@ -3402,8 +3576,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1190,
-        "y": 2480,
+        "x": 80,
+        "y": 2260,
         "wires": [
             [
                 "0a9c5608e3b2ac79"
@@ -3414,12 +3588,12 @@
         "id": "9ea1ae20458cbf3f",
         "type": "gofa-rapid-exec",
         "z": "08f5b46ae379bad0",
-        "g": "558444dd40c0ccd4",
+        "g": "7198e5afe7b422d6",
         "name": "",
         "robot": "cfg1",
         "action": "stop",
-        "x": 1350,
-        "y": 2540,
+        "x": 240,
+        "y": 2320,
         "wires": [
             [
                 "9909447faf50b98f"
@@ -3430,7 +3604,7 @@
         "id": "9909447faf50b98f",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "558444dd40c0ccd4",
+        "g": "7198e5afe7b422d6",
         "name": "{ ok, action } or { ok:false, error }",
         "active": true,
         "tosidebar": true,
@@ -3440,15 +3614,15 @@
         "targetType": "msg",
         "statusVal": "",
         "statusType": "auto",
-        "x": 1630,
-        "y": 2540,
+        "x": 520,
+        "y": 2320,
         "wires": []
     },
     {
         "id": "4185396556f153d8",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "558444dd40c0ccd4",
+        "g": "7198e5afe7b422d6",
         "name": "Stop RAPID",
         "props": [
             {
@@ -3466,8 +3640,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1190,
-        "y": 2540,
+        "x": 80,
+        "y": 2320,
         "wires": [
             [
                 "9ea1ae20458cbf3f"
@@ -3478,7 +3652,7 @@
         "id": "d36bcbfb3b85e8ea",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "95885e1dae1670e1",
+        "g": "7be2a12fbae30fa8",
         "name": "Read",
         "props": [
             {
@@ -3492,8 +3666,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 1110,
-        "y": 620,
+        "x": 905,
+        "y": 1522,
         "wires": [
             [
                 "d8b18774c89eeca9"
@@ -3504,14 +3678,14 @@
         "id": "d8b18774c89eeca9",
         "type": "gofa-rapid-var-read",
         "z": "08f5b46ae379bad0",
-        "g": "95885e1dae1670e1",
+        "g": "7be2a12fbae30fa8",
         "name": "",
         "robot": "cfg1",
         "task": "T_ROB1",
         "module": "MainModule",
         "variable": "sTestMsg",
-        "x": 1270,
-        "y": 625,
+        "x": 1065,
+        "y": 1527,
         "wires": [
             [
                 "792f357a51abc7cf"
@@ -3522,7 +3696,7 @@
         "id": "792f357a51abc7cf",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "95885e1dae1670e1",
+        "g": "7be2a12fbae30fa8",
         "name": "{ ok, variable, value, source }",
         "active": true,
         "tosidebar": true,
@@ -3530,15 +3704,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1505,
-        "y": 625,
+        "x": 1300,
+        "y": 1527,
         "wires": []
     },
     {
         "id": "e2ac0ab0e596fab9",
         "type": "debug",
         "z": "08f5b46ae379bad0",
-        "g": "95885e1dae1670e1",
+        "g": "7be2a12fbae30fa8",
         "name": "{ ok, variable, value } or { ok:false }",
         "active": true,
         "tosidebar": true,
@@ -3546,15 +3720,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1515,
-        "y": 745,
+        "x": 1310,
+        "y": 1647,
         "wires": []
     },
     {
         "id": "cf962b6f180fe957",
         "type": "inject",
         "z": "08f5b46ae379bad0",
-        "g": "95885e1dae1670e1",
+        "g": "7be2a12fbae30fa8",
         "name": "Write",
         "props": [],
         "repeat": "",
@@ -3562,8 +3736,8 @@
         "once": false,
         "onceDelay": 0.1,
         "topic": "",
-        "x": 1110,
-        "y": 740,
+        "x": 905,
+        "y": 1642,
         "wires": [
             [
                 "354b13c7e1b27a40"
@@ -3574,13 +3748,13 @@
         "id": "354b13c7e1b27a40",
         "type": "gofa-rapid-var-write",
         "z": "08f5b46ae379bad0",
-        "g": "95885e1dae1670e1",
+        "g": "7be2a12fbae30fa8",
         "name": "",
         "robot": "cfg1",
         "variable": "sTestMsg",
         "value": "jwdwdd",
-        "x": 1255,
-        "y": 745,
+        "x": 1050,
+        "y": 1647,
         "wires": [
             [
                 "e2ac0ab0e596fab9"
@@ -3588,10 +3762,180 @@
         ]
     },
     {
+        "id": "ec0efcba089239f0",
+        "type": "comment",
+        "z": "08f5b46ae379bad0",
+        "name": "SPEED: override 1–100%  |  GETVAR/SETVAR: read/write a RAPID PERS variable by name — built-in test vars: nTestVar (num), sTestMsg (string)",
+        "info": "",
+        "x": 1060,
+        "y": 1367,
+        "wires": [],
+        "g": "7be2a12fbae30fa8"
+    },
+    {
+        "id": "535dd1860f16d3ce",
+        "type": "comment",
+        "z": "08f5b46ae379bad0",
+        "name": "Look up a saved point by name/id and move to it via GOTOJ/GOTOL  |  msg.payload.moveType: \"J\" (default, joint-interpolated) or \"L\" (linear)",
+        "info": "",
+        "x": 1060,
+        "y": 1767,
+        "wires": [],
+        "g": "2ed3903228d3b214"
+    },
+    {
+        "id": "936688ee320b30fd",
+        "type": "comment",
+        "z": "08f5b46ae379bad0",
+        "name": "SETLED: color + optional hardware blink period  |  RESETLED: restore default solid green  |  blinkCount>0 runs a software-timed blink instead of the hardware period",
+        "info": "",
+        "x": 1060,
+        "y": 2227,
+        "wires": [],
+        "g": "a8f59b69c2fa1e4a"
+    },
+    {
+        "id": "490d619dac46bc07",
+        "type": "debug",
+        "z": "08f5b46ae379bad0",
+        "name": "{ ok, r, g, b, blinks }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 1365,
+        "y": 2282,
+        "wires": [],
+        "g": "a8f59b69c2fa1e4a"
+    },
+    {
+        "id": "2d60d56b4a97e997",
+        "type": "gofa-asi-led",
+        "z": "08f5b46ae379bad0",
+        "name": "Set Yellow Blink",
+        "robot": "cfg1",
+        "red": 0,
+        "grn": 0,
+        "blu": 0,
+        "period": 0,
+        "blinkCount": 0,
+        "blinkMs": 250,
+        "x": 1130,
+        "y": 2282,
+        "wires": [
+            [
+                "490d619dac46bc07"
+            ]
+        ],
+        "g": "a8f59b69c2fa1e4a"
+    },
+    {
+        "id": "f7327c01cdfa4f2b",
+        "type": "inject",
+        "z": "08f5b46ae379bad0",
+        "name": "Set Yellow Blink",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{\"color\":\"yellow\",\"blinkCount\":3,\"blinkMs\":250}",
+        "payloadType": "json",
+        "x": 895,
+        "y": 2282,
+        "wires": [
+            [
+                "2d60d56b4a97e997"
+            ]
+        ],
+        "g": "a8f59b69c2fa1e4a"
+    },
+    {
+        "id": "a35a14fe914e0b0d",
+        "type": "debug",
+        "z": "08f5b46ae379bad0",
+        "name": "{ ok, reset:true }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 1365,
+        "y": 2337,
+        "wires": [],
+        "g": "a8f59b69c2fa1e4a"
+    },
+    {
+        "id": "5e59a833c5f230a0",
+        "type": "gofa-asi-led",
+        "z": "08f5b46ae379bad0",
+        "name": "Reset LED",
+        "robot": "cfg1",
+        "red": 0,
+        "grn": 0,
+        "blu": 0,
+        "period": 0,
+        "blinkCount": 0,
+        "blinkMs": 250,
+        "x": 1130,
+        "y": 2337,
+        "wires": [
+            [
+                "a35a14fe914e0b0d"
+            ]
+        ],
+        "g": "a8f59b69c2fa1e4a"
+    },
+    {
+        "id": "f0bc60d39cc132eb",
+        "type": "inject",
+        "z": "08f5b46ae379bad0",
+        "name": "Reset LED",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "reset",
+        "payloadType": "str",
+        "x": 895,
+        "y": 2337,
+        "wires": [
+            [
+                "5e59a833c5f230a0"
+            ]
+        ],
+        "g": "a8f59b69c2fa1e4a"
+    },
+    {
+        "id": "365fa4a9141c280d",
+        "type": "comment",
+        "z": "08f5b46ae379bad0",
+        "name": "List all saved points, or remove one by name/id  |  Local disk only — points.json on the Node-RED host, no robot communication",
+        "info": "",
+        "x": 1860,
+        "y": 110,
+        "wires": [],
+        "g": "01563c802b1192d1"
+    },
+    {
         "id": "cfg1",
         "type": "gofa-robot",
         "name": "ABB-GoFa-12",
-        "ip": "192.168.20.12",
+        "ip": "192.168.20.33",
         "rwsPort": "443",
         "socketPort": "1025",
         "username": "NNNN",

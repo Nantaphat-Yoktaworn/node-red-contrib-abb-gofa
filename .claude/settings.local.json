@@ -31,7 +31,14 @@
       "Bash(gh issue *)",
       "Bash(node test.js)",
       "Bash(node *)",
-      "PowerShell(node node-red-contrib-abb-gofa/test.js)"
+      "PowerShell(node node-red-contrib-abb-gofa/test.js)",
+      "Bash(where node *)",
+      "Bash(where npm *)",
+      "Bash(npm ls *)",
+      "Bash(where nvm *)",
+      "Bash(nvm version *)",
+      "Read(//c/Users/RD2/.node-red/**)",
+      "Read(//c/Users/RD2/.node-red/node_modules/**)"
     ]
   }
 }

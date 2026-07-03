@@ -44,7 +44,7 @@ function gotoToken(t, moveType) {
 module.exports = function(RED) {
     function GoFaRobotNode(config) {
         RED.nodes.createNode(this, config);
-        this.ip         = config.ip         || '192.168.20.12';
+        this.ip         = config.ip         || '192.168.20.33';
         this.rwsPort    = parseInt(config.rwsPort)    || 443;
         this.socketPort = parseInt(config.socketPort) || 1025;
         this.username   = config.username   || 'NNNN';

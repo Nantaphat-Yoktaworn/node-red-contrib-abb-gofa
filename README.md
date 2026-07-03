@@ -32,7 +32,7 @@ No extra RobotWare options required. RWS (Robot Web Services) is built into ever
 
 ## Quick start
 
-1. [Set your robot's IP address](#1-set-your-robot-ip) (if different from `192.168.20.12`)
+1. [Set your robot's IP address](#1-set-your-robot-ip) (if different from `192.168.20.33`)
 2. [Create an RWS user with Remote Start/Stop permission](#2-create-an-rws-user-robotstudio)
 3. [Upload and run the RAPID program](#3-upload-and-run-the-rapid-program)
 4. [Install the Node-RED palette](#4-install-the-node-red-palette)
@@ -42,7 +42,7 @@ No extra RobotWare options required. RWS (Robot Web Services) is built into ever
 
 ## 1. Set your robot IP
 
-If your robot's IP address is **not** `192.168.20.12`, you need to update it in three places before doing anything else.
+If your robot's IP address is **not** `192.168.20.33`, you need to update it in three places before doing anything else.
 
 ### Find your robot's IP
 
@@ -54,7 +54,7 @@ Run this in your terminal from the repo root (replace `X.X.X.X` with your IP):
 
 **Windows (PowerShell):**
 ```powershell
-$old = "192.168.20.12"; $new = "X.X.X.X"
+$old = "192.168.20.33"; $new = "X.X.X.X"
 Get-ChildItem -Recurse -Include *.js,*.html,*.json,*.mod,*.md |
   ForEach-Object { (Get-Content $_) -replace $old, $new | Set-Content $_ }
 ```
@@ -189,7 +189,7 @@ Every GoFa node shares a single **gofa-robot** config node. Open any GoFa node �
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| Robot IP | `192.168.20.12` | Controller IP — must match Step 1 |
+| Robot IP | `192.168.20.33` | Controller IP — must match Step 1 |
 | RWS Port | `443` | HTTPS port (built-in, do not change) |
 | Socket Port | `1025` | TCP port for the RAPID socket server |
 | Username | `NNNN` | The user you created in Step 2 |
@@ -440,7 +440,7 @@ This palette targets **OmniCore / RWS 2.0** which uses path-based actions (e.g. 
 
 | Setting | Value |
 |---------|-------|
-| Robot IP | `192.168.20.12` |
+| Robot IP | `192.168.20.33` |
 | RWS port | `443` (HTTPS, self-signed cert) |
 | Socket port | `1025` |
 | Username | `NNNN` |
