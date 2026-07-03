@@ -50,7 +50,12 @@
     <h3>Output</h3>
     <dl class="message-properties">
         <dt>payload <span class="property-type">object</span></dt>
-        <dd><code>{ ok: true|false, action: '...' }</code> — on failure, <code>error</code> field added</dd>
+        <dd>
+            <code>{ ok: true, action: '...' }</code> on success.<br>
+            On failure: <code>{ ok: false, action: '...', error: '...' }</code>, plus
+            <code>ctrlstate</code> and/or <code>execstate</code> when the failure relates to
+            motor/execution state (see <em>Notes</em> below).
+        </dd>
     </dl>
 
     <h3>Actions</h3>
@@ -65,4 +70,23 @@
     Use <b>gofa-motor</b> to enable motors first.</p>
     <p><b>Requires Remote Start/Stop UAS grant</b> — set in RobotStudio → Edit User Accounts.
     <b>resetpp</b> additionally requires Edit mastership (granted automatically by this node).</p>
+
+    <h3>Detecting a failed start (RAPID error 20055 and similar)</h3>
+    <p>RWS accepts <code>POST /rw/rapid/execution/start</code> with HTTP 200 even when the
+    controller then immediately rejects it — e.g. RAPID error <b>20055</b> ("program must
+    start in Motor On state"). The HTTP response alone can't reveal that, so an older version
+    of this node would report <code>{ ok: true }</code> for a start that never actually ran.</p>
+    <p>This node now verifies <code>start</code> two ways:</p>
+    <ul>
+        <li>Before sending the command, it checks <code>/rw/panel/ctrl-state</code>. If motors
+        aren't on, it fails immediately with <code>Cannot start RAPID: motors are motoroff —
+        turn Motors On first</code> — no request is even sent to the controller.</li>
+        <li>After sending the command, it polls <code>/rw/rapid/execution</code> for up to
+        1.5&nbsp;s to confirm <code>ctrlexecstate</code> actually reaches <code>running</code>.
+        If it doesn't (a rejection RWS didn't surface synchronously), the node reports
+        <code>RAPID did not start (motors are ...)</code> or points you at <b>gofa-elog</b>
+        for the controller's own error detail.</li>
+    </ul>
+    <p><code>stop</code> and <code>resetpp</code> are unaffected — they don't have this
+    silent-rejection failure mode, so no state is checked for them.</p>
 </script>

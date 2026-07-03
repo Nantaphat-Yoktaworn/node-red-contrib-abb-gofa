@@ -416,6 +416,15 @@ Session expired. The palette auto-retries with credentials — if it keeps faili
 | `icode:-757` | User lacks Remote Start/Stop grant | RobotStudio → Edit User Accounts → add Remote Start/Stop grants |
 | `org_code:-4501` on resetpp | Edit mastership not acquired | Update to latest palette — `resetpp` now wraps in `withMastership('edit')` automatically |
 
+### `gofa-rapid-exec` `start` fails with "motors are motoroff"
+
+RAPID error **20055** ("program must start in Motor On state") — RWS accepts the `start`
+request with HTTP 200 even when motors are off, so it can't be caught as an HTTP error.
+This node checks motor state before sending `start` and reports the real reason instead of
+a false `{ ok: true }`. Turn motors on with **gofa-motor** (or the FlexPendant) first. If a
+`start` still fails after motors are confirmed on, the payload's `execstate`/`ctrlstate`
+fields and **gofa-elog** will show the controller's actual reason.
+
 ### `gofa-subscribe-*` shows "unknown node type"
 
 Run `npm install` inside the palette directory so the `ws` package resolves when npm has symlinked the package:

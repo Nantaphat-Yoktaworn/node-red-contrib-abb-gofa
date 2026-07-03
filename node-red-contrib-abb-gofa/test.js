@@ -537,6 +537,74 @@ await checkAsync('gofa-stop-seq: sets the stop flag and sends STOP', async funct
     assert.deepStrictEqual(sentCmds, ['STOP']);
 });
 
+// gofa-rapid-exec ────────────────────────────────────────────────────────────
+function makeRapidExecRobot(opts) {
+    opts = opts || {};
+    var calls = [];
+    var execSeq = (opts.execstateSeq || ['running']).slice();
+    return {
+        calls: calls,
+        rwsGet: function(p) {
+            calls.push(['GET', p]);
+            if (p === '/rw/panel/ctrl-state') return Promise.resolve('CTRLSTATE:' + (opts.ctrlstate || 'motoron'));
+            if (p === '/rw/rapid/execution') return Promise.resolve('EXECSTATE:' + (execSeq.length > 1 ? execSeq.shift() : execSeq[0]));
+            return Promise.reject(new Error('unexpected GET ' + p));
+        },
+        rwsPost: function(p, b) {
+            calls.push(['POST', p, b]);
+            if (opts.postError) return Promise.reject(opts.postError);
+            return Promise.resolve('');
+        },
+        parseXhtml: function(body) {
+            var m = /:(.*)$/.exec(body);
+            return m ? m[1] : null;
+        },
+        withMastership: function(fn) { return fn(); }
+    };
+}
+await checkAsync('gofa-rapid-exec: start refuses up front when motors are off (no POST sent)', async function() {
+    var mockRobot = makeRapidExecRobot({ ctrlstate: 'motoroff' });
+    var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'start' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(msg.payload.error.indexOf('motors are motoroff') >= 0, msg.payload.error);
+    assert.strictEqual(msg.payload.ctrlstate, 'motoroff');
+    assert.ok(!mockRobot.calls.some(function(c) { return c[0] === 'POST'; }), 'must not POST start when motors are off');
+});
+await checkAsync('gofa-rapid-exec: start succeeds when motors are on and execstate confirms running', async function() {
+    var mockRobot = makeRapidExecRobot({ ctrlstate: 'motoron', execstateSeq: ['running'] });
+    var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'start' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.deepStrictEqual(msg.payload, { ok: true, action: 'start' });
+    assert.ok(mockRobot.calls.some(function(c) { return c[0] === 'POST' && c[1] === '/rw/rapid/execution/start'; }));
+});
+await checkAsync('gofa-rapid-exec: start reports failure when execstate never reaches running (silent RWS rejection)', async function() {
+    var mockRobot = makeRapidExecRobot({ ctrlstate: 'motoron', execstateSeq: ['stopped'] });
+    var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'start' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(msg.payload.error.indexOf('did not start') >= 0, msg.payload.error);
+    assert.strictEqual(msg.payload.execstate, 'stopped');
+});
+await checkAsync('gofa-rapid-exec: stop does not check ctrl-state', async function() {
+    var mockRobot = makeRapidExecRobot({ ctrlstate: 'motoroff' });
+    var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'stop' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.deepStrictEqual(msg.payload, { ok: true, action: 'stop' });
+    assert.ok(!mockRobot.calls.some(function(c) { return c[1] === '/rw/panel/ctrl-state'; }));
+});
+await checkAsync('gofa-rapid-exec: resetpp acquires mastership and does not check ctrl-state', async function() {
+    var mockRobot = makeRapidExecRobot({ ctrlstate: 'motoroff' });
+    var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'resetpp' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.deepStrictEqual(msg.payload, { ok: true, action: 'resetpp' });
+});
+
 fs.rmSync(tmpDir, { recursive: true, force: true });
 console.log('\n' + passed + ' passed, ' + failed + ' failed.');
 if (failed) process.exit(1);
