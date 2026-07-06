@@ -3,12 +3,14 @@ var assert = require('assert');
 var fs     = require('fs');
 var os     = require('os');
 var path   = require('path');
+var http   = require('http');
 var robot  = require('./nodes/gofa-robot');
 var gotoToken           = robot.gotoToken;
 var parseXhtml          = robot.parseXhtml;
 var atomicWriteFileSync = robot.atomicWriteFileSync;
 var fileMtimeMs         = robot.fileMtimeMs;
 var resolveMoveType     = robot.resolveMoveType;
+var createRobotClient   = robot.createRobotClient;
 var patchServerIp       = require('./nodes/gofa-upload-mod').patchServerIp;
 var parseLiSpans        = require('./nodes/gofa-rapid-tasks').parseLiSpans;
 
@@ -1123,6 +1125,86 @@ await checkAsync('gofa-rapid-var-read: falls back to module-text when GETVAR doe
     assert.strictEqual(msg.payload.source, 'module-text');
     assert.strictEqual(msg.payload.stale, true, 'module-text reads must be flagged stale — confirmed live to return the compiled value, not the current one');
     assert.ok(msg.payload.warning, 'should explain why the value may not be current');
+});
+
+// gofa-robot: createRobotClient session lifecycle (login/logout) ───────────
+// A local mock RWS server standing in for the controller: any request with
+// no Cookie header is treated as the Basic-Auth login (issues a fresh
+// Set-Cookie), GET /logout is recorded separately, everything else with a
+// Cookie header is just a plain authenticated 200.
+function makeMockRwsServer() {
+    var loginCount = 0, logoutCookies = [], cookieSeq = 0;
+    var server = http.createServer(function(req, res) {
+        if (req.url === '/logout') {
+            logoutCookies.push(req.headers['cookie'] || null);
+            res.writeHead(200); res.end(); return;
+        }
+        if (!req.headers['cookie']) {
+            loginCount++; cookieSeq++;
+            res.writeHead(200, { 'Set-Cookie': 'ABBCX=sess' + cookieSeq });
+            res.end('<html></html>'); return;
+        }
+        res.writeHead(200); res.end('<html></html>');
+    });
+    return {
+        server: server,
+        loginCount: function() { return loginCount; },
+        logoutCookies: function() { return logoutCookies; },
+        listen: function() { return new Promise(function(resolve) { server.listen(0, function() { resolve(server.address().port); }); }); }
+    };
+}
+await checkAsync('createRobotClient: logout releases the session and the next call re-authenticates', async function() {
+    var mock = makeMockRwsServer();
+    var port = await mock.listen();
+    try {
+        var client = createRobotClient({ ip: '127.0.0.1', rwsPort: port, socketPort: 1025, username: 'u', password: 'p' });
+
+        var firstCookie = await client.getCookie();
+        assert.strictEqual(mock.loginCount(), 1, 'first use must log in exactly once');
+        assert.ok(firstCookie, 'a session cookie should be captured');
+
+        await client.rwsGet('/rw/panel/ctrl-state');
+        assert.strictEqual(mock.loginCount(), 1, 'reusing the session must not re-authenticate');
+
+        await client.logout();
+        assert.strictEqual(mock.logoutCookies().length, 1, 'logout must hit GET /logout exactly once');
+        assert.strictEqual(mock.logoutCookies()[0], firstCookie, 'logout must send the session cookie being released');
+
+        var secondCookie = await client.getCookie();
+        assert.strictEqual(mock.loginCount(), 2, 'the next call after logout must re-authenticate');
+        assert.notStrictEqual(secondCookie, firstCookie, 'a fresh session should replace the released one');
+    } finally { mock.server.close(); }
+});
+await checkAsync('createRobotClient: logout is a no-op when no session was ever established', async function() {
+    var hit = false;
+    var server = http.createServer(function(req, res) { hit = true; res.writeHead(200); res.end(); });
+    await new Promise(function(resolve) { server.listen(0, resolve); });
+    try {
+        var client = createRobotClient({ ip: '127.0.0.1', rwsPort: server.address().port, socketPort: 1025, username: 'u', password: 'p' });
+        await client.logout();
+        assert.strictEqual(hit, false, 'logout must not make any HTTP request if no session cookie exists');
+    } finally { server.close(); }
+});
+await checkAsync('gofa-robot: node close calls logout and invokes done()', async function() {
+    var mock = makeMockRwsServer();
+    var port = await mock.listen();
+    try {
+        var GoFaRobot = loadNodeType('./nodes/gofa-robot', {});
+        var node = new GoFaRobot({
+            ip: '127.0.0.1', rwsPort: port, socketPort: 1025, username: 'u',
+            pointsFile: path.join(tmpDir, 'gofa-robot-close-test.json'),
+            credentials: { password: 'p' }
+        });
+        await node.rwsGet('/rw/panel/ctrl-state');
+        assert.strictEqual(mock.loginCount(), 1, 'establishing a session should log in once');
+
+        var doneCalled = false;
+        await new Promise(function(resolve) {
+            node._handlers['close'](function() { doneCalled = true; resolve(); });
+        });
+        assert.strictEqual(doneCalled, true, 'close handler must call done()');
+        assert.strictEqual(mock.logoutCookies().length, 1, 'close must log out the session via GET /logout');
+    } finally { mock.server.close(); }
 });
 
 fs.rmSync(tmpDir, { recursive: true, force: true });

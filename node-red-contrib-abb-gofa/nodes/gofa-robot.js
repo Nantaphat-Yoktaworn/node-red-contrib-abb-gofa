@@ -199,6 +199,29 @@ function createRobotClient(opts) {
         });
     }
     function getCookie() { return getSession().then(function() { return cookie; }); }
+    // Best-effort session teardown for node 'close' (redeploy/stop/restart). Never
+    // throws and never re-authenticates on failure — the controller only allows 19
+    // concurrent sessions once any WebSocket subscription is active (see abb-rws
+    // skill), and this client never logged out anywhere before, so every redeploy
+    // left its old session to rot until the controller's own 5-minute inactivity
+    // timeout. Enough leaked sessions from repeated redeploys can exhaust that pool
+    // and lock FlexPendant out with "too many device login".
+    function logout() {
+        if (!cookie) return Promise.resolve();
+        var savedCookie = cookie;
+        cookie = null;
+        return new Promise(function(resolve) {
+            var proto = rwsPort === 443 ? https : http;
+            var req = proto.request({
+                hostname: ip, port: rwsPort, path: '/logout', method: 'GET',
+                headers: { 'Cookie': savedCookie, 'Accept': 'application/xhtml+xml;v=2.0' },
+                rejectUnauthorized: false
+            }, function(res) { res.resume(); res.on('end', resolve); });
+            req.on('error', function() { resolve(); });
+            req.setTimeout(3000, function() { req.destroy(); resolve(); });
+            req.end();
+        });
+    }
     function socketSend(cmd) {
         return new Promise(function(resolve, reject) {
             var sock = new net.Socket();
@@ -223,7 +246,7 @@ function createRobotClient(opts) {
     return {
         rwsGet: rwsGet, rwsPost: rwsPost, rwsPut: rwsPut, rwsPostHal: rwsPostHal,
         withMastership: withMastership, socketSend: socketSend,
-        requestRaw: requestRaw, getCookie: getCookie
+        requestRaw: requestRaw, getCookie: getCookie, logout: logout
     };
 }
 
@@ -251,6 +274,11 @@ module.exports = function(RED) {
         this._seqRunning   = false;
 
         this._loadPoints();
+
+        var node = this;
+        this.on('close', function(done) {
+            node.logout().then(function() { done(); });
+        });
     }
 
     GoFaRobotNode.prototype._loadPoints = function() {
@@ -356,6 +384,7 @@ module.exports = function(RED) {
     GoFaRobotNode.prototype.socketSend    = function(cmd)  { return this._client.socketSend(cmd); };
     GoFaRobotNode.prototype.requestRaw    = function(method, p, b, opts) { return this._client.requestRaw(method, p, b, opts); };
     GoFaRobotNode.prototype.getCookie     = function()     { return this._client.getCookie(); };
+    GoFaRobotNode.prototype.logout        = function()     { return this._client.logout(); };
 
     GoFaRobotNode.prototype.parseXhtml = parseXhtml;
     GoFaRobotNode.prototype.gotoToken  = gotoToken;
