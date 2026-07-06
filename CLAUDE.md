@@ -7,6 +7,11 @@ Custom Node-RED palette (`node-red-contrib-abb-gofa`) for controlling an ABB GoF
 - `/abb-rws` — full RWS API reference (endpoints, auth, response parsing)
 - `/omnicore-c30` — OmniCore C30 controller specs
 - `/crb15000` — GoFa arm specs, joint limits, working range
+- `/robot-status` — runs `check-status.js` (below) against the live controller and reports Motors/Mode/RAPID/Speed/Socket; use before any live RWS/socket test, not just when explicitly asked
+
+## Standalone status-check script
+
+`node-red-contrib-abb-gofa/check-status.js` — plain Node.js, no Node-RED runtime needed. Run directly (`node check-status.js`) to preflight-check the robot before a live test: Motors/Mode/RAPID/Speed via RWS, plus a socket `PING` (the motion socket server only runs while RAPID is actually executing, so `RAPID: stopped` reliably means the socket ping will fail too — that's expected, not a bug). Flags: `--full` (adds RobotWare version, controller identity, `T_ROB1` task state, last 3 error/warning elog entries), `--json`. Connection defaults match this doc's table below except IP, which is `192.168.20.36` (drifted from the `.33` default — see the `SERVER_IP` note); override any of it per-invocation via `GOFA_IP`/`GOFA_RWS_PORT`/`GOFA_SOCKET_PORT`/`GOFA_USERNAME`/`GOFA_PASSWORD` env vars. Exit codes: `0` OK, `1` RWS unreachable, `2` RWS OK but socket unreachable. Built on `createRobotClient()`, a RED-independent factory extracted from `gofa-robot.js`'s session/auth/cookie logic (`GoFaRobotNode` now just delegates to it) — the same "export pure helpers for standalone use" pattern `test.js` already relies on for `parseXhtml`/`gotoToken`/etc.
 
 ## Architecture — two communication layers
 
@@ -147,6 +152,7 @@ GOTO token rounds to 1 dp (xyz) / 4 dp (quaternion) to stay under RAPID's 80-cha
 
 ```
 node-red-contrib-abb-gofa/        ← npm palette package
+node-red-contrib-abb-gofa/check-status.js  ← standalone robot preflight check, see /robot-status above
 rapid/MainModule.mod               ← RAPID socket server (must run on controller)
 flows/gofa_demo_flow.json          ← one inject per node, for testing
 flows/dashboard_flow.json          ← full robot control palette flow

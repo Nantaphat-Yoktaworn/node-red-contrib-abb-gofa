@@ -41,6 +41,127 @@ function gotoToken(t, moveType) {
     ].join(';');
 }
 
+// RED-independent RWS/socket client — carries the session/auth/cookie state
+// and connection logic on its own, so it can be used both by GoFaRobotNode
+// (wrapped in the RED node lifecycle) and by standalone scripts (check-status.js)
+// that have no Node-RED runtime at all.
+function createRobotClient(opts) {
+    var ip         = opts.ip;
+    var rwsPort    = opts.rwsPort;
+    var socketPort = opts.socketPort;
+    var username   = opts.username;
+    var password   = opts.password;
+
+    var cookie       = null;
+    var loginPromise = null;
+
+    function request(method, urlPath, body, forceAuth, accept) {
+        return new Promise(function(resolve, reject) {
+            var headers = { 'Accept': accept || 'application/xhtml+xml;v=2.0' };
+            if (forceAuth || !cookie) {
+                headers['Authorization'] = 'Basic ' +
+                    Buffer.from(username + ':' + password).toString('base64');
+            } else {
+                headers['Cookie'] = cookie;
+            }
+            if (method === 'POST' || method === 'PUT') {
+                headers['Content-Type']   = 'application/x-www-form-urlencoded;v=2.0';
+                headers['Content-Length'] = Buffer.byteLength(body || '');
+            }
+            var proto = rwsPort === 443 ? https : http;
+            var req = proto.request({
+                hostname: ip, port: rwsPort,
+                path: urlPath, method: method,
+                headers: headers, rejectUnauthorized: false
+            }, function(res) {
+                if (res.headers['set-cookie']) {
+                    cookie = res.headers['set-cookie']
+                        .map(function(c) { return c.split(';')[0]; }).join('; ');
+                }
+                var data = '';
+                res.on('data', function(c) { data += c; });
+                res.on('end', function() {
+                    if (res.statusCode === 401 && !forceAuth) {
+                        cookie = null;
+                        request(method, urlPath, body, true, accept).then(resolve).catch(reject);
+                    } else if (res.statusCode >= 200 && res.statusCode < 300) {
+                        resolve(data);
+                    } else {
+                        reject(new Error('HTTP ' + res.statusCode + ' ' + urlPath));
+                    }
+                });
+            });
+            req.on('error', reject);
+            req.setTimeout(8000, function() { req.destroy(new Error('RWS request timeout: ' + urlPath)); });
+            if (body) req.write(body);
+            req.end();
+        });
+    }
+
+    function getSession() {
+        if (cookie) return Promise.resolve();
+        if (!loginPromise) {
+            loginPromise = request('GET', '/rw/system', null, true)
+                .then(function() { loginPromise = null; })
+                .catch(function(e) { loginPromise = null; throw e; });
+        }
+        return loginPromise;
+    }
+
+    function rwsGet(p) { return getSession().then(function() { return request('GET', p, null, false); }); }
+    function rwsPost(p, b) { return getSession().then(function() { return request('POST', p, b, false); }); }
+    function rwsPut(p, b) { return getSession().then(function() { return request('PUT', p, b, false); }); }
+    // The RWS task loadmod resource is the one confirmed exception that requires
+    // application/hal+json;v=2.0 — every other endpoint in this palette uses xhtml+xml
+    // and errors ("Server cannot generate response for given accept header") on hal+json.
+    function rwsPostHal(p, b) { return getSession().then(function() { return request('POST', p, b, false, 'application/hal+json;v=2.0'); }); }
+    // Edit mastership is the only domain OmniCore allows requesting explicitly —
+    // general mastership is always held internally by the RAPID runtime.
+    function withMastership(fn) {
+        var req = '/rw/mastership/edit/request';
+        var rel = '/rw/mastership/edit/release';
+        return getSession()
+            .then(function() { return request('POST', req, '', false); })
+            .then(function() {
+                return fn().then(
+                    function(result) {
+                        return request('POST', rel, '', false)
+                            .then(function() { return result; });
+                    },
+                    function(err) {
+                        return request('POST', rel, '', false)
+                            .then(function() { throw err; }, function() { throw err; });
+                    }
+                );
+            });
+    }
+    function socketSend(cmd) {
+        return new Promise(function(resolve, reject) {
+            var sock = new net.Socket();
+            var buf = '', settled = false;
+            function finish(err, val) {
+                if (settled) return; settled = true;
+                sock.destroy();
+                err ? reject(err) : resolve(val);
+            }
+            sock.setTimeout(5000);
+            sock.connect(socketPort, ip, function() { sock.write(cmd + '\n'); });
+            sock.on('data', function(d) {
+                buf += d.toString();
+                if (buf.indexOf('\n') >= 0) finish(null, buf.trim());
+            });
+            sock.on('timeout', function() { finish(new Error('socket timeout')); });
+            sock.on('error', finish);
+            sock.on('close', function() { if (!settled) finish(new Error('socket closed')); });
+        });
+    }
+
+    return {
+        rwsGet: rwsGet, rwsPost: rwsPost, rwsPut: rwsPut, rwsPostHal: rwsPostHal,
+        withMastership: withMastership, socketSend: socketSend
+    };
+}
+
 module.exports = function(RED) {
     function GoFaRobotNode(config) {
         RED.nodes.createNode(this, config);
@@ -54,16 +175,16 @@ module.exports = function(RED) {
         }
         this.pointsFile = config.pointsFile || path.join(RED.settings.userDir || '.', 'points.json');
 
-        this._cookie       = null;
-        this._loginPromise = null;
+        this._client = createRobotClient({
+            ip: this.ip, rwsPort: this.rwsPort, socketPort: this.socketPort,
+            username: this.username, password: this.password
+        });
         this._points       = [];
         this._pointsMtime  = null;
         this._seqStop      = false;
         this._seqRunning   = false;
 
         this._loadPoints();
-        var node = this;
-        node.on('close', function() { node._cookie = null; });
     }
 
     GoFaRobotNode.prototype._loadPoints = function() {
@@ -117,122 +238,12 @@ module.exports = function(RED) {
         }) || null;
     };
 
-    GoFaRobotNode.prototype._request = function(method, urlPath, body, forceAuth, accept) {
-        var node = this;
-        return new Promise(function(resolve, reject) {
-            var headers = { 'Accept': accept || 'application/xhtml+xml;v=2.0' };
-            if (forceAuth || !node._cookie) {
-                headers['Authorization'] = 'Basic ' +
-                    Buffer.from(node.username + ':' + node.password).toString('base64');
-            } else {
-                headers['Cookie'] = node._cookie;
-            }
-            if (method === 'POST' || method === 'PUT') {
-                headers['Content-Type']   = 'application/x-www-form-urlencoded;v=2.0';
-                headers['Content-Length'] = Buffer.byteLength(body || '');
-            }
-            var proto = node.rwsPort === 443 ? https : http;
-            var req = proto.request({
-                hostname: node.ip, port: node.rwsPort,
-                path: urlPath, method: method,
-                headers: headers, rejectUnauthorized: false
-            }, function(res) {
-                if (res.headers['set-cookie']) {
-                    node._cookie = res.headers['set-cookie']
-                        .map(function(c) { return c.split(';')[0]; }).join('; ');
-                }
-                var data = '';
-                res.on('data', function(c) { data += c; });
-                res.on('end', function() {
-                    if (res.statusCode === 401 && !forceAuth) {
-                        node._cookie = null;
-                        node._request(method, urlPath, body, true, accept).then(resolve).catch(reject);
-                    } else if (res.statusCode >= 200 && res.statusCode < 300) {
-                        resolve(data);
-                    } else {
-                        reject(new Error('HTTP ' + res.statusCode + ' ' + urlPath));
-                    }
-                });
-            });
-            req.on('error', reject);
-            if (body) req.write(body);
-            req.end();
-        });
-    };
-
-    GoFaRobotNode.prototype._getSession = function() {
-        if (this._cookie) return Promise.resolve();
-        if (!this._loginPromise) {
-            var node = this;
-            this._loginPromise = this._request('GET', '/rw/system', null, true)
-                .then(function() { node._loginPromise = null; })
-                .catch(function(e) { node._loginPromise = null; throw e; });
-        }
-        return this._loginPromise;
-    };
-
-    GoFaRobotNode.prototype.rwsGet = function(p) {
-        var node = this;
-        return this._getSession().then(function() { return node._request('GET', p, null, false); });
-    };
-    GoFaRobotNode.prototype.rwsPost = function(p, b) {
-        var node = this;
-        return this._getSession().then(function() { return node._request('POST', p, b, false); });
-    };
-    GoFaRobotNode.prototype.rwsPut = function(p, b) {
-        var node = this;
-        return this._getSession().then(function() { return node._request('PUT', p, b, false); });
-    };
-    // The RWS task loadmod resource is the one confirmed exception that requires
-    // application/hal+json;v=2.0 — every other endpoint in this palette uses xhtml+xml
-    // and errors ("Server cannot generate response for given accept header") on hal+json.
-    GoFaRobotNode.prototype.rwsPostHal = function(p, b) {
-        var node = this;
-        return this._getSession().then(function() { return node._request('POST', p, b, false, 'application/hal+json;v=2.0'); });
-    };
-    // Edit mastership is the only domain OmniCore allows requesting explicitly —
-    // general mastership is always held internally by the RAPID runtime.
-    GoFaRobotNode.prototype.withMastership = function(fn) {
-        var node = this;
-        var req = '/rw/mastership/edit/request';
-        var rel = '/rw/mastership/edit/release';
-        return node._getSession()
-            .then(function() { return node._request('POST', req, '', false); })
-            .then(function() {
-                return fn().then(
-                    function(result) {
-                        return node._request('POST', rel, '', false)
-                            .then(function() { return result; });
-                    },
-                    function(err) {
-                        return node._request('POST', rel, '', false)
-                            .then(function() { throw err; }, function() { throw err; });
-                    }
-                );
-            });
-    };
-
-    GoFaRobotNode.prototype.socketSend = function(cmd) {
-        var node = this;
-        return new Promise(function(resolve, reject) {
-            var sock = new net.Socket();
-            var buf = '', settled = false;
-            function finish(err, val) {
-                if (settled) return; settled = true;
-                sock.destroy();
-                err ? reject(err) : resolve(val);
-            }
-            sock.setTimeout(5000);
-            sock.connect(node.socketPort, node.ip, function() { sock.write(cmd + '\n'); });
-            sock.on('data', function(d) {
-                buf += d.toString();
-                if (buf.indexOf('\n') >= 0) finish(null, buf.trim());
-            });
-            sock.on('timeout', function() { finish(new Error('socket timeout')); });
-            sock.on('error', finish);
-            sock.on('close', function() { if (!settled) finish(new Error('socket closed')); });
-        });
-    };
+    GoFaRobotNode.prototype.rwsGet        = function(p)    { return this._client.rwsGet(p); };
+    GoFaRobotNode.prototype.rwsPost       = function(p, b) { return this._client.rwsPost(p, b); };
+    GoFaRobotNode.prototype.rwsPut        = function(p, b) { return this._client.rwsPut(p, b); };
+    GoFaRobotNode.prototype.rwsPostHal    = function(p, b) { return this._client.rwsPostHal(p, b); };
+    GoFaRobotNode.prototype.withMastership = function(fn)  { return this._client.withMastership(fn); };
+    GoFaRobotNode.prototype.socketSend    = function(cmd)  { return this._client.socketSend(cmd); };
 
     GoFaRobotNode.prototype.parseXhtml = parseXhtml;
     GoFaRobotNode.prototype.gotoToken  = gotoToken;
@@ -252,3 +263,4 @@ module.exports.gotoToken           = gotoToken;
 module.exports.resolveMoveType     = resolveMoveType;
 module.exports.atomicWriteFileSync = atomicWriteFileSync;
 module.exports.fileMtimeMs         = fileMtimeMs;
+module.exports.createRobotClient   = createRobotClient;
