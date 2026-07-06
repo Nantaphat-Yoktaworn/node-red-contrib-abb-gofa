@@ -38,7 +38,8 @@
       "Bash(where nvm *)",
       "Bash(nvm version *)",
       "Read(//c/Users/RD2/.node-red/**)",
-      "Read(//c/Users/RD2/.node-red/node_modules/**)"
+      "Read(//c/Users/RD2/.node-red/node_modules/**)",
+      "Bash(git rm *)"
     ]
   }
 }

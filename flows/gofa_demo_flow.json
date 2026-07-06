@@ -114,12 +114,15 @@
             "f86919c88aa4e591",
             "a47aa1d9270e4d63",
             "8a15af31da8fa29d",
-            "d1d873fca48b8179"
+            "d1d873fca48b8179",
+            "1a2b3c4d5e6f7081",
+            "2b3c4d5e6f708192",
+            "3c4d5e6f708192a3"
         ],
         "x": 40,
         "y": 585,
         "w": 690,
-        "h": 135,
+        "h": 170,
         "g": "ddf39a7facd45efe"
     },
     {
@@ -523,11 +526,14 @@
             "535dd1860f16d3ce",
             "fb9f7eea7696e42c",
             "a4492942585fb9f6",
-            "0bc2884c0e3c54c0"
+            "0bc2884c0e3c54c0",
+            "a3b4c5d6e708192a",
+            "b4c5d6e708192a3b",
+            "c5d6e708192a3b4c"
         ],
         "x": 855,
         "y": 1782,
-        "w": 690,
+        "w": 1500,
         "h": 135,
         "g": "43809a414eac99f5"
     },
@@ -553,11 +559,14 @@
             "83e30323fd0929e3",
             "5c9a981ced248162",
             "014e6b5e2295b80f",
-            "68b5a31875bdb44f"
+            "68b5a31875bdb44f",
+            "d6e708192a3b4c5d",
+            "e708192a3b4c5d6e",
+            "f08192a3b4c5d6e7"
         ],
         "x": 855,
         "y": 1957,
-        "w": 690,
+        "w": 1500,
         "h": 245,
         "g": "43809a414eac99f5"
     },
@@ -634,11 +643,17 @@
             "666a09f4a86b1e86",
             "fb211e6b1b90f2e8",
             "57db523c8431d101",
-            "b70f96b2c70f009e"
+            "b70f96b2c70f009e",
+            "4d5e6f708192a3b4",
+            "5e6f708192a3b4c5",
+            "6f708192a3b4c5d6",
+            "708192a3b4c5d6e7",
+            "8192a3b4c5d6e708",
+            "92a3b4c5d6e70819"
         ],
         "x": 1655,
         "y": 70,
-        "w": 690,
+        "w": 1500,
         "h": 245,
         "g": "73150fb47d555f62"
     },
@@ -1494,7 +1509,7 @@
         "type": "comment",
         "z": "08f5b46ae379bad0",
         "g": "523bcdd0036411cb",
-        "name": "Read current pose via RWS and save it as a named point in points.json  |  Go to a saved point: TCP Socket group → Go To Point  |  List/Delete saved points: Local group → Point List & Delete",
+        "name": "Read current pose via RWS and save it as a named point  |  Storage: Local (points.json) or On-Robot (JSON file on the robot's own disk via RWS, no local file needed)  |  Go to a saved point: TCP Socket group → Go To Point  |  List/Delete saved points: Local group → Point List & Delete",
         "info": "",
         "x": 245,
         "y": 625,
@@ -1556,6 +1571,65 @@
         "targetType": "msg",
         "x": 550,
         "y": 680,
+        "wires": []
+    },
+    {
+        "id": "1a2b3c4d5e6f7081",
+        "type": "inject",
+        "z": "08f5b46ae379bad0",
+        "g": "523bcdd0036411cb",
+        "name": "1b. Save Current Pose (On-Robot)",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 100,
+        "y": 725,
+        "wires": [
+            [
+                "2b3c4d5e6f708192"
+            ]
+        ]
+    },
+    {
+        "id": "2b3c4d5e6f708192",
+        "type": "gofa-save-point",
+        "z": "08f5b46ae379bad0",
+        "g": "523bcdd0036411cb",
+        "name": "1b. Save Current Pose (On-Robot)",
+        "robot": "cfg1",
+        "pointName": "",
+        "storage": "remote",
+        "x": 355,
+        "y": 725,
+        "wires": [
+            [
+                "3c4d5e6f708192a3"
+            ]
+        ]
+    },
+    {
+        "id": "3c4d5e6f708192a3",
+        "type": "debug",
+        "z": "08f5b46ae379bad0",
+        "g": "523bcdd0036411cb",
+        "name": "{ ok, point, points } (on-robot)",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 590,
+        "y": 725,
         "wires": []
     },
     {
@@ -1674,6 +1748,66 @@
         "wires": []
     },
     {
+        "id": "a3b4c5d6e708192a",
+        "type": "inject",
+        "z": "08f5b46ae379bad0",
+        "g": "2ed3903228d3b214",
+        "name": "3b. Go to Point (On-Robot)",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 1650,
+        "y": 1877,
+        "wires": [
+            [
+                "b4c5d6e708192a3b"
+            ]
+        ]
+    },
+    {
+        "id": "b4c5d6e708192a3b",
+        "type": "gofa-go-point",
+        "z": "08f5b46ae379bad0",
+        "g": "2ed3903228d3b214",
+        "name": "3b. Go to Point (On-Robot)",
+        "robot": "cfg1",
+        "pointName": "Point 1",
+        "moveType": "J",
+        "storage": "remote",
+        "x": 1885,
+        "y": 1877,
+        "wires": [
+            [
+                "c5d6e708192a3b4c"
+            ]
+        ]
+    },
+    {
+        "id": "c5d6e708192a3b4c",
+        "type": "debug",
+        "z": "08f5b46ae379bad0",
+        "g": "2ed3903228d3b214",
+        "name": "{ ok, ack, point } (on-robot)",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 2120,
+        "y": 1877,
+        "wires": []
+    },
+    {
         "id": "fb211e6b1b90f2e8",
         "type": "inject",
         "z": "08f5b46ae379bad0",
@@ -1732,11 +1866,128 @@
         "wires": []
     },
     {
+        "id": "4d5e6f708192a3b4",
+        "type": "inject",
+        "z": "08f5b46ae379bad0",
+        "g": "01563c802b1192d1",
+        "name": "2b. List All Points (On-Robot)",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 2450,
+        "y": 165,
+        "wires": [
+            [
+                "5e6f708192a3b4c5"
+            ]
+        ]
+    },
+    {
+        "id": "5e6f708192a3b4c5",
+        "type": "gofa-point-list",
+        "z": "08f5b46ae379bad0",
+        "g": "01563c802b1192d1",
+        "name": "2b. List All Points (On-Robot)",
+        "robot": "cfg1",
+        "storage": "remote",
+        "x": 2685,
+        "y": 165,
+        "wires": [
+            [
+                "6f708192a3b4c5d6"
+            ]
+        ]
+    },
+    {
+        "id": "6f708192a3b4c5d6",
+        "type": "debug",
+        "z": "08f5b46ae379bad0",
+        "g": "01563c802b1192d1",
+        "name": "[ {id, name, target}, ... ] (on-robot)",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 2920,
+        "y": 165,
+        "wires": []
+    },
+    {
+        "id": "708192a3b4c5d6e7",
+        "type": "inject",
+        "z": "08f5b46ae379bad0",
+        "g": "01563c802b1192d1",
+        "name": "4b. Delete Point (On-Robot)",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 2450,
+        "y": 275,
+        "wires": [
+            [
+                "8192a3b4c5d6e708"
+            ]
+        ]
+    },
+    {
+        "id": "8192a3b4c5d6e708",
+        "type": "gofa-delete-point",
+        "z": "08f5b46ae379bad0",
+        "g": "01563c802b1192d1",
+        "name": "4b. Delete Point (On-Robot)",
+        "robot": "cfg1",
+        "pointName": "Demo Point",
+        "storage": "remote",
+        "x": 2685,
+        "y": 275,
+        "wires": [
+            [
+                "92a3b4c5d6e70819"
+            ]
+        ]
+    },
+    {
+        "id": "92a3b4c5d6e70819",
+        "type": "debug",
+        "z": "08f5b46ae379bad0",
+        "g": "01563c802b1192d1",
+        "name": "{ ok, deleted, points:[] } (on-robot)",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 2920,
+        "y": 275,
+        "wires": []
+    },
+    {
         "id": "7baa4181f6a6215f",
         "type": "comment",
         "z": "08f5b46ae379bad0",
         "g": "c6d990e280c9fb6c",
-        "name": "Run Sequence: visits each saved point in order  |  Output 1 = after each step  |  Output 2 = done/stopped  |  Stop: halts after current step",
+        "name": "Run Sequence: visits each saved point in order  |  Output 1 = after each step  |  Output 2 = done/stopped  |  Stop: halts after current step  |  Left: Storage=Local  |  Right: Storage=On-Robot (fetches the whole list once per run, not once per step)",
         "info": "",
         "x": 1060,
         "y": 1997,
@@ -1810,6 +2061,78 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 1365,
+        "y": 2052,
+        "wires": []
+    },
+    {
+        "id": "d6e708192a3b4c5d",
+        "type": "inject",
+        "z": "08f5b46ae379bad0",
+        "g": "c6d990e280c9fb6c",
+        "name": "Run Sequence (On-Robot)",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 1650,
+        "y": 2052,
+        "wires": [
+            [
+                "e708192a3b4c5d6e"
+            ]
+        ]
+    },
+    {
+        "id": "e708192a3b4c5d6e",
+        "type": "gofa-sequencer",
+        "z": "08f5b46ae379bad0",
+        "g": "c6d990e280c9fb6c",
+        "name": "Demo Sequence (On-Robot)",
+        "robot": "cfg1",
+        "storage": "remote",
+        "steps": [
+            {
+                "name": "Point 1"
+            },
+            {
+                "name": "Point 2"
+            }
+        ],
+        "dwell": 1000,
+        "loop": false,
+        "pingpong": false,
+        "x": 1885,
+        "y": 2052,
+        "wires": [
+            [
+                "f08192a3b4c5d6e7"
+            ],
+            [
+                "f08192a3b4c5d6e7"
+            ]
+        ]
+    },
+    {
+        "id": "f08192a3b4c5d6e7",
+        "type": "debug",
+        "z": "08f5b46ae379bad0",
+        "g": "c6d990e280c9fb6c",
+        "name": "step / done / stopped (on-robot)",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 2120,
         "y": 2052,
         "wires": []
     },
@@ -4035,7 +4358,7 @@
         "id": "535dd1860f16d3ce",
         "type": "comment",
         "z": "08f5b46ae379bad0",
-        "name": "Look up a saved point by name/id and move to it via GOTOJ/GOTOL  |  msg.payload.moveType: \"J\" (default, joint-interpolated) or \"L\" (linear)",
+        "name": "Look up a saved point by name/id and move to it via GOTOJ/GOTOL  |  msg.payload.moveType: \"J\" (default, joint-interpolated) or \"L\" (linear)  |  Left: Storage=Local  |  Right: Storage=On-Robot",
         "info": "",
         "x": 1060,
         "y": 1822,
@@ -4183,7 +4506,7 @@
         "id": "365fa4a9141c280d",
         "type": "comment",
         "z": "08f5b46ae379bad0",
-        "name": "List all saved points, or remove one by name/id  |  Local disk only — points.json on the Node-RED host, no robot communication",
+        "name": "List all saved points, or remove one by name/id  |  Left column: Storage=Local, points.json on the Node-RED host  |  Right column: Storage=On-Robot, JSON file on the robot's own disk via RWS",
         "info": "",
         "x": 1860,
         "y": 110,
