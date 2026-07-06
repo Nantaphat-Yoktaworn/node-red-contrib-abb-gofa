@@ -5,18 +5,23 @@
             name:      { value: '' },
             robot:     { value: '', type: 'gofa-robot', required: true },
             pointName: { value: '' },
-            moveType:  { value: 'J' }
+            moveType:  { value: 'J' },
+            storage:   { value: 'local' }
         },
         inputs: 1, outputs: 1, icon: 'white-globe.svg',
         label: function() { return this.name || ('Go to ' + (this.pointName || '...')); },
         paletteLabel: 'Go to Point',
         oneditprepare: function() {
             var node = this;
+            function endpoint(robotId) {
+                var storage = $('#node-input-storage').val();
+                return '/gofa-robot/' + robotId + '/' + (storage === 'remote' ? 'remote-points' : 'points');
+            }
             function loadPoints(robotId) {
                 var sel = $('#node-input-pointName').empty()
                     .append($('<option value="">-- select point --</option>'));
                 if (!robotId) return;
-                $.getJSON('/gofa-robot/' + robotId + '/points', function(pts) {
+                $.getJSON(endpoint(robotId), function(pts) {
                     pts.forEach(function(p) {
                         sel.append($('<option>').val(p.name).text(p.name));
                     });
@@ -25,6 +30,7 @@
             }
             loadPoints(node.robot);
             $('#node-input-robot').change(function() { loadPoints($(this).val()); });
+            $('#node-input-storage').change(function() { loadPoints($('#node-input-robot').val()); });
         }
     });
 </script>
@@ -32,6 +38,13 @@
     <div class="form-row">
         <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
         <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-storage"><i class="fa fa-database"></i> Storage</label>
+        <select id="node-input-storage">
+            <option value="local">Local (points.json)</option>
+            <option value="remote">On-Robot</option>
+        </select>
     </div>
     <div class="form-row">
         <label for="node-input-pointName"><i class="fa fa-map-marker"></i> Point</label>
@@ -51,7 +64,14 @@
 </script>
 <script type="text/html" data-help-name="gofa-go-point">
     <p>Moves the robot to a saved point by name or ID.</p>
-    <p><code>msg.payload.name</code> or <code>msg.payload.id</code> overrides the property.</p>
+    <p><code>msg.payload.name</code> or <code>msg.payload.id</code> overrides the property;
+    <code>msg.payload.storage</code> (<code>"local"</code>/<code>"remote"</code>) overrides
+    <em>Storage</em>.</p>
+    <h3>Storage</h3>
+    <p><b>Local</b> — looks the point up in the config node's Points File (default). <b>On-Robot</b> —
+    fetches the point from a JSON file on the robot controller's own disk via RWS
+    <code>fileservice</code>, then moves exactly the same way (the socket <code>GOTOJ</code>/
+    <code>GOTOL</code> command is unaffected either way).</p>
     <h3>Move type</h3>
     <p><b>Joint (MoveJ)</b> — joint-interpolated. Each axis moves independently so the path can curve; more predictable/reliable since it won't fault or slow drastically near a singularity. This is the default whenever move type is left unset or an invalid value is passed.</p>
     <p><b>Linear (MoveL)</b> — straight-line TCP path to the target. Useful for controlled approach/retract moves, but can hit singularities or joint limits along the line that a joint move to the same target would route around.</p>

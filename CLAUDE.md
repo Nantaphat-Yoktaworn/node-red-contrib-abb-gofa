@@ -76,7 +76,7 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 
 | Node | Transport | Description |
 |------|-----------|-------------|
-| `gofa-robot` | config | Shared config: IP, RWS port 443, socket port 1025, creds, points file |
+| `gofa-robot` | config | Shared config: IP, RWS port 443, socket port 1025, creds, local points file, remote (on-robot) points path |
 | `gofa-status` | RWS | Reads ctrlstate, opmode, speedratio, RAPID execstate |
 | `gofa-pose` | RWS | Current TCP pose (x,y,z + quaternion + config flags) |
 | `gofa-joints` | RWS | All 6 joint angles in degrees |
@@ -92,13 +92,13 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 | `gofa-speed-set` | Socket | Speed override % via `SpeedRefresh` (no mastership needed) |
 | `gofa-stop-motion` | Socket | Halt motion immediately |
 | `gofa-ping` | Socket | Connectivity test, measures round-trip time |
-| `gofa-save-point` | RWS + disk | Read pose via RWS, save as named point in `points.json` |
-| `gofa-go-point` | Socket + disk | Look up saved point, send GOTO token; move type (MoveJ/MoveL) selectable per-node or per-message |
-| `gofa-point-list` | disk | Output full saved-point array |
-| `gofa-delete-point` | disk | Remove a saved point by name |
-| `gofa-points-export` | disk | Dump points list to `msg.payload` |
-| `gofa-points-import` | disk | Replace points list from `msg.payload` |
-| `gofa-sequencer` | Socket + disk | Visit saved points in order; per-step dwell + move type override, loop count, ping-pong, startStep |
+| `gofa-save-point` | RWS + disk/RWS | Read pose via RWS, save as named point in `points.json` (Local) or a JSON file on the robot's own disk (On-Robot) |
+| `gofa-go-point` | Socket + disk/RWS | Look up saved point (Local `points.json` or On-Robot file), send GOTO token; move type (MoveJ/MoveL) selectable per-node or per-message |
+| `gofa-point-list` | disk/RWS | Output full saved-point array, from `points.json` (Local) or the robot's own disk (On-Robot) |
+| `gofa-delete-point` | disk/RWS | Remove a saved point by name, from `points.json` (Local) or the robot's own disk (On-Robot) |
+| `gofa-points-export` | disk | Dump points list to `msg.payload` (local storage only) |
+| `gofa-points-import` | disk | Replace points list from `msg.payload` (local storage only) |
+| `gofa-sequencer` | Socket + disk/RWS | Visit saved points in order (Local `points.json` or On-Robot file); per-step dwell + move type override, loop count, ping-pong, startStep |
 | `gofa-stop-seq` | Socket + in-memory | Sets `_seqStop` flag and sends immediate `STOP` socket command |
 | `gofa-rapid-exec` | RWS | Start/stop/resetPP/loadmod RAPID program *(requires Remote Start/Stop UAS grants; loadmod/resetpp need Edit mastership, granted automatically)* |
 | `gofa-rapid-var-read` | Socket | Read a RAPID PERS variable via `GETVAR:<name>` socket command |
@@ -121,11 +121,15 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 
 ## Saved points format
 
-Stored in `points.json` on the Node-RED host (not on the robot):
+Stored in `points.json` on the Node-RED host by default (local storage):
 ```json
 [{ "id": "uuid", "name": "pick1", "target": { "x":323.2, "y":-81.8, "z":807.0, "q1":0.267, "q2":0.129, "q3":0.954, "q4":-0.053, "cf1":-1, "cf4":-1, "cf6":0, "cfx":0 } }]
 ```
 GOTO token rounds to 1 dp (xyz) / 4 dp (quaternion) to stay under RAPID's 80-char string limit. RAPID re-normalizes the quaternion on receipt.
+
+**On-robot storage note**: `gofa-save-point`/`gofa-go-point`/`gofa-delete-point`/`gofa-point-list`/`gofa-sequencer` all have a **Storage: Local / On-Robot** option (`msg.payload.storage` override, `'local'`/`'remote'`). On-Robot stores the exact same JSON shape above in a file on the robot controller's own disk (`gofa-robot`'s **Remote Points Path**, default `$HOME/Programs/gofa_points.json`) instead of `points.json` — no local file needed on the Node-RED host. This does **not** touch `MainModule.mod` or RAPID at all: the file is managed purely over RWS `fileservice` `GET`/`PUT` (`gofa-robot.js`'s `remoteGetPoints`/`remoteAddPoint`/`remoteDeletePoint`/`remoteFindPoint`/`remoteSavePoints`), the exact mechanism `gofa-upload-mod`/`gofa-file-read` already use. Movement is completely unaffected either way — `gotoToken()`/`socketSend()` and the `GOTOJ`/`GOTOL` socket protocol don't know or care where the point came from.
+
+Originally considered storing the list *inside* RAPID (new socket commands reading/writing a file from within `MainModule.mod`), but RAPID's `string` type has a hard 80-character cap (see the GOTO-token rounding above) that a growing list of named points would blow past for more than a point or two — confirmed live: `GET`/`PUT /fileservice/$HOME/Programs/gofa_points_test.json` round-trips a JSON list with no RAPID string involved at all (plain HTTP), which sidesteps the limit entirely. Two things confirmed live building this: `GET` on a missing file is a clean `404` (`rapi_file_service.cpp: Path does not exist`) — treated as `[]`; `PUT` **requires** `Content-Type: text/plain;v=2.0` or `application/octet-stream;v=2.0` — `application/json` is rejected (`415`, and the error body itself names the two valid options). No concurrent-write protection on the remote file (unlike local storage's changed-on-disk mtime check) — acceptable for a human-paced "teach a point" workflow, not built.
 
 ## RWS key endpoints
 

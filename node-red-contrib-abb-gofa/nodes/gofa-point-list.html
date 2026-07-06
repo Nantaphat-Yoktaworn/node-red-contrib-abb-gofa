@@ -1,7 +1,11 @@
 <script type="text/javascript">
     RED.nodes.registerType('gofa-point-list', {
         category: 'ABB-GoFa-12', color: '#D3740C',
-        defaults: { name: { value: '' }, robot: { value: '', type: 'gofa-robot', required: true } },
+        defaults: {
+            name:    { value: '' },
+            robot:   { value: '', type: 'gofa-robot', required: true },
+            storage: { value: 'local' }
+        },
         inputs: 1, outputs: 1, icon: 'white-globe.svg',
         label: function() { return this.name || 'Point List'; },
         paletteLabel: 'Point List'
@@ -13,10 +17,19 @@
         <input type="text" id="node-input-robot">
     </div>
     <div class="form-row">
+        <label for="node-input-storage"><i class="fa fa-database"></i> Storage</label>
+        <select id="node-input-storage">
+            <option value="local">Local (points.json)</option>
+            <option value="remote">On-Robot</option>
+        </select>
+    </div>
+    <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Point List">
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-point-list">
     <p>Outputs the current list of all saved points as an array of <code>{ id, name, target }</code>.</p>
+    <p><code>msg.payload.storage</code> (<code>"local"</code>/<code>"remote"</code>) overrides
+    <em>Storage</em>.</p>
 </script>

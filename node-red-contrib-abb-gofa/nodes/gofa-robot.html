@@ -7,7 +7,8 @@
             rwsPort:     { value: '443',  required: true },
             socketPort:  { value: '1025', required: true },
             username:    { value: 'NNNN' },
-            pointsFile:  { value: 'points.json' }
+            pointsFile:  { value: 'points.json' },
+            remotePointsPath: { value: '$HOME/Programs/gofa_points.json' }
         },
         credentials: { password: { type: 'password' } },
         label: function() { return this.name || this.ip || 'ABB-GoFa-12'; }
@@ -42,9 +43,19 @@
         <label for="node-config-input-pointsFile"><i class="fa fa-file"></i> Points File</label>
         <input type="text" id="node-config-input-pointsFile" placeholder="points.json">
     </div>
+    <div class="form-row">
+        <label for="node-config-input-remotePointsPath"><i class="fa fa-globe"></i> Remote Points Path</label>
+        <input type="text" id="node-config-input-remotePointsPath" placeholder="$HOME/Programs/gofa_points.json">
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-robot">
     <p>Connection settings for ABB-GoFa-12. Shared by all GoFa nodes.</p>
     <p>The RWS session cookie is shared across all nodes — only one login per restart, respecting the 70-session limit.</p>
     <p>Points file is loaded at startup and kept in memory; all changes are persisted immediately.</p>
+    <p><b>Remote Points Path</b> — used instead of the local Points File when a point node's
+    <em>Storage</em> is set to <b>On-Robot</b>. A plain JSON file on the robot controller's own
+    disk (managed purely via RWS <code>fileservice</code> <code>GET</code>/<code>PUT</code>, same
+    mechanism as <b>gofa-upload-mod</b>/<b>gofa-file-read</b>) — no local file needed on the
+    Node-RED host. No concurrent-write protection (unlike the local Points File's
+    changed-on-disk check) — fine for a human-paced "teach a point" workflow.</p>
 </script>

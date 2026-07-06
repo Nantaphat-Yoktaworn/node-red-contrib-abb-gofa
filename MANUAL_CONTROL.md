@@ -82,6 +82,10 @@ curl -sk $AUTH -H "Accept: application/xhtml+xml;v=2.0" "https://$IP/rw/rapid/ta
 # Download a file from the controller (e.g. the running MainModule.mod)
 curl -sk $AUTH -H "Accept: */*" "https://$IP/fileservice/\$HOME/Programs/MainModule.mod"
 
+# Read the on-robot saved-points file (gofa-save-point/etc's "Storage: On-Robot" mode)
+# — a 404 here just means no points have been saved on-robot yet
+curl -sk $AUTH -H "Accept: */*" "https://$IP/fileservice/\$HOME/Programs/gofa_points.json"
+
 # Check who (if anyone) currently holds edit mastership
 curl -sk $AUTH -H "Accept: application/xhtml+xml;v=2.0" "https://$IP/rw/mastership/edit"
 ```
@@ -120,6 +124,13 @@ curl -sk $AUTH -H "Content-Type: $CT" -X POST --data "status=inactive" "https://
 curl -sk $AUTH -X PUT -H "Content-Type: text/plain;v=2.0" \
   --data-binary @rapid/MainModule.mod \
   "https://$IP/fileservice/\$HOME/Programs/MainModule.mod"
+
+# Write the on-robot saved-points file — full overwrite, same JSON shape as points.json.
+# Content-Type MUST be text/plain;v=2.0 or application/octet-stream;v=2.0 — confirmed
+# live that application/json is rejected (415), even though the content is JSON.
+curl -sk $AUTH -X PUT -H "Content-Type: text/plain;v=2.0" \
+  --data '[{"id":"p1","name":"pick1","target":{"x":323.2,"y":-81.8,"z":807.0,"q1":0.267,"q2":0.129,"q3":0.954,"q4":-0.053,"cf1":-1,"cf4":-1,"cf6":0,"cfx":0}}]' \
+  "https://$IP/fileservice/\$HOME/Programs/gofa_points.json"
 ```
 
 ### Write, requires edit mastership (`resetpp`, `loadmod`, `activate`)

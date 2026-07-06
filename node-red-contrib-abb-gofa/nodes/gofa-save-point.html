@@ -4,7 +4,8 @@
         defaults: {
             name:      { value: '' },
             robot:     { value: '', type: 'gofa-robot', required: true },
-            pointName: { value: '' }
+            pointName: { value: '' },
+            storage:   { value: 'local' }
         },
         inputs: 1, outputs: 1, icon: 'white-globe.svg',
         label: function() { return this.name || 'Save Point'; },
@@ -21,13 +22,25 @@
         <input type="text" id="node-input-pointName" placeholder="Leave blank for auto-name">
     </div>
     <div class="form-row">
+        <label for="node-input-storage"><i class="fa fa-database"></i> Storage</label>
+        <select id="node-input-storage">
+            <option value="local">Local (points.json)</option>
+            <option value="remote">On-Robot</option>
+        </select>
+    </div>
+    <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Save Point">
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-save-point">
     <p>Reads the current TCP pose and saves it as a named point.</p>
-    <p><code>msg.payload.name</code> overrides the Point Name property.</p>
+    <p><code>msg.payload.name</code> overrides the Point Name property; <code>msg.payload.storage</code>
+    (<code>"local"</code>/<code>"remote"</code>) overrides the <em>Storage</em> setting.</p>
+    <h3>Storage</h3>
+    <p><b>Local</b> — the config node's Points File on the Node-RED host (default). <b>On-Robot</b> —
+    a JSON file on the robot controller's own disk (the config node's Remote Points Path), managed
+    via RWS <code>fileservice</code> — no local file needed on the Node-RED host.</p>
     <h3>Output <code>msg.payload</code></h3>
     <dl class="message-properties">
         <dt>ok</dt><dd>true on success</dd>

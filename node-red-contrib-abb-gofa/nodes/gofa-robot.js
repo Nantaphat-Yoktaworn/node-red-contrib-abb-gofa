@@ -28,6 +28,22 @@ function resolveMoveType(v, fallback) {
     return (v === 'L' || v === 'J') ? v : fallback;
 }
 
+// Shared by addPoint() (local, sync) and remoteAddPoint() (on-robot, async) —
+// auto-names "Point N" when blank, rejects a name that's already taken.
+function resolvePointName(name, existingPoints) {
+    name = (name || '').trim();
+    if (!name) {
+        var n = 1;
+        var names = existingPoints.map(function(p) { return p.name; });
+        while (names.indexOf('Point ' + n) >= 0) n++;
+        return { name: 'Point ' + n };
+    }
+    if (existingPoints.some(function(p) { return p.name === name; })) {
+        return { error: 'A point named "' + name + '" already exists' };
+    }
+    return { name: name };
+}
+
 // Build GOTO token — rounded to stay under RAPID's 80-char string limit; null on bad data.
 // moveType 'L' selects MoveL (straight-line TCP path); anything else (default) selects MoveJ.
 function gotoToken(t, moveType) {
@@ -223,6 +239,7 @@ module.exports = function(RED) {
             this.warn('gofa-robot: no password configured — set one in the node credentials');
         }
         this.pointsFile = config.pointsFile || path.join(RED.settings.userDir || '.', 'points.json');
+        this.remotePointsPath = config.remotePointsPath || '$HOME/Programs/gofa_points.json';
 
         this._client = createRobotClient({
             ip: this.ip, rwsPort: this.rwsPort, socketPort: this.socketPort,
@@ -260,17 +277,9 @@ module.exports = function(RED) {
     GoFaRobotNode.prototype.getPoints  = function() { return this._points; };
 
     GoFaRobotNode.prototype.addPoint = function(name, target) {
-        name = (name || '').trim();
-        if (!name) {
-            // find next unused "Point N"
-            var n = 1;
-            var names = this._points.map(function(p) { return p.name; });
-            while (names.indexOf('Point ' + n) >= 0) n++;
-            name = 'Point ' + n;
-        } else if (this._points.some(function(p) { return p.name === name; })) {
-            return { error: 'A point named "' + name + '" already exists' };
-        }
-        var pt = { id: 'p' + Date.now(), name: name, target: target };
+        var resolved = resolvePointName(name, this._points);
+        if (resolved.error) return resolved;
+        var pt = { id: 'p' + Date.now(), name: resolved.name, target: target };
         this._points.push(pt);
         this._savePoints();
         return pt;
@@ -285,6 +294,58 @@ module.exports = function(RED) {
         return this._points.find(function(p) {
             return p.id === nameOrId || p.name === nameOrId;
         }) || null;
+    };
+
+    // On-robot point storage — same shape/behavior as the local methods above,
+    // but backed by a JSON file on the robot's own disk (RWS fileservice
+    // GET/PUT) instead of points.json on the Node-RED host. Confirmed live:
+    // GET on a missing file is a clean 404 (-> []); PUT requires
+    // Content-Type: text/plain;v=2.0 (application/json is rejected, 415) and
+    // fully overwrites (no append). No concurrent-write protection (unlike
+    // local storage's mtime-drift check) — acceptable for a human-paced
+    // "teach a point" workflow, not built.
+    GoFaRobotNode.prototype.remoteGetPoints = function() {
+        var node = this;
+        return node.requestRaw('GET', '/fileservice/' + node.remotePointsPath, null, { accept: '*/*' })
+            .then(function(res) {
+                if (res.statusCode === 404) return [];
+                if (res.statusCode < 200 || res.statusCode >= 300) {
+                    throw new Error('HTTP ' + res.statusCode + ' reading remote points file');
+                }
+                try { return JSON.parse(res.body.toString('utf8')) || []; }
+                catch (e) { throw new Error('Remote points file is not valid JSON: ' + e.message); }
+            });
+    };
+
+    GoFaRobotNode.prototype.remoteSavePoints = function(points) {
+        return this.rwsPut('/fileservice/' + this.remotePointsPath, JSON.stringify(points, null, 2), 'text/plain;v=2.0');
+    };
+
+    GoFaRobotNode.prototype.remoteAddPoint = function(name, target) {
+        var node = this;
+        return node.remoteGetPoints().then(function(points) {
+            var resolved = resolvePointName(name, points);
+            if (resolved.error) return resolved;
+            var pt = { id: 'p' + Date.now(), name: resolved.name, target: target };
+            points.push(pt);
+            return node.remoteSavePoints(points).then(function() { return pt; });
+        });
+    };
+
+    GoFaRobotNode.prototype.remoteDeletePoint = function(idOrName) {
+        var node = this;
+        return node.remoteGetPoints().then(function(points) {
+            var pt = points.find(function(p) { return p.id === idOrName || p.name === idOrName; }) || null;
+            if (!pt) return null;
+            var remaining = points.filter(function(p) { return p.id !== pt.id; });
+            return node.remoteSavePoints(remaining).then(function() { return pt; });
+        });
+    };
+
+    GoFaRobotNode.prototype.remoteFindPoint = function(nameOrId) {
+        return this.remoteGetPoints().then(function(points) {
+            return points.find(function(p) { return p.id === nameOrId || p.name === nameOrId; }) || null;
+        });
     };
 
     GoFaRobotNode.prototype.rwsGet        = function(p)    { return this._client.rwsGet(p); };
@@ -302,6 +363,12 @@ module.exports = function(RED) {
     RED.httpAdmin.get('/gofa-robot/:id/points', RED.auth.needsPermission('gofa-robot.read'), function(req, res) {
         var node = RED.nodes.getNode(req.params.id);
         res.json(node ? node.getPoints() : []);
+    });
+
+    RED.httpAdmin.get('/gofa-robot/:id/remote-points', RED.auth.needsPermission('gofa-robot.read'), function(req, res) {
+        var node = RED.nodes.getNode(req.params.id);
+        if (!node) return res.json([]);
+        node.remoteGetPoints().then(function(pts) { res.json(pts); }).catch(function() { res.json([]); });
     });
 
     RED.nodes.registerType('gofa-robot', GoFaRobotNode, {

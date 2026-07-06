@@ -279,14 +279,18 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 
 | Node | Protocol | What it does |
 |------|:--------:|-------------|
-| **gofa-save-point** | RWS + Local | Read current pose, save as named point in `points.json` |
-| **gofa-go-point** | TCP + Local | Look up a saved point and move to it — move type (Joint/MoveJ or Linear/MoveL) selectable |
-| **gofa-point-list** | Local | Output the full saved-points array |
-| **gofa-delete-point** | Local | Remove a saved point by name |
-| **gofa-points-export** | Local | Dump points list to `msg.payload` |
-| **gofa-points-import** | Local | Replace points list from `msg.payload` |
-| **gofa-sequencer** | TCP + Local | Visit saved points in order — per-step dwell + move type override, loop count, ping-pong, startStep |
+| **gofa-save-point** | RWS + Local/RWS | Read current pose, save as named point in `points.json` (Local) or a JSON file on the robot's own disk (On-Robot) |
+| **gofa-go-point** | TCP + Local/RWS | Look up a saved point and move to it — move type (Joint/MoveJ or Linear/MoveL) selectable |
+| **gofa-point-list** | Local/RWS | Output the full saved-points array |
+| **gofa-delete-point** | Local/RWS | Remove a saved point by name |
+| **gofa-points-export** | Local | Dump points list to `msg.payload` (local storage only) |
+| **gofa-points-import** | Local | Replace points list from `msg.payload` (local storage only) |
+| **gofa-sequencer** | TCP + Local/RWS | Visit saved points in order — per-step dwell + move type override, loop count, ping-pong, startStep |
 | **gofa-stop-seq** | TCP + Local | Stop sequencer immediately (sends `STOP` socket + sets flag) |
+
+> **Storage: Local vs On-Robot.** All five point nodes above (save/go/list/delete/sequencer) have a **Storage** option — **Local** (default) uses `points.json` on the Node-RED host, same as always. **On-Robot** stores the identical point data in a JSON file on the robot controller's own disk instead — the `gofa-robot` config node's **Remote Points Path** (default `$HOME/Programs/gofa_points.json`) — managed purely over RWS `fileservice` `GET`/`PUT` (the same mechanism `gofa-upload-mod`/`gofa-file-read` use), so **no local file is needed on the Node-RED host**. `msg.payload.storage` (`"local"`/`"remote"`) overrides the node's configured Storage per-message. Movement is unaffected either way — only where the point *data* is looked up changes; `gofa-sequencer` fetches the whole On-Robot list once per run, not once per step. No concurrent-write protection on the On-Robot file (unlike Local's changed-on-disk check) — fine for a human-paced "teach a point" workflow.
+>
+> This was originally going to live inside `MainModule.mod`/RAPID itself, but RAPID's `string` type has a hard 80-character limit (see the move-type note below) that a growing list of named points would quickly exceed — storing it as a file managed entirely over RWS sidesteps that completely, since it's plain HTTP with no RAPID `string` involved.
 
 > **Move type — Joint (MoveJ) vs Linear (MoveL):** `gofa-go-point` and `gofa-sequencer` let you pick how the robot reaches a saved point. **Joint (MoveJ)** is joint-interpolated and is the default whenever a move type isn't set or an invalid value is passed — it's the more predictable/reliable choice because RAPID has freedom in how each axis gets there, so it won't fault or slow drastically near a singularity. **Linear (MoveL)** forces a straight-line TCP path, which is useful for a controlled approach/retract near a workpiece but can hit a singularity or joint limit along that line even when both endpoints are fine on their own.
 
@@ -383,9 +387,9 @@ msg.payload  →  node property (editor)  →  built-in default
 | **gofa-jog** | `{ axis, dir, step }` | X, +, 10 |
 | **gofa-joint-jog** | `{ joint, dir, step }` | J1, +, 5 |
 | **gofa-movej** | `[j1,j2,j3,j4,j5,j6]` or `{ j1, j2, j3, j4, j5, j6 }` | `[0,0,85,0,0,0]` |
-| **gofa-go-point** | `{ name, moveType? }` or `{ id, moveType? }` — `moveType`: `"J"` or `"L"` | (property) |
-| **gofa-save-point** | `{ name }` | (property) |
-| **gofa-delete-point** | `{ name }` or `{ id }` | (property) |
+| **gofa-go-point** | `{ name, moveType?, storage? }` or `{ id, moveType?, storage? }` — `moveType`: `"J"` or `"L"`, `storage`: `"local"`/`"remote"` | (property) |
+| **gofa-save-point** | `{ name, storage? }` | (property) |
+| **gofa-delete-point** | `{ name, storage? }` or `{ id, storage? }` | (property) |
 | **gofa-rapid-var-read** | `{ task, module, variable }` | T_ROB1 / MainModule / (property) |
 | **gofa-rapid-var-write** | bare value · `{ variable, value }` | (property) |
 | **gofa-rapid-tasks** | `{ task }` — overrides which task's modules to list | T_ROB1 / (property) |
@@ -402,14 +406,15 @@ msg.payload  →  node property (editor)  →  built-in default
 | **gofa-points-import** | file path (string) · `{ loadPath }` · array · `{ points: [...] }` | (property / clear) |
 | **gofa-elog** | `{ domain, count }` | domain: 1, count: 10 |
 | **gofa-asi-led** | `'red'`/`'green'`/`'yellow'`/`'off'`/etc. · `false`/`0` (off) · `{ color, r, g, b, period, blinkCount, blinkMs }` · `'reset'` (restore default) | node defaults |
-| **gofa-sequencer** | `{ steps, dwell, moveType, loop, pingpong, count, startStep }` — `steps[i].moveType` overrides per-step | (property) |
+| **gofa-sequencer** | `{ steps, dwell, moveType, loop, pingpong, count, startStep, storage? }` — `steps[i].moveType` overrides per-step, `storage`: `"local"`/`"remote"` | (property) |
+| **gofa-point-list** | `{ storage }` — `"local"`/`"remote"` | (property) |
 
 ### Trigger-only nodes (no payload needed)
 
 These nodes fire on any input message and ignore `msg.payload`:
 
 `gofa-status` · `gofa-pose` · `gofa-joints` · `gofa-system-info` · `gofa-ping` ·
-`gofa-stop-motion` · `gofa-stop-seq` · `gofa-point-list` ·
+`gofa-stop-motion` · `gofa-stop-seq` ·
 `gofa-leadthrough-enable` · `gofa-leadthrough-disable`
 
 > **gofa-asi-led** — `msg.payload` is required. Use a color string (`'yellow'`), a preset object (`{ color: 'green', blinkCount: 3, blinkMs: 250 }`), or `'reset'` to restore the controller's default green LED. Omit `blinkCount` (or set to `0`) to use the hardware `period` signal for continuous blinking instead.

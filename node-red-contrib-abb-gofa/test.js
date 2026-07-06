@@ -445,6 +445,57 @@ await checkAsync('gofa-points-export: write failure reports an error', async fun
     assert.ok(node.errors.length > 0);
 });
 
+// gofa-robot: remote (on-robot) point management ────────────────────────────
+// Mocks requestRaw/rwsPut directly on a real gofa-robot instance — these are
+// the only two methods remoteGetPoints/remoteAddPoint/etc actually call, so
+// this exercises the real remote* method bodies, not a reimplementation.
+function makeRemoteRobotNode(fileState) {
+    var node = makeRobotNode(path.join(tmpDir, 'unused-remote-points.json'));
+    var stored = fileState.exists ? JSON.stringify(fileState.points || []) : null;
+    node.requestRaw = function(method) {
+        if (method !== 'GET') return Promise.reject(new Error('unexpected requestRaw ' + method));
+        if (stored === null) return Promise.resolve({ statusCode: 404, headers: {}, body: Buffer.from('') });
+        return Promise.resolve({ statusCode: 200, headers: {}, body: Buffer.from(stored) });
+    };
+    node.rwsPut = function(path, body) { stored = body; return Promise.resolve(''); };
+    node._getStored = function() { return stored; };
+    return node;
+}
+
+await checkAsync('gofa-robot: remoteGetPoints returns [] when the file does not exist (404)', async function() {
+    var node = makeRemoteRobotNode({ exists: false });
+    assert.deepStrictEqual(await node.remoteGetPoints(), []);
+});
+await checkAsync('gofa-robot: remoteAddPoint auto-names and persists via rwsPut', async function() {
+    var node = makeRemoteRobotNode({ exists: false });
+    var p1 = await node.remoteAddPoint('', { x: 1 });
+    assert.strictEqual(p1.name, 'Point 1');
+    var stored = JSON.parse(node._getStored());
+    assert.strictEqual(stored.length, 1);
+    assert.strictEqual(stored[0].name, 'Point 1');
+});
+await checkAsync('gofa-robot: remoteAddPoint rejects duplicate names', async function() {
+    var node = makeRemoteRobotNode({ exists: true, points: [{ id: 'p1', name: 'pick1', target: {} }] });
+    var res = await node.remoteAddPoint('pick1', { x: 2 });
+    assert.ok(res.error);
+});
+await checkAsync('gofa-robot: remoteDeletePoint removes by name and persists', async function() {
+    var node = makeRemoteRobotNode({ exists: true, points: [{ id: 'p1', name: 'pick1', target: {} }] });
+    var deleted = await node.remoteDeletePoint('pick1');
+    assert.strictEqual(deleted.name, 'pick1');
+    assert.deepStrictEqual(JSON.parse(node._getStored()), []);
+});
+await checkAsync('gofa-robot: remoteDeletePoint returns null when not found', async function() {
+    var node = makeRemoteRobotNode({ exists: true, points: [] });
+    assert.strictEqual(await node.remoteDeletePoint('missing'), null);
+});
+await checkAsync('gofa-robot: remoteFindPoint matches by name or id, else null', async function() {
+    var node = makeRemoteRobotNode({ exists: true, points: [{ id: 'p1', name: 'pick1', target: { x: 1 } }] });
+    assert.strictEqual((await node.remoteFindPoint('pick1')).name, 'pick1');
+    assert.strictEqual((await node.remoteFindPoint('p1')).name, 'pick1');
+    assert.strictEqual(await node.remoteFindPoint('nope'), null);
+});
+
 // gofa-go-point ──────────────────────────────────────────────────────────────
 function makeGoPointRobot(pt) {
     var calls = [];
@@ -477,6 +528,129 @@ await checkAsync('gofa-go-point: invalid msg.payload.moveType falls back to conf
     await runInput(node, msg);
     assert.deepStrictEqual(mockRobot._calls, ['L']);
 });
+await checkAsync('gofa-go-point: storage "remote" looks the point up via remoteFindPoint', async function() {
+    var calls = [];
+    var mockRobot = {
+        findPoint: function() { throw new Error('must not use local findPoint in remote mode'); },
+        remoteFindPoint: function(name) { calls.push(name); return Promise.resolve({ name: 'pick1', target: {} }); },
+        gotoToken: function() { return 'GOTOJ{}'; },
+        socketSend: function(token) { return Promise.resolve('OK:' + token); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-go-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote', pointName: 'pick1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.deepStrictEqual(calls, ['pick1']);
+    assert.strictEqual(msg.payload.ok, true);
+});
+
+// gofa-save-point ────────────────────────────────────────────────────────────
+var samplePoseBody = '<span class="x">1</span><span class="y">2</span><span class="z">3</span>' +
+    '<span class="q1">0</span><span class="q2">0</span><span class="q3">0</span><span class="q4">1</span>' +
+    '<span class="cf1">0</span><span class="cf4">0</span><span class="cf6">0</span><span class="cfx">0</span>';
+await checkAsync('gofa-save-point: storage "local" (default) uses addPoint/getPoints', async function() {
+    var calls = [];
+    var mockRobot = {
+        rwsGet: function() { return Promise.resolve(samplePoseBody); },
+        parseXhtml: parseXhtml,
+        addPoint: function(name, target) { calls.push(['add', name, target]); return { id: 'p1', name: 'pick1', target: target }; },
+        getPoints: function() { return [{ id: 'p1', name: 'pick1' }]; }
+    };
+    var node = new (loadNodeType('./nodes/gofa-save-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', pointName: 'pick1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.point.name, 'pick1');
+    assert.strictEqual(calls[0][0], 'add');
+});
+await checkAsync('gofa-save-point: storage "remote" uses remoteAddPoint/remoteGetPoints', async function() {
+    var calls = [];
+    var mockRobot = {
+        rwsGet: function() { return Promise.resolve(samplePoseBody); },
+        parseXhtml: parseXhtml,
+        addPoint: function() { throw new Error('must not use local addPoint in remote mode'); },
+        remoteAddPoint: function(name, target) { calls.push(['add', name, target]); return Promise.resolve({ id: 'p1', name: 'pick1', target: target }); },
+        remoteGetPoints: function() { return Promise.resolve([{ id: 'p1', name: 'pick1' }]); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-save-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote', pointName: 'pick1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.point.name, 'pick1');
+    assert.strictEqual(msg.payload.points.length, 1);
+    assert.strictEqual(calls[0][0], 'add');
+});
+await checkAsync('gofa-save-point: storage "remote" surfaces a duplicate-name error', async function() {
+    var mockRobot = {
+        rwsGet: function() { return Promise.resolve(samplePoseBody); },
+        parseXhtml: parseXhtml,
+        remoteAddPoint: function() { return Promise.resolve({ error: 'A point named "pick1" already exists' }); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-save-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote', pointName: 'pick1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(msg.payload.error.indexOf('already exists') >= 0);
+});
+
+// gofa-delete-point ──────────────────────────────────────────────────────────
+await checkAsync('gofa-delete-point: storage "local" (default) uses findPoint/deletePoint', async function() {
+    var deletedId;
+    var mockRobot = {
+        findPoint: function(name) { return name === 'pick1' ? { id: 'p1', name: 'pick1' } : null; },
+        deletePoint: function(id) { deletedId = id; },
+        getPoints: function() { return []; }
+    };
+    var node = new (loadNodeType('./nodes/gofa-delete-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', pointName: 'pick1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(deletedId, 'p1');
+});
+await checkAsync('gofa-delete-point: storage "remote" uses remoteFindPoint/remoteDeletePoint', async function() {
+    var deletedId;
+    var mockRobot = {
+        findPoint: function() { throw new Error('must not use local findPoint in remote mode'); },
+        remoteFindPoint: function(name) { return Promise.resolve(name === 'pick1' ? { id: 'p1', name: 'pick1' } : null); },
+        remoteDeletePoint: function(id) { deletedId = id; return Promise.resolve({ id: id, name: 'pick1' }); },
+        remoteGetPoints: function() { return Promise.resolve([]); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-delete-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote', pointName: 'pick1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(deletedId, 'p1');
+    assert.deepStrictEqual(msg.payload.points, []);
+});
+await checkAsync('gofa-delete-point: reports "not found" without touching remoteDeletePoint', async function() {
+    var mockRobot = {
+        remoteFindPoint: function() { return Promise.resolve(null); },
+        remoteDeletePoint: function() { throw new Error('must not delete when point was not found'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-delete-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote', pointName: 'missing' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(msg.payload.error.indexOf('not found') >= 0);
+});
+
+// gofa-point-list ────────────────────────────────────────────────────────────
+await checkAsync('gofa-point-list: storage "local" (default) uses getPoints', async function() {
+    var mockRobot = { getPoints: function() { return [{ id: 'p1', name: 'pick1' }]; } };
+    var node = new (loadNodeType('./nodes/gofa-point-list', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.length, 1);
+});
+await checkAsync('gofa-point-list: storage "remote" uses remoteGetPoints', async function() {
+    var mockRobot = {
+        getPoints: function() { throw new Error('must not use local getPoints in remote mode'); },
+        remoteGetPoints: function() { return Promise.resolve([{ id: 'p1', name: 'pick1' }, { id: 'p2', name: 'pick2' }]); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-point-list', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.length, 2);
+});
 
 // gofa-sequencer + gofa-stop-seq ─────────────────────────────────────────────
 function makeSeqRobot(pointMap) {
@@ -484,6 +658,7 @@ function makeSeqRobot(pointMap) {
     return {
         _seqStop: false, _seqRunning: false, _calls: calls,
         findPoint: function(name) { return pointMap[name] || null; },
+        getPoints: function() { return Object.keys(pointMap).map(function(k) { return pointMap[k]; }); },
         gotoToken: function(target, moveType) { calls.push(moveType); return 'GOTO' + moveType + JSON.stringify(target); },
         socketSend: function(token) { return Promise.resolve('OK:' + token); }
     };
@@ -546,6 +721,22 @@ await checkAsync('gofa-sequencer: stops early once _seqStop is set', async funct
     await runPromise;
     assert.strictEqual(stepMsgs(node).length, 1);
     assert.strictEqual(endMsg(node).payload.stopped, true);
+});
+await checkAsync('gofa-sequencer: storage "remote" fetches the point list once via remoteGetPoints, not getPoints', async function() {
+    var getPointsCalls = 0, remoteGetPointsCalls = 0;
+    var mockRobot = {
+        _seqStop: false, _seqRunning: false,
+        getPoints: function() { getPointsCalls++; return []; },
+        remoteGetPoints: function() { remoteGetPointsCalls++; return Promise.resolve([{ name: 'a', target: {} }, { name: 'b', target: {} }]); },
+        gotoToken: function(target) { return 'GOTOJ' + JSON.stringify(target); },
+        socketSend: function(token) { return Promise.resolve('OK:' + token); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote', dwell: 0 });
+    await runInput(node, { payload: { steps: [{ name: 'a' }, { name: 'b' }] } });
+    assert.strictEqual(remoteGetPointsCalls, 1, 'must fetch the remote list exactly once for the whole sequence');
+    assert.strictEqual(getPointsCalls, 0, 'must not touch local getPoints in remote mode');
+    assert.strictEqual(stepMsgs(node).length, 2);
+    assert.deepStrictEqual(endMsg(node).payload, { done: true, loops: 1 });
 });
 await checkAsync('gofa-stop-seq: sets the stop flag and sends STOP', async function() {
     var sentCmds = [];
