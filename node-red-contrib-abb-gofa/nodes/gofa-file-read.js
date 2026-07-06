@@ -1,6 +1,4 @@
 'use strict';
-const https = require('https');
-const http  = require('http');
 
 module.exports = function(RED) {
     function GoFaFileReadNode(config) {
@@ -26,57 +24,21 @@ module.exports = function(RED) {
             node.status({ fill: 'blue', shape: 'dot', text: 'reading…' });
 
             var robot = node.robot;
-            robot._getSession().then(function() {
-                return new Promise(function(resolve, reject) {
-                    var headers = { 'Accept': '*/*' };
-                    if (robot._cookie) {
-                        headers['Cookie'] = robot._cookie;
-                    } else {
-                        headers['Authorization'] = 'Basic ' +
-                            Buffer.from(robot.username + ':' + robot.password).toString('base64');
-                    }
-
-                    var proto = robot.rwsPort === 443 ? https : http;
-                    var req = proto.request({
-                        hostname: robot.ip, port: robot.rwsPort,
-                        path: '/fileservice/' + remotePath,
-                        method: 'GET',
-                        headers: headers,
-                        rejectUnauthorized: false
-                    }, function(res) {
-                        if (res.headers['set-cookie']) {
-                            robot._cookie = res.headers['set-cookie']
-                                .map(function(c) { return c.split(';')[0]; }).join('; ');
-                        }
-                        var chunks = [];
-                        res.on('data', function(c) { chunks.push(c); });
-                        res.on('end', function() {
-                            if (res.statusCode === 401) {
-                                robot._cookie = null;
-                                return reject(new Error('HTTP 401 Unauthorized'));
-                            }
-                            if (res.statusCode < 200 || res.statusCode >= 300) {
-                                return reject(new Error('HTTP ' + res.statusCode + ' ' + remotePath));
-                            }
-                            var buf = Buffer.concat(chunks);
-                            resolve({ buf: buf, encoding: encoding });
-                        });
-                    });
-                    req.on('error', reject);
-                    req.end();
-                });
-            })
-            .then(function(result) {
-                var content = result.encoding === 'base64'
-                    ? result.buf.toString('base64')
-                    : result.buf.toString('utf8');
+            robot.requestRaw('GET', '/fileservice/' + remotePath, null, { accept: '*/*' })
+            .then(function(res) {
+                if (res.statusCode < 200 || res.statusCode >= 300) {
+                    throw new Error('HTTP ' + res.statusCode + ' ' + remotePath);
+                }
+                var content = encoding === 'base64'
+                    ? res.body.toString('base64')
+                    : res.body.toString('utf8');
                 msg.payload = {
                     ok: true,
                     remotePath: remotePath,
                     content: content,
-                    bytes: result.buf.length
+                    bytes: res.body.length
                 };
-                node.status({ fill: 'green', shape: 'dot', text: result.buf.length + ' bytes' });
+                node.status({ fill: 'green', shape: 'dot', text: res.body.length + ' bytes' });
                 send(msg); done();
             })
             .catch(function(err) {

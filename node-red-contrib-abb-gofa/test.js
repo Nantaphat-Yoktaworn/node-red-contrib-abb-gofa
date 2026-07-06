@@ -738,8 +738,76 @@ await checkAsync('gofa-rapid-tasks: reports failure on RWS error', async functio
     assert.ok(msg.payload.error.indexOf('HTTP 500') >= 0);
 });
 
-// gofa-subscribe-var ─────────────────────────────────────────────────────────
+// gofa-file-read / gofa-subscribe-io / gofa-subscribe-state ─────────────────
+// These three go through robot.requestRaw()/robot.getCookie() (the public API)
+// instead of the private robot._getSession/_cookie/_request fields that a
+// gofa-robot.js refactor removed — mock robots below deliberately expose only
+// the public methods, so a regression back to the private fields fails loudly
+// with "... is not a function" instead of silently passing.
 async function flush() { for (var i = 0; i < 6; i++) await Promise.resolve(); }
+
+await checkAsync('gofa-file-read: reads a file via robot.requestRaw, not private robot internals', async function() {
+    var calls = [];
+    var mockRobot = {
+        requestRaw: function(method, p, body, opts) {
+            calls.push({ method: method, path: p, opts: opts });
+            return Promise.resolve({ statusCode: 200, headers: {}, body: Buffer.from('MODULE Foo\nENDMODULE\n') });
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-file-read', { nodesById: { r1: mockRobot } }))(
+        { robot: 'r1', remotePath: '$HOME/Programs/MainModule.mod', encoding: 'utf8' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.content, 'MODULE Foo\nENDMODULE\n');
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0].method, 'GET');
+    assert.strictEqual(calls[0].path, '/fileservice/$HOME/Programs/MainModule.mod');
+});
+await checkAsync('gofa-file-read: reports failure on a non-2xx status', async function() {
+    var mockRobot = { requestRaw: function() { return Promise.resolve({ statusCode: 404, headers: {}, body: Buffer.from('') }); } };
+    var node = new (loadNodeType('./nodes/gofa-file-read', { nodesById: { r1: mockRobot } }))({ robot: 'r1', remotePath: 'nope.mod' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(msg.payload.error.indexOf('404') >= 0);
+});
+await checkAsync('gofa-subscribe-io: subscribes via robot.requestRaw (not private robot internals), falls back to polling on HTTP 400', async function() {
+    var calls = [];
+    var mockRobot = {
+        requestRaw: function(method, p, body, opts) {
+            calls.push({ method: method, path: p, body: body });
+            return Promise.resolve({ statusCode: 400, headers: {}, body: Buffer.from('') });
+        },
+        getCookie: function() { return Promise.resolve('cookie=abc'); },
+        rwsGet: function() { return Promise.resolve('<span class="lvalue">1</span>'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-subscribe-io', { nodesById: { r1: mockRobot } }))({ robot: 'r1', signal: 'Asi1Button1' });
+    var msg = {};
+    await runInput(node, msg);
+    await flush();
+    assert.ok(calls.some(function(c) { return c.method === 'POST' && c.path === '/subscription'; }));
+    assert.ok(node._pollTimer, 'must fall back to polling when the subscribe request itself fails with HTTP 400');
+    clearInterval(node._pollTimer);
+});
+await checkAsync('gofa-subscribe-state: subscribes via robot.requestRaw (not private robot internals), reports error on HTTP 400', async function() {
+    var calls = [];
+    var mockRobot = {
+        requestRaw: function(method, p, body, opts) {
+            calls.push({ method: method, path: p, body: body });
+            return Promise.resolve({ statusCode: 400, headers: {}, body: Buffer.from('') });
+        },
+        getCookie: function() { return Promise.resolve('cookie=abc'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-subscribe-state', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    await flush();
+    assert.ok(calls.some(function(c) { return c.method === 'POST' && c.path === '/subscription'; }));
+    assert.ok(node.errors.length > 0, 'must report the subscribe failure');
+});
+
+// gofa-subscribe-var ─────────────────────────────────────────────────────────
 
 await checkAsync('gofa-subscribe-var: reads via module-text only, never attempts the dead RWS symbol path', async function() {
     var calls = [];

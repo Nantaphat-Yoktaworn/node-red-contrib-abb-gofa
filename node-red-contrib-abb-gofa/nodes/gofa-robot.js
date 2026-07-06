@@ -135,6 +135,49 @@ function createRobotClient(opts) {
                 );
             });
     }
+    // Low-level escape hatch for callers that need something the body-only
+    // rwsGet/rwsPost/rwsPut don't expose: a response header (RWS subscription's
+    // Location), or a binary-safe body (gofa-file-read downloading non-UTF8
+    // files) — resolves the raw {statusCode, headers, body: Buffer} instead of
+    // just a decoded string. No 401 auto-retry (unlike request()); callers so
+    // far only use this right after another call has already established a
+    // session. Exists so node files stop hand-rolling their own https/http
+    // request against private fields (ip/cookie/etc) — that duplication is
+    // exactly what broke gofa-upload-mod when session state moved into this
+    // closure: three more node files (subscribe-io, subscribe-state, file-read)
+    // had the same private-field reach-in and the same latent bug.
+    function requestRaw(method, urlPath, body, opts) {
+        opts = opts || {};
+        return getSession().then(function() {
+            return new Promise(function(resolve, reject) {
+                var headers = { 'Accept': opts.accept || 'application/xhtml+xml;v=2.0' };
+                if (cookie) headers['Cookie'] = cookie;
+                else headers['Authorization'] = 'Basic ' + Buffer.from(username + ':' + password).toString('base64');
+                if (opts.contentType) headers['Content-Type'] = opts.contentType;
+                if (body) headers['Content-Length'] = Buffer.byteLength(body);
+                var proto = rwsPort === 443 ? https : http;
+                var req = proto.request({
+                    hostname: ip, port: rwsPort, path: urlPath, method: method,
+                    headers: headers, rejectUnauthorized: false
+                }, function(res) {
+                    if (res.headers['set-cookie']) {
+                        cookie = res.headers['set-cookie'].map(function(c) { return c.split(';')[0]; }).join('; ');
+                    }
+                    var chunks = [];
+                    res.on('data', function(c) { chunks.push(c); });
+                    res.on('end', function() {
+                        if (res.statusCode === 401) { cookie = null; return reject(new Error('HTTP 401 Unauthorized')); }
+                        resolve({ statusCode: res.statusCode, headers: res.headers, body: Buffer.concat(chunks) });
+                    });
+                });
+                req.on('error', reject);
+                req.setTimeout(opts.timeout || 8000, function() { req.destroy(new Error('RWS request timeout: ' + urlPath)); });
+                if (body) req.write(body);
+                req.end();
+            });
+        });
+    }
+    function getCookie() { return getSession().then(function() { return cookie; }); }
     function socketSend(cmd) {
         return new Promise(function(resolve, reject) {
             var sock = new net.Socket();
@@ -158,7 +201,8 @@ function createRobotClient(opts) {
 
     return {
         rwsGet: rwsGet, rwsPost: rwsPost, rwsPut: rwsPut, rwsPostHal: rwsPostHal,
-        withMastership: withMastership, socketSend: socketSend
+        withMastership: withMastership, socketSend: socketSend,
+        requestRaw: requestRaw, getCookie: getCookie
     };
 }
 
@@ -244,6 +288,8 @@ module.exports = function(RED) {
     GoFaRobotNode.prototype.rwsPostHal    = function(p, b) { return this._client.rwsPostHal(p, b); };
     GoFaRobotNode.prototype.withMastership = function(fn)  { return this._client.withMastership(fn); };
     GoFaRobotNode.prototype.socketSend    = function(cmd)  { return this._client.socketSend(cmd); };
+    GoFaRobotNode.prototype.requestRaw    = function(method, p, b, opts) { return this._client.requestRaw(method, p, b, opts); };
+    GoFaRobotNode.prototype.getCookie     = function()     { return this._client.getCookie(); };
 
     GoFaRobotNode.prototype.parseXhtml = parseXhtml;
     GoFaRobotNode.prototype.gotoToken  = gotoToken;

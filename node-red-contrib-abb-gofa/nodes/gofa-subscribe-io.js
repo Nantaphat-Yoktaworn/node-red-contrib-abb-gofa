@@ -1,7 +1,5 @@
 'use strict';
-var https = require('https');
-var http  = require('http');
-var WS    = require('ws');
+var WS = require('ws');
 
 module.exports = function(RED) {
     function GoFaSubscribeIoNode(config) {
@@ -25,7 +23,7 @@ module.exports = function(RED) {
             if (node._pollkey && node.robot) {
                 var pk = node._pollkey;
                 node._pollkey = null;
-                node.robot._request('DELETE', '/subscription/' + pk, null, false)
+                node.robot.requestRaw('DELETE', '/subscription/' + pk, null, {})
                     .catch(function(){})
                     .then(function(){ if (callback) callback(); });
             } else { if (callback) callback(); }
@@ -71,39 +69,19 @@ module.exports = function(RED) {
             node._signal = signal;
             node.status({ fill: 'yellow', shape: 'ring', text: signal + ' connecting' });
 
-            robot._getSession().then(function() {
-                return new Promise(function(resolve, reject) {
-                    var body = 'resources=1&1=' + encodeURIComponent(resourcePath) + '&1-p=' + priority;
-                    var headers = {
-                        'Content-Type':   'application/x-www-form-urlencoded;v=2.0',
-                        'Content-Length': Buffer.byteLength(body),
-                        'Accept':         'application/xhtml+xml;v=2.0'
-                    };
-                    if (robot._cookie) headers['Cookie'] = robot._cookie;
-                    else headers['Authorization'] = 'Basic ' + Buffer.from(robot.username + ':' + robot.password).toString('base64');
-                    var proto = robot.rwsPort === 443 ? https : http;
-                    var req = proto.request({
-                        hostname: robot.ip, port: robot.rwsPort,
-                        path: '/subscription', method: 'POST',
-                        headers: headers, rejectUnauthorized: false
-                    }, function(res) {
-                        var data = '';
-                        res.on('data', function(c) { data += c; });
-                        res.on('end', function() {
-                            if (res.statusCode === 201) resolve(res.headers.location);
-                            else reject(new Error('Subscription failed: HTTP ' + res.statusCode));
-                        });
-                    });
-                    req.on('error', reject);
-                    req.write(body);
-                    req.end();
+            var subscribeBody = 'resources=1&1=' + encodeURIComponent(resourcePath) + '&1-p=' + priority;
+            robot.requestRaw('POST', '/subscription', subscribeBody, {
+                contentType: 'application/x-www-form-urlencoded;v=2.0'
+            }).then(function(res) {
+                if (res.statusCode !== 201) throw new Error('Subscription failed: HTTP ' + res.statusCode);
+                return robot.getCookie().then(function(cookie) {
+                    return { location: res.headers.location, cookie: cookie };
                 });
-            }).then(function(location) {
-                node._pollkey = location.split('/poll/').pop();
-                var wsUrl = location;
-                var ws = new WS(wsUrl, ['rws_subscription'], {
+            }).then(function(sub) {
+                node._pollkey = sub.location.split('/poll/').pop();
+                var ws = new WS(sub.location, ['rws_subscription'], {
                     rejectUnauthorized: false,
-                    headers: { Cookie: robot._cookie || '' }
+                    headers: { Cookie: sub.cookie || '' }
                 });
                 node._ws = ws;
                 ws.on('open', function() {
