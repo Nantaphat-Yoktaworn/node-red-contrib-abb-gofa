@@ -158,8 +158,10 @@ GOTO token rounds to 1 dp (xyz) / 4 dp (quaternion) to stay under RAPID's 80-cha
 ```
 node-red-contrib-abb-gofa/        ← npm palette package
 node-red-contrib-abb-gofa/check-status.js  ← standalone robot preflight check, see /robot-status above
+node-red-contrib-abb-gofa/mastership-test.js ← standalone mastership-gated RWS test, see /mastership-test above
 rapid/MainModule.mod               ← RAPID socket server (must run on controller)
 flows/gofa_demo_flow.json          ← one inject per node, for testing
 flows/dashboard_flow.json          ← full robot control palette flow
 flows/teach_workflow_flow.json     ← physical ASI-button teach workflow (own tab/config, see README)
+MANUAL_CONTROL.md                  ← curl/raw-TCP command reference for controlling the robot without Node-RED
 ```

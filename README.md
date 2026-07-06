@@ -14,6 +14,7 @@ flows/
   teach_workflow_flow.json       ← Physical-button teach workflow (see below)
 dist/
   node-red-contrib-abb-gofa-*.tgz ← Packaged releases
+MANUAL_CONTROL.md                ← Control the robot directly (curl / raw TCP), no Node-RED needed
 ```
 
 ---

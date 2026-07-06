@@ -28,6 +28,7 @@ node-red-contrib-abb-gofa/package-lock.json
 !.gitignore
 !README.md
 !CLAUDE.md
+!MANUAL_CONTROL.md
 !/.claude/
 !/.claude/**
 
