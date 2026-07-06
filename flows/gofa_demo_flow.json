@@ -290,12 +290,15 @@
             "9909447faf50b98f",
             "b2c5d9e3f7a04618",
             "c3d6eaf408b15729",
-            "a1f4c8d2e6b93507"
+            "a1f4c8d2e6b93507",
+            "e4a7b1c9d2f68035",
+            "f5b8c2da3e07946a",
+            "d0e9a2c4b6f38517"
         ],
         "x": 40,
         "y": 2120,
         "w": 660,
-        "h": 355,
+        "h": 415,
         "g": "ddf39a7facd45efe"
     },
     {
@@ -3521,7 +3524,7 @@
         "type": "comment",
         "z": "08f5b46ae379bad0",
         "g": "7198e5afe7b422d6",
-        "name": "RAPID-EXEC: start / stop / resetpp / loadmod the RAPID program  |  Requires Remote Start/Stop UAS grant (RobotStudio → Edit User Accounts) + Auto mode + Motors on  |  resetpp and loadmod acquire edit mastership automatically  |  loadmod reloads a .mod file already on disk (e.g. after gofa-upload-mod) — the RWS equivalent of the FlexPendant's Load Module step",
+        "name": "RAPID-EXEC: start / stop / resetpp / loadmod / activate the RAPID program  |  Requires Remote Start/Stop UAS grant (RobotStudio → Edit User Accounts) + Auto mode + Motors on  |  resetpp, loadmod, and activate acquire edit mastership automatically  |  loadmod/activate require RAPID to be STOPPED (confirmed live — HTTP 403 while running) — stop first, then loadmod/activate, then start again",
         "info": "",
         "x": 290,
         "y": 2160,
@@ -3777,6 +3780,70 @@
         "wires": [
             [
                 "b2c5d9e3f7a04618"
+            ]
+        ]
+    },
+    {
+        "id": "e4a7b1c9d2f68035",
+        "type": "gofa-rapid-exec",
+        "z": "08f5b46ae379bad0",
+        "g": "7198e5afe7b422d6",
+        "name": "",
+        "robot": "cfg1",
+        "action": "activate",
+        "task": "T_ROB1",
+        "module": "MainModule",
+        "x": 260,
+        "y": 2495,
+        "wires": [
+            [
+                "f5b8c2da3e07946a"
+            ]
+        ]
+    },
+    {
+        "id": "f5b8c2da3e07946a",
+        "type": "debug",
+        "z": "08f5b46ae379bad0",
+        "g": "7198e5afe7b422d6",
+        "name": "{ ok, action, task, module } or { ok:false, error }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 580,
+        "y": 2495,
+        "wires": []
+    },
+    {
+        "id": "d0e9a2c4b6f38517",
+        "type": "inject",
+        "z": "08f5b46ae379bad0",
+        "g": "7198e5afe7b422d6",
+        "name": "Activate Module",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 100,
+        "y": 2495,
+        "wires": [
+            [
+                "e4a7b1c9d2f68035"
             ]
         ]
     },

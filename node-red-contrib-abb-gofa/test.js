@@ -693,6 +693,42 @@ await checkAsync('gofa-rapid-exec: msg.payload can override task/modulePath/repl
     assert.strictEqual(call[1], '/rw/rapid/tasks/T_ROB2/loadmod');
     assert.ok(call[2].indexOf('Other.mod') >= 0 && call[2].indexOf('replace=false') >= 0, call[2]);
 });
+await checkAsync('gofa-rapid-exec: activate acquires mastership, uses hal+json, and reports task/module', async function() {
+    var mockRobot = makeRapidExecRobot({ ctrlstate: 'motoroff' });
+    var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', action: 'activate', task: 'T_ROB1', module: 'MainModule'
+    });
+    var msg = {};
+    await runInput(node, msg);
+    assert.deepStrictEqual(msg.payload, { ok: true, action: 'activate', task: 'T_ROB1', module: 'MainModule' });
+    var call = mockRobot.calls.filter(function(c) { return c[0] === 'POST-HAL'; })[0];
+    assert.ok(call, 'must call rwsPostHal, not rwsPost, for activate');
+    assert.strictEqual(call[1], '/rw/rapid/tasks/T_ROB1/activate');
+    assert.strictEqual(call[2], 'module=MainModule');
+    assert.ok(!mockRobot.calls.some(function(c) { return c[1] === '/rw/panel/ctrl-state'; }), 'must not check ctrl-state for activate');
+});
+await checkAsync('gofa-rapid-exec: msg.payload can override task/module for activate', async function() {
+    var mockRobot = makeRapidExecRobot();
+    var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'activate' });
+    var msg = { payload: { action: 'activate', task: 'T_ROB2', module: 'OtherModule' } };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.task, 'T_ROB2');
+    assert.strictEqual(msg.payload.module, 'OtherModule');
+    var call = mockRobot.calls.filter(function(c) { return c[0] === 'POST-HAL'; })[0];
+    assert.strictEqual(call[1], '/rw/rapid/tasks/T_ROB2/activate');
+    assert.strictEqual(call[2], 'module=OtherModule');
+});
+await checkAsync('gofa-rapid-exec: activate/loadmod give a clear hint on the "RAPID must be stopped" 403', async function() {
+    // Confirmed live: RWS rejects activate/loadmod with this exact message while RAPID is running.
+    var pgmStateError = new Error('HTTP 403 /rw/rapid/tasks/T_ROB1/activate — Operation not allowed for current PGM state (Started/Stopped/Ready)');
+    var mockRobot = makeRapidExecRobot({ postError: pgmStateError });
+    var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'activate' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(msg.payload.error.indexOf('RAPID must be stopped for activate') >= 0, msg.payload.error);
+});
 
 // gofa-rapid-tasks ───────────────────────────────────────────────────────────
 await checkAsync('gofa-rapid-tasks: reads tasks and the default task\'s modules', async function() {

@@ -87,7 +87,12 @@ function createRobotClient(opts) {
                     } else if (res.statusCode >= 200 && res.statusCode < 300) {
                         resolve(data);
                     } else {
-                        reject(new Error('HTTP ' + res.statusCode + ' ' + urlPath));
+                        // RWS error bodies carry a human-readable reason (xhtml <span class="msg">
+                        // or hal+json "msg":"..."), e.g. "Operation not allowed for current PGM
+                        // state" on activate/loadmod while RAPID is running — surface it instead
+                        // of just the status code, which alone gives no hint what went wrong.
+                        var reason = (/class="msg">([^<]+)</.exec(data) || /"msg"\s*:\s*"([^"]+)"/.exec(data) || [])[1];
+                        reject(new Error('HTTP ' + res.statusCode + ' ' + urlPath + (reason ? ' — ' + reason : '')));
                     }
                 });
             });

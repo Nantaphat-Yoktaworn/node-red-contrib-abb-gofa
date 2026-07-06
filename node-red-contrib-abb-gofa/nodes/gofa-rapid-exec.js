@@ -7,6 +7,7 @@ module.exports = function(RED) {
         this.task       = config.task       || 'T_ROB1';
         this.modulePath = config.modulePath || '$HOME/Programs/MainModule.mod';
         this.replace    = config.replace    !== false;
+        this.module     = config.module     || 'MainModule';
         var node = this;
 
         node.on('input', function(msg, send, done) {
@@ -19,20 +20,22 @@ module.exports = function(RED) {
             var task       = (raw && raw.task)                       ? raw.task       : node.task;
             var modulePath = (raw && raw.modulePath)                  ? raw.modulePath : node.modulePath;
             var replace    = (raw && raw.replace !== undefined)       ? !!raw.replace  : node.replace;
+            var moduleName = (raw && raw.module)                      ? raw.module     : node.module;
             node.status({ fill: 'blue', shape: 'dot', text: action });
 
             var bodies = {
                 start:   'regain=continue&execmode=continue&cycle=forever&condition=none&stopatbp=disabled&alltaskbytsp=false',
                 stop:    'stopmode=stop&usetsp=normal',
                 resetpp: '',
-                loadmod: ''
+                loadmod: '',
+                activate: ''
             };
 
-            var labels = { start: 'running', stop: 'stopped', resetpp: 'PP reset', loadmod: 'module loaded' };
+            var labels = { start: 'running', stop: 'stopped', resetpp: 'PP reset', loadmod: 'module loaded', activate: 'module activated' };
 
             if (!bodies.hasOwnProperty(action)) {
-                msg.payload = { ok: false, error: 'Unknown action: ' + action + ' (use start, stop, resetpp, or loadmod)' };
-                node.error('Unknown action: ' + action + ' (use start, stop, resetpp, or loadmod)', msg);
+                msg.payload = { ok: false, error: 'Unknown action: ' + action + ' (use start, stop, resetpp, loadmod, or activate)' };
+                node.error('Unknown action: ' + action + ' (use start, stop, resetpp, loadmod, or activate)', msg);
                 node.status({ fill: 'red', shape: 'ring', text: 'bad action' });
                 send(msg); return done();
             }
@@ -105,6 +108,13 @@ module.exports = function(RED) {
                 doAction = node.robot.withMastership(function() {
                     return node.robot.rwsPostHal('/rw/rapid/tasks/' + task + '/loadmod', body);
                 });
+            } else if (action === 'activate') {
+                // activate requires edit mastership and hal+json, same as loadmod — makes
+                // the named module the task's active/bound one. 204 No Content on success.
+                var activateBody = 'module=' + encodeURIComponent(moduleName);
+                doAction = node.robot.withMastership(function() {
+                    return node.robot.rwsPostHal('/rw/rapid/tasks/' + task + '/activate', activateBody);
+                });
             } else {
                 // stop works without mastership given Remote Start/Stop UAS grant.
                 doAction = node.robot.rwsPost('/rw/rapid/execution/' + action, bodies[action]);
@@ -119,6 +129,9 @@ module.exports = function(RED) {
                         var loaded = JSON.parse(result).state[0];
                         msg.payload.module = loaded && loaded.name;
                     } catch (e) { /* leave module unset if the response shape ever changes */ }
+                } else if (action === 'activate') {
+                    msg.payload.task = task;
+                    msg.payload.module = moduleName;
                 }
                 node.status({ fill: 'green', shape: 'dot', text: labels[action] });
                 send(msg); done();
@@ -127,6 +140,11 @@ module.exports = function(RED) {
                 var hint = '';
                 if (err.message.indexOf('-757') >= 0 || err.message.indexOf('not allowed access') >= 0) {
                     hint = ' (requires Remote Start/Stop grant — RobotStudio → Edit User Accounts)';
+                } else if ((action === 'loadmod' || action === 'activate') && err.message.indexOf('PGM state') >= 0) {
+                    // Confirmed live: loadmod/activate are rejected with HTTP 403 while RAPID is
+                    // running — both require the task to be stopped first (stop, then loadmod/
+                    // activate, then start again — resetpp in between if PP also needs resetting).
+                    hint = ' (RAPID must be stopped for ' + action + ' — stop it first, e.g. gofa-rapid-exec action "stop")';
                 }
                 msg.payload = { ok: false, error: err.message + hint, action: action };
                 if (err.ctrlstate !== undefined) msg.payload.ctrlstate = err.ctrlstate;
