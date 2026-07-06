@@ -2,16 +2,27 @@
     RED.nodes.registerType('gofa-rapid-exec', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
-            name:   { value: '' },
-            robot:  { value: '', type: 'gofa-robot', required: true },
-            action: { value: 'start' }
+            name:       { value: '' },
+            robot:      { value: '', type: 'gofa-robot', required: true },
+            action:     { value: 'start' },
+            task:       { value: 'T_ROB1' },
+            modulePath: { value: '$HOME/Programs/MainModule.mod' },
+            replace:    { value: true }
         },
         inputs: 1, outputs: 1, icon: 'white-globe.svg',
         label: function() {
-            var labels = { start: 'RAPID Start', stop: 'RAPID Stop', resetpp: 'RAPID Reset PP' };
+            var labels = { start: 'RAPID Start', stop: 'RAPID Stop', resetpp: 'RAPID Reset PP', loadmod: 'Load Module' };
             return this.name || labels[this.action] || 'RAPID Exec';
         },
-        paletteLabel: 'RAPID Exec'
+        paletteLabel: 'RAPID Exec',
+        oneditprepare: function() {
+            function toggleLoadmodFields() {
+                var show = $('#node-input-action').val() === 'loadmod';
+                $('#node-loadmod-fields').toggle(show);
+            }
+            $('#node-input-action').on('change', toggleLoadmodFields);
+            toggleLoadmodFields();
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-rapid-exec">
@@ -25,7 +36,21 @@
             <option value="start">Start RAPID</option>
             <option value="stop">Stop RAPID</option>
             <option value="resetpp">Reset Program Pointer (PP)</option>
+            <option value="loadmod">Load Module</option>
         </select>
+    </div>
+    <div id="node-loadmod-fields">
+        <div class="form-row">
+            <label for="node-input-task"><i class="fa fa-cogs"></i> Task</label>
+            <input type="text" id="node-input-task" placeholder="T_ROB1">
+        </div>
+        <div class="form-row">
+            <label for="node-input-modulePath"><i class="fa fa-folder"></i> Module path</label>
+            <input type="text" id="node-input-modulePath" placeholder="$HOME/Programs/MainModule.mod">
+        </div>
+        <div class="form-row">
+            <label for="node-input-replace" style="width:auto"><input type="checkbox" id="node-input-replace" style="display:inline-block; width:auto; vertical-align:top;"> Replace if already loaded</label>
+        </div>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
@@ -40,8 +65,8 @@
         <dt>payload <span class="property-type">string | object</span></dt>
         <dd>
             <ul>
-                <li><b>string</b> — <code>'start'</code>, <code>'stop'</code>, or <code>'resetpp'</code></li>
-                <li><b>object</b> — <code>{ action: 'start' }</code></li>
+                <li><b>string</b> — <code>'start'</code>, <code>'stop'</code>, <code>'resetpp'</code>, or <code>'loadmod'</code></li>
+                <li><b>object</b> — <code>{ action: 'start' }</code>, or for <code>loadmod</code>: <code>{ action: 'loadmod', task, modulePath, replace }</code> (any of the three override the node's configured values)</li>
                 <li><b>(absent)</b> — uses the <em>Action</em> dropdown (default: <code>start</code>)</li>
             </ul>
         </dd>
@@ -51,7 +76,9 @@
     <dl class="message-properties">
         <dt>payload <span class="property-type">object</span></dt>
         <dd>
-            <code>{ ok: true, action: '...' }</code> on success.<br>
+            <code>{ ok: true, action: '...' }</code> on success (for <code>loadmod</code>, also
+            <code>task</code>, <code>modulePath</code>, and <code>module</code> — the name RWS
+            reports as loaded).<br>
             On failure: <code>{ ok: false, action: '...', error: '...' }</code>, plus
             <code>ctrlstate</code> and/or <code>execstate</code> when the failure relates to
             motor/execution state (see <em>Notes</em> below).
@@ -63,6 +90,11 @@
         <li><b>start</b> — begin RAPID execution (cycle: forever)</li>
         <li><b>stop</b> — halt RAPID execution</li>
         <li><b>resetpp</b> — move program pointer back to Main (requires Edit mastership)</li>
+        <li><b>loadmod</b> — (re)load a module file already on the controller's disk into a
+        task, e.g. after <b>gofa-upload-mod</b> has PUT a changed <code>MainModule.mod</code>.
+        This is the RWS equivalent of the FlexPendant's <b>Load Module</b> step. Requires Edit
+        mastership (granted automatically). Follow with <b>resetpp</b> if you also need the
+        program pointer moved back to Main before <code>start</code>.</li>
     </ul>
 
     <h3>Notes</h3>

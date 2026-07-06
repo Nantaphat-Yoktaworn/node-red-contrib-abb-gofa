@@ -117,10 +117,10 @@ module.exports = function(RED) {
         }) || null;
     };
 
-    GoFaRobotNode.prototype._request = function(method, urlPath, body, forceAuth) {
+    GoFaRobotNode.prototype._request = function(method, urlPath, body, forceAuth, accept) {
         var node = this;
         return new Promise(function(resolve, reject) {
-            var headers = { 'Accept': 'application/xhtml+xml;v=2.0' };
+            var headers = { 'Accept': accept || 'application/xhtml+xml;v=2.0' };
             if (forceAuth || !node._cookie) {
                 headers['Authorization'] = 'Basic ' +
                     Buffer.from(node.username + ':' + node.password).toString('base64');
@@ -146,7 +146,7 @@ module.exports = function(RED) {
                 res.on('end', function() {
                     if (res.statusCode === 401 && !forceAuth) {
                         node._cookie = null;
-                        node._request(method, urlPath, body, true).then(resolve).catch(reject);
+                        node._request(method, urlPath, body, true, accept).then(resolve).catch(reject);
                     } else if (res.statusCode >= 200 && res.statusCode < 300) {
                         resolve(data);
                     } else {
@@ -182,6 +182,13 @@ module.exports = function(RED) {
     GoFaRobotNode.prototype.rwsPut = function(p, b) {
         var node = this;
         return this._getSession().then(function() { return node._request('PUT', p, b, false); });
+    };
+    // The RWS task loadmod resource is the one confirmed exception that requires
+    // application/hal+json;v=2.0 — every other endpoint in this palette uses xhtml+xml
+    // and errors ("Server cannot generate response for given accept header") on hal+json.
+    GoFaRobotNode.prototype.rwsPostHal = function(p, b) {
+        var node = this;
+        return this._getSession().then(function() { return node._request('POST', p, b, false, 'application/hal+json;v=2.0'); });
     };
     // Edit mastership is the only domain OmniCore allows requesting explicitly —
     // general mastership is always held internally by the RAPID runtime.

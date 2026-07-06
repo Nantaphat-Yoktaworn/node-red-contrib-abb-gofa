@@ -2,8 +2,11 @@
 module.exports = function(RED) {
     function GoFaRapidExecNode(config) {
         RED.nodes.createNode(this, config);
-        this.robot  = RED.nodes.getNode(config.robot);
-        this.action = config.action || 'start';
+        this.robot      = RED.nodes.getNode(config.robot);
+        this.action     = config.action     || 'start';
+        this.task       = config.task       || 'T_ROB1';
+        this.modulePath = config.modulePath || '$HOME/Programs/MainModule.mod';
+        this.replace    = config.replace    !== false;
         var node = this;
 
         node.on('input', function(msg, send, done) {
@@ -13,19 +16,23 @@ module.exports = function(RED) {
             var action = (typeof raw === 'string' && raw) ? raw
                        : (raw && raw.action)              ? raw.action
                        : node.action;
+            var task       = (raw && raw.task)                       ? raw.task       : node.task;
+            var modulePath = (raw && raw.modulePath)                  ? raw.modulePath : node.modulePath;
+            var replace    = (raw && raw.replace !== undefined)       ? !!raw.replace  : node.replace;
             node.status({ fill: 'blue', shape: 'dot', text: action });
 
             var bodies = {
                 start:   'regain=continue&execmode=continue&cycle=forever&condition=none&stopatbp=disabled&alltaskbytsp=false',
                 stop:    'stopmode=stop&usetsp=normal',
-                resetpp: ''
+                resetpp: '',
+                loadmod: ''
             };
 
-            var labels = { start: 'running', stop: 'stopped', resetpp: 'PP reset' };
+            var labels = { start: 'running', stop: 'stopped', resetpp: 'PP reset', loadmod: 'module loaded' };
 
             if (!bodies.hasOwnProperty(action)) {
-                msg.payload = { ok: false, error: 'Unknown action: ' + action + ' (use start, stop, or resetpp)' };
-                node.error('Unknown action: ' + action + ' (use start, stop, or resetpp)', msg);
+                msg.payload = { ok: false, error: 'Unknown action: ' + action + ' (use start, stop, resetpp, or loadmod)' };
+                node.error('Unknown action: ' + action + ' (use start, stop, resetpp, or loadmod)', msg);
                 node.status({ fill: 'red', shape: 'ring', text: 'bad action' });
                 send(msg); return done();
             }
@@ -90,13 +97,29 @@ module.exports = function(RED) {
                 doAction = node.robot.withMastership(function() {
                     return node.robot.rwsPost('/rw/rapid/execution/resetpp', '');
                 });
+            } else if (action === 'loadmod') {
+                // loadmod requires edit mastership, same domain as resetpp. Unlike every
+                // other RWS call in this palette it responds application/hal+json, not
+                // xhtml+xml — confirmed live; the xhtml Accept header errors on this resource.
+                var body = 'modulepath=' + encodeURIComponent(modulePath) + '&replace=' + (replace ? 'true' : 'false');
+                doAction = node.robot.withMastership(function() {
+                    return node.robot.rwsPostHal('/rw/rapid/tasks/' + task + '/loadmod', body);
+                });
             } else {
                 // stop works without mastership given Remote Start/Stop UAS grant.
                 doAction = node.robot.rwsPost('/rw/rapid/execution/' + action, bodies[action]);
             }
 
-            doAction.then(function() {
+            doAction.then(function(result) {
                 msg.payload = { ok: true, action: action };
+                if (action === 'loadmod') {
+                    msg.payload.task = task;
+                    msg.payload.modulePath = modulePath;
+                    try {
+                        var loaded = JSON.parse(result).state[0];
+                        msg.payload.module = loaded && loaded.name;
+                    } catch (e) { /* leave module unset if the response shape ever changes */ }
+                }
                 node.status({ fill: 'green', shape: 'dot', text: labels[action] });
                 send(msg); done();
             })

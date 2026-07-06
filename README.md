@@ -293,12 +293,14 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 
 | Node | Protocol | What it does |
 |------|:--------:|-------------|
-| **gofa-rapid-exec** | RWS | `start` / `stop` / `resetpp` the RAPID program |
+| **gofa-rapid-exec** | RWS | `start` / `stop` / `resetpp` / `loadmod` the RAPID program |
 | **gofa-rapid-var-read** | TCP + RWS | Read a RAPID PERS variable via `GETVAR:<name>` socket command; falls back to a stale RWS module-text read if the variable isn't allow-listed |
 | **gofa-rapid-var-write** | TCP | Write a RAPID PERS variable via `SETVAR:<name>:<value>` socket command — no RWS fallback exists (see below) |
 | **gofa-rapid-tasks** | RWS | List RAPID tasks on the controller and the modules loaded in one of them |
 
-> `gofa-rapid-exec` requires the RWS user to have **Remote Start** and **Remote Stop** grants (see Step 2). `resetpp` additionally acquires edit mastership automatically.
+> `gofa-rapid-exec` requires the RWS user to have **Remote Start** and **Remote Stop** grants (see Step 2). `resetpp` and `loadmod` additionally acquire edit mastership automatically.
+>
+> `loadmod` reloads a module file already on the controller's disk into a task — the RWS equivalent of the FlexPendant's **Load Module** step (see [Load and start on the FlexPendant](#load-and-start-on-the-flexpendant)). Use it after **gofa-upload-mod** to make a running task pick up a changed `.mod` file without touching the FlexPendant; follow with `resetpp` if the program pointer also needs resetting to Main.
 
 > `gofa-rapid-var-read` / `gofa-rapid-var-write` use the TCP socket and work on standard OmniCore C30 without any extra RobotWare options. The variable must be listed in `TryGetVar` / `TrySetVar` in `MainModule.mod`. Built-in test variables: `nTestVar` (num) and `sTestMsg` (string). See [Adding RAPID variables](#adding-rapid-variables) below.
 >
@@ -371,7 +373,7 @@ msg.payload  →  node property (editor)  →  built-in default
 |------|----------------------|---------|
 | **gofa-motor** | `'motoron'` / `'motoroff'` (string) · `{ action: 'motoron' }` | `motoron` |
 | **gofa-move** | `'HOME'` / `'SETHOME'` (string) · `{ command: 'HOME' }` | `HOME` |
-| **gofa-rapid-exec** | `'start'` / `'stop'` / `'resetpp'` (string) · `{ action: 'start' }` | `start` |
+| **gofa-rapid-exec** | `'start'` / `'stop'` / `'resetpp'` / `'loadmod'` (string) · `{ action: 'start' }` · for `loadmod`: `{ action: 'loadmod', task, modulePath, replace }` | `start` |
 | **gofa-speed-set** | number or string `1`–`100` | `50` |
 | **gofa-zone-set** | `'fine'` / `'z1'` / `'z5'` / `'z10'` / `'z20'` / `'z50'` / `'z100'` | `z10` |
 | **gofa-grip** | `true` / `1` / `'on'` / `'gripon'` or `false` / `0` / `'off'` / `'gripoff'` · `{ action: 'on' }` | `on` |
