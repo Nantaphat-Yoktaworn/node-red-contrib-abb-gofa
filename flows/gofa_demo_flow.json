@@ -287,12 +287,15 @@
             "213922eb67e496b7",
             "4185396556f153d8",
             "9ea1ae20458cbf3f",
-            "9909447faf50b98f"
+            "9909447faf50b98f",
+            "b2c5d9e3f7a04618",
+            "c3d6eaf408b15729",
+            "a1f4c8d2e6b93507"
         ],
         "x": 40,
         "y": 2120,
         "w": 660,
-        "h": 295,
+        "h": 355,
         "g": "ddf39a7facd45efe"
     },
     {
@@ -3518,7 +3521,7 @@
         "type": "comment",
         "z": "08f5b46ae379bad0",
         "g": "7198e5afe7b422d6",
-        "name": "RAPID-EXEC: start / stop / resetpp the RAPID program  |  Requires Remote Start/Stop UAS grant (RobotStudio → Edit User Accounts) + Auto mode + Motors on  |  resetpp acquires edit mastership automatically",
+        "name": "RAPID-EXEC: start / stop / resetpp / loadmod the RAPID program  |  Requires Remote Start/Stop UAS grant (RobotStudio → Edit User Accounts) + Auto mode + Motors on  |  resetpp and loadmod acquire edit mastership automatically  |  loadmod reloads a .mod file already on disk (e.g. after gofa-upload-mod) — the RWS equivalent of the FlexPendant's Load Module step",
         "info": "",
         "x": 290,
         "y": 2160,
@@ -3709,6 +3712,71 @@
         "wires": [
             [
                 "9ea1ae20458cbf3f"
+            ]
+        ]
+    },
+    {
+        "id": "b2c5d9e3f7a04618",
+        "type": "gofa-rapid-exec",
+        "z": "08f5b46ae379bad0",
+        "g": "7198e5afe7b422d6",
+        "name": "",
+        "robot": "cfg1",
+        "action": "loadmod",
+        "task": "T_ROB1",
+        "modulePath": "$HOME/Programs/MainModule.mod",
+        "replace": true,
+        "x": 250,
+        "y": 2435,
+        "wires": [
+            [
+                "c3d6eaf408b15729"
+            ]
+        ]
+    },
+    {
+        "id": "c3d6eaf408b15729",
+        "type": "debug",
+        "z": "08f5b46ae379bad0",
+        "g": "7198e5afe7b422d6",
+        "name": "{ ok, action, task, modulePath, module } or { ok:false, error }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 570,
+        "y": 2435,
+        "wires": []
+    },
+    {
+        "id": "a1f4c8d2e6b93507",
+        "type": "inject",
+        "z": "08f5b46ae379bad0",
+        "g": "7198e5afe7b422d6",
+        "name": "Load Module",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 90,
+        "y": 2435,
+        "wires": [
+            [
+                "b2c5d9e3f7a04618"
             ]
         ]
     },

@@ -574,6 +574,11 @@ function makeRapidExecRobot(opts) {
             if (opts.postError) return Promise.reject(opts.postError);
             return Promise.resolve('');
         },
+        rwsPostHal: function(p, b) {
+            calls.push(['POST-HAL', p, b]);
+            if (opts.postError) return Promise.reject(opts.postError);
+            return Promise.resolve(opts.loadmodResponse || '{"state":[{"name":"MainModule"}]}');
+        },
         parseXhtml: function(body) {
             var m = /:(.*)$/.exec(body);
             return m ? m[1] : null;
@@ -622,6 +627,33 @@ await checkAsync('gofa-rapid-exec: resetpp acquires mastership and does not chec
     var msg = {};
     await runInput(node, msg);
     assert.deepStrictEqual(msg.payload, { ok: true, action: 'resetpp' });
+});
+await checkAsync('gofa-rapid-exec: loadmod acquires mastership, uses hal+json, and parses the loaded module name', async function() {
+    var mockRobot = makeRapidExecRobot({ ctrlstate: 'motoroff' });
+    var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', action: 'loadmod', task: 'T_ROB1', modulePath: '$HOME/Programs/MainModule.mod', replace: true
+    });
+    var msg = {};
+    await runInput(node, msg);
+    assert.deepStrictEqual(msg.payload, {
+        ok: true, action: 'loadmod', task: 'T_ROB1', modulePath: '$HOME/Programs/MainModule.mod', module: 'MainModule'
+    });
+    var call = mockRobot.calls.filter(function(c) { return c[0] === 'POST-HAL'; })[0];
+    assert.ok(call, 'must call rwsPostHal, not rwsPost, for loadmod');
+    assert.strictEqual(call[1], '/rw/rapid/tasks/T_ROB1/loadmod');
+    assert.ok(call[2].indexOf('modulepath=') >= 0 && call[2].indexOf('replace=true') >= 0, call[2]);
+    assert.ok(!mockRobot.calls.some(function(c) { return c[1] === '/rw/panel/ctrl-state'; }), 'must not check ctrl-state for loadmod');
+});
+await checkAsync('gofa-rapid-exec: msg.payload can override task/modulePath/replace for loadmod', async function() {
+    var mockRobot = makeRapidExecRobot();
+    var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'loadmod' });
+    var msg = { payload: { action: 'loadmod', task: 'T_ROB2', modulePath: '$HOME/Programs/Other.mod', replace: false } };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.task, 'T_ROB2');
+    var call = mockRobot.calls.filter(function(c) { return c[0] === 'POST-HAL'; })[0];
+    assert.strictEqual(call[1], '/rw/rapid/tasks/T_ROB2/loadmod');
+    assert.ok(call[2].indexOf('Other.mod') >= 0 && call[2].indexOf('replace=false') >= 0, call[2]);
 });
 
 // gofa-rapid-tasks ───────────────────────────────────────────────────────────
