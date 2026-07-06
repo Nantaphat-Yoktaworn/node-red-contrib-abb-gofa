@@ -55,7 +55,7 @@ function createRobotClient(opts) {
     var cookie       = null;
     var loginPromise = null;
 
-    function request(method, urlPath, body, forceAuth, accept) {
+    function request(method, urlPath, body, forceAuth, accept, contentType) {
         return new Promise(function(resolve, reject) {
             var headers = { 'Accept': accept || 'application/xhtml+xml;v=2.0' };
             if (forceAuth || !cookie) {
@@ -65,7 +65,7 @@ function createRobotClient(opts) {
                 headers['Cookie'] = cookie;
             }
             if (method === 'POST' || method === 'PUT') {
-                headers['Content-Type']   = 'application/x-www-form-urlencoded;v=2.0';
+                headers['Content-Type']   = contentType || 'application/x-www-form-urlencoded;v=2.0';
                 headers['Content-Length'] = Buffer.byteLength(body || '');
             }
             var proto = rwsPort === 443 ? https : http;
@@ -83,7 +83,7 @@ function createRobotClient(opts) {
                 res.on('end', function() {
                     if (res.statusCode === 401 && !forceAuth) {
                         cookie = null;
-                        request(method, urlPath, body, true, accept).then(resolve).catch(reject);
+                        request(method, urlPath, body, true, accept, contentType).then(resolve).catch(reject);
                     } else if (res.statusCode >= 200 && res.statusCode < 300) {
                         resolve(data);
                     } else {
@@ -110,7 +110,7 @@ function createRobotClient(opts) {
 
     function rwsGet(p) { return getSession().then(function() { return request('GET', p, null, false); }); }
     function rwsPost(p, b) { return getSession().then(function() { return request('POST', p, b, false); }); }
-    function rwsPut(p, b) { return getSession().then(function() { return request('PUT', p, b, false); }); }
+    function rwsPut(p, b, contentType) { return getSession().then(function() { return request('PUT', p, b, false, undefined, contentType); }); }
     // The RWS task loadmod resource is the one confirmed exception that requires
     // application/hal+json;v=2.0 — every other endpoint in this palette uses xhtml+xml
     // and errors ("Server cannot generate response for given accept header") on hal+json.
@@ -240,7 +240,7 @@ module.exports = function(RED) {
 
     GoFaRobotNode.prototype.rwsGet        = function(p)    { return this._client.rwsGet(p); };
     GoFaRobotNode.prototype.rwsPost       = function(p, b) { return this._client.rwsPost(p, b); };
-    GoFaRobotNode.prototype.rwsPut        = function(p, b) { return this._client.rwsPut(p, b); };
+    GoFaRobotNode.prototype.rwsPut        = function(p, b, contentType) { return this._client.rwsPut(p, b, contentType); };
     GoFaRobotNode.prototype.rwsPostHal    = function(p, b) { return this._client.rwsPostHal(p, b); };
     GoFaRobotNode.prototype.withMastership = function(fn)  { return this._client.withMastership(fn); };
     GoFaRobotNode.prototype.socketSend    = function(cmd)  { return this._client.socketSend(cmd); };

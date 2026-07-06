@@ -556,6 +556,44 @@ await checkAsync('gofa-stop-seq: sets the stop flag and sends STOP', async funct
     assert.deepStrictEqual(sentCmds, ['STOP']);
 });
 
+// gofa-upload-mod: node-level tests go through r.rwsPut() (the public API),
+// not private robot internals like r._getSession/r._cookie — a mock robot only
+// exposing what the real GoFaRobotNode exposes is what would have caught the
+// "r._getSession is not a function" regression from a gofa-robot.js refactor
+// that moved session/cookie state into a private createRobotClient() closure.
+await checkAsync('gofa-upload-mod: uploads via r.rwsPut with text/plain content type', async function() {
+    var calls = [];
+    var mockRobot = {
+        ip: '10.0.0.9',
+        rwsPut: function(p, b, contentType) {
+            calls.push({ path: p, body: b, contentType: contentType });
+            return Promise.resolve('');
+        }
+    };
+    var tmpFile = path.join(tmpDir, 'MainModule.mod');
+    fs.writeFileSync(tmpFile, sampleMod);
+    var node = new (loadNodeType('./nodes/gofa-upload-mod', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', localPath: tmpFile, remotePath: '$HOME/Programs/MainModule.mod'
+    });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0].path, '/fileservice/$HOME/Programs/MainModule.mod');
+    assert.strictEqual(calls[0].contentType, 'text/plain;v=2.0');
+    assert.ok(calls[0].body.toString().indexOf('"10.0.0.9"') >= 0, 'SERVER_IP should be patched to the robot ip');
+});
+await checkAsync('gofa-upload-mod: reports failure when rwsPut rejects', async function() {
+    var mockRobot = { ip: '10.0.0.9', rwsPut: function() { return Promise.reject(new Error('HTTP 401 — auth failed')); } };
+    var tmpFile = path.join(tmpDir, 'Other.mod');
+    fs.writeFileSync(tmpFile, 'MODULE Other\nENDMODULE\n');
+    var node = new (loadNodeType('./nodes/gofa-upload-mod', { nodesById: { r1: mockRobot } }))({ robot: 'r1', localPath: tmpFile });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(msg.payload.error.indexOf('401') >= 0);
+});
+
 // gofa-rapid-exec ────────────────────────────────────────────────────────────
 function makeRapidExecRobot(opts) {
     opts = opts || {};

@@ -1,6 +1,4 @@
 'use strict';
-const https = require('https');
-const http  = require('http');
 const fs    = require('fs');
 
 // Rewrite MainModule.mod's SERVER_IP constant to match the robot config
@@ -68,47 +66,7 @@ module.exports = function(RED) {
 
             node.status({ fill: 'blue', shape: 'dot', text: 'uploading…' });
 
-            r._getSession().then(function() {
-                return new Promise(function(resolve, reject) {
-                    var headers = {
-                        'Content-Type':   'text/plain;v=2.0',
-                        'Content-Length': body.length
-                    };
-                    if (r._cookie) {
-                        headers['Cookie'] = r._cookie;
-                    } else {
-                        headers['Authorization'] = 'Basic ' +
-                            Buffer.from(r.username + ':' + r.password).toString('base64');
-                    }
-
-                    var proto = r.rwsPort === 443 ? https : http;
-                    var req = proto.request({
-                        hostname: r.ip, port: r.rwsPort,
-                        path: urlPath, method: 'PUT',
-                        headers: headers, rejectUnauthorized: false
-                    }, function(res) {
-                        if (res.headers['set-cookie']) {
-                            r._cookie = res.headers['set-cookie']
-                                .map(function(c) { return c.split(';')[0]; }).join('; ');
-                        }
-                        var data = '';
-                        res.on('data', function(c) { data += c; });
-                        res.on('end', function() {
-                            if (res.statusCode === 401) {
-                                r._cookie = null;
-                                reject(new Error('HTTP 401 — auth failed'));
-                            } else if (res.statusCode >= 200 && res.statusCode < 300) {
-                                resolve(data);
-                            } else {
-                                reject(new Error('HTTP ' + res.statusCode + ' ' + urlPath + (data ? ': ' + data : '')));
-                            }
-                        });
-                    });
-                    req.on('error', reject);
-                    req.write(body);
-                    req.end();
-                });
-            })
+            r.rwsPut(urlPath, body, 'text/plain;v=2.0')
             .then(function() {
                 msg.payload = { ok: true, remotePath: remotePath, bytes: body.length, serverIpInjected: result.injected };
                 node.status({ fill: 'green', shape: 'dot', text: 'uploaded ' + body.length + 'B' });
