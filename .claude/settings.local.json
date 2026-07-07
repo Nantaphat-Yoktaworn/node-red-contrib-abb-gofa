@@ -39,7 +39,16 @@
       "Bash(nvm version *)",
       "Read(//c/Users/RD2/.node-red/**)",
       "Read(//c/Users/RD2/.node-red/node_modules/**)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "PowerShell(ping *)",
+      "Read(//tmp/**)",
+      "WebFetch(domain:library.e.abb.com)",
+      "WebFetch(domain:hi.dcsmodule.com)",
+      "WebFetch(domain:www.uzivatelskadokumentace.cz)",
+      "WebFetch(domain:icdn.tradew.com)",
+      "WebFetch(domain:www.manualslib.com)",
+      "Bash(GOFA_IP=192.168.20.15 node check-status.js --full)",
+      "Bash(MSYS_NO_PATHCONV=1 node *)"
     ]
   }
 }
