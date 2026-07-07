@@ -169,5 +169,17 @@
   {"id":"scio_prep","type":"function","name":"Sub IO prep","z":"tab_pal","x":320,"y":3200,"func":"msg.payload={signal:(msg.payload&&msg.payload.signal)||'DI10_1'};return msg;","outputs":1,"wires":[["scio_node"]]},
   {"id":"scio_node","type":"gofa-subscribe-io","name":"Subscribe IO (oneshot)","z":"tab_pal","x":560,"y":3200,"robot":"cfg_robot","signal":"DI10_1","oneshot":true,"wires":[["scio_resp"]]},
   {"id":"scio_resp","type":"function","name":"IO resp","z":"tab_pal","x":800,"y":3200,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["scio_out"]]},
-  {"id":"scio_out","type":"http response","name":"","z":"tab_pal","x":1020,"y":3200,"wires":[]}
+  {"id":"scio_out","type":"http response","name":"","z":"tab_pal","x":1020,"y":3200,"wires":[]},
+
+  {"id":"scv_in","type":"http in","name":"POST /robot/subscribe/var","z":"tab_pal","x":100,"y":3280,"method":"post","url":"/robot/subscribe/var","wires":[["scv_ack","scv_node"]]},
+  {"id":"scv_ack","type":"function","name":"Var ack (toggles, streams to debug)","z":"tab_pal","x":340,"y":3260,"func":"msg.statusCode=200;msg.payload={ok:true,toggled:true};return msg;","outputs":1,"wires":[["scv_out"]]},
+  {"id":"scv_out","type":"http response","name":"","z":"tab_pal","x":600,"y":3260,"wires":[]},
+  {"id":"scv_node","type":"gofa-subscribe-var","name":"Subscribe Var (toggle)","z":"tab_pal","x":360,"y":3300,"robot":"cfg_robot","task":"T_ROB1","module":"MainModule","variable":"zActive","interval":"1000","wires":[["scv_debug"]]},
+  {"id":"scv_debug","type":"debug","name":"{ ok, variable, value, source, stale? }","z":"tab_pal","x":620,"y":3300,"active":true,"tosidebar":true,"console":false,"tostatus":false,"complete":"payload","targetType":"msg","wires":[]},
+
+  {"id":"scp_in","type":"http in","name":"POST /robot/subscribe/pose","z":"tab_pal","x":100,"y":3360,"method":"post","url":"/robot/subscribe/pose","wires":[["scp_ack","scp_node"]]},
+  {"id":"scp_ack","type":"function","name":"Pose ack (toggles, streams to debug)","z":"tab_pal","x":340,"y":3340,"func":"msg.statusCode=200;msg.payload={ok:true,toggled:true};return msg;","outputs":1,"wires":[["scp_out"]]},
+  {"id":"scp_out","type":"http response","name":"","z":"tab_pal","x":600,"y":3340,"wires":[]},
+  {"id":"scp_node","type":"gofa-subscribe-pose","name":"Subscribe Pose (toggle)","z":"tab_pal","x":360,"y":3380,"robot":"cfg_robot","interval":"500","wires":[["scp_debug"]]},
+  {"id":"scp_debug","type":"debug","name":"{ ok, x, y, z, q1, q2, q3, q4 }","z":"tab_pal","x":620,"y":3380,"active":true,"tosidebar":true,"console":false,"tostatus":false,"complete":"payload","targetType":"msg","wires":[]}
 ]

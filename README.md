@@ -22,12 +22,12 @@ MANUAL_CONTROL.md                ← Control the robot directly (curl / raw TCP)
 ## Requirements
 
 - ABB GoFa 12 (CRB 15000-12/1.27) with OmniCore C30 controller
-- RobotWare 7.x (tested on 7.21.0)
-- Node-RED v3+
-- Node.js v18+
-- RobotStudio (free) — only needed once for user permission setup
+- RobotWare 7.x (tested live on `7.21.0+229`, which runs RWS 2.0 — path-based actions, not the IRC5-era `?action=` query form)
+- Node-RED v3+ (tested on 5.0.1)
+- Node.js v18+ (tested on v22.9.0)
+- RobotStudio (free) — needed once for user permission setup, and again if you ever need to change an I/O signal's Access Level (tested with RobotStudio 2026.2)
 
-No extra RobotWare options required. RWS (Robot Web Services) is built into every OmniCore controller.
+No extra RobotWare options required. RWS (Robot Web Services) is built into every OmniCore controller. An I/O expansion board (e.g. DSQC1030 Scalable I/O) is only needed if you want general-purpose digital I/O beyond the built-in safety/system signals — see [Files and I/O](#files-and-io).
 
 ---
 
@@ -270,7 +270,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | **gofa-zone-set** | TCP | Path blend zone (fine / z1 / z5 / z10 / z20 / z50 / z100) |
 | **gofa-stop-motion** | TCP | Halt motion immediately |
 | **gofa-ping** | TCP | Round-trip latency test |
-| **gofa-grip** | TCP | GRIPON / GRIPOFF via digital output |
+| **gofa-grip** | RWS | Digital output on/off for a gripper (same mechanism as `gofa-do-write`, with a preconfigured signal name + friendly on/off/true/false/gripon/gripoff input) |
 | **gofa-leadthrough-enable** | TCP + RWS | Send STOP (clears queued moves), then activate hand-guiding |
 | **gofa-leadthrough-disable** | RWS | Deactivate hand-guiding |
 | **gofa-asi-led** | TCP | Set ASI status light RGB color (`0–255`) and blink; supports counted software blink |
@@ -326,6 +326,10 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | **gofa-io-list** | RWS | List all I/O signals |
 | **gofa-di-read** | RWS | Read a digital input (0 or 1) |
 | **gofa-do-write** | RWS | Write a digital output (0 or 1) |
+
+> **Writing a digital output needs the signal's Access Level set to `All`.** RWS writes go through `POST /rw/iosystem/signals/{name}/set-value` — this only succeeds if the target signal's `Access` config attribute is `All` (RobotStudio: `Controller` → `Configuration` → `I/O System` → `Signal` → `Access Level`; requires a controller restart to take effect). Left at the factory default (`Rapid|LocalManual`), the write correctly fails with `403`. **The action name matters too**: the IRC5/RWS-1.0-documented `/set` path 405s unconditionally on OmniCore/RWS 2.0, regardless of Access Level — `/set-value` is the real OmniCore action (see the [405 troubleshooting entry](#rws-returns-405-method-not-allowed) below). This project has no analog I/O (`gofa-ai-read`/`gofa-ao-write` were removed) — the standard OmniCore C30/CRB 15000 combo has no native analog port; ABB's `DSQC1032` Analog Add-On module (attaches to an existing digital Scalable I/O base device) would be needed to add one.
+>
+> **Alternative: `SETDO:<name>:<value>` socket command.** `MainModule.mod` also has a `TrySetDo` handler using RAPID's `SetDO` instruction against an explicit per-signal allow-list — useful if you'd rather not open a signal's Access Level to `All` (which permits any authenticated RWS client to write it) but still want Node-RED control. Not wired into any node today (add one following the `gofa-rapid-var-write`/`SETVAR` pattern if you want it); `gofa-do-write`/`gofa-grip` use RWS exclusively.
 
 ### Real-time subscriptions
 
@@ -486,6 +490,8 @@ Then restart Node-RED.
 ### RWS returns 405 (method not allowed)
 
 This palette targets **OmniCore / RWS 2.0** which uses path-based actions (e.g. `/rw/rapid/execution/start`). If you see 405, you may be connecting to an IRC5 controller running RWS 1.0 — the endpoint format is different.
+
+**Specifically for I/O writes**: OmniCore's real action is `POST /rw/iosystem/signals/{name}/set-value` — the IRC5/general-RWS-docs path `/set` 405s unconditionally on OmniCore, on every signal, regardless of Access Level. If you ever hand-roll a curl call against `/rw/iosystem/signals/.../set` and get 405, that's this — use `set-value` instead. `gofa-do-write`/`gofa-grip` both learned this the hard way; see the note under [Files and I/O](#files-and-io) above.
 
 ---
 
