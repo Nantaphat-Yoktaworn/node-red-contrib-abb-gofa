@@ -4,7 +4,7 @@
         defaults: {
             name:   { value: '' },
             robot:  { value: '', type: 'gofa-robot', required: true },
-            signal: { value: 'DI10_1' }
+            signal: { value: 'ABB_Scalable_IO_0_DI1' }
         },
         inputs: 1, outputs: 1, icon: 'white-globe.svg',
         label: function() { return this.name || ('DI ' + this.signal); },
@@ -18,7 +18,7 @@
     </div>
     <div class="form-row">
         <label for="node-input-signal"><i class="fa fa-bolt"></i> Signal</label>
-        <input type="text" id="node-input-signal" placeholder="DI10_1">
+        <input type="text" id="node-input-signal" placeholder="ABB_Scalable_IO_0_DI1">
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
@@ -34,6 +34,6 @@
         <li><code>null</code> / not set — uses the configured signal name</li>
     </ul>
     <h3>Output</h3>
-    <p><code>msg.payload = { ok: true, signal: 'DI10_1', value: 0 }</code> on success (value is 0 or 1).</p>
+    <p><code>msg.payload = { ok: true, signal: 'ABB_Scalable_IO_0_DI1', value: 0 }</code> on success (value is 0 or 1).</p>
     <p><code>msg.payload = { ok: false, error: "..." }</code> on failure.</p>
 </script>

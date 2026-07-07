@@ -5,7 +5,7 @@ module.exports = function(RED) {
     function GoFaSubscribeIoNode(config) {
         RED.nodes.createNode(this, config);
         this.robot   = RED.nodes.getNode(config.robot);
-        this.signal  = config.signal || 'DI10_1';
+        this.signal  = config.signal || 'ABB_Scalable_IO_0_DI1';
         this.oneshot = !!config.oneshot;
         var node = this;
         node._ws        = null;

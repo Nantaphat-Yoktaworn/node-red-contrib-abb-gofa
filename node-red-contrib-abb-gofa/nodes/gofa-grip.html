@@ -5,7 +5,7 @@
             name:   { value: '' },
             robot:  { value: '', type: 'gofa-robot', required: true },
             action: { value: 'on' },
-            signal: { value: 'DO10_1' }
+            signal: { value: 'ABB_Scalable_IO_0_DO1' }
         },
         inputs: 1, outputs: 1, icon: 'white-globe.svg',
         label: function() { return this.name || ('Grip ' + (this.action || 'on').toUpperCase()); },
@@ -26,7 +26,7 @@
     </div>
     <div class="form-row">
         <label for="node-input-signal"><i class="fa fa-plug"></i> DO Signal</label>
-        <input type="text" id="node-input-signal" placeholder="DO10_1" style="width:70%">
+        <input type="text" id="node-input-signal" placeholder="ABB_Scalable_IO_0_DO1" style="width:70%">
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
@@ -44,6 +44,6 @@
         <li><code>null</code> / not set — uses the configured default action</li>
     </ul>
     <h3>Output</h3>
-    <p><code>msg.payload = { ok: true, action: 'on', signal: 'DO10_1' }</code> on success.</p>
+    <p><code>msg.payload = { ok: true, action: 'on', signal: 'ABB_Scalable_IO_0_DO1' }</code> on success.</p>
     <p><code>msg.payload = { ok: false, error: "..." }</code> on failure.</p>
 </script>

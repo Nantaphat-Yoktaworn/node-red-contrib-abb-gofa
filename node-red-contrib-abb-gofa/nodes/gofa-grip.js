@@ -4,7 +4,7 @@ module.exports = function(RED) {
         RED.nodes.createNode(this, config);
         this.robot  = RED.nodes.getNode(config.robot);
         this.action = config.action || 'on';
-        this.signal = config.signal || 'DO10_1';
+        this.signal = config.signal || 'ABB_Scalable_IO_0_DO1';
         var node = this;
 
         node.on('input', function(msg, send, done) {

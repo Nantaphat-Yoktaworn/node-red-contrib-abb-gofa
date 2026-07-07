@@ -2369,7 +2369,7 @@
         "name": "GRIPON",
         "robot": "cfg1",
         "action": "on",
-        "signal": "DO10_1",
+        "signal": "ABB_Scalable_IO_0_DO1",
         "x": 1130,
         "y": 1082,
         "wires": [
@@ -2428,7 +2428,7 @@
         "name": "GRIPOFF",
         "robot": "cfg1",
         "action": "off",
-        "signal": "DO10_1",
+        "signal": "ABB_Scalable_IO_0_DO1",
         "x": 1130,
         "y": 1137,
         "wires": [
@@ -3161,7 +3161,7 @@
         "type": "inject",
         "z": "08f5b46ae379bad0",
         "g": "7d417214b94fc5a7",
-        "name": "DO10_1 = 1",
+        "name": "ABB_Scalable_IO_0_DO1 = 1",
         "props": [
             {
                 "p": "payload"
@@ -3189,7 +3189,7 @@
         "g": "7d417214b94fc5a7",
         "name": "",
         "robot": "cfg1",
-        "signal": "DO10_1",
+        "signal": "ABB_Scalable_IO_0_DO1",
         "value": "1",
         "x": 315,
         "y": 1415,

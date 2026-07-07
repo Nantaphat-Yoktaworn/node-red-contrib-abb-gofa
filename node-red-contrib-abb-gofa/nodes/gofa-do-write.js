@@ -3,7 +3,7 @@ module.exports = function(RED) {
     function GoFaDoWriteNode(config) {
         RED.nodes.createNode(this, config);
         this.robot  = RED.nodes.getNode(config.robot);
-        this.signal = config.signal || 'DO10_1';
+        this.signal = config.signal || 'ABB_Scalable_IO_0_DO1';
         this.value  = parseInt(config.value) || 0;
         var node = this;
 

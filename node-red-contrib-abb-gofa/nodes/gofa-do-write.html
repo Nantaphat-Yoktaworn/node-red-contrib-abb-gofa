@@ -4,7 +4,7 @@
         defaults: {
             name:   { value: '' },
             robot:  { value: '', type: 'gofa-robot', required: true },
-            signal: { value: 'DO10_1' },
+            signal: { value: 'ABB_Scalable_IO_0_DO1' },
             value:  { value: 1, validate: RED.validators.number() }
         },
         inputs: 1, outputs: 1, icon: 'white-globe.svg',
@@ -24,7 +24,7 @@
     </div>
     <div class="form-row">
         <label for="node-input-signal"><i class="fa fa-bolt"></i> Signal</label>
-        <input type="text" id="node-input-signal" placeholder="DO10_1">
+        <input type="text" id="node-input-signal" placeholder="ABB_Scalable_IO_0_DO1">
     </div>
     <div class="form-row">
         <label for="node-input-value"><i class="fa fa-toggle-on"></i> Value</label>
@@ -42,10 +42,10 @@
     <p><code>msg.payload</code> can be:</p>
     <ul>
         <li>A number (<code>0</code> or <code>1</code>) — value to write to the configured signal</li>
-        <li>An object <code>{ signal: 'DO10_1', value: 1 }</code> — overrides both signal name and value</li>
+        <li>An object <code>{ signal: 'ABB_Scalable_IO_0_DO1', value: 1 }</code> — overrides both signal name and value</li>
         <li><code>null</code> / not set — uses the configured defaults</li>
     </ul>
     <h3>Output</h3>
-    <p><code>msg.payload = { ok: true, signal: 'DO10_1', value: 1 }</code> on success.</p>
+    <p><code>msg.payload = { ok: true, signal: 'ABB_Scalable_IO_0_DO1', value: 1 }</code> on success.</p>
     <p><code>msg.payload = { ok: false, error: "..." }</code> on failure.</p>
 </script>

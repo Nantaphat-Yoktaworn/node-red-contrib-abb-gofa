@@ -395,9 +395,9 @@ msg.payload  →  node property (editor)  →  built-in default
 | **gofa-rapid-var-read** | `{ task, module, variable }` | T_ROB1 / MainModule / (property) |
 | **gofa-rapid-var-write** | bare value · `{ variable, value }` | (property) |
 | **gofa-rapid-tasks** | `{ task }` — overrides which task's modules to list | T_ROB1 / (property) |
-| **gofa-do-write** | `0` or `1` (number) · `{ signal, value }` | signal: DO10_1, value: 0 |
-| **gofa-di-read** | signal name (string) | `DI10_1` |
-| **gofa-subscribe-io** | `{ signal }` | `DI10_1` |
+| **gofa-do-write** | `0` or `1` (number) · `{ signal, value }` | signal: ABB_Scalable_IO_0_DO1, value: 0 |
+| **gofa-di-read** | signal name (string) | `ABB_Scalable_IO_0_DI1` |
+| **gofa-subscribe-io** | `{ signal }` | `ABB_Scalable_IO_0_DI1` |
 | **gofa-subscribe-var** | `{ task, module, variable }` (toggles polling) | T_ROB1 / MainModule / (property) |
 | **gofa-subscribe-pose** | `{ interval }` ms on start · absent = stops if running | 500 ms |
 | **gofa-file-read** | file path (string) · `{ remotePath, encoding }` | `$HOME/Programs/MainModule.mod` |

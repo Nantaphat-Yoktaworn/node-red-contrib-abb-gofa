@@ -3,7 +3,7 @@ module.exports = function(RED) {
     function GoFaDiReadNode(config) {
         RED.nodes.createNode(this, config);
         this.robot  = RED.nodes.getNode(config.robot);
-        this.signal = config.signal || 'DI10_1';
+        this.signal = config.signal || 'ABB_Scalable_IO_0_DI1';
         var node = this;
 
         node.on('input', function(msg, send, done) {
