@@ -407,11 +407,19 @@ Returns: `204 No Content`
 
 ## I/O Service — `/rw/iosystem/`
 
-#### POST /rw/iosystem/signals/{name}/set
+#### POST /rw/iosystem/signals/{name}/set-value
 Set an I/O signal value.  
 Body: `lvalue=<value>` (0 or 1 for digital, float for analog)  
-Returns: `204 No Content`  
-> OmniCore path-based format. IRC5 format (`?action=set`) returns HTTP 405.
+Headers: `Content-Type: application/x-www-form-urlencoded;v=2.0`  
+Returns: `204 No Content` on success, `403` if the signal's `Access` level doesn't permit it (see below), `401` if edit mastership/session issues intervene.
+
+> **Corrected 2026-07-07 — this project had the wrong action name for a long time.** This file and `gofa-do-write.js`/`gofa-ao-write.js` used `POST /rw/iosystem/signals/{name}/set` (the IRC5/RWS1.0 path-based guess) for months. That path is simply wrong on this OmniCore controller: `OPTIONS /rw/iosystem/signals/{name}` reports `Allow: GET,OPTIONS` — no POST — and `OPTIONS` on the `/set` sub-path itself is `404` (route doesn't exist at all). POSTing to `/set` (or the IRC5 `?action=set` query form, or a direct `PUT`) all return **`405 rws_resource.cpp[472]: HTTP method not supported by resource`**, on *every* signal tried (including pre-existing ones like `Asi1LedRed`), which read as "RWS just can't write I/O on this firmware" — a wrong, over-broad conclusion reached after 6 reasonable-looking variants had already failed and the project's own "don't guess indefinitely" rule said to stop and report.
+>
+> **The real action name is `/set-value`**, found via ABB's own community forum (tech-community.robotics.abb.com, "How can I set an IO signal with RWS2 on an Omnicore controller?") and confirmed live on this controller (RobotWare 7.21.0+229): `POST /rw/iosystem/signals/ABB_Scalable_IO_0_DO5/set-value` with body `lvalue=1` → **`204`**, value round-tripped correctly on read-back. This is a genuinely different resource name from both the IRC5 form (`?action=set`) and the wrong path-based guess (`/set`) documented here before — not a variant of either.
+>
+> **Access level gating works exactly as documented, once you use the right endpoint.** Same call against `ABB_Scalable_IO_0_DO1` (config `Access: Default`, i.e. `write-access: Rapid|LocalManual`) → `403 rws_resource_iosystem.cpp[3156]`, access denied — this is what a *correctly-implemented* access check looks like (contrast with the `405` above, which meant "wrong URL," not "access denied"). Change the signal's `Access` to `All` in RobotStudio (`Controller` → `Configuration` → `I/O System` → `Signal` → `Access Level`, needs a controller restart) and the identical call succeeds. Confirmed both directions on the same signal (DO1: `Default` → `403`; DO5: `All` → `204`).
+>
+> **Practical fallout**: `gofa-do-write`/`gofa-ao-write` are fixed to call `/set-value` (previously silently broken for every signal on this controller, not just newly-restricted ones — this bug predates the DSQC1030 entirely). The `SETDO` RAPID/socket command added to `MainModule.mod` as a workaround is no longer strictly necessary for signals where `Access` is set to `All`, but is kept as a working alternative (and the only option for a signal you don't want to open up to `All` network write access). See `CLAUDE.md`'s SETDO note and the `dsqc1030-scalable-io-addressing` / `project-robot-live-test-log` memories for the full chronological story, including the false "confirmed impossible" conclusion this corrects.
 
 ---
 

@@ -194,6 +194,8 @@ MODULE MainModule
                 ! handled (ack sent inside)
             ELSEIF TrySetLed(cmd) THEN
                 ! handled (ack sent inside)
+            ELSEIF TrySetDo(cmd) THEN
+                ! handled (ack sent inside)
             ELSE
                 SocketSend clientSocket \Str:=("ERR:" + cmd + ByteToStr(10\Char));
             ENDIF
@@ -604,6 +606,64 @@ MODULE MainModule
         SetGO Asi1LedBlue,   vals{3};
         SetGO Asi1LedPeriod, vals{4};
         SocketSend clientSocket \Str:=("OK:SETLED" + ByteToStr(10\Char));
+        RETURN TRUE;
+    ENDFUNC
+
+    ! Set a DSQC1030 (Scalable I/O) digital output by name. Token: SETDO:<name>:<value>
+    ! e.g. SETDO:ABB_SCALABLE_IO_0_DO1:1  (value must be 0 or 1).
+    ! Goes through RAPID's SetDO instead of RWS — this signal's write-access
+    ! (Rapid|LocalManual, even with Access Level "All") only covers writes from
+    ! RAPID/local sources; RWS POST to /rw/iosystem/signals/{name}/set 405s
+    ! regardless (confirmed: this controller's iosystem resource only allows
+    ! GET/OPTIONS, same as every other signal tested, not just this device).
+    ! Allow-listed per signal (same pattern as TryGetVar/TrySetVar) since RAPID
+    ! has no way to resolve an arbitrary runtime string into a signal reference.
+    FUNC bool TrySetDo(string cmd)
+        VAR string signame;
+        VAR string valstr;
+        VAR num val;
+        VAR num colonPos := 0;
+        VAR num i;
+        IF StrLen(cmd) < 8 RETURN FALSE;
+        IF StrPart(cmd, 1, 6) <> "SETDO:" RETURN FALSE;
+        FOR i FROM 7 TO StrLen(cmd) DO
+            IF StrPart(cmd, i, 1) = ":" AND colonPos = 0 THEN
+                colonPos := i;
+            ENDIF
+        ENDFOR
+        IF colonPos = 0 RETURN FALSE;
+        signame := StrPart(cmd, 7, colonPos - 7);
+        valstr  := StrPart(cmd, colonPos + 1, StrLen(cmd) - colonPos);
+        IF NOT StrToVal(valstr, val) THEN
+            SocketSend clientSocket \Str:=("ERR:PARSE" + ByteToStr(10\Char));
+            RETURN TRUE;
+        ENDIF
+        IF val <> 0 AND val <> 1 THEN
+            SocketSend clientSocket \Str:=("ERR:PARSE" + ByteToStr(10\Char));
+            RETURN TRUE;
+        ENDIF
+        TEST signame
+        CASE "ABB_SCALABLE_IO_0_DO1":  SetDO ABB_Scalable_IO_0_DO1,  val;
+        CASE "ABB_SCALABLE_IO_0_DO2":  SetDO ABB_Scalable_IO_0_DO2,  val;
+        CASE "ABB_SCALABLE_IO_0_DO3":  SetDO ABB_Scalable_IO_0_DO3,  val;
+        CASE "ABB_SCALABLE_IO_0_DO4":  SetDO ABB_Scalable_IO_0_DO4,  val;
+        CASE "ABB_SCALABLE_IO_0_DO5":  SetDO ABB_Scalable_IO_0_DO5,  val;
+        CASE "ABB_SCALABLE_IO_0_DO6":  SetDO ABB_Scalable_IO_0_DO6,  val;
+        CASE "ABB_SCALABLE_IO_0_DO7":  SetDO ABB_Scalable_IO_0_DO7,  val;
+        CASE "ABB_SCALABLE_IO_0_DO8":  SetDO ABB_Scalable_IO_0_DO8,  val;
+        CASE "ABB_SCALABLE_IO_0_DO9":  SetDO ABB_Scalable_IO_0_DO9,  val;
+        CASE "ABB_SCALABLE_IO_0_DO10": SetDO ABB_Scalable_IO_0_DO10, val;
+        CASE "ABB_SCALABLE_IO_0_DO11": SetDO ABB_Scalable_IO_0_DO11, val;
+        CASE "ABB_SCALABLE_IO_0_DO12": SetDO ABB_Scalable_IO_0_DO12, val;
+        CASE "ABB_SCALABLE_IO_0_DO13": SetDO ABB_Scalable_IO_0_DO13, val;
+        CASE "ABB_SCALABLE_IO_0_DO14": SetDO ABB_Scalable_IO_0_DO14, val;
+        CASE "ABB_SCALABLE_IO_0_DO15": SetDO ABB_Scalable_IO_0_DO15, val;
+        CASE "ABB_SCALABLE_IO_0_DO16": SetDO ABB_Scalable_IO_0_DO16, val;
+        DEFAULT:
+            SocketSend clientSocket \Str:=("ERR:UNKNOWN_SIGNAL" + ByteToStr(10\Char));
+            RETURN TRUE;
+        ENDTEST
+        SocketSend clientSocket \Str:=("OK:SETDO" + ByteToStr(10\Char));
         RETURN TRUE;
     ENDFUNC
 

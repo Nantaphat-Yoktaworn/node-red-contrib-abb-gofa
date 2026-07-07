@@ -32,7 +32,7 @@ module.exports = function(RED) {
 
             node.status({ fill: 'blue', shape: 'dot', text: signal + '=' + value });
 
-            node.robot.rwsPost('/rw/iosystem/signals/' + encodeURIComponent(signal) + '/set', 'lvalue=' + value)
+            node.robot.rwsPost('/rw/iosystem/signals/' + encodeURIComponent(signal) + '/set-value', 'lvalue=' + value)
             .then(function() {
                 msg.payload = { ok: true, signal: signal, value: value };
                 node.status({ fill: 'green', shape: 'dot', text: signal + '=' + value });
