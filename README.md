@@ -325,9 +325,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | **gofa-upload-mod** | RWS | Upload a `.mod` file — local path set in node properties or via `msg.payload` |
 | **gofa-io-list** | RWS | List all I/O signals |
 | **gofa-di-read** | RWS | Read a digital input (0 or 1) |
-| **gofa-ai-read** | RWS | Read an analog input |
 | **gofa-do-write** | RWS | Write a digital output (0 or 1) |
-| **gofa-ao-write** | RWS | Write an analog output (float) |
 
 ### Real-time subscriptions
 
@@ -394,8 +392,6 @@ msg.payload  →  node property (editor)  →  built-in default
 | **gofa-rapid-var-write** | bare value · `{ variable, value }` | (property) |
 | **gofa-rapid-tasks** | `{ task }` — overrides which task's modules to list | T_ROB1 / (property) |
 | **gofa-do-write** | `0` or `1` (number) · `{ signal, value }` | signal: DO10_1, value: 0 |
-| **gofa-ao-write** | float (number) · `{ signal, value }` | signal: AO1, value: 0.0 |
-| **gofa-ai-read** | signal name (string) | `AI1` |
 | **gofa-di-read** | signal name (string) | `DI10_1` |
 | **gofa-subscribe-io** | `{ signal }` | `DI10_1` |
 | **gofa-subscribe-var** | `{ task, module, variable }` (toggles polling) | T_ROB1 / MainModule / (property) |

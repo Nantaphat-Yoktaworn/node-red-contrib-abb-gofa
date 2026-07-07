@@ -170,10 +170,16 @@ FlexPendant menu says it's "for," readable with `gofa-di-read` and subscribable 
 **Multitasking option [3114-1]**, per ABB's OmniCore C-line product manual (3HAC065034-001):
 enables running up to 20 concurrent RAPID tasks (beyond the base motion task), used for things
 like supervising signals or driving peripheral equipment in parallel with robot motion. This
-controller clearly runs 3 tasks, so either Multitasking is installed, or `SC_CBC`/
-`T_GOFA_LED` ship as baseline background tasks on the collaborative-robot bundle regardless of
-that option (not confirmed either way — `GET /rw/rapid/tasks` doesn't expose which option
-gated a given task).
+controller clearly runs 3 tasks — **resolved 2026-07-07**: `GET /rw/system` confirms
+`3114-1 Multitasking` is genuinely installed on this controller (full options list also in the
+`abb-rws` skill's version-snapshot section), so it's installed, not just an assumption.
+
+**EGM [3124-1] is also installed** (same `GET /rw/system` options list) but unused by this
+project — this is relevant to the pose-subscription gap documented below: continuous
+Cartesian/joint streaming isn't available over RWS's subscription system, and EGM (Externally
+Guided Motion, UDP-based) is ABB's actual mechanism for that. It was already licensed on this
+controller the whole time the pose-polling limitation was being investigated, in case a future
+session wants to build real-time streaming instead of `gofa-subscribe-pose`'s 500ms poll.
 
 ---
 

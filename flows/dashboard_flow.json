@@ -103,21 +103,10 @@
   {"id":"di_resp","type":"function","name":"DI resp","z":"tab_pal","x":760,"y":1740,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["di_out"]]},
   {"id":"di_out","type":"http response","name":"","z":"tab_pal","x":980,"y":1740,"wires":[]},
 
-  {"id":"ai_in","type":"http in","name":"POST /robot/io/ai","z":"tab_pal","x":100,"y":1820,"method":"post","url":"/robot/io/ai","wires":[["ai_prep"]]},
-  {"id":"ai_prep","type":"function","name":"AI prep","z":"tab_pal","x":320,"y":1820,"func":"msg.payload=msg.payload.signal||'AI1';return msg;","outputs":1,"wires":[["ai_node"]]},
-  {"id":"ai_node","type":"gofa-ai-read","name":"AI Read","z":"tab_pal","x":540,"y":1820,"robot":"cfg_robot","signal":"AI1","wires":[["ai_resp"]]},
-  {"id":"ai_resp","type":"function","name":"AI resp","z":"tab_pal","x":760,"y":1820,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["ai_out"]]},
-  {"id":"ai_out","type":"http response","name":"","z":"tab_pal","x":980,"y":1820,"wires":[]},
-
   {"id":"dw_in","type":"http in","name":"POST /robot/io/do","z":"tab_pal","x":100,"y":1900,"method":"post","url":"/robot/io/do","wires":[["dw_node"]]},
   {"id":"dw_node","type":"gofa-do-write","name":"DO Write","z":"tab_pal","x":320,"y":1900,"robot":"cfg_robot","signal":"DO10_1","wires":[["dw_resp"]]},
   {"id":"dw_resp","type":"function","name":"DO resp","z":"tab_pal","x":540,"y":1900,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["dw_out"]]},
   {"id":"dw_out","type":"http response","name":"","z":"tab_pal","x":760,"y":1900,"wires":[]},
-
-  {"id":"aw_in","type":"http in","name":"POST /robot/io/ao","z":"tab_pal","x":100,"y":1980,"method":"post","url":"/robot/io/ao","wires":[["aw_node"]]},
-  {"id":"aw_node","type":"gofa-ao-write","name":"AO Write","z":"tab_pal","x":320,"y":1980,"robot":"cfg_robot","signal":"AO1","wires":[["aw_resp"]]},
-  {"id":"aw_resp","type":"function","name":"AO resp","z":"tab_pal","x":540,"y":1980,"func":"msg.statusCode=200;return msg;","outputs":1,"wires":[["aw_out"]]},
-  {"id":"aw_out","type":"http response","name":"","z":"tab_pal","x":760,"y":1980,"wires":[]},
 
   {"id":"rv_in","type":"http in","name":"POST /robot/rapidvar/read","z":"tab_pal","x":100,"y":2080,"method":"post","url":"/robot/rapidvar/read","wires":[["rv_node"]]},
   {"id":"rv_node","type":"gofa-rapid-var-read","name":"Var Read","z":"tab_pal","x":340,"y":2080,"robot":"cfg_robot","task":"T_ROB1","module":"MainModule","variable":"","wires":[["rv_resp"]]},

@@ -39,8 +39,6 @@
       "gofa-file-read": "nodes/gofa-file-read.js",
       "gofa-do-write": "nodes/gofa-do-write.js",
       "gofa-di-read": "nodes/gofa-di-read.js",
-      "gofa-ao-write": "nodes/gofa-ao-write.js",
-      "gofa-ai-read": "nodes/gofa-ai-read.js",
       "gofa-io-list": "nodes/gofa-io-list.js",
       "gofa-leadthrough-enable": "nodes/gofa-leadthrough-enable.js",
       "gofa-leadthrough-disable": "nodes/gofa-leadthrough-disable.js",

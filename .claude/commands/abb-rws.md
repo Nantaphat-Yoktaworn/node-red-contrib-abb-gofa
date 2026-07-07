@@ -3,6 +3,28 @@
 Source: https://developercenter.robotstudio.com/api/rwsApi/index.html  
 Applies to: OmniCore C30 controller, RobotWare 7.x
 
+## Confirmed live version snapshot (this controller, 2026-07-07)
+
+Pulled directly from the controller via `GET /rw/system` and `GET /rw/system/products` — not assumed from docs. Re-check these (same two calls) if behavior seems off after any ABB software update; RWS 1.0-vs-2.0-shaped mistakes in this project have always come from assuming a version rather than reading it off the live controller.
+
+| | |
+|---|---|
+| RobotControl (RobotWare) | `7.21.0+229` (name `7.21.0`, distribution `7.21.0`) |
+| RobotOS | `18.1.0+48` |
+| Robots | `1.21.0+42` |
+| ASI | `1.0.10` |
+| CollaborativeSpeedControl | `1.3.2` |
+| FlexPendantSoftwareUpdate | `1.22.0+452` |
+| Wizard | `1.7.3` |
+| `robapi-compatibility-revision` | `5` |
+| RWS protocol generation | **2.0** — confirmed both by ABB's own community forum ("Robot Web Services 2.0 is available in RobotWare 7 which ships with the new OmniCore controller generation") and by this project's own live behavior: path-based actions (not IRC5 `?action=`), `/set-value` (not `/set`) for I/O writes, `hal+json;v=2.0` required for `loadmod`/`activate`, and the literal `;v=2.0` tag on every `Accept`/`Content-Type` header this project sends |
+| Controller identity | `15000-501318`, type `c30` |
+| Engineering tool used for I/O config | RobotStudio **2026.2**, build `26.2.11700.0` (per RD2; ABB's public release notes only go up to 2026.1 as of this check — see note below) |
+
+**RobotStudio 2026.2 release notes not publicly found.** Searched `library.e.abb.com` and `search.abb.com` for "RobotStudio 2026.2 release notes" — only 2026.1 (build `26.1.11664.0`, 2026-04-24) and earlier turned up. If RobotStudio's own I/O-configuration UI (Access Level field, etc.) ever seems to not match what's described in this project's docs, it may be because 2026.2 changed something not yet reflected here — ask RD2 to check `Help → About` in RobotStudio for the exact build, or paste the release notes if ABB publishes them later.
+
+**Installed RobotWare options relevant to this project** (full list via `GET /rw/system`): `3024-1 EtherNet/IP Scanner`, `3024-2 EtherNet/IP Adapter` (why the DSQC1030 works over EtherNet/IP), `3114-1 Multitasking`, `3124-1 Externally Guided Motion (EGM)` (installed but not used by this project — see the `abb-rws` skill's Motion System section on why continuous pose isn't available over RWS; EGM is the real ABB answer for that, and it's actually licensed here, unlike previously assumed), `3043-3 SafeMove Collaborative`, `Leadthrough`, `ASI`, `Collaborative Speed Control Base`, `Wizard`, `3119-1 RobotStudio Connect` (already confirmed unrelated to RWS — see `omnicore-c30` skill).
+
 ---
 
 ## Development workflow: verify before building

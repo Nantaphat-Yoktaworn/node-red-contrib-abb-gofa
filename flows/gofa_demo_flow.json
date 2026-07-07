@@ -3157,64 +3157,6 @@
         "wires": []
     },
     {
-        "id": "60ac642aa637e94f",
-        "type": "inject",
-        "z": "08f5b46ae379bad0",
-        "g": "7d417214b94fc5a7",
-        "name": "Read AI1 (analog in)",
-        "props": [
-            {
-                "p": "payload"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 80,
-        "y": 1360,
-        "wires": [
-            [
-                "f8696607a486e515"
-            ]
-        ]
-    },
-    {
-        "id": "f8696607a486e515",
-        "type": "gofa-ai-read",
-        "z": "08f5b46ae379bad0",
-        "g": "7d417214b94fc5a7",
-        "name": "",
-        "robot": "cfg1",
-        "signal": "AI1",
-        "x": 315,
-        "y": 1360,
-        "wires": [
-            [
-                "18ebf7c1f87e6160"
-            ]
-        ]
-    },
-    {
-        "id": "18ebf7c1f87e6160",
-        "type": "debug",
-        "z": "08f5b46ae379bad0",
-        "g": "7d417214b94fc5a7",
-        "name": "{ ok, signal, value } or { ok:false }",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "x": 550,
-        "y": 1360,
-        "wires": []
-    },
-    {
         "id": "aceaef2c35f1c2d8",
         "type": "inject",
         "z": "08f5b46ae379bad0",
@@ -3271,65 +3213,6 @@
         "targetType": "msg",
         "x": 550,
         "y": 1415,
-        "wires": []
-    },
-    {
-        "id": "a24ee262888cd83a",
-        "type": "inject",
-        "z": "08f5b46ae379bad0",
-        "g": "7d417214b94fc5a7",
-        "name": "AO1 = 2.5",
-        "props": [
-            {
-                "p": "payload"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "{\"signal\":\"AO1\",\"value\":2.5}",
-        "payloadType": "json",
-        "x": 80,
-        "y": 1470,
-        "wires": [
-            [
-                "a9481d95d12b362a"
-            ]
-        ]
-    },
-    {
-        "id": "a9481d95d12b362a",
-        "type": "gofa-ao-write",
-        "z": "08f5b46ae379bad0",
-        "g": "7d417214b94fc5a7",
-        "name": "",
-        "robot": "cfg1",
-        "signal": "AO1",
-        "value": "0",
-        "x": 315,
-        "y": 1470,
-        "wires": [
-            [
-                "9d5827a2cb7f777e"
-            ]
-        ]
-    },
-    {
-        "id": "9d5827a2cb7f777e",
-        "type": "debug",
-        "z": "08f5b46ae379bad0",
-        "g": "7d417214b94fc5a7",
-        "name": "{ ok, signal, value } or { ok:false }",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "x": 550,
-        "y": 1470,
         "wires": []
     },
     {
