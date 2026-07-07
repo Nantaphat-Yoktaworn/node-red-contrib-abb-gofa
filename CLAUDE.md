@@ -42,7 +42,7 @@ Rule: **motion always goes through the socket; read-only data and motor control 
 | `ZONE<name>` | Set path blend zone (FINE / Z1 / Z5 / Z10 / Z20 / Z50 / Z100) |
 | `STOP` | Halt motion immediately |
 | `PING` | Connectivity test |
-| `GRIPON` / `GRIPOFF` | Gripper control via digital output |
+| `GRIPON` / `GRIPOFF` | Stub only (no I/O behind it) — kept for manual/raw-socket testing; `gofa-grip` itself now uses RWS `/set-value` instead, same as `gofa-do-write` |
 | `GETVAR:<name>` | Read a PERS variable; replies `VAL:<value>` or `ERR:UNKNOWN_VAR` |
 | `SETVAR:<name>:<value>` | Write a PERS variable; replies `OK:SETVAR`, `ERR:UNKNOWN_VAR`, or `ERR:PARSE` |
 | `SETLED:<r>;<g>;<b>;<period>` | Set ASI status light color (0–255 each) and hardware blink period; replies `OK:SETLED` |
@@ -92,7 +92,7 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 | `gofa-movej` | Socket | Absolute joint move |
 | `gofa-jog` | Socket | Cartesian jog (X/Y/Z ± mm or RX/RY/RZ ± °) |
 | `gofa-joint-jog` | Socket | Single joint jog |
-| `gofa-grip` | Socket | GRIPON / GRIPOFF |
+| `gofa-grip` | RWS | Named DO signal on/off via `/set-value` (needs `Access: All` on that signal) |
 | `gofa-zone-set` | Socket | Set path blend zone |
 | `gofa-speed-set` | Socket | Speed override % via `SpeedRefresh` (no mastership needed) |
 | `gofa-stop-motion` | Socket | Halt motion immediately |

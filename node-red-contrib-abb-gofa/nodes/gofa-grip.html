@@ -34,7 +34,7 @@
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-grip">
-    <p>Controls a digital output signal for a gripper via the RAPID socket server (<code>GRIPON</code> / <code>GRIPOFF</code>).</p>
+    <p>Controls a digital output signal for a gripper via RWS (<code>POST /rw/iosystem/signals/{signal}/set-value</code>). The signal's <code>Access Level</code> must be set to <code>All</code> in the controller's I/O configuration for this to work.</p>
     <h3>Input</h3>
     <p><code>msg.payload</code> can be:</p>
     <ul>

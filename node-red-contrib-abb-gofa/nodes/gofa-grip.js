@@ -30,11 +30,10 @@ module.exports = function(RED) {
                 action = node.action;
             }
 
-            var cmd = (action === 'on') ? 'GRIPON' : 'GRIPOFF';
+            var value = (action === 'on') ? 1 : 0;
             node.status({ fill: 'blue', shape: 'dot', text: node.signal + ' ' + action.toUpperCase() });
 
-            node.robot.socketSend(cmd).then(function(resp) {
-                if (!resp.startsWith('OK:')) throw new Error('Robot error: ' + resp);
+            node.robot.rwsPost('/rw/iosystem/signals/' + encodeURIComponent(node.signal) + '/set-value', 'lvalue=' + value).then(function() {
                 msg.payload = { ok: true, action: action, signal: node.signal };
                 node.status({ fill: 'green', shape: 'dot', text: node.signal + ' ' + action.toUpperCase() });
                 send(msg); done();
