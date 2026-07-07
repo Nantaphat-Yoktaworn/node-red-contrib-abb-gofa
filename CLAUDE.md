@@ -187,4 +187,15 @@ flows/gofa_demo_flow.json          ← one inject per node, for testing
 flows/dashboard_flow.json          ← full robot control palette flow
 flows/teach_workflow_flow.json     ← physical ASI-button teach workflow (own tab/config, see README)
 MANUAL_CONTROL.md                  ← curl/raw-TCP command reference for controlling the robot without Node-RED
+.claude/commands/                  ← skills (/abb-rws, /omnicore-c30, /crb15000, /robot-status, /mastership-test)
+.claude/memory/                    ← portable snapshot of Claude Code's project memory - read MEMORY.md first, see its README
+.claude/plans/                     ← portable snapshot of past feature plans (design history, not active todos)
 ```
+
+**On continuity across machines**: this project's Claude Code memory (hard-won lessons, decisions,
+live-test history) normally lives outside the repo, keyed to the local clone's working-directory
+path — it doesn't travel when this repo is cloned elsewhere. `.claude/memory/` and `.claude/plans/`
+are manually-copied snapshots of that history, committed to the repo so a fresh clone (new
+machine, or anyone else picking this up) starts with the same context instead of from zero. They
+go stale the moment new memory accumulates outside them — worth re-syncing periodically, not just
+once. Start any "what's the history here" question with `.claude/memory/MEMORY.md`.

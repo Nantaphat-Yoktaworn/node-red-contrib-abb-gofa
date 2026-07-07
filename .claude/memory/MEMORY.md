@@ -1,0 +1,20 @@
+- [Verify before building robot features](feedback_verify_before_building_robot_features.md) — curl/socket-test live against the robot before writing node code, and re-test after building
+- [Check staged changes before commit](feedback_check_staged_before_commit.md) — git commit takes the whole index, not just files you just `git add`ed
+- [Ambiguous hardware test result](feedback_ambiguous_hardware_test_result.md) — check live state first, ask for verbatim debug output, don't guess
+- [RobotWare 8 upgrade evaluation](project_robotware8_upgrade_evaluation.md) — mastership rewrite needed, ASI teach-workflow at risk, doesn't fix RWS symbol gap
+- [Check robot status before live test](feedback_check_robot_status_before_live_test.md) — always use `/robot-status` skill first unless user gave it; log both
+- [Curl mastership needs shared cookie jar](feedback_curl_mastership_needs_shared_cookie_jar.md) — use `/mastership-test` skill instead of hand-rolled curl; explains why
+- [Robot live test log](project_robot_live_test_log.md) — running dated log of live RWS/socket tests and outcomes
+- [Grep all nodes after shared-internals refactor](feedback_grep_all_nodes_after_shared_internals_refactor.md) — one incomplete gofa-robot.js refactor broke 4 nodes across 2 sessions
+- [Manual control doc](reference_manual_control_doc.md) — MANUAL_CONTROL.md has every curl/raw-TCP command, split RWS-always vs socket-needs-RAPID-running
+- [Stop Node-RED before controller restart](feedback_stop_nodered_before_controller_restart.md) — leaked RWS sessions (no logout call) can lock out FlexPendant via the 19/70-session cap
+- [DSQC1030 Scalable I/O addressing](reference_dsqc1030_scalable_io_addressing.md) — no rotary switches; IP is software-set in RobotStudio, range 192.168.125.100-129
+- [Search vendor docs before "confirmed impossible"](feedback_search_vendor_docs_before_confirmed_impossible.md) — repeated identical 405s isn't proof; web-search ABB forums before declaring an RWS endpoint dead
+- [Include settings.local.json in commits](feedback_include_settings_local_in_commits.md) — user wants it tracked, not treated as unrelated noise
+- [Software version snapshot](project_software_version_snapshot.md) — RobotWare 7.21.0+229, RWS 2.0, RobotStudio 2026.2 (26.2.11700.0), Node-RED 5.0.1, confirmed live 2026-07-07
+- [OmniCore Ethernet Switch section](reference_omnicore_ethernet_switch_section.md) — separate 5-port (X1-X5) switch on back panel, distinct from WAN/LAN/MGMT; no RWS/RAPID API, not a node candidate
+- [Robot IP drift](reference_robot_ip_drift.md) — controller IP changes often (even twice in one day); always re-check via /robot-status, never trust a recorded IP
+- [Autonomous sequence feature](project_autonomous_sequence_feature.md) — standalone RAPID sequence-runner (AutoSequence.mod), plan + decisions + progress
+- [StopMove \Quick unsupported](feedback_stopmove_quick_unsupported.md) — fails RAPID consistency check on this controller despite being in ABB's docs; use plain StopMove
+- [User's learning context](user_learning_context.md) — no defined business use case yet, senior said "learn everything," user wants to enjoy it — favor fun/broad-learning suggestions over assumed requirements
+- [OmniCore AppStudio investigation](reference_omnicore_appstudio_investigation.md) — persistent FlexPendant dashboard ruled out for now, needs RobotStudio GUI step, not RWS-drivable
