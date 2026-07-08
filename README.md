@@ -93,7 +93,7 @@ The built-in `Admin` account cannot start or stop RAPID remotely. You need to cr
 
 1. Open **RobotStudio** (free download from ABB)
 2. **Controller** tab → **Add Controller** → enter your robot's IP → connect
-3. Log in as `Admin` / `robotics` when prompted
+3. Log in with the controller's admin account when prompted (ABB factory default is `Admin` / `robotics` — change it if you haven't)
 
 ### Create a role and assign it to the user
 
@@ -107,7 +107,7 @@ The built-in `Admin` account cannot start or stop RAPID remotely. You need to cr
    - ✅ **Remote Start** (allows `start` action via RWS)
    - ✅ **Remote Stop** (allows `stop` and `resetpp` actions via RWS)
    - ✅ All other grants you want (read-only operations work without grants)
-8. Switch to the **User** tab → either change an existing user's role to the one you just created, or click **Add User** to create a new user (e.g. `nodeuser` / `robotics`) and assign it the new role
+8. Switch to the **User** tab → either change an existing user's role to the one you just created, or click **Add User** to create a new user (e.g. `nodeuser` with a password of your choice) and assign it the new role
 9. Click **OK** → **Apply**
 
 > **What about `resetpp`?** It requires edit mastership in addition to Remote Stop — the palette handles this automatically using `/rw/mastership/edit/request`.

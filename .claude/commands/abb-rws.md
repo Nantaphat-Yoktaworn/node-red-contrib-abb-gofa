@@ -323,7 +323,7 @@ Body: file content (binary or text)
 
 Example (from README):
 ```bash
-curl -sk -u Admin:robotics -X PUT -H "Content-Type: text/plain;v=2.0" \
+curl -sk -u "<admin-user>:<password>" -X PUT -H "Content-Type: text/plain;v=2.0" \
   --data-binary @rapid/MainModule.mod \
   "https://{ROBOT_IP}/fileservice/$HOME/Programs/MainModule.mod"
 ```
@@ -447,7 +447,7 @@ Returns: `204 No Content` on success, `403` if the signal's `Access` level doesn
 
 ## Notes for This Project
 
-- Controller IP: `192.168.20.33`, credentials: `NNNN:robotics`
+- Controller IP: `192.168.20.33`, credentials: user `NNNN`, password in the `user-robot-credentials` live memory (not written in this public repo)
 - `rejectUnauthorized: false` is set in all HTTPS requests (self-signed cert on controller)
 - The project uses Basic auth (not Digest) on first request, then cookie for subsequent requests
 - Cookie is stored in `robot._cookie` on the config node and cleared on 401

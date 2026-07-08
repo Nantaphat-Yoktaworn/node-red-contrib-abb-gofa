@@ -127,7 +127,7 @@ RWS `/rw/panel/opmode` returns: `auto`, `manualreduced`, `manualfull`
 
 - Default IP: `192.168.20.33`
 - Port: 443 (HTTPS, self-signed cert — use `-k` with curl)
-- Auth: Basic `Admin:robotics` → cookie session (auto-refresh on 401)
+- Auth: Basic (admin account) → cookie session (auto-refresh on 401)
 - See `/abb-rws` skill for full endpoint reference
 
 ---

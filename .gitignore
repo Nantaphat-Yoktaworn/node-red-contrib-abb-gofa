@@ -30,6 +30,8 @@ node-red-contrib-abb-gofa/package-lock.json
 !.github/**
 !/.claude/
 !/.claude/**
+# ...except local machine settings (permission allowlist, local paths) — not for a public repo
+/.claude/settings.local.json
 
 # Runtime files (generated locally, not for version control)
 # points.json  — saved robot positions, created by gofa-save-point at runtime

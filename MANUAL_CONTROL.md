@@ -7,7 +7,7 @@ or when Node-RED itself isn't available.
 
 Replace `<ROBOT_IP>` with the controller's current IP (`192.168.20.36` at time of
 writing — see the `SERVER_IP` note in `CLAUDE.md`, it has drifted before) and
-`<username>`/`<password>` with your RWS credentials (`NNNN` / `robotics` by default).
+`<username>`/`<password>` with your RWS credentials.
 
 ## The one thing that decides which half of this doc you need
 

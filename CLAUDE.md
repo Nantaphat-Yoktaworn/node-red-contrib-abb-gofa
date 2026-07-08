@@ -160,12 +160,12 @@ Originally considered storing the list *inside* RAPID (new socket commands readi
 | RWS port | `443` (HTTPS, self-signed cert — `rejectUnauthorized: false`) |
 | Socket port | `1025` |
 | Username | `NNNN` |
-| Password | `robotics` |
+| Password | *(not written in this repo — see the `user-robot-credentials` live memory; it's still the ABB factory default, and `check-status.js`/`mastership-test.js` fall back to it, so live tests work with no env setup)* |
 
-These are *this robot's* credentials (used by `check-status.js`/`mastership-test.js` env-var
-fallbacks and the local flows). The *shipped* `gofa-robot` node default was genericized for the
-public npm release (2026-07-08): username defaults to ABB's factory `Default User`, password has
-no default — so a fresh public install never carries this lab's creds.
+The *shipped* `gofa-robot` node default was genericized for the public npm release (2026-07-08):
+username defaults to ABB's factory `Default User`, password has no default — so a fresh public
+install never carries this lab's creds. This repo is public: don't write the actual password
+into any tracked file; it lives in the local (non-repo) Claude memory only.
 
 ## Software versions (confirmed live, 2026-07-07)
 

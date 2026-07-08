@@ -19,7 +19,7 @@ var cfg = {
     rwsPort:    parseInt(process.env.GOFA_RWS_PORT)    || 443,
     socketPort: parseInt(process.env.GOFA_SOCKET_PORT) || 1025,
     username:   process.env.GOFA_USERNAME   || 'NNNN',
-    password:   process.env.GOFA_PASSWORD   || 'robotics'
+    password:   process.env.GOFA_PASSWORD   || 'robotics'  // ABB factory default
 };
 
 var client = createRobotClient(cfg);
