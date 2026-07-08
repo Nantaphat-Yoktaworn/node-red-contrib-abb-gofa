@@ -14,7 +14,7 @@
 - [Software version snapshot](project_software_version_snapshot.md) — RobotWare 7.21.0+229, RWS 2.0, RobotStudio 2026.2 (26.2.11700.0), Node-RED 5.0.1, confirmed live 2026-07-07
 - [OmniCore Ethernet Switch section](reference_omnicore_ethernet_switch_section.md) — separate 5-port (X1-X5) switch on back panel, distinct from WAN/LAN/MGMT; no RWS/RAPID API, not a node candidate
 - [Robot IP drift](reference_robot_ip_drift.md) — controller IP changes often (even twice in one day); always re-check via /robot-status, never trust a recorded IP
-- [Autonomous sequence feature](project_autonomous_sequence_feature.md) — standalone RAPID point-sequencer on branch autonomous-sequence, v4 status
+- [Autonomous sequence feature](project_autonomous_sequence_feature.md) — standalone RAPID point-sequencer, ABANDONED — branch deleted, recoverable from commit a5aeada
 - [StopMove \Quick unsupported](feedback_stopmove_quick_unsupported.md) — fails RAPID consistency check on this controller despite being in ABB's docs; use plain StopMove
 - [User's learning context](user_learning_context.md) — no defined business use case yet, senior said "learn everything," user wants to enjoy it — favor fun/broad-learning suggestions over assumed requirements
 - [OmniCore AppStudio investigation](reference_omnicore_appstudio_investigation.md) — persistent FlexPendant dashboard ruled out for now, needs RobotStudio GUI step, not RWS-drivable

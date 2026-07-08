@@ -7,6 +7,8 @@ metadata:
   originSessionId: c64b8762-5090-4585-80b6-af2e100c4b7b
 ---
 
+**ABANDONED (2026-07-08)**: user decided not to continue; branch `autonomous-sequence` deleted (local+remote). All work (AutoSequence.mod v4, deploy script, flow changes) remains recoverable from orphaned tip commit `a5aeada7ca2a57e976718371658d71891fdbca11` until GitHub/local gc prunes it — recreate with `git branch autonomous-sequence a5aeada` if revived. History below kept for reference.
+
 User wants the robot to run a saved-point sequence **fully standalone** (no Node-RED at
 runtime), controlled by a native FlexPendant UI, with the point list and per-step delay editable
 without a regeneration round-trip through Node-RED for day-to-day edits.
