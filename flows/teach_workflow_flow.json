@@ -1,37 +1,112 @@
 [
     {
-        "id": "adba63cb24b54f29",
+        "id": "a17a5b075916bef6",
         "type": "tab",
         "label": "ABB-GoFa-12 Teach Workflow",
         "disabled": false,
         "info": ""
     },
     {
-        "id": "cfg1",
-        "type": "gofa-robot",
-        "name": "ABB-GoFa-12",
-        "ip": "192.168.20.33",
-        "rwsPort": "443",
-        "socketPort": "1025",
-        "username": "NNNN",
-        "pointsFile": "points.json"
+        "id": "b474c6bb3eb103c2",
+        "type": "group",
+        "z": "a17a5b075916bef6",
+        "name": "Button 1: Toggle Teach Mode",
+        "style": {
+            "stroke": "#0099cc",
+            "stroke-opacity": "1",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
+            "label": true,
+            "label-position": "nw",
+            "color": "#0099cc"
+        },
+        "nodes": [
+            "8c35591b5df532e6",
+            "11d4c947a8bda098",
+            "2fd9cc4e41043058",
+            "07ba7ba1de1d7370",
+            "a9b927fb423a4cff",
+            "90a54be748ae9a90",
+            "f3749d1b6ba09f0f",
+            "33d14050bfa19946",
+            "b8110cdb1505bc4e",
+            "886685d355c41b63",
+            "4435d831b508fcc6",
+            "df4c842165c5765c",
+            "f5563c17a6c3429e",
+            "f89e7899a9ee6bde",
+            "59a627245a625aa7",
+            "8ba7bbaa2239fa83",
+            "14b162f82809b4f7",
+            "99aa4d2c0c07b185",
+            "f39e75e1680ca698",
+            "884f1b8212b78518",
+            "9ab9852e43b73265",
+            "eff22889116081ec",
+            "319ff59df68d8789",
+            "baf679a5658d0323",
+            "e37ecc7f24ceef09",
+            "1fcab4b586c8f8a8",
+            "8b514675b3606c5f",
+            "466416196504a299",
+            "727274d6493e5c07",
+            "0aaad16114a799e0",
+            "c63cdc6bd086dd23"
+        ],
+        "x": 24,
+        "y": 59,
+        "w": 3452,
+        "h": 682
     },
     {
-        "id": "0e037f251e9a88e1",
+        "id": "7fa433d560ceee6d",
+        "type": "group",
+        "z": "a17a5b075916bef6",
+        "name": "Button 2: Save Point (gated on teach mode)",
+        "style": {
+            "stroke": "#0099cc",
+            "stroke-opacity": "1",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
+            "label": true,
+            "label-position": "nw",
+            "color": "#0099cc"
+        },
+        "nodes": [
+            "7bc4bc2ad79a1db4",
+            "64eb60ec5de3f9d4",
+            "307247807f6acc7d",
+            "23f015ee54a77261",
+            "24eefbe32fc69beb",
+            "a09ca872b97ee9e4",
+            "01a29e1f45684439",
+            "730d0aaf2537379f",
+            "fadacf1ef594fa02",
+            "ef54f998f6eeade2",
+            "fc7fa52bcc252753",
+            "c459aef903d9a4c8"
+        ],
+        "x": 14,
+        "y": 759,
+        "w": 2422,
+        "h": 242
+    },
+    {
+        "id": "8c35591b5df532e6",
         "type": "comment",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "PRECONDITION: robot already in Auto mode, Motors On, RAPID running. 1st press: stop RAPID -> confirm stopped (bounded poll) -> enable lead-through. 2nd press: disable lead-through -> reset PP -> restart RAPID (back to original state). Decision is based on LIVE gofa-status reads each press, not a stored flag - self-healing across Node-RED restarts.",
         "info": "",
-        "x": 60,
-        "y": 40,
+        "x": 860,
+        "y": 100,
         "wires": []
     },
     {
-        "id": "965b7ba1c800778e",
+        "id": "11d4c947a8bda098",
         "type": "debug",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Button1: Lead-through Enable Result",
         "active": true,
         "tosidebar": true,
@@ -40,29 +115,29 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 3060,
-        "y": 100,
+        "y": 160,
         "wires": []
     },
     {
-        "id": "2cba10ecf289cad9",
+        "id": "2fd9cc4e41043058",
         "type": "gofa-leadthrough-enable",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Enable Lead-through",
         "robot": "cfg1",
         "x": 2820,
-        "y": 100,
+        "y": 160,
         "wires": [
             [
-                "965b7ba1c800778e"
+                "11d4c947a8bda098"
             ]
         ]
     },
     {
-        "id": "65d2f28b4c0066e7",
+        "id": "07ba7ba1de1d7370",
         "type": "debug",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Button1: RAPID never reached stopped - giving up",
         "active": true,
         "tosidebar": true,
@@ -71,14 +146,14 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 3060,
-        "y": 320,
+        "y": 380,
         "wires": []
     },
     {
-        "id": "aefb8e3f175d38a9",
+        "id": "a9b927fb423a4cff",
         "type": "delay",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Retry Wait (300ms)",
         "pauseType": "delay",
         "timeout": "300",
@@ -90,19 +165,20 @@
         "randomLast": "5",
         "randomUnits": "seconds",
         "drop": false,
+        "outputs": 1,
         "x": 3060,
-        "y": 220,
+        "y": 280,
         "wires": [
             [
-                "51cf627e5c100cac"
+                "33d14050bfa19946"
             ]
         ]
     },
     {
-        "id": "ece7cfb75929fa04",
+        "id": "90a54be748ae9a90",
         "type": "switch",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Retries Left? (<=5)",
         "property": "retryCount",
         "propertyType": "msg",
@@ -120,21 +196,21 @@
         "repair": false,
         "outputs": 2,
         "x": 2820,
-        "y": 260,
+        "y": 320,
         "wires": [
             [
-                "aefb8e3f175d38a9"
+                "a9b927fb423a4cff"
             ],
             [
-                "65d2f28b4c0066e7"
+                "07ba7ba1de1d7370"
             ]
         ]
     },
     {
-        "id": "00a77e3bb7615bf8",
+        "id": "f3749d1b6ba09f0f",
         "type": "change",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Increment Retry Counter",
         "rules": [
             {
@@ -151,33 +227,33 @@
         "to": "",
         "reg": false,
         "x": 2580,
-        "y": 260,
+        "y": 320,
         "wires": [
             [
-                "ece7cfb75929fa04"
+                "90a54be748ae9a90"
             ]
         ]
     },
     {
-        "id": "51cf627e5c100cac",
+        "id": "33d14050bfa19946",
         "type": "gofa-status",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Poll RAPID State",
         "robot": "cfg1",
         "x": 2340,
-        "y": 180,
+        "y": 240,
         "wires": [
             [
-                "fc023e29af2a6d01"
+                "b8110cdb1505bc4e"
             ]
         ]
     },
     {
-        "id": "fc023e29af2a6d01",
+        "id": "b8110cdb1505bc4e",
         "type": "switch",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Stopped Yet?",
         "property": "payload.rapid",
         "propertyType": "msg",
@@ -195,21 +271,21 @@
         "repair": false,
         "outputs": 2,
         "x": 2580,
-        "y": 180,
+        "y": 240,
         "wires": [
             [
-                "2cba10ecf289cad9"
+                "2fd9cc4e41043058"
             ],
             [
-                "00a77e3bb7615bf8"
+                "f3749d1b6ba09f0f"
             ]
         ]
     },
     {
-        "id": "399553c0e8c514c5",
+        "id": "886685d355c41b63",
         "type": "change",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Init Retry Counter",
         "rules": [
             {
@@ -226,18 +302,18 @@
         "to": "",
         "reg": false,
         "x": 2100,
-        "y": 180,
+        "y": 240,
         "wires": [
             [
-                "51cf627e5c100cac"
+                "33d14050bfa19946"
             ]
         ]
     },
     {
-        "id": "5a29868abe9bdb73",
+        "id": "4435d831b508fcc6",
         "type": "switch",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Stop OK?",
         "property": "payload.ok",
         "propertyType": "msg",
@@ -250,18 +326,18 @@
         "repair": false,
         "outputs": 1,
         "x": 1860,
-        "y": 100,
+        "y": 160,
         "wires": [
             [
-                "399553c0e8c514c5"
+                "886685d355c41b63"
             ]
         ]
     },
     {
-        "id": "60ca05cabb885cee",
+        "id": "df4c842165c5765c",
         "type": "debug",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Button1: Stop RAPID Result",
         "active": true,
         "tosidebar": true,
@@ -270,31 +346,31 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 1860,
-        "y": 160,
+        "y": 220,
         "wires": []
     },
     {
-        "id": "2b23ec47e5b1e3dd",
+        "id": "f5563c17a6c3429e",
         "type": "gofa-rapid-exec",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Stop RAPID (begin teaching)",
         "robot": "cfg1",
         "action": "stop",
         "x": 1620,
-        "y": 100,
+        "y": 160,
         "wires": [
             [
-                "5a29868abe9bdb73",
-                "60ca05cabb885cee"
+                "4435d831b508fcc6",
+                "df4c842165c5765c"
             ]
         ]
     },
     {
-        "id": "93a603ef54d7e4b4",
+        "id": "f89e7899a9ee6bde",
         "type": "debug",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Button1: Restart RAPID Result",
         "active": true,
         "tosidebar": true,
@@ -303,30 +379,30 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 3300,
-        "y": 460,
+        "y": 520,
         "wires": []
     },
     {
-        "id": "20f57e85f408440c",
+        "id": "59a627245a625aa7",
         "type": "gofa-rapid-exec",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Restart RAPID",
         "robot": "cfg1",
         "action": "start",
         "x": 3060,
-        "y": 460,
+        "y": 520,
         "wires": [
             [
-                "93a603ef54d7e4b4"
+                "f89e7899a9ee6bde"
             ]
         ]
     },
     {
-        "id": "f6a506c66d6a4252",
+        "id": "8ba7bbaa2239fa83",
         "type": "change",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Clear Payload Before Restart",
         "rules": [
             {
@@ -343,18 +419,18 @@
         "to": "",
         "reg": false,
         "x": 2820,
-        "y": 460,
+        "y": 520,
         "wires": [
             [
-                "20f57e85f408440c"
+                "59a627245a625aa7"
             ]
         ]
     },
     {
-        "id": "41f10bd847e01ae5",
+        "id": "14b162f82809b4f7",
         "type": "switch",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Reset OK?",
         "property": "payload.ok",
         "propertyType": "msg",
@@ -367,18 +443,18 @@
         "repair": false,
         "outputs": 1,
         "x": 2580,
-        "y": 460,
+        "y": 520,
         "wires": [
             [
-                "f6a506c66d6a4252"
+                "8ba7bbaa2239fa83"
             ]
         ]
     },
     {
-        "id": "3d6f5a055e82634f",
+        "id": "99aa4d2c0c07b185",
         "type": "debug",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Button1: Reset PP Result",
         "active": true,
         "tosidebar": true,
@@ -387,31 +463,31 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 2340,
-        "y": 520,
+        "y": 580,
         "wires": []
     },
     {
-        "id": "126c3b46e3e685c9",
+        "id": "f39e75e1680ca698",
         "type": "gofa-rapid-exec",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Reset Program Pointer",
         "robot": "cfg1",
         "action": "resetpp",
         "x": 2340,
-        "y": 460,
+        "y": 520,
         "wires": [
             [
-                "41f10bd847e01ae5",
-                "3d6f5a055e82634f"
+                "14b162f82809b4f7",
+                "99aa4d2c0c07b185"
             ]
         ]
     },
     {
-        "id": "30d0c2908bb7a36a",
+        "id": "884f1b8212b78518",
         "type": "switch",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Disable OK?",
         "property": "payload.ok",
         "propertyType": "msg",
@@ -424,18 +500,18 @@
         "repair": false,
         "outputs": 1,
         "x": 2100,
-        "y": 460,
+        "y": 520,
         "wires": [
             [
-                "126c3b46e3e685c9"
+                "f39e75e1680ca698"
             ]
         ]
     },
     {
-        "id": "1a62c1ecf8abf63d",
+        "id": "9ab9852e43b73265",
         "type": "debug",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Button1: Disable Lead-through Result",
         "active": true,
         "tosidebar": true,
@@ -444,30 +520,30 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 1860,
-        "y": 520,
+        "y": 580,
         "wires": []
     },
     {
-        "id": "3433ee9ac02749fc",
+        "id": "eff22889116081ec",
         "type": "gofa-leadthrough-disable",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Disable Lead-through (end teaching)",
         "robot": "cfg1",
         "x": 1860,
-        "y": 460,
+        "y": 520,
         "wires": [
             [
-                "30d0c2908bb7a36a",
-                "1a62c1ecf8abf63d"
+                "884f1b8212b78518",
+                "9ab9852e43b73265"
             ]
         ]
     },
     {
-        "id": "38d3bd296ba0236b",
+        "id": "319ff59df68d8789",
         "type": "debug",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Button1: Ignored - unexpected state",
         "active": true,
         "tosidebar": true,
@@ -476,14 +552,14 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 1860,
-        "y": 640,
+        "y": 700,
         "wires": []
     },
     {
-        "id": "b8ad24505c2c69ef",
+        "id": "baf679a5658d0323",
         "type": "change",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Build Unexpected-State Message",
         "rules": [
             {
@@ -500,18 +576,18 @@
         "to": "",
         "reg": false,
         "x": 1620,
-        "y": 640,
+        "y": 700,
         "wires": [
             [
-                "38d3bd296ba0236b"
+                "319ff59df68d8789"
             ]
         ]
     },
     {
-        "id": "2272a8845da27d50",
+        "id": "e37ecc7f24ceef09",
         "type": "switch",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Route: Start vs Finish vs Unexpected",
         "property": "payload",
         "propertyType": "msg",
@@ -534,24 +610,24 @@
         "repair": false,
         "outputs": 3,
         "x": 1380,
-        "y": 300,
+        "y": 360,
         "wires": [
             [
-                "2b23ec47e5b1e3dd"
+                "f5563c17a6c3429e"
             ],
             [
-                "3433ee9ac02749fc"
+                "eff22889116081ec"
             ],
             [
-                "b8ad24505c2c69ef"
+                "baf679a5658d0323"
             ]
         ]
     },
     {
-        "id": "ed3e9aa2ed5535d5",
+        "id": "1fcab4b586c8f8a8",
         "type": "debug",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Button1: Live State",
         "active": true,
         "tosidebar": true,
@@ -560,30 +636,30 @@
         "complete": "payload",
         "targetType": "msg",
         "x": 1140,
-        "y": 360,
+        "y": 420,
         "wires": []
     },
     {
-        "id": "03afc520d96a858a",
+        "id": "8b514675b3606c5f",
         "type": "gofa-status",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Check Live State",
         "robot": "cfg1",
         "x": 1140,
-        "y": 300,
+        "y": 360,
         "wires": [
             [
-                "2272a8845da27d50",
-                "ed3e9aa2ed5535d5"
+                "e37ecc7f24ceef09",
+                "1fcab4b586c8f8a8"
             ]
         ]
     },
     {
-        "id": "5a006272a7ff4fd5",
+        "id": "466416196504a299",
         "type": "delay",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Debounce Button1",
         "pauseType": "rate",
         "timeout": "3",
@@ -595,19 +671,20 @@
         "randomLast": "5",
         "randomUnits": "seconds",
         "drop": true,
+        "outputs": 1,
         "x": 900,
-        "y": 300,
+        "y": 360,
         "wires": [
             [
-                "03afc520d96a858a"
+                "8b514675b3606c5f"
             ]
         ]
     },
     {
-        "id": "4eed0809232a7ac5",
+        "id": "727274d6493e5c07",
         "type": "switch",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Rising Edge Only",
         "property": "payload.value",
         "propertyType": "msg",
@@ -622,35 +699,35 @@
         "repair": false,
         "outputs": 1,
         "x": 660,
-        "y": 300,
+        "y": 360,
         "wires": [
             [
-                "5a006272a7ff4fd5"
+                "466416196504a299"
             ]
         ]
     },
     {
-        "id": "e74580e1d9306dfc",
+        "id": "0aaad16114a799e0",
         "type": "gofa-subscribe-io",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Watch Asi1Button1",
         "robot": "cfg1",
         "signal": "Asi1Button1",
         "oneshot": false,
         "x": 420,
-        "y": 300,
+        "y": 360,
         "wires": [
             [
-                "4eed0809232a7ac5"
+                "727274d6493e5c07"
             ]
         ]
     },
     {
-        "id": "65e1429d7abadfac",
+        "id": "c63cdc6bd086dd23",
         "type": "inject",
-        "z": "adba63cb24b54f29",
-        "g": "faad23e3351c3587",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
         "name": "Start Watching Button1",
         "props": [
             {
@@ -665,81 +742,29 @@
         "payload": "",
         "payloadType": "date",
         "x": 180,
-        "y": 300,
+        "y": 360,
         "wires": [
             [
-                "e74580e1d9306dfc"
+                "0aaad16114a799e0"
             ]
         ]
     },
     {
-        "id": "faad23e3351c3587",
-        "type": "group",
-        "z": "adba63cb24b54f29",
-        "name": "Button 1: Toggle Teach Mode",
-        "style": {
-            "stroke": "#0099cc",
-            "stroke-opacity": "1",
-            "fill": "#ffffff",
-            "fill-opacity": "0.3",
-            "label": true,
-            "label-position": "nw",
-            "color": "#0099cc"
-        },
-        "nodes": [
-            "0e037f251e9a88e1",
-            "965b7ba1c800778e",
-            "2cba10ecf289cad9",
-            "65d2f28b4c0066e7",
-            "aefb8e3f175d38a9",
-            "ece7cfb75929fa04",
-            "00a77e3bb7615bf8",
-            "51cf627e5c100cac",
-            "fc023e29af2a6d01",
-            "399553c0e8c514c5",
-            "5a29868abe9bdb73",
-            "60ca05cabb885cee",
-            "2b23ec47e5b1e3dd",
-            "93a603ef54d7e4b4",
-            "20f57e85f408440c",
-            "f6a506c66d6a4252",
-            "41f10bd847e01ae5",
-            "3d6f5a055e82634f",
-            "126c3b46e3e685c9",
-            "30d0c2908bb7a36a",
-            "1a62c1ecf8abf63d",
-            "3433ee9ac02749fc",
-            "38d3bd296ba0236b",
-            "b8ad24505c2c69ef",
-            "2272a8845da27d50",
-            "ed3e9aa2ed5535d5",
-            "03afc520d96a858a",
-            "5a006272a7ff4fd5",
-            "4eed0809232a7ac5",
-            "e74580e1d9306dfc",
-            "65e1429d7abadfac"
-        ],
-        "x": 40,
-        "y": 10,
-        "w": 3320,
-        "h": 750
-    },
-    {
-        "id": "773f6e102503e51f",
+        "id": "7bc4bc2ad79a1db4",
         "type": "comment",
-        "z": "adba63cb24b54f29",
-        "g": "49f0df05f0a3113b",
+        "z": "a17a5b075916bef6",
+        "g": "7fa433d560ceee6d",
         "name": "Only saves a point while RAPID is stopped (i.e. mid-teach via Button 1). Otherwise shows a clear \"not in teach mode\" message instead of silently doing nothing.",
         "info": "",
-        "x": 60,
-        "y": 840,
+        "x": 560,
+        "y": 800,
         "wires": []
     },
     {
-        "id": "2d9b7d5117d7b51c",
+        "id": "64eb60ec5de3f9d4",
         "type": "debug",
-        "z": "adba63cb24b54f29",
-        "g": "49f0df05f0a3113b",
+        "z": "a17a5b075916bef6",
+        "g": "7fa433d560ceee6d",
         "name": "Button2: Ignored - not in teach mode",
         "active": true,
         "tosidebar": true,
@@ -747,15 +772,15 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1740,
-        "y": 980,
+        "x": 2240,
+        "y": 940,
         "wires": []
     },
     {
-        "id": "a91133ba680d1c19",
+        "id": "307247807f6acc7d",
         "type": "change",
-        "z": "adba63cb24b54f29",
-        "g": "49f0df05f0a3113b",
+        "z": "a17a5b075916bef6",
+        "g": "7fa433d560ceee6d",
         "name": "Build Not-In-Teach-Mode Message",
         "rules": [
             {
@@ -771,19 +796,19 @@
         "from": "",
         "to": "",
         "reg": false,
-        "x": 1500,
-        "y": 980,
+        "x": 2000,
+        "y": 940,
         "wires": [
             [
-                "2d9b7d5117d7b51c"
+                "64eb60ec5de3f9d4"
             ]
         ]
     },
     {
-        "id": "5efc57a617155bd0",
+        "id": "23f015ee54a77261",
         "type": "debug",
-        "z": "adba63cb24b54f29",
-        "g": "49f0df05f0a3113b",
+        "z": "a17a5b075916bef6",
+        "g": "7fa433d560ceee6d",
         "name": "Button2: Save Point Result",
         "active": true,
         "tosidebar": true,
@@ -791,31 +816,31 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1740,
-        "y": 900,
+        "x": 2240,
+        "y": 860,
         "wires": []
     },
     {
-        "id": "a2cd1f7cb4e37163",
+        "id": "24eefbe32fc69beb",
         "type": "gofa-save-point",
-        "z": "adba63cb24b54f29",
-        "g": "49f0df05f0a3113b",
+        "z": "a17a5b075916bef6",
+        "g": "7fa433d560ceee6d",
         "name": "Save Taught Point",
         "robot": "cfg1",
         "pointName": "",
-        "x": 1500,
-        "y": 900,
+        "x": 2000,
+        "y": 860,
         "wires": [
             [
-                "5efc57a617155bd0"
+                "23f015ee54a77261"
             ]
         ]
     },
     {
-        "id": "d9f465413adabaf6",
+        "id": "a09ca872b97ee9e4",
         "type": "switch",
-        "z": "adba63cb24b54f29",
-        "g": "49f0df05f0a3113b",
+        "z": "a17a5b075916bef6",
+        "g": "7fa433d560ceee6d",
         "name": "In Teach Mode?",
         "property": "payload.rapid",
         "propertyType": "msg",
@@ -832,22 +857,22 @@
         "checkall": "false",
         "repair": false,
         "outputs": 2,
-        "x": 1260,
-        "y": 940,
+        "x": 1760,
+        "y": 900,
         "wires": [
             [
-                "a2cd1f7cb4e37163"
+                "24eefbe32fc69beb"
             ],
             [
-                "a91133ba680d1c19"
+                "307247807f6acc7d"
             ]
         ]
     },
     {
-        "id": "039c519638573d9d",
+        "id": "01a29e1f45684439",
         "type": "debug",
-        "z": "adba63cb24b54f29",
-        "g": "49f0df05f0a3113b",
+        "z": "a17a5b075916bef6",
+        "g": "7fa433d560ceee6d",
         "name": "Button2: Live State",
         "active": true,
         "tosidebar": true,
@@ -855,31 +880,31 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 1020,
-        "y": 1000,
+        "x": 1520,
+        "y": 960,
         "wires": []
     },
     {
-        "id": "f198a20d0726534d",
+        "id": "730d0aaf2537379f",
         "type": "gofa-status",
-        "z": "adba63cb24b54f29",
-        "g": "49f0df05f0a3113b",
+        "z": "a17a5b075916bef6",
+        "g": "7fa433d560ceee6d",
         "name": "Check Teach-Mode State",
         "robot": "cfg1",
-        "x": 1020,
-        "y": 940,
+        "x": 1520,
+        "y": 900,
         "wires": [
             [
-                "d9f465413adabaf6",
-                "039c519638573d9d"
+                "a09ca872b97ee9e4",
+                "01a29e1f45684439"
             ]
         ]
     },
     {
-        "id": "38ab34e32725924b",
+        "id": "fadacf1ef594fa02",
         "type": "delay",
-        "z": "adba63cb24b54f29",
-        "g": "49f0df05f0a3113b",
+        "z": "a17a5b075916bef6",
+        "g": "7fa433d560ceee6d",
         "name": "Debounce Button2",
         "pauseType": "rate",
         "timeout": "3",
@@ -891,19 +916,20 @@
         "randomLast": "5",
         "randomUnits": "seconds",
         "drop": true,
-        "x": 780,
-        "y": 940,
+        "outputs": 1,
+        "x": 1280,
+        "y": 900,
         "wires": [
             [
-                "f198a20d0726534d"
+                "730d0aaf2537379f"
             ]
         ]
     },
     {
-        "id": "d774a38b573a44a6",
+        "id": "ef54f998f6eeade2",
         "type": "switch",
-        "z": "adba63cb24b54f29",
-        "g": "49f0df05f0a3113b",
+        "z": "a17a5b075916bef6",
+        "g": "7fa433d560ceee6d",
         "name": "Rising Edge Only",
         "property": "payload.value",
         "propertyType": "msg",
@@ -917,36 +943,36 @@
         "checkall": "false",
         "repair": false,
         "outputs": 1,
-        "x": 540,
-        "y": 940,
+        "x": 1040,
+        "y": 900,
         "wires": [
             [
-                "38ab34e32725924b"
+                "fadacf1ef594fa02"
             ]
         ]
     },
     {
-        "id": "273950867de8f899",
+        "id": "fc7fa52bcc252753",
         "type": "gofa-subscribe-io",
-        "z": "adba63cb24b54f29",
-        "g": "49f0df05f0a3113b",
+        "z": "a17a5b075916bef6",
+        "g": "7fa433d560ceee6d",
         "name": "Watch Asi1Button2",
         "robot": "cfg1",
         "signal": "Asi1Button2",
         "oneshot": false,
-        "x": 300,
-        "y": 940,
+        "x": 800,
+        "y": 900,
         "wires": [
             [
-                "d774a38b573a44a6"
+                "ef54f998f6eeade2"
             ]
         ]
     },
     {
-        "id": "ca569ad381e87423",
+        "id": "c459aef903d9a4c8",
         "type": "inject",
-        "z": "adba63cb24b54f29",
-        "g": "49f0df05f0a3113b",
+        "z": "a17a5b075916bef6",
+        "g": "7fa433d560ceee6d",
         "name": "Start Watching Button2",
         "props": [
             {
@@ -960,45 +986,31 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 60,
-        "y": 940,
+        "x": 560,
+        "y": 900,
         "wires": [
             [
-                "273950867de8f899"
+                "fc7fa52bcc252753"
             ]
         ]
     },
     {
-        "id": "49f0df05f0a3113b",
-        "type": "group",
-        "z": "adba63cb24b54f29",
-        "name": "Button 2: Save Point (gated on teach mode)",
-        "style": {
-            "stroke": "#0099cc",
-            "stroke-opacity": "1",
-            "fill": "#ffffff",
-            "fill-opacity": "0.3",
-            "label": true,
-            "label-position": "nw",
-            "color": "#0099cc"
-        },
-        "nodes": [
-            "773f6e102503e51f",
-            "2d9b7d5117d7b51c",
-            "a91133ba680d1c19",
-            "5efc57a617155bd0",
-            "a2cd1f7cb4e37163",
-            "d9f465413adabaf6",
-            "039c519638573d9d",
-            "f198a20d0726534d",
-            "38ab34e32725924b",
-            "d774a38b573a44a6",
-            "273950867de8f899",
-            "ca569ad381e87423"
-        ],
-        "x": 40,
-        "y": 800,
-        "w": 1820,
-        "h": 260
+        "id": "cfg1",
+        "type": "gofa-robot",
+        "name": "ABB-GoFa-12",
+        "ip": "192.168.20.36",
+        "rwsPort": "443",
+        "socketPort": "1025",
+        "username": "NNNN",
+        "pointsFile": "points.json",
+        "remotePointsPath": ""
+    },
+    {
+        "id": "acdddd48171e14ba",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-contrib-abb-gofa": "1.0.1"
+        }
     }
 ]
