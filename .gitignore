@@ -24,11 +24,14 @@ node-red-contrib-abb-gofa/package-lock.json
 !dist/
 !dist/*.tgz
 
-# This file, README, and Claude Code project config
+# This file, README, license, CI, and Claude Code project config
 !.gitignore
 !README.md
+!LICENSE
 !CLAUDE.md
 !MANUAL_CONTROL.md
+!.github/
+!.github/**
 !/.claude/
 !/.claude/**
 

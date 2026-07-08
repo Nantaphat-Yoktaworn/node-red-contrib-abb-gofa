@@ -2,6 +2,14 @@
 
 Node-RED palette for controlling the **ABB GoFa 12** (CRB 15000-12/1.27) collaborative robot over the network — no extra ABB licenses or hardware required beyond the standard OmniCore C30 controller.
 
+## ⚠️ Safety and security
+
+**This software moves a real robot arm.**
+
+- The software **STOP** command and Node-RED itself are *not* safety functions. The robot's own safety controller, reduced-speed collaborative limits, and the physical emergency stop are the only real safety layer — never rely on a flow to keep people safe.
+- The RAPID socket server (port 1025) accepts motion commands from **anyone who can reach the robot's IP — there is no authentication on that port**. Run the robot on an isolated or firewalled network segment. RWS credentials are sent over HTTPS with certificate checking disabled (self-signed controller cert), so the same isolation assumption applies there.
+- Jog/rotate step limits (50 mm / 30° per command) are enforced in the RAPID module, not in Node-RED — if you edit `MainModule.mod`, keep them.
+
 ## What's in this repo
 
 ```
@@ -108,16 +116,7 @@ The built-in `Admin` account cannot start or stop RAPID remotely. You need to cr
 
 ### Update the palette credentials
 
-Edit `node-red-contrib-abb-gofa/nodes/gofa-robot.js` and `gofa-robot.html` — replace `NNNN` with your chosen username:
-
-```bash
-# Linux / macOS
-sed -i "s/NNNN/nodeuser/g" \
-  node-red-contrib-abb-gofa/nodes/gofa-robot.js \
-  node-red-contrib-abb-gofa/nodes/gofa-robot.html \
-  flows/gofa_demo_flow.json \
-  flows/dashboard_flow.json
-```
+No source edits needed — enter the username and password you just created in the **gofa-robot** config node (Step 5). If you import the example flows from `flows/`, open their `gofa-robot` config node and update the credentials there too.
 
 ---
 
@@ -192,8 +191,8 @@ Every GoFa node shares a single **gofa-robot** config node. Open any GoFa node �
 | Robot IP | `192.168.20.33` | Controller IP — must match Step 1 |
 | RWS Port | `443` | HTTPS port (built-in, do not change) |
 | Socket Port | `1025` | TCP port for the RAPID socket server |
-| Username | `NNNN` | The user you created in Step 2 |
-| Password | `robotics` | The password you set in Step 2 |
+| Username | `Default User` | The user you created in Step 2 |
+| Password | *(empty)* | The password you set in Step 2 |
 | Points File | `points.json` | Saved robot positions on the Node-RED host |
 
 Click **Update** → **Deploy**.
@@ -502,7 +501,7 @@ This palette targets **OmniCore / RWS 2.0** which uses path-based actions (e.g. 
 | Robot IP | `192.168.20.33` |
 | RWS port | `443` (HTTPS, self-signed cert) |
 | Socket port | `1025` |
-| Username | `NNNN` |
-| Password | `robotics` |
+| Username | `Default User` (set your own in the config node) |
+| Password | *(none shipped — set in the config node)* |
 
 The self-signed HTTPS certificate on the controller is accepted automatically (`rejectUnauthorized: false`).

@@ -152,7 +152,7 @@ Originally considered storing the list *inside* RAPID (new socket commands readi
 | `GET /rw/rapid/tasks` | GET | List of RAPID tasks: name, type, taskstate, excstate, active, motiontask |
 | `GET /rw/rapid/tasks/{task}/modules` | GET | Modules loaded in a task: name, type (ProgMod/SysMod) |
 
-## Default connection settings
+## Default connection settings (this lab's robot)
 
 | Setting | Value |
 |---------|-------|
@@ -161,6 +161,11 @@ Originally considered storing the list *inside* RAPID (new socket commands readi
 | Socket port | `1025` |
 | Username | `NNNN` |
 | Password | `robotics` |
+
+These are *this robot's* credentials (used by `check-status.js`/`mastership-test.js` env-var
+fallbacks and the local flows). The *shipped* `gofa-robot` node default was genericized for the
+public npm release (2026-07-08): username defaults to ABB's factory `Default User`, password has
+no default — so a fresh public install never carries this lab's creds.
 
 ## Software versions (confirmed live, 2026-07-07)
 
