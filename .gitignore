@@ -20,10 +20,6 @@ node-red-contrib-abb-gofa/package-lock.json
 !rapid/
 !rapid/MainModule.mod
 
-# Packaged releases
-!dist/
-!dist/*.tgz
-
 # This file, README, license, CI, and Claude Code project config
 !.gitignore
 !README.md

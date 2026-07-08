@@ -20,8 +20,6 @@ flows/
   gofa_demo_flow.json            ← Demo flow — one inject per node
   dashboard_flow.json            ← Full robot control palette flow
   teach_workflow_flow.json       ← Physical-button teach workflow (see below)
-dist/
-  node-red-contrib-abb-gofa-*.tgz ← Packaged releases
 MANUAL_CONTROL.md                ← Control the robot directly (curl / raw TCP), no Node-RED needed
 ```
 
@@ -166,11 +164,11 @@ cd ~/.node-red
 npm install /path/to/node-red-contrib-abb-gofa
 ```
 
-Or from a packaged release:
+Or from npm, once published:
 
 ```bash
 cd ~/.node-red
-npm install /path/to/dist/node-red-contrib-abb-gofa-1.0.1.tgz
+npm install node-red-contrib-abb-gofa
 ```
 
 Restart Node-RED. The **ABB GoFa** section will appear in the palette sidebar.
