@@ -1,0 +1,2121 @@
+[
+    {
+        "id": "4c1e771ad9964524",
+        "type": "tab",
+        "label": "ABB-GoFa-12 Dashboard",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "9b75ded1104f57a1",
+        "type": "inject",
+        "z": "4c1e771ad9964524",
+        "name": "Poll 200ms",
+        "repeat": "0.2",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 100,
+        "y": 60,
+        "wires": [
+            [
+                "89d78652cde706e8",
+                "fb95102bf621885e",
+                "ded2c26fb6c8c159"
+            ]
+        ]
+    },
+    {
+        "id": "89d78652cde706e8",
+        "type": "gofa-status",
+        "z": "4c1e771ad9964524",
+        "name": "Status",
+        "robot": "cfg_robot",
+        "x": 340,
+        "y": 40,
+        "wires": [
+            [
+                "36a954927a68132c"
+            ]
+        ]
+    },
+    {
+        "id": "fb95102bf621885e",
+        "type": "gofa-pose",
+        "z": "4c1e771ad9964524",
+        "name": "Pose",
+        "robot": "cfg_robot",
+        "x": 340,
+        "y": 80,
+        "wires": [
+            [
+                "36a954927a68132c"
+            ]
+        ]
+    },
+    {
+        "id": "ded2c26fb6c8c159",
+        "type": "gofa-joints",
+        "z": "4c1e771ad9964524",
+        "name": "Joints",
+        "robot": "cfg_robot",
+        "x": 340,
+        "y": 120,
+        "wires": [
+            [
+                "36a954927a68132c"
+            ]
+        ]
+    },
+    {
+        "id": "36a954927a68132c",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Merge poll",
+        "func": "var d=context.get('d')||{};Object.assign(d,msg.payload);d._n=(d._n||0)+1;context.set('d',d);if(d._n>=3){d.updated=new Date().toLocaleTimeString();delete d._n;flow.set('robot_data',Object.assign({},d));context.set('d',{});}return null;",
+        "outputs": 1,
+        "x": 560,
+        "y": 80,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "8494d0fb156c13b3",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "GET /robot",
+        "url": "/robot",
+        "method": "get",
+        "x": 100,
+        "y": 240,
+        "wires": [
+            [
+                "be4476f295630ec1"
+            ]
+        ]
+    },
+    {
+        "id": "be4476f295630ec1",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Serve HTML",
+        "func": "msg.headers={'Content-Type':'text/html'};\nmsg.payload=`<!DOCTYPE html>\n<html lang='en'>\n<head>\n<meta charset='UTF-8'>\n<meta name='viewport' content='width=device-width,initial-scale=1'>\n<title>ABB GoFa-12</title>\n<style>\n*{box-sizing:border-box;margin:0;padding:0}\nbody{background:#0d1117;color:#e6edf3;font-family:Segoe UI,sans-serif;display:flex;height:100vh;overflow:hidden;font-size:14px}\n.sidebar{width:240px;min-width:240px;background:#161b22;border-right:1px solid #30363d;padding:16px;overflow-y:auto}\n.sidebar h1{font-size:0.9rem;color:#ff6b00;margin-bottom:8px;font-weight:700}\n.sr{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #21262d}\n.sl{color:#8b949e;font-size:0.75rem}\n.sv{font-weight:600;font-family:monospace;font-size:0.78rem}\n.led{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:3px}\n.led.g{background:#3fb950;box-shadow:0 0 4px #3fb950}\n.led.y{background:#d29922;box-shadow:0 0 4px #d29922}\n.led.r{background:#f85149;box-shadow:0 0 4px #f85149}\n.led.x{background:#484f58}\n.sbar{background:#21262d;border-radius:3px;height:4px;margin:2px 0 5px}\n.sfill{height:100%;background:#ff6b00;border-radius:3px;transition:width .3s}\n.sg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:4px}\n.sj{background:#0d1117;border-radius:5px;padding:5px;text-align:center}\n.sj .jn{font-size:0.6rem;color:#8b949e;text-transform:uppercase}\n.sj .jv{font-size:0.85rem;font-weight:700;color:#ff6b00;font-family:monospace}\n.upd{font-size:0.65rem;color:#484f58;margin-top:6px}\n.main{flex:1;display:flex;flex-direction:column;overflow:hidden}\n.tabs{display:flex;background:#161b22;border-bottom:1px solid #30363d;flex-shrink:0}\n.tb{padding:9px 14px;background:none;border:none;color:#8b949e;font-size:0.8rem;cursor:pointer;border-bottom:2px solid transparent;font-family:inherit}\n.tb:hover{color:#e6edf3}\n.tb.active{color:#ff6b00;border-bottom-color:#ff6b00}\n.panel{display:none;flex:1;overflow-y:auto;padding:14px;flex-direction:column;gap:10px}\n.panel.active{display:flex}\n.card{background:#161b22;border:1px solid #30363d;border-radius:9px;padding:14px}\n.card h2{font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;color:#8b949e;margin-bottom:10px}\n.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}\n.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}\n.g6{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-bottom:5px}\n.btn{padding:9px 12px;border:none;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s}\n.btn:hover{opacity:.85}\n.btn:active{transform:translateY(1px)}\n.btn:disabled{opacity:.4;cursor:wait}\n.blue{background:#1f6feb;color:#fff}\n.green{background:#3fb950;color:#fff}\n.red{background:#da3633;color:#fff}\n.orange{background:#ff6b00;color:#fff}\n.purple{background:#8957e5;color:#fff}\n.grey{background:#30363d;color:#e6edf3}\n.srow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:7px}\n.srow label{color:#8b949e;font-size:0.78rem;display:flex;align-items:center;gap:4px}\ninput[type=number],input[type=text],select,textarea{background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:5px;padding:6px;font-size:0.8rem;font-family:inherit}\ninput[type=number]{width:68px}\ninput[type=range]{accent-color:#ff6b00;cursor:pointer;padding:0;width:100%}\nselect,input[type=text]{width:100%}\ntextarea{resize:vertical;font-family:monospace;font-size:0.73rem;width:100%}\n.ir{display:flex;gap:6px;align-items:center;margin-bottom:7px}\n.ir input[type=text]{flex:1;width:auto}\n.ir input[type=number]{width:75px}\n.toast{font-size:0.78rem;color:#8b949e;font-family:monospace;min-height:1em;padding:5px 0}\n.seq-list{list-style:none;margin:5px 0}\n.seq-list li{display:flex;align-items:center;gap:6px;background:#0d1117;border:1px solid #30363d;border-radius:5px;padding:6px 9px;margin-bottom:3px}\n.seq-list .si{color:#8b949e;width:1.3em;font-family:monospace;font-size:0.78rem}\n.seq-list .sn{flex:1;font-size:0.82rem}\n.seq-list .xb{color:#f85149;background:none;border:none;cursor:pointer;font-size:0.95rem;padding:0 3px}\n.seq-list .ab{background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:0.72rem}\n.dtbl{width:100%;border-collapse:collapse;font-size:0.78rem}\n.dtbl th{color:#8b949e;text-align:left;padding:4px 6px;border-bottom:1px solid #30363d}\n.dtbl td{padding:4px 6px;border-bottom:1px solid #21262d;font-family:monospace}\n.dtbl tr:last-child td{border-bottom:none}\n.elog-entry{background:#0d1117;border:1px solid #30363d;border-radius:5px;padding:7px;margin-bottom:4px;font-size:0.76rem}\n.elog-entry .et{color:#8b949e;font-size:0.7rem;margin-bottom:2px}\n.chk{display:flex;align-items:center;gap:5px;color:#8b949e;font-size:0.78rem;cursor:pointer}\n</style>\n</head>\n<body>\n<aside class='sidebar'>\n  <h1>ABB GoFa-12</h1>\n  <div class='sr'><span class='sl'>State</span><span class='sv'><span class='led x' id='led'></span><span id='cs'>—</span></span></div>\n  <div class='sr'><span class='sl'>Mode</span><span class='sv' id='om'>—</span></div>\n  <div class='sr'><span class='sl'>RAPID</span><span class='sv' id='rp'>—</span></div>\n  <div class='sr'><span class='sl'>Speed</span><span class='sv'><span id='sp'>—</span>%</span></div>\n  <div class='sbar'><div class='sfill' id='spb' style='width:0'></div></div>\n  <div class='sr'><span class='sl'>X</span><span class='sv' id='px'>—</span></div>\n  <div class='sr'><span class='sl'>Y</span><span class='sv' id='py'>—</span></div>\n  <div class='sr'><span class='sl'>Z</span><span class='sv' id='pz'>—</span></div>\n  <div class='sg'>\n    <div class='sj'><div class='jn'>J1</div><div class='jv' id='j1'>—</div></div>\n    <div class='sj'><div class='jn'>J2</div><div class='jv' id='j2'>—</div></div>\n    <div class='sj'><div class='jn'>J3</div><div class='jv' id='j3'>—</div></div>\n    <div class='sj'><div class='jn'>J4</div><div class='jv' id='j4'>—</div></div>\n    <div class='sj'><div class='jn'>J5</div><div class='jv' id='j5'>—</div></div>\n    <div class='sj'><div class='jn'>J6</div><div class='jv' id='j6'>—</div></div>\n  </div>\n  <div class='upd' id='upd'>Connecting...</div>\n</aside>\n<div class='main'>\n  <div class='tabs'>\n    <button class='tb active' data-tab='motion' onclick='showTab(this)'>Motion</button>\n    <button class='tb' data-tab='points' onclick='showTab(this)'>Points</button>\n    <button class='tb' data-tab='control' onclick='showTab(this)'>Control</button>\n    <button class='tb' data-tab='io' onclick='showTab(this)'>I/O</button>\n    <button class='tb' data-tab='rapid' onclick='showTab(this)'>RAPID</button>\n    <button class='tb' data-tab='system' onclick='showTab(this)'>System</button>\n  </div>\n  <div id='tab-motion' class='panel active'>\n    <div class='card'>\n      <h2>Cartesian Jog — base frame translate / tool frame rotate</h2>\n      <div class='srow'>\n        <label>Linear step <input type='number' id='lin' min='1' max='50' value='10'> mm</label>\n        <label>Rotation step <input type='number' id='ang' min='1' max='30' value='5'> deg</label>\n      </div>\n      <div class='g6'>\n        <button class='btn blue' data-jog='X+' onclick='jogBtn(this)'>+X</button>\n        <button class='btn blue' data-jog='X-' onclick='jogBtn(this)'>-X</button>\n        <button class='btn blue' data-jog='Y+' onclick='jogBtn(this)'>+Y</button>\n        <button class='btn blue' data-jog='Y-' onclick='jogBtn(this)'>-Y</button>\n        <button class='btn blue' data-jog='Z+' onclick='jogBtn(this)'>+Z</button>\n        <button class='btn blue' data-jog='Z-' onclick='jogBtn(this)'>-Z</button>\n      </div>\n      <div class='g6'>\n        <button class='btn purple' data-jog='RX+' onclick='jogBtn(this)'>+RX</button>\n        <button class='btn purple' data-jog='RX-' onclick='jogBtn(this)'>-RX</button>\n        <button class='btn purple' data-jog='RY+' onclick='jogBtn(this)'>+RY</button>\n        <button class='btn purple' data-jog='RY-' onclick='jogBtn(this)'>-RY</button>\n        <button class='btn purple' data-jog='RZ+' onclick='jogBtn(this)'>+RZ</button>\n        <button class='btn purple' data-jog='RZ-' onclick='jogBtn(this)'>-RZ</button>\n      </div>\n      <div class='toast' id='t-jog'></div>\n    </div>\n    <div class='card'>\n      <h2>Joint Jog (degrees per axis)</h2>\n      <div class='srow'><label>Angle step <input type='number' id='jjog' min='1' max='30' value='5'> deg</label></div>\n      <div class='g6'>\n        <button class='btn purple' data-joint='J1+' onclick='jjogBtn(this)'>J1+</button>\n        <button class='btn purple' data-joint='J1-' onclick='jjogBtn(this)'>J1-</button>\n        <button class='btn purple' data-joint='J2+' onclick='jjogBtn(this)'>J2+</button>\n        <button class='btn purple' data-joint='J2-' onclick='jjogBtn(this)'>J2-</button>\n        <button class='btn purple' data-joint='J3+' onclick='jjogBtn(this)'>J3+</button>\n        <button class='btn purple' data-joint='J3-' onclick='jjogBtn(this)'>J3-</button>\n      </div>\n      <div class='g6'>\n        <button class='btn purple' data-joint='J4+' onclick='jjogBtn(this)'>J4+</button>\n        <button class='btn purple' data-joint='J4-' onclick='jjogBtn(this)'>J4-</button>\n        <button class='btn purple' data-joint='J5+' onclick='jjogBtn(this)'>J5+</button>\n        <button class='btn purple' data-joint='J5-' onclick='jjogBtn(this)'>J5-</button>\n        <button class='btn purple' data-joint='J6+' onclick='jjogBtn(this)'>J6+</button>\n        <button class='btn purple' data-joint='J6-' onclick='jjogBtn(this)'>J6-</button>\n      </div>\n    </div>\n    <div class='card'>\n      <h2>Absolute Joint Move (MOVEJ)</h2>\n      <div class='srow'>\n        <label>J1 <input type='number' id='mj1' value='0' step='0.1'></label>\n        <label>J2 <input type='number' id='mj2' value='0' step='0.1'></label>\n        <label>J3 <input type='number' id='mj3' value='85' step='0.1'></label>\n        <label>J4 <input type='number' id='mj4' value='0' step='0.1'></label>\n        <label>J5 <input type='number' id='mj5' value='0' step='0.1'></label>\n        <label>J6 <input type='number' id='mj6' value='0' step='0.1'></label>\n        <button class='btn orange' onclick='moveJ()'>Move</button>\n      </div>\n      <div class='toast' id='t-movej'></div>\n    </div>\n    <div class='card'>\n      <h2>Ping</h2>\n      <div class='ir'>\n        <button class='btn grey' onclick='doPing()'>Ping Robot</button>\n        <span id='ping-r' style='font-family:monospace;color:#8b949e'></span>\n      </div>\n    </div>\n  </div>\n  <div id='tab-points' class='panel'>\n    <div class='card'>\n      <h2>Storage Location</h2>\n      <div class='srow'><label>Points storage <select id='pt-storage' onchange='storageChanged()'><option value='local'>Local (points.json)</option><option value='remote'>On-Robot (controller disk)</option></select></label></div>\n    </div>\n    <div class='card'>\n      <h2>Save Current Pose</h2>\n      <div class='ir'>\n        <input type='text' id='ptname' placeholder='name (auto if blank)'>\n        <button class='btn green' onclick='savePoint()'>Save</button>\n      </div>\n      <div class='toast' id='t-save'></div>\n    </div>\n    <div class='card'>\n      <h2>Go To / Delete Saved Point</h2>\n      <div class='ir'>\n        <select id='ptsel'></select>\n        <select id='pt-movetype' style='width:76px'><option value='J'>MoveJ</option><option value='L'>MoveL</option></select>\n        <button class='btn orange' onclick='goPoint()'>Go</button>\n        <button class='btn red' onclick='delPoint()'>Delete</button>\n      </div>\n      <div class='toast' id='t-pt'></div>\n    </div>\n    <div class='card'>\n      <h2>Sequence Runner</h2>\n      <div class='ir'>\n        <select id='seqadd'></select>\n        <button class='btn grey' onclick='addStep()'>Add Step</button>\n      </div>\n      <div class='srow'>\n        <label>Dwell <input type='number' id='seq-dwell' value='800' min='0' max='30000' style='width:75px'> ms</label>\n        <label>Move type <select id='seq-movetype' style='width:76px'><option value='J'>MoveJ</option><option value='L'>MoveL</option></select></label>\n        <label>Start step <input type='number' id='seq-start' value='1' min='1' style='width:55px'></label>\n        <label>Loop count <input type='number' id='seq-count' value='0' min='0' style='width:55px' title='0 = infinite'></label>\n        <label class='chk'><input type='checkbox' id='seq-loop'> Loop</label>\n        <label class='chk'><input type='checkbox' id='seq-pp'> Ping-Pong</label>\n        <button class='btn green' onclick='runSeq()'>Run</button>\n        <button class='btn red' onclick='stopSeq()'>Stop</button>\n      </div>\n      <ol id='seqlist' class='seq-list'></ol>\n      <div class='toast' id='t-seq'></div>\n    </div>\n    <div class='card'>\n      <h2>Export / Import Points</h2>\n      <div class='ir'><button class='btn grey' onclick='exportPts()'>Export to JSON</button></div>\n      <textarea id='exp-json' rows='4' placeholder='Exported JSON appears here...'></textarea>\n      <div style='color:#8b949e;font-size:0.78rem;margin:6px 0'>Import (paste JSON array):</div>\n      <textarea id='imp-json' rows='4' placeholder='Paste points JSON array here...'></textarea>\n      <div class='ir' style='margin-top:5px'><button class='btn orange' onclick='importPts()'>Import</button></div>\n      <div class='toast' id='t-exp'></div>\n    </div>\n  </div>\n  <div id='tab-control' class='panel'>\n    <div class='g2'>\n      <div class='card'>\n        <h2>Motors</h2>\n        <div class='g2'>\n          <button class='btn green' data-ctrl='motoron' onclick='ctrlBtn(this)'>Motors ON</button>\n          <button class='btn red' data-ctrl='motoroff' onclick='ctrlBtn(this)'>Motors OFF</button>\n        </div>\n      </div>\n      <div class='card'>\n        <h2>RAPID Execution</h2>\n        <div class='g3'>\n          <button class='btn green' data-rapid='start' onclick='rapidBtn(this)'>Start</button>\n          <button class='btn red' data-rapid='stop' onclick='rapidBtn(this)'>Stop</button>\n          <button class='btn grey' data-rapid='resetpp' onclick='rapidBtn(this)'>Reset PP</button>\n        </div>\n        <div class='toast' id='t-rapid'></div>\n      </div>\n    </div>\n    <div class='g2'>\n      <div class='card'>\n        <h2>Home &amp; Stop</h2>\n        <div class='g3'>\n          <button class='btn green' data-move='home' onclick='moveBtn(this)'>Home</button>\n          <button class='btn grey' data-move='sethome' onclick='moveBtn(this)'>Set Home</button>\n          <button class='btn red' data-move='stop' onclick='moveBtn(this)'>Stop Motion</button>\n        </div>\n      </div>\n      <div class='card'>\n        <h2>Gripper</h2>\n        <div class='g2'>\n          <button class='btn green' data-grip='on' onclick='gripBtn(this)'>Gripper ON</button>\n          <button class='btn red' data-grip='off' onclick='gripBtn(this)'>Gripper OFF</button>\n        </div>\n        <div class='toast' id='t-grip'></div>\n      </div>\n    </div>\n    <div class='g2'>\n      <div class='card'>\n        <h2>Speed Override</h2>\n        <div class='srow'>\n          <label style='flex:1'>Speed: <span id='sp-val'>50</span>%\n            <input type='range' id='sp-range' min='1' max='100' value='50' oninput='updateSpVal(this.value)' style='margin-top:4px'>\n          </label>\n        </div>\n        <div class='ir'><button class='btn orange' onclick='setSpeed()'>Set Speed</button></div>\n        <div class='toast' id='t-speed'></div>\n      </div>\n      <div class='card'>\n        <h2>Path Zone</h2>\n        <div class='ir'>\n          <select id='zone-sel'><option>FINE</option><option>Z1</option><option>Z5</option><option selected>Z10</option><option>Z20</option><option>Z50</option><option>Z100</option></select>\n          <button class='btn orange' onclick='setZone()'>Set Zone</button>\n        </div>\n        <div class='toast' id='t-zone'></div>\n      </div>\n    </div>\n    <div class='card'>\n      <h2>Lead-Through (Gravity Compensation)</h2>\n      <div class='g2'>\n        <button class='btn green' data-lt='enable' onclick='ltBtn(this)'>Enable Lead-Through</button>\n        <button class='btn red' data-lt='disable' onclick='ltBtn(this)'>Disable Lead-Through</button>\n      </div>\n      <div class='toast' id='t-lt'></div>\n    </div>\n    <div class='card'>\n      <h2>ASI Status LED</h2>\n      <div class='srow'>\n        <button class='btn' style='background:#000;color:#fff' data-led='off' onclick='ledPreset(this)'>Off</button>\n        <button class='btn' style='background:#f00;color:#fff' data-led='red' onclick='ledPreset(this)'>Red</button>\n        <button class='btn' style='background:#0c0;color:#fff' data-led='green' onclick='ledPreset(this)'>Green</button>\n        <button class='btn' style='background:#06f;color:#fff' data-led='blue' onclick='ledPreset(this)'>Blue</button>\n        <button class='btn' style='background:#ee0;color:#000' data-led='yellow' onclick='ledPreset(this)'>Yellow</button>\n        <button class='btn' style='background:#0cc;color:#000' data-led='cyan' onclick='ledPreset(this)'>Cyan</button>\n        <button class='btn' style='background:#e0e;color:#fff' data-led='magenta' onclick='ledPreset(this)'>Magenta</button>\n        <button class='btn' style='background:#fff;color:#000' data-led='white' onclick='ledPreset(this)'>White</button>\n        <button class='btn' style='background:#f80;color:#000' data-led='orange' onclick='ledPreset(this)'>Orange</button>\n      </div>\n      <div class='srow'>\n        <label>R <input type='number' id='led-r' min='0' max='255' value='0'></label>\n        <label>G <input type='number' id='led-g' min='0' max='255' value='0'></label>\n        <label>B <input type='number' id='led-b' min='0' max='255' value='0'></label>\n        <label>Period <input type='number' id='led-period' min='0' value='0'></label>\n        <button class='btn orange' onclick='setLed()'>Set LED</button>\n      </div>\n      <div class='srow'>\n        <label>Blink count <input type='number' id='led-blinkcount' min='0' value='0'></label>\n        <label>Blink ms <input type='number' id='led-blinkms' min='50' value='250'></label>\n        <button class='btn grey' onclick='resetLed()'>Reset LED (solid green)</button>\n      </div>\n      <div class='toast' id='t-led'></div>\n    </div>\n    <div class='toast' id='t-ctrl'></div>\n  </div>\n  <div id='tab-io' class='panel'>\n    <div class='card'>\n      <h2>List Signals</h2>\n      <div class='ir'>\n        <select id='io-type'><option value=''>All</option><option>DI</option><option>DO</option><option>AI</option><option>AO</option><option>GI</option><option>GO</option></select>\n        <button class='btn grey' onclick='listIO()'>Refresh</button>\n      </div>\n      <div id='io-tbl'></div>\n      <div class='toast' id='t-iol'></div>\n    </div>\n    <div class='g2'>\n      <div class='card'>\n        <h2>Digital Input — Read</h2>\n        <div class='ir'>\n          <input type='text' id='di-sig' placeholder='ABB_Scalable_IO_0_DI1'>\n          <button class='btn blue' onclick='readDI()'>Read</button>\n        </div>\n        <div id='di-r' style='font-size:1.05rem;font-weight:700;font-family:monospace;color:#ff6b00'></div>\n      </div>\n      <div class='card'>\n        <h2>Analog Input — Read</h2>\n        <div class='ir'>\n          <input type='text' id='ai-sig' placeholder='AI1'>\n          <button class='btn blue' onclick='readAI()'>Read</button>\n        </div>\n        <div id='ai-r' style='font-size:1.05rem;font-weight:700;font-family:monospace;color:#ff6b00'></div>\n      </div>\n    </div>\n    <div class='g2'>\n      <div class='card'>\n        <h2>Digital Output — Write</h2>\n        <div class='ir'>\n          <input type='text' id='do-sig' placeholder='ABB_Scalable_IO_0_DO1'>\n          <select id='do-val' style='width:80px'><option value='1'>1 ON</option><option value='0'>0 OFF</option></select>\n          <button class='btn orange' onclick='writeDO()'>Write</button>\n        </div>\n        <div class='toast' id='t-do'></div>\n      </div>\n      <div class='card'>\n        <h2>Analog Output — Write</h2>\n        <div class='ir'>\n          <input type='text' id='ao-sig' placeholder='AO1'>\n          <input type='number' id='ao-val' value='0' step='0.1'>\n          <button class='btn orange' onclick='writeAO()'>Write</button>\n        </div>\n        <div class='toast' id='t-ao'></div>\n      </div>\n    </div>\n  </div>\n  <div id='tab-rapid' class='panel'>\n    <div class='card'>\n      <h2>Read RAPID Variable</h2>\n      <div class='ir'>\n        <input type='text' id='rv-task' placeholder='T_ROB1'>\n        <input type='text' id='rv-mod' placeholder='MainModule'>\n        <input type='text' id='rv-var' placeholder='variable name'>\n        <button class='btn blue' onclick='readVar()'>Read</button>\n      </div>\n      <div id='rv-r' style='background:#0d1117;border:1px solid #30363d;border-radius:5px;padding:9px;font-family:monospace;min-height:34px;word-break:break-all'></div>\n    </div>\n    <div class='card'>\n      <h2>Write RAPID Variable (requires PC Interface option + edit mastership)</h2>\n      <div class='ir'>\n        <input type='text' id='rw-task' placeholder='T_ROB1'>\n        <input type='text' id='rw-mod' placeholder='MainModule'>\n        <input type='text' id='rw-var' placeholder='variable name'>\n        <input type='text' id='rw-val' placeholder='value'>\n        <button class='btn orange' onclick='writeVar()'>Write</button>\n      </div>\n      <div class='toast' id='t-rw'></div>\n    </div>\n    <div class='card'>\n      <h2>RAPID Tasks &amp; Modules</h2>\n      <div class='ir'>\n        <input type='text' id='rt-task' placeholder='T_ROB1' value='T_ROB1'>\n        <button class='btn grey' onclick='loadTasks()'>List Tasks &amp; Modules</button>\n      </div>\n      <div id='rt-r'></div>\n    </div>\n    <div class='card'>\n      <h2>Load / Activate Module (RAPID must be stopped)</h2>\n      <div class='ir'>\n        <input type='text' id='lm-task' placeholder='T_ROB1' value='T_ROB1'>\n        <input type='text' id='lm-path' placeholder='$HOME/Programs/MainModule.mod' value='$HOME/Programs/MainModule.mod'>\n        <button class='btn orange' onclick='loadModule()'>Load Module</button>\n      </div>\n      <div class='ir'>\n        <input type='text' id='am-task' placeholder='T_ROB1' value='T_ROB1'>\n        <input type='text' id='am-mod' placeholder='MainModule' value='MainModule'>\n        <button class='btn orange' onclick='activateModule()'>Activate Module</button>\n      </div>\n      <div class='toast' id='t-lm'></div>\n    </div>\n  </div>\n  <div id='tab-system' class='panel'>\n    <div class='card'>\n      <h2>System Info</h2>\n      <div class='ir'><button class='btn grey' onclick='getSysInfo()'>Read</button></div>\n      <div id='si-r'></div>\n    </div>\n    <div class='card'>\n      <h2>Event Log</h2>\n      <div class='ir'><button class='btn grey' onclick='getElog()'>Fetch Log</button></div>\n      <div id='el-r'></div>\n    </div>\n    <div class='card'>\n      <h2>File Read (controller filesystem)</h2>\n      <div class='ir'>\n        <input type='text' id='fr-path' placeholder='$HOME/Programs/MainModule.mod'>\n        <button class='btn blue' onclick='readFile()'>Read</button>\n      </div>\n      <textarea id='fr-r' rows='8' placeholder='File content...' readonly></textarea>\n    </div>\n    <div class='card'>\n      <h2>Upload .mod File (local path on Node-RED host)</h2>\n      <div class='ir'>\n        <input type='text' id='fu-local' placeholder='/path/to/rapid/MainModule.mod'>\n        <input type='text' id='fu-remote' value='$HOME/Programs/MainModule.mod'>\n        <button class='btn orange' onclick='uploadFile()'>Upload</button>\n      </div>\n      <div class='toast' id='t-upload'></div>\n    </div>\n    <div class='card'>\n      <h2>Subscribe Oneshot Checks</h2>\n      <div class='ir'><button class='btn grey' onclick='checkCtrlState()'>Check Ctrl-State (WS oneshot)</button><span id='scs-r' style='font-family:monospace;color:#8b949e'></span></div>\n      <div class='ir'>\n        <input type='text' id='scio-sig' placeholder='Asi1Button1'>\n        <button class='btn grey' onclick='checkIOOneshot()'>Check I/O Signal (oneshot)</button>\n        <span id='scio-r' style='font-family:monospace;color:#8b949e'></span>\n      </div>\n    </div>\n  </div>\n</div>\n<script>\nvar _pts=[];\nvar _seq=[];\nfunction showTab(btn){\n  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});\n  document.querySelectorAll('.tb').forEach(function(b){b.classList.remove('active');});\n  document.getElementById('tab-'+btn.dataset.tab).classList.add('active');\n  btn.classList.add('active');\n}\nfunction updateSpVal(v){document.getElementById('sp-val').textContent=v;}\nfunction storageChanged(){update();}\nfunction toast(id,msg,ok){\n  var el=document.getElementById(id);if(!el)return;\n  el.style.color=ok===undefined?'#8b949e':ok?'#3fb950':'#f85149';\n  el.textContent=msg;\n}\nfunction fmt(v){return v!=null&&v!==''?(+v).toFixed(2):'-';}\nfunction post(url,body){\n  return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json();});\n}\nfunction update(){\n  var st=document.getElementById('pt-storage')?document.getElementById('pt-storage').value:'local';\n  fetch('/robot/data?storage='+st).then(function(r){return r.json();}).then(function(d){\n    document.getElementById('cs').textContent=d.ctrlstate||'-';\n    document.getElementById('om').textContent=d.opmode||'-';\n    document.getElementById('rp').textContent=d.rapid||'-';\n    document.getElementById('sp').textContent=d.speed||'0';\n    document.getElementById('spb').style.width=(d.speed||0)+'%';\n    document.getElementById('px').textContent=fmt(d.x);\n    document.getElementById('py').textContent=fmt(d.y);\n    document.getElementById('pz').textContent=fmt(d.z);\n    document.getElementById('j1').textContent=fmt(d.j1);\n    document.getElementById('j2').textContent=fmt(d.j2);\n    document.getElementById('j3').textContent=fmt(d.j3);\n    document.getElementById('j4').textContent=fmt(d.j4);\n    document.getElementById('j5').textContent=fmt(d.j5);\n    document.getElementById('j6').textContent=fmt(d.j6);\n    document.getElementById('upd').textContent=d.updated||'';\n    var lm={motoron:'g',guardstop:'y',emergencystop:'r',sysfail:'r'};\n    document.getElementById('led').className='led '+(lm[d.ctrlstate]||'x');\n    if(d.points){_pts=d.points;renderPtSels();}\n  }).catch(function(){document.getElementById('upd').textContent='Connection error';});\n}\nfunction renderPtSels(){\n  ['ptsel','seqadd'].forEach(function(id){\n    var sel=document.getElementById(id);if(!sel)return;\n    var cur=sel.value;\n    sel.innerHTML='';\n    if(!_pts.length){var o=document.createElement('option');o.textContent='-- no points --';sel.appendChild(o);return;}\n    _pts.forEach(function(p){var o=document.createElement('option');o.value=p.id;o.textContent=p.name;sel.appendChild(o);});\n    if(cur)sel.value=cur;\n  });\n  renderSeq();\n}\nfunction sendMove(body,label,tid){\n  var t=tid||'t-jog';\n  toast(t,'Sending '+label+'...');\n  var btns=document.querySelectorAll('.btn');\n  btns.forEach(function(b){b.disabled=true;});\n  return post('/robot/move',body).then(function(res){\n    toast(t,res.ok?'OK: '+label:'Error: '+(res.error||'failed'),res.ok);\n    return res;\n  }).catch(function(){toast(t,'Connection error',false);})\n  .finally(function(){btns.forEach(function(b){b.disabled=false;});});\n}\nfunction jogBtn(btn){\n  var tok=btn.dataset.jog;\n  var rot=tok.charAt(0)==='R';\n  var step=rot?parseInt(document.getElementById('ang').value)||5:parseInt(document.getElementById('lin').value)||10;\n  sendMove({jog:tok,step:step},'Jog '+tok+' '+step+(rot?'deg':'mm'),'t-jog');\n}\nfunction jjogBtn(btn){\n  var tok=btn.dataset.joint;\n  var step=parseInt(document.getElementById('jjog').value)||5;\n  sendMove({joint:tok,step:step},'Joint '+tok+' '+step+'deg','t-jog');\n}\nfunction moveJ(){\n  var j=[parseFloat(document.getElementById('mj1').value)||0,parseFloat(document.getElementById('mj2').value)||0,parseFloat(document.getElementById('mj3').value)||85,parseFloat(document.getElementById('mj4').value)||0,parseFloat(document.getElementById('mj5').value)||0,parseFloat(document.getElementById('mj6').value)||0];\n  sendMove({movej:j},'MOVEJ','t-movej');\n}\nfunction moveBtn(btn){\n  var m=btn.dataset.move;\n  if(m==='sethome'){if(!confirm('Set HOME to current pose?'))return;sendMove({sethome:true},'Set Home','t-ctrl');}\n  else if(m==='stop'){sendMove({stop:true},'Stop Motion','t-ctrl');}\n  else{sendMove({routine:m},m,'t-ctrl');}\n}\nfunction doPing(){\n  document.getElementById('ping-r').textContent='Pinging...';\n  post('/robot/ping',{}).then(function(res){document.getElementById('ping-r').textContent=res.ok?'RTT: '+res.rtt+'ms':'Error: '+(res.error||'failed');}).catch(function(){document.getElementById('ping-r').textContent='Connection error';});\n}\nfunction goPoint(){\n  var sel=document.getElementById('ptsel');if(!sel||!sel.value)return;\n  var mt=document.getElementById('pt-movetype').value;\n  var st=document.getElementById('pt-storage').value;\n  sendMove({goto:sel.value,moveType:mt,storage:st},'Go '+sel.options[sel.selectedIndex].text+' ('+mt+')','t-pt');\n}\nfunction savePoint(){\n  var name=document.getElementById('ptname').value.trim();\n  var st=document.getElementById('pt-storage').value;\n  toast('t-save','Saving...');\n  post('/robot/savepoint',{name:name,storage:st}).then(function(res){\n    toast('t-save',res.ok?'Saved: '+(res.name||'point'):'Error: '+(res.error||'failed'),res.ok);\n    if(res.ok){document.getElementById('ptname').value='';if(res.points){_pts=res.points;renderPtSels();}}\n  }).catch(function(){toast('t-save','Connection error',false);});\n}\nfunction delPoint(){\n  var sel=document.getElementById('ptsel');if(!sel||!sel.value)return;\n  var st=document.getElementById('pt-storage').value;\n  toast('t-pt','Deleting...');\n  post('/robot/deletepoint',{id:sel.value,storage:st}).then(function(res){\n    toast('t-pt',res.ok?'Deleted':'Error: '+(res.error||'failed'),res.ok);\n    if(res.ok&&res.points){_pts=res.points;renderPtSels();}\n  }).catch(function(){toast('t-pt','Connection error',false);});\n}\nfunction renderSeq(){\n  var list=document.getElementById('seqlist');if(!list)return;\n  list.innerHTML='';\n  if(!_seq.length){\n    var li=document.createElement('li');\n    li.style.color='#484f58';li.style.fontStyle='italic';\n    li.textContent='No steps yet — add from dropdown above';\n    list.appendChild(li);return;\n  }\n  _seq.forEach(function(s,i){\n    var li=document.createElement('li');\n    var idx=document.createElement('span');idx.className='si';idx.textContent=(i+1)+'.';\n    var nm=document.createElement('span');nm.className='sn';nm.textContent=s.name;\n    var mt=document.createElement('select');mt.className='ab';mt.title='per-step move type override';\n    ['','J','L'].forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v?('Move'+v):'default';mt.appendChild(o);});\n    mt.value=s.moveType||'';(function(ii){mt.onchange=function(){_seq[ii].moveType=mt.value;};})(i);\n    var dw=document.createElement('input');dw.type='number';dw.min='0';dw.placeholder='dwell';dw.style.width='55px';dw.value=(s.dwell!=null?s.dwell:'');\n    (function(ii){dw.oninput=function(){_seq[ii].dwell=dw.value===''?null:parseInt(dw.value);};})(i);\n    var up=document.createElement('button');up.className='ab';up.textContent='↑';up.disabled=(i===0);(function(ii){up.onclick=function(){seqUp(ii);};})(i);\n    var dn=document.createElement('button');dn.className='ab';dn.textContent='↓';dn.disabled=(i===_seq.length-1);(function(ii){dn.onclick=function(){seqDn(ii);};})(i);\n    var rm=document.createElement('button');rm.className='xb';rm.textContent='×';(function(ii){rm.onclick=function(){seqRm(ii);};})(i);\n    li.appendChild(idx);li.appendChild(nm);li.appendChild(mt);li.appendChild(dw);li.appendChild(up);li.appendChild(dn);li.appendChild(rm);\n    list.appendChild(li);\n  });\n}\nfunction addStep(){var sel=document.getElementById('seqadd');if(!sel||!sel.value)return;_seq.push({id:sel.value,name:sel.options[sel.selectedIndex].text,moveType:'',dwell:null});renderSeq();}\nfunction seqUp(i){if(i<=0)return;var t=_seq[i-1];_seq[i-1]=_seq[i];_seq[i]=t;renderSeq();}\nfunction seqDn(i){if(i>=_seq.length-1)return;var t=_seq[i+1];_seq[i+1]=_seq[i];_seq[i]=t;renderSeq();}\nfunction seqRm(i){_seq.splice(i,1);renderSeq();}\nfunction runSeq(){\n  if(!_seq.length)return;\n  toast('t-seq','Running...');\n  post('/robot/sequence',{\n    steps:_seq.map(function(s){return{name:s.name,moveType:s.moveType||undefined,dwell:(s.dwell!=null&&s.dwell!=='')?s.dwell:undefined};}),\n    dwell:parseInt(document.getElementById('seq-dwell').value)||800,\n    loop:document.getElementById('seq-loop').checked,\n    pingpong:document.getElementById('seq-pp').checked,\n    moveType:document.getElementById('seq-movetype').value,\n    startStep:parseInt(document.getElementById('seq-start').value)||1,\n    count:parseInt(document.getElementById('seq-count').value)||0,\n    storage:document.getElementById('pt-storage').value\n  })\n    .then(function(res){toast('t-seq',res.ok?'Sequence started: '+res.count+' pts':'Error: '+(res.error||'failed'),res.ok);})\n    .catch(function(){toast('t-seq','Connection error',false);});\n}\nfunction stopSeq(){post('/robot/sequence/stop',{}).then(function(){toast('t-seq','Stop requested');}).catch(function(){toast('t-seq','Error',false);});}\nfunction exportPts(){\n  post('/robot/points/export',{}).then(function(res){\n    if(res.ok){document.getElementById('exp-json').value=JSON.stringify(res.points,null,2);toast('t-exp',res.count+' points exported',true);}\n    else{toast('t-exp','Error: '+(res.error||'failed'),false);}\n  }).catch(function(){toast('t-exp','Connection error',false);});\n}\nfunction importPts(){\n  var json=document.getElementById('imp-json').value.trim();if(!json)return;\n  var data;try{data=JSON.parse(json);}catch(e){toast('t-exp','Invalid JSON: '+e.message,false);return;}\n  post('/robot/points/import',{points:data}).then(function(res){\n    toast('t-exp',res.ok?'Imported '+res.count+' points':'Error: '+(res.error||'failed'),res.ok);\n    if(res.ok&&res.points){_pts=res.points;renderPtSels();}\n  }).catch(function(){toast('t-exp','Connection error',false);});\n}\nfunction ctrlBtn(btn){\n  var s=btn.dataset.ctrl;\n  toast('t-ctrl',s==='motoron'?'Motors on...':'Motors off...');\n  post('/robot/ctrlstate',{state:s}).then(function(res){toast('t-ctrl',res.ok?(s==='motoron'?'Motors ON':'Motors OFF'):'Error: '+(res.error||res.status||'failed'),res.ok);}).catch(function(){toast('t-ctrl','Connection error',false);});\n}\nfunction rapidBtn(btn){\n  var a=btn.dataset.rapid;\n  toast('t-rapid',a+'...');\n  post('/robot/rapid',{action:a}).then(function(res){toast('t-rapid',res.ok?'RAPID '+a+' OK':'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-rapid','Connection error',false);});\n}\nfunction gripBtn(btn){\n  var a=btn.dataset.grip;\n  toast('t-grip','Gripper '+a+'...');\n  post('/robot/gripper',{action:a}).then(function(res){toast('t-grip',res.ok?'Gripper '+a+' OK':'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-grip','Connection error',false);});\n}\nfunction setSpeed(){\n  var s=parseInt(document.getElementById('sp-range').value)||50;\n  toast('t-speed','Setting '+s+'%...');\n  post('/robot/speed',{speed:s}).then(function(res){toast('t-speed',res.ok?'Speed: '+res.speed+'%':'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-speed','Connection error',false);});\n}\nfunction setZone(){\n  var z=document.getElementById('zone-sel').value;\n  toast('t-zone','Setting '+z+'...');\n  post('/robot/zone',{zone:z}).then(function(res){toast('t-zone',res.ok?'Zone: '+res.zone:'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-zone','Connection error',false);});\n}\nfunction ltBtn(btn){\n  var a=btn.dataset.lt;\n  toast('t-lt',a+'...');\n  post('/robot/leadthrough',{action:a}).then(function(res){toast('t-lt',res.ok?'Leadthrough '+a+' OK':'Error: '+(res.error||res.hint||'failed'),res.ok);}).catch(function(){toast('t-lt','Connection error',false);});\n}\nfunction ledPreset(btn){\n  var c=btn.dataset.led;\n  toast('t-led','Setting '+c+'...');\n  post('/robot/led',{color:c}).then(function(res){\n    toast('t-led',res.ok?'LED: '+c:'Error: '+(res.error||'failed'),res.ok);\n    if(res.ok){document.getElementById('led-r').value=res.r;document.getElementById('led-g').value=res.g;document.getElementById('led-b').value=res.b;}\n  }).catch(function(){toast('t-led','Connection error',false);});\n}\nfunction setLed(){\n  var body={\n    r:parseInt(document.getElementById('led-r').value)||0,\n    g:parseInt(document.getElementById('led-g').value)||0,\n    b:parseInt(document.getElementById('led-b').value)||0,\n    period:parseInt(document.getElementById('led-period').value)||0,\n    blinkCount:parseInt(document.getElementById('led-blinkcount').value)||0,\n    blinkMs:parseInt(document.getElementById('led-blinkms').value)||250\n  };\n  toast('t-led','Setting LED...');\n  post('/robot/led',body).then(function(res){toast('t-led',res.ok?'LED set':'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-led','Connection error',false);});\n}\nfunction resetLed(){\n  toast('t-led','Resetting...');\n  post('/robot/led',{action:'reset'}).then(function(res){toast('t-led',res.ok?'LED reset (green)':'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-led','Connection error',false);});\n}\nfunction listIO(){\n  var t=document.getElementById('io-type').value;\n  toast('t-iol','Loading...');\n  post('/robot/io/list',{type:t}).then(function(res){\n    if(!res.ok){toast('t-iol','Error: '+(res.error||'failed'),false);return;}\n    toast('t-iol',res.count+' signals',true);\n    var tbl=document.createElement('table');tbl.className='dtbl';\n    var thead=tbl.createTHead();var hrow=thead.insertRow();\n    ['Signal','Type','Value'].forEach(function(h){var th=document.createElement('th');th.textContent=h;hrow.appendChild(th);});\n    var tbody=tbl.createTBody();\n    (res.signals||[]).forEach(function(s){var row=tbody.insertRow();[s.name,s.type,String(s.lvalue)].forEach(function(v){row.insertCell().textContent=v;});});\n    var div=document.getElementById('io-tbl');div.innerHTML='';div.appendChild(tbl);\n  }).catch(function(){toast('t-iol','Connection error',false);});\n}\nfunction readDI(){\n  var sig=document.getElementById('di-sig').value.trim();if(!sig)return;\n  document.getElementById('di-r').textContent='Reading...';\n  post('/robot/io/di',{signal:sig}).then(function(res){document.getElementById('di-r').textContent=res.ok?sig+'='+res.value:'Error: '+(res.error||'failed');}).catch(function(){document.getElementById('di-r').textContent='Error';});\n}\nfunction readAI(){\n  var sig=document.getElementById('ai-sig').value.trim();if(!sig)return;\n  document.getElementById('ai-r').textContent='Reading...';\n  post('/robot/io/ai',{signal:sig}).then(function(res){document.getElementById('ai-r').textContent=res.ok?sig+'='+res.value:'Error: '+(res.error||'failed');}).catch(function(){document.getElementById('ai-r').textContent='Error';});\n}\nfunction writeDO(){\n  var sig=document.getElementById('do-sig').value.trim();\n  var val=parseInt(document.getElementById('do-val').value);\n  if(!sig)return;\n  toast('t-do','Writing '+sig+'='+val+'...');\n  post('/robot/io/do',{signal:sig,value:val}).then(function(res){toast('t-do',res.ok?sig+'='+res.value:'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-do','Connection error',false);});\n}\nfunction writeAO(){\n  var sig=document.getElementById('ao-sig').value.trim();\n  var val=parseFloat(document.getElementById('ao-val').value);\n  if(!sig)return;\n  toast('t-ao','Writing '+sig+'='+val+'...');\n  post('/robot/io/ao',{signal:sig,value:val}).then(function(res){toast('t-ao',res.ok?sig+'='+res.value:'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-ao','Connection error',false);});\n}\nfunction readVar(){\n  var task=document.getElementById('rv-task').value.trim()||'T_ROB1';\n  var mod=document.getElementById('rv-mod').value.trim()||'MainModule';\n  var v=document.getElementById('rv-var').value.trim();\n  if(!v)return;\n  document.getElementById('rv-r').textContent='Reading...';\n  post('/robot/rapidvar/read',{task:task,module:mod,variable:v}).then(function(res){document.getElementById('rv-r').textContent=res.ok?v+' = '+res.value:'Error: '+(res.error||'failed');}).catch(function(){document.getElementById('rv-r').textContent='Error';});\n}\nfunction writeVar(){\n  var task=document.getElementById('rw-task').value.trim()||'T_ROB1';\n  var mod=document.getElementById('rw-mod').value.trim()||'MainModule';\n  var v=document.getElementById('rw-var').value.trim();\n  var val=document.getElementById('rw-val').value.trim();\n  if(!v)return;\n  toast('t-rw','Writing '+v+'='+val+'...');\n  post('/robot/rapidvar/write',{task:task,module:mod,variable:v,value:val}).then(function(res){toast('t-rw',res.ok?v+' written OK':'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-rw','Connection error',false);});\n}\nfunction getSysInfo(){\n  document.getElementById('si-r').textContent='Reading...';\n  post('/robot/sysinfo',{}).then(function(res){\n    if(!res.ok){document.getElementById('si-r').textContent='Error: '+(res.error||'failed');return;}\n    var tbl=document.createElement('table');tbl.className='dtbl';\n    var tbody=tbl.createTBody();\n    ['rwVersion','rwBuildDate','ctrlName','ctrlId','ctrlType','ctrlMac'].forEach(function(k){if(res[k]){var row=tbody.insertRow();row.insertCell().textContent=k;row.insertCell().textContent=res[k];}});\n    var div=document.getElementById('si-r');div.innerHTML='';div.appendChild(tbl);\n  }).catch(function(){document.getElementById('si-r').textContent='Error';});\n}\nfunction getElog(){\n  document.getElementById('el-r').textContent='Loading...';\n  post('/robot/elog',{}).then(function(res){\n    if(!res.ok){document.getElementById('el-r').textContent='Error: '+(res.error||'failed');return;}\n    var entries=res.entries||[];\n    if(!entries.length){document.getElementById('el-r').textContent='No entries';return;}\n    var div=document.getElementById('el-r');div.innerHTML='';\n    entries.slice(0,50).forEach(function(e){\n      var entry=document.createElement('div');entry.className='elog-entry';\n      var time=document.createElement('div');time.className='et';time.textContent=(e.tstamp||'')+' ['+(e.msgtype||'')+'] '+(e.code||'');\n      var msg2=document.createElement('div');msg2.textContent=e.title||JSON.stringify(e);\n      entry.appendChild(time);entry.appendChild(msg2);div.appendChild(entry);\n    });\n  }).catch(function(){document.getElementById('el-r').textContent='Error';});\n}\nfunction readFile(){\n  var path=document.getElementById('fr-path').value.trim();if(!path)return;\n  document.getElementById('fr-r').value='Reading...';\n  post('/robot/file/read',{path:path}).then(function(res){document.getElementById('fr-r').value=res.ok?res.content:'Error: '+(res.error||'failed');}).catch(function(){document.getElementById('fr-r').value='Error';});\n}\nfunction uploadFile(){\n  var local=document.getElementById('fu-local').value.trim();\n  var remote=document.getElementById('fu-remote').value.trim();\n  if(!local)return;\n  toast('t-upload','Uploading...');\n  post('/robot/file/upload',{localPath:local,remotePath:remote}).then(function(res){toast('t-upload',res.ok?'Uploaded '+res.bytes+' bytes to '+res.remotePath:'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-upload','Connection error',false);});\n}\nfunction loadTasks(){\n  var task=document.getElementById('rt-task').value.trim()||'T_ROB1';\n  document.getElementById('rt-r').textContent='Loading...';\n  post('/robot/rapid/tasks',{task:task}).then(function(res){\n    if(!res.ok){document.getElementById('rt-r').textContent='Error: '+(res.error||'failed');return;}\n    var div=document.getElementById('rt-r');div.innerHTML='';\n    var t1=document.createElement('table');t1.className='dtbl';\n    var th1=t1.createTHead();var hr1=th1.insertRow();\n    ['Task','Type','State','Exec','Active','Motion'].forEach(function(h){var th=document.createElement('th');th.textContent=h;hr1.appendChild(th);});\n    var tb1=t1.createTBody();\n    (res.tasks||[]).forEach(function(x){var row=tb1.insertRow();[x.name,x.type,x.taskstate,x.excstate,x.active,x.motiontask].forEach(function(v){row.insertCell().textContent=v;});});\n    div.appendChild(t1);\n    var h=document.createElement('div');h.style.cssText='color:#8b949e;font-size:0.75rem;margin:6px 0 3px';h.textContent='Modules in '+res.task+':';div.appendChild(h);\n    var t2=document.createElement('table');t2.className='dtbl';\n    var th2=t2.createTHead();var hr2=th2.insertRow();\n    ['Module','Type'].forEach(function(hh){var th=document.createElement('th');th.textContent=hh;hr2.appendChild(th);});\n    var tb2=t2.createTBody();\n    (res.modules||[]).forEach(function(x){var row=tb2.insertRow();[x.name,x.type].forEach(function(v){row.insertCell().textContent=v;});});\n    div.appendChild(t2);\n  }).catch(function(){document.getElementById('rt-r').textContent='Connection error';});\n}\nfunction loadModule(){\n  var task=document.getElementById('lm-task').value.trim()||'T_ROB1';\n  var path=document.getElementById('lm-path').value.trim();\n  if(!path)return;\n  toast('t-lm','Loading module...');\n  post('/robot/rapid',{action:'loadmod',task:task,modulePath:path,replace:true}).then(function(res){toast('t-lm',res.ok?'Module loaded':'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-lm','Connection error',false);});\n}\nfunction activateModule(){\n  var task=document.getElementById('am-task').value.trim()||'T_ROB1';\n  var mod=document.getElementById('am-mod').value.trim();\n  if(!mod)return;\n  toast('t-lm','Activating module...');\n  post('/robot/rapid',{action:'activate',task:task,module:mod}).then(function(res){toast('t-lm',res.ok?'Module activated':'Error: '+(res.error||'failed'),res.ok);}).catch(function(){toast('t-lm','Connection error',false);});\n}\nfunction checkCtrlState(){\n  document.getElementById('scs-r').textContent='Checking...';\n  post('/robot/subscribe/state',{}).then(function(res){document.getElementById('scs-r').textContent=res.ok?'State: '+res.state:'Error: '+(res.error||'failed');}).catch(function(){document.getElementById('scs-r').textContent='Connection error';});\n}\nfunction checkIOOneshot(){\n  var sig=document.getElementById('scio-sig').value.trim();if(!sig)return;\n  document.getElementById('scio-r').textContent='Checking...';\n  post('/robot/subscribe/io',{signal:sig}).then(function(res){document.getElementById('scio-r').textContent=res.ok?sig+'='+res.value:'Error: '+(res.error||'failed');}).catch(function(){document.getElementById('scio-r').textContent='Connection error';});\n}\nupdate();\nsetInterval(update,200);\n</script>\n</body>\n</html>`;\nreturn msg;",
+        "outputs": 1,
+        "x": 320,
+        "y": 240,
+        "wires": [
+            [
+                "ecfadac15602ad77"
+            ]
+        ]
+    },
+    {
+        "id": "ecfadac15602ad77",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 560,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "dec310cd6dbe12f0",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "GET /robot/data",
+        "url": "/robot/data",
+        "method": "get",
+        "x": 100,
+        "y": 340,
+        "wires": [
+            [
+                "ba20073d16c87541"
+            ]
+        ]
+    },
+    {
+        "id": "ba20073d16c87541",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Data prep",
+        "func": "msg.payload={storage:(msg.req&&msg.req.query&&msg.req.query.storage)||'local'};return msg;",
+        "outputs": 1,
+        "x": 230,
+        "y": 340,
+        "wires": [
+            [
+                "e137ee3039519eeb"
+            ]
+        ]
+    },
+    {
+        "id": "e137ee3039519eeb",
+        "type": "gofa-point-list",
+        "z": "4c1e771ad9964524",
+        "name": "Point List",
+        "robot": "cfg_robot",
+        "x": 360,
+        "y": 340,
+        "wires": [
+            [
+                "44dc2c1b00600af0"
+            ]
+        ]
+    },
+    {
+        "id": "44dc2c1b00600af0",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Serve data",
+        "func": "var d=flow.get('robot_data')||{};msg.payload=Object.assign({},d,{points:msg.payload});msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 560,
+        "y": 340,
+        "wires": [
+            [
+                "d3c7ffa0c48c5658"
+            ]
+        ]
+    },
+    {
+        "id": "d3c7ffa0c48c5658",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 780,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "f2b4dbb3994f0a86",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/move",
+        "url": "/robot/move",
+        "method": "post",
+        "x": 100,
+        "y": 500,
+        "wires": [
+            [
+                "335d15a18808715f"
+            ]
+        ]
+    },
+    {
+        "id": "335d15a18808715f",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Route move",
+        "func": "var p=msg.payload||{};\nif(p.sethome){msg.payload={command:'SETHOME'};return [msg,null,null,null,null,null,null];}\nif(p.routine){msg.payload={command:p.routine.toUpperCase()};return [msg,null,null,null,null,null,null];}\nif(p.jog){msg.payload={axis:p.jog.slice(0,-1),dir:p.jog.slice(-1),step:p.step};return [null,msg,null,null,null,null,null];}\nif(p.joint){msg.payload={joint:p.joint.slice(0,-1),dir:p.joint.slice(-1),step:p.step};return [null,null,msg,null,null,null,null];}\nif(p.goto){msg.payload={name:p.goto,id:p.goto,moveType:p.moveType,storage:p.storage};return [null,null,null,msg,null,null,null];}\nif(p.movej){msg.payload=p.movej;return [null,null,null,null,msg,null,null];}\nif(p.stop){msg.payload={};return [null,null,null,null,null,msg,null];}\nmsg.statusCode=400;msg.payload={ok:false,error:'unknown command'};\nreturn [null,null,null,null,null,null,msg];",
+        "outputs": 7,
+        "x": 320,
+        "y": 500,
+        "wires": [
+            [
+                "9a7d15a9ad67f57c"
+            ],
+            [
+                "a5202cb7fc1b9d26"
+            ],
+            [
+                "218e38bcb66e9049"
+            ],
+            [
+                "519ef50d37e7dc87"
+            ],
+            [
+                "ddf46ca696d81f93"
+            ],
+            [
+                "6f8f0b8e73b93092"
+            ],
+            [
+                "0edbc78082ed5e8c"
+            ]
+        ]
+    },
+    {
+        "id": "9a7d15a9ad67f57c",
+        "type": "gofa-move",
+        "z": "4c1e771ad9964524",
+        "name": "Home/SetHome",
+        "robot": "cfg_robot",
+        "command": "HOME",
+        "x": 580,
+        "y": 420,
+        "wires": [
+            [
+                "7572acae5e538ee3"
+            ]
+        ]
+    },
+    {
+        "id": "a5202cb7fc1b9d26",
+        "type": "gofa-jog",
+        "z": "4c1e771ad9964524",
+        "name": "Jog",
+        "robot": "cfg_robot",
+        "axis": "X",
+        "dir": "+",
+        "step": 10,
+        "x": 580,
+        "y": 460,
+        "wires": [
+            [
+                "7572acae5e538ee3"
+            ]
+        ]
+    },
+    {
+        "id": "218e38bcb66e9049",
+        "type": "gofa-joint-jog",
+        "z": "4c1e771ad9964524",
+        "name": "Joint Jog",
+        "robot": "cfg_robot",
+        "joint": "J1",
+        "dir": "+",
+        "step": 5,
+        "x": 580,
+        "y": 500,
+        "wires": [
+            [
+                "7572acae5e538ee3"
+            ]
+        ]
+    },
+    {
+        "id": "519ef50d37e7dc87",
+        "type": "gofa-go-point",
+        "z": "4c1e771ad9964524",
+        "name": "Go Point",
+        "robot": "cfg_robot",
+        "pointName": "",
+        "x": 580,
+        "y": 540,
+        "wires": [
+            [
+                "7572acae5e538ee3"
+            ]
+        ]
+    },
+    {
+        "id": "ddf46ca696d81f93",
+        "type": "gofa-movej",
+        "z": "4c1e771ad9964524",
+        "name": "MoveJ",
+        "robot": "cfg_robot",
+        "joints": [
+            0,
+            0,
+            85,
+            0,
+            0,
+            0
+        ],
+        "x": 580,
+        "y": 580,
+        "wires": [
+            [
+                "7572acae5e538ee3"
+            ]
+        ]
+    },
+    {
+        "id": "6f8f0b8e73b93092",
+        "type": "gofa-stop-motion",
+        "z": "4c1e771ad9964524",
+        "name": "Stop Motion",
+        "robot": "cfg_robot",
+        "x": 580,
+        "y": 620,
+        "wires": [
+            [
+                "7572acae5e538ee3"
+            ]
+        ]
+    },
+    {
+        "id": "7572acae5e538ee3",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Move resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 800,
+        "y": 500,
+        "wires": [
+            [
+                "0edbc78082ed5e8c"
+            ]
+        ]
+    },
+    {
+        "id": "0edbc78082ed5e8c",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 1020,
+        "y": 500,
+        "wires": []
+    },
+    {
+        "id": "5599c3024688b1ae",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/savepoint",
+        "url": "/robot/savepoint",
+        "method": "post",
+        "x": 100,
+        "y": 720,
+        "wires": [
+            [
+                "ed52593838497cc8"
+            ]
+        ]
+    },
+    {
+        "id": "ed52593838497cc8",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Save prep",
+        "func": "msg.payload={name:(msg.payload&&msg.payload.name)||'',storage:(msg.payload&&msg.payload.storage)||'local'};return msg;",
+        "outputs": 1,
+        "x": 320,
+        "y": 720,
+        "wires": [
+            [
+                "bfae19e180eac35e"
+            ]
+        ]
+    },
+    {
+        "id": "bfae19e180eac35e",
+        "type": "gofa-save-point",
+        "z": "4c1e771ad9964524",
+        "name": "Save Point",
+        "robot": "cfg_robot",
+        "pointName": "",
+        "x": 540,
+        "y": 720,
+        "wires": [
+            [
+                "f85c8cfb34e95e57"
+            ]
+        ]
+    },
+    {
+        "id": "f85c8cfb34e95e57",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Save resp",
+        "func": "msg.payload.name=msg.payload.point?msg.payload.point.name:'';msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 760,
+        "y": 720,
+        "wires": [
+            [
+                "466bdd2d2f7a4bc4"
+            ]
+        ]
+    },
+    {
+        "id": "466bdd2d2f7a4bc4",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 980,
+        "y": 720,
+        "wires": []
+    },
+    {
+        "id": "b08420686ae94732",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/deletepoint",
+        "url": "/robot/deletepoint",
+        "method": "post",
+        "x": 100,
+        "y": 800,
+        "wires": [
+            [
+                "b563cd8ca5c96904"
+            ]
+        ]
+    },
+    {
+        "id": "b563cd8ca5c96904",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Delete prep",
+        "func": "msg.payload={id:msg.payload.id,name:msg.payload.id,storage:msg.payload.storage||'local'};return msg;",
+        "outputs": 1,
+        "x": 320,
+        "y": 800,
+        "wires": [
+            [
+                "503d63b9b522f923"
+            ]
+        ]
+    },
+    {
+        "id": "503d63b9b522f923",
+        "type": "gofa-delete-point",
+        "z": "4c1e771ad9964524",
+        "name": "Delete Point",
+        "robot": "cfg_robot",
+        "pointName": "",
+        "x": 540,
+        "y": 800,
+        "wires": [
+            [
+                "eaa2919bb625a054"
+            ]
+        ]
+    },
+    {
+        "id": "eaa2919bb625a054",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Delete resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 760,
+        "y": 800,
+        "wires": [
+            [
+                "c5bb7b43664acda7"
+            ]
+        ]
+    },
+    {
+        "id": "c5bb7b43664acda7",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 980,
+        "y": 800,
+        "wires": []
+    },
+    {
+        "id": "5afc880f5fa301ef",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/ctrlstate",
+        "url": "/robot/ctrlstate",
+        "method": "post",
+        "x": 100,
+        "y": 880,
+        "wires": [
+            [
+                "e702f8cf8da07c82"
+            ]
+        ]
+    },
+    {
+        "id": "e702f8cf8da07c82",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Motor prep",
+        "func": "msg.payload={action:msg.payload.state};return msg;",
+        "outputs": 1,
+        "x": 320,
+        "y": 880,
+        "wires": [
+            [
+                "901018bd7e65b5e0"
+            ]
+        ]
+    },
+    {
+        "id": "901018bd7e65b5e0",
+        "type": "gofa-motor",
+        "z": "4c1e771ad9964524",
+        "name": "Motor",
+        "robot": "cfg_robot",
+        "action": "motoron",
+        "x": 540,
+        "y": 880,
+        "wires": [
+            [
+                "ce1129b60bb65afd"
+            ]
+        ]
+    },
+    {
+        "id": "ce1129b60bb65afd",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Motor resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 760,
+        "y": 880,
+        "wires": [
+            [
+                "daa83942e2697216"
+            ]
+        ]
+    },
+    {
+        "id": "daa83942e2697216",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 980,
+        "y": 880,
+        "wires": []
+    },
+    {
+        "id": "ca60a9ff29126eaa",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/sequence",
+        "url": "/robot/sequence",
+        "method": "post",
+        "x": 100,
+        "y": 980,
+        "wires": [
+            [
+                "d11c5e399035e0ce"
+            ]
+        ]
+    },
+    {
+        "id": "d11c5e399035e0ce",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Seq prep",
+        "func": "var p=msg.payload||{};var steps=p.steps||[];var reply={req:msg.req,res:msg.res,statusCode:200,payload:{ok:true,count:steps.length}};msg.payload={steps:steps,dwell:p.dwell!=null?p.dwell:800,loop:p.loop!=null?p.loop:false,pingpong:p.pingpong!=null?p.pingpong:false,count:p.count!=null?p.count:0,startStep:p.startStep!=null?p.startStep:1,moveType:p.moveType,storage:p.storage||'local'};return [reply,msg];",
+        "outputs": 2,
+        "x": 320,
+        "y": 980,
+        "wires": [
+            [
+                "5ba6d69bee9c27a1"
+            ],
+            [
+                "a392bf3db28d18c0"
+            ]
+        ]
+    },
+    {
+        "id": "5ba6d69bee9c27a1",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 540,
+        "y": 940,
+        "wires": []
+    },
+    {
+        "id": "a392bf3db28d18c0",
+        "type": "gofa-sequencer",
+        "z": "4c1e771ad9964524",
+        "name": "Sequencer",
+        "robot": "cfg_robot",
+        "steps": [],
+        "dwell": 800,
+        "loop": false,
+        "pingpong": false,
+        "x": 540,
+        "y": 1000,
+        "wires": [
+            [],
+            []
+        ]
+    },
+    {
+        "id": "70e6aecc0ee59521",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/sequence/stop",
+        "url": "/robot/sequence/stop",
+        "method": "post",
+        "x": 100,
+        "y": 1080,
+        "wires": [
+            [
+                "58ac805f03933c23"
+            ]
+        ]
+    },
+    {
+        "id": "58ac805f03933c23",
+        "type": "gofa-stop-seq",
+        "z": "4c1e771ad9964524",
+        "name": "Stop Seq",
+        "robot": "cfg_robot",
+        "x": 340,
+        "y": 1080,
+        "wires": [
+            [
+                "837cc0defb5d0638"
+            ]
+        ]
+    },
+    {
+        "id": "837cc0defb5d0638",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "StopSeq resp",
+        "func": "msg.statusCode=200;msg.payload={ok:true};return msg;",
+        "outputs": 1,
+        "x": 560,
+        "y": 1080,
+        "wires": [
+            [
+                "73057393acf61de4"
+            ]
+        ]
+    },
+    {
+        "id": "73057393acf61de4",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 780,
+        "y": 1080,
+        "wires": []
+    },
+    {
+        "id": "9c60a076da4910a4",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/ping",
+        "url": "/robot/ping",
+        "method": "post",
+        "x": 100,
+        "y": 1160,
+        "wires": [
+            [
+                "4108901603f14b1e"
+            ]
+        ]
+    },
+    {
+        "id": "4108901603f14b1e",
+        "type": "gofa-ping",
+        "z": "4c1e771ad9964524",
+        "name": "Ping",
+        "robot": "cfg_robot",
+        "x": 320,
+        "y": 1160,
+        "wires": [
+            [
+                "190fcb708d79891e"
+            ]
+        ]
+    },
+    {
+        "id": "190fcb708d79891e",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Ping resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 540,
+        "y": 1160,
+        "wires": [
+            [
+                "4f4e07240d70da39"
+            ]
+        ]
+    },
+    {
+        "id": "4f4e07240d70da39",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 760,
+        "y": 1160,
+        "wires": []
+    },
+    {
+        "id": "83ef19c74f667f26",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/gripper",
+        "url": "/robot/gripper",
+        "method": "post",
+        "x": 100,
+        "y": 1240,
+        "wires": [
+            [
+                "7e7973b44e1a5ed0"
+            ]
+        ]
+    },
+    {
+        "id": "7e7973b44e1a5ed0",
+        "type": "gofa-grip",
+        "z": "4c1e771ad9964524",
+        "name": "Grip",
+        "robot": "cfg_robot",
+        "action": "on",
+        "signal": "ABB_Scalable_IO_0_DO1",
+        "x": 320,
+        "y": 1240,
+        "wires": [
+            [
+                "29a43ae778d72958"
+            ]
+        ]
+    },
+    {
+        "id": "29a43ae778d72958",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Grip resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 540,
+        "y": 1240,
+        "wires": [
+            [
+                "1ccd0b0234d7700f"
+            ]
+        ]
+    },
+    {
+        "id": "1ccd0b0234d7700f",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 760,
+        "y": 1240,
+        "wires": []
+    },
+    {
+        "id": "1adcc77517d22235",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/zone",
+        "url": "/robot/zone",
+        "method": "post",
+        "x": 100,
+        "y": 1320,
+        "wires": [
+            [
+                "0e6c2721c5aeb6d6"
+            ]
+        ]
+    },
+    {
+        "id": "0e6c2721c5aeb6d6",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Zone prep",
+        "func": "msg.payload=msg.payload.zone||'Z10';return msg;",
+        "outputs": 1,
+        "x": 320,
+        "y": 1320,
+        "wires": [
+            [
+                "a5c86fc7cf859ae3"
+            ]
+        ]
+    },
+    {
+        "id": "a5c86fc7cf859ae3",
+        "type": "gofa-zone-set",
+        "z": "4c1e771ad9964524",
+        "name": "Zone Set",
+        "robot": "cfg_robot",
+        "zone": "Z10",
+        "x": 540,
+        "y": 1320,
+        "wires": [
+            [
+                "464d78664dade1c1"
+            ]
+        ]
+    },
+    {
+        "id": "464d78664dade1c1",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Zone resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 760,
+        "y": 1320,
+        "wires": [
+            [
+                "f78d69228428db20"
+            ]
+        ]
+    },
+    {
+        "id": "f78d69228428db20",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 980,
+        "y": 1320,
+        "wires": []
+    },
+    {
+        "id": "7d5115043bd42e4e",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/speed",
+        "url": "/robot/speed",
+        "method": "post",
+        "x": 100,
+        "y": 1400,
+        "wires": [
+            [
+                "81b56f0d234d230c"
+            ]
+        ]
+    },
+    {
+        "id": "81b56f0d234d230c",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Speed prep",
+        "func": "msg.payload=msg.payload.speed||50;return msg;",
+        "outputs": 1,
+        "x": 320,
+        "y": 1400,
+        "wires": [
+            [
+                "781a69af11dc6679"
+            ]
+        ]
+    },
+    {
+        "id": "781a69af11dc6679",
+        "type": "gofa-speed-set",
+        "z": "4c1e771ad9964524",
+        "name": "Speed Set",
+        "robot": "cfg_robot",
+        "speed": 50,
+        "x": 540,
+        "y": 1400,
+        "wires": [
+            [
+                "c7d6548eef73b172"
+            ]
+        ]
+    },
+    {
+        "id": "c7d6548eef73b172",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Speed resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 760,
+        "y": 1400,
+        "wires": [
+            [
+                "8e89c8a06c4e3550"
+            ]
+        ]
+    },
+    {
+        "id": "8e89c8a06c4e3550",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 980,
+        "y": 1400,
+        "wires": []
+    },
+    {
+        "id": "9254f1564345988a",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/rapid",
+        "url": "/robot/rapid",
+        "method": "post",
+        "x": 100,
+        "y": 1480,
+        "wires": [
+            [
+                "8d41670b8dc57b62"
+            ]
+        ]
+    },
+    {
+        "id": "8d41670b8dc57b62",
+        "type": "gofa-rapid-exec",
+        "z": "4c1e771ad9964524",
+        "name": "RAPID Exec",
+        "robot": "cfg_robot",
+        "action": "start",
+        "x": 340,
+        "y": 1480,
+        "wires": [
+            [
+                "76f7ced3223c2768"
+            ]
+        ]
+    },
+    {
+        "id": "76f7ced3223c2768",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Rapid resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 560,
+        "y": 1480,
+        "wires": [
+            [
+                "80c771add5bc8d34"
+            ]
+        ]
+    },
+    {
+        "id": "80c771add5bc8d34",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 780,
+        "y": 1480,
+        "wires": []
+    },
+    {
+        "id": "c47d2be56eafb9af",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/leadthrough",
+        "url": "/robot/leadthrough",
+        "method": "post",
+        "x": 100,
+        "y": 1560,
+        "wires": [
+            [
+                "0052f21d1f7bb252"
+            ]
+        ]
+    },
+    {
+        "id": "0052f21d1f7bb252",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "LT route",
+        "func": "if(msg.payload&&msg.payload.action==='disable'){return [null,msg];}return [msg,null];",
+        "outputs": 2,
+        "x": 320,
+        "y": 1560,
+        "wires": [
+            [
+                "f97032f6ced2f5f8"
+            ],
+            [
+                "07d08ffa36f27eed"
+            ]
+        ]
+    },
+    {
+        "id": "f97032f6ced2f5f8",
+        "type": "gofa-leadthrough-enable",
+        "z": "4c1e771ad9964524",
+        "name": "LT Enable",
+        "robot": "cfg_robot",
+        "x": 540,
+        "y": 1540,
+        "wires": [
+            [
+                "6adade34fb27ec03"
+            ]
+        ]
+    },
+    {
+        "id": "07d08ffa36f27eed",
+        "type": "gofa-leadthrough-disable",
+        "z": "4c1e771ad9964524",
+        "name": "LT Disable",
+        "robot": "cfg_robot",
+        "x": 540,
+        "y": 1580,
+        "wires": [
+            [
+                "6adade34fb27ec03"
+            ]
+        ]
+    },
+    {
+        "id": "6adade34fb27ec03",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "LT resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 760,
+        "y": 1560,
+        "wires": [
+            [
+                "8dedb9a66f01f3cb"
+            ]
+        ]
+    },
+    {
+        "id": "8dedb9a66f01f3cb",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 980,
+        "y": 1560,
+        "wires": []
+    },
+    {
+        "id": "069ef5ec9d332f28",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/io/list",
+        "url": "/robot/io/list",
+        "method": "post",
+        "x": 100,
+        "y": 1660,
+        "wires": [
+            [
+                "02c37be7f5cc4a17"
+            ]
+        ]
+    },
+    {
+        "id": "02c37be7f5cc4a17",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "IO list prep",
+        "func": "msg.payload={type:msg.payload&&msg.payload.type?msg.payload.type:''};return msg;",
+        "outputs": 1,
+        "x": 320,
+        "y": 1660,
+        "wires": [
+            [
+                "880bfd95dc5171ab"
+            ]
+        ]
+    },
+    {
+        "id": "880bfd95dc5171ab",
+        "type": "gofa-io-list",
+        "z": "4c1e771ad9964524",
+        "name": "IO List",
+        "robot": "cfg_robot",
+        "x": 540,
+        "y": 1660,
+        "wires": [
+            [
+                "3ab24ed84753c562"
+            ]
+        ]
+    },
+    {
+        "id": "3ab24ed84753c562",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "IO list resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 760,
+        "y": 1660,
+        "wires": [
+            [
+                "64697b01062f3a4d"
+            ]
+        ]
+    },
+    {
+        "id": "64697b01062f3a4d",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 980,
+        "y": 1660,
+        "wires": []
+    },
+    {
+        "id": "b511f4f36883f4be",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/io/di",
+        "url": "/robot/io/di",
+        "method": "post",
+        "x": 100,
+        "y": 1740,
+        "wires": [
+            [
+                "98fac63f6cebd977"
+            ]
+        ]
+    },
+    {
+        "id": "98fac63f6cebd977",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "DI prep",
+        "func": "msg.payload=msg.payload.signal||'ABB_Scalable_IO_0_DI1';return msg;",
+        "outputs": 1,
+        "x": 320,
+        "y": 1740,
+        "wires": [
+            [
+                "2226c0d13818d701"
+            ]
+        ]
+    },
+    {
+        "id": "2226c0d13818d701",
+        "type": "gofa-di-read",
+        "z": "4c1e771ad9964524",
+        "name": "DI Read",
+        "robot": "cfg_robot",
+        "signal": "ABB_Scalable_IO_0_DI1",
+        "x": 540,
+        "y": 1740,
+        "wires": [
+            [
+                "4c8ff81540ea6ad3"
+            ]
+        ]
+    },
+    {
+        "id": "4c8ff81540ea6ad3",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "DI resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 760,
+        "y": 1740,
+        "wires": [
+            [
+                "93e5e00849c6ab8e"
+            ]
+        ]
+    },
+    {
+        "id": "93e5e00849c6ab8e",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 980,
+        "y": 1740,
+        "wires": []
+    },
+    {
+        "id": "2b2cc69f25704804",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/io/do",
+        "url": "/robot/io/do",
+        "method": "post",
+        "x": 100,
+        "y": 1900,
+        "wires": [
+            [
+                "aad0850f53519e7a"
+            ]
+        ]
+    },
+    {
+        "id": "aad0850f53519e7a",
+        "type": "gofa-do-write",
+        "z": "4c1e771ad9964524",
+        "name": "DO Write",
+        "robot": "cfg_robot",
+        "signal": "ABB_Scalable_IO_0_DO1",
+        "x": 320,
+        "y": 1900,
+        "wires": [
+            [
+                "4564c579d62cd4f3"
+            ]
+        ]
+    },
+    {
+        "id": "4564c579d62cd4f3",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "DO resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 540,
+        "y": 1900,
+        "wires": [
+            [
+                "5abc4cfc895ed012"
+            ]
+        ]
+    },
+    {
+        "id": "5abc4cfc895ed012",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 760,
+        "y": 1900,
+        "wires": []
+    },
+    {
+        "id": "33438ddcdfa51d51",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/rapidvar/read",
+        "url": "/robot/rapidvar/read",
+        "method": "post",
+        "x": 100,
+        "y": 2080,
+        "wires": [
+            [
+                "3b9a92bac3805c11"
+            ]
+        ]
+    },
+    {
+        "id": "3b9a92bac3805c11",
+        "type": "gofa-rapid-var-read",
+        "z": "4c1e771ad9964524",
+        "name": "Var Read",
+        "robot": "cfg_robot",
+        "task": "T_ROB1",
+        "module": "MainModule",
+        "variable": "",
+        "x": 340,
+        "y": 2080,
+        "wires": [
+            [
+                "84e702c7523cca10"
+            ]
+        ]
+    },
+    {
+        "id": "84e702c7523cca10",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "VarR resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 560,
+        "y": 2080,
+        "wires": [
+            [
+                "5950c2ad87a811c4"
+            ]
+        ]
+    },
+    {
+        "id": "5950c2ad87a811c4",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 780,
+        "y": 2080,
+        "wires": []
+    },
+    {
+        "id": "3fe70ecbded64576",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/rapidvar/write",
+        "url": "/robot/rapidvar/write",
+        "method": "post",
+        "x": 100,
+        "y": 2160,
+        "wires": [
+            [
+                "08c8bfe7e5e206e3"
+            ]
+        ]
+    },
+    {
+        "id": "08c8bfe7e5e206e3",
+        "type": "gofa-rapid-var-write",
+        "z": "4c1e771ad9964524",
+        "name": "Var Write",
+        "robot": "cfg_robot",
+        "variable": "",
+        "x": 340,
+        "y": 2160,
+        "wires": [
+            [
+                "445999fdcfc32b49"
+            ]
+        ]
+    },
+    {
+        "id": "445999fdcfc32b49",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "VarW resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 560,
+        "y": 2160,
+        "wires": [
+            [
+                "5bd39136113c00df"
+            ]
+        ]
+    },
+    {
+        "id": "5bd39136113c00df",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 780,
+        "y": 2160,
+        "wires": []
+    },
+    {
+        "id": "fd4ccfb81d03eb8b",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/sysinfo",
+        "url": "/robot/sysinfo",
+        "method": "post",
+        "x": 100,
+        "y": 2260,
+        "wires": [
+            [
+                "54c16ecf4e3d788f"
+            ]
+        ]
+    },
+    {
+        "id": "54c16ecf4e3d788f",
+        "type": "gofa-system-info",
+        "z": "4c1e771ad9964524",
+        "name": "System Info",
+        "robot": "cfg_robot",
+        "x": 340,
+        "y": 2260,
+        "wires": [
+            [
+                "419e0e7c7d931812"
+            ]
+        ]
+    },
+    {
+        "id": "419e0e7c7d931812",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "SI resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 560,
+        "y": 2260,
+        "wires": [
+            [
+                "570a28f82e1d23c6"
+            ]
+        ]
+    },
+    {
+        "id": "570a28f82e1d23c6",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 780,
+        "y": 2260,
+        "wires": []
+    },
+    {
+        "id": "3ccf9efc076afd77",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/elog",
+        "url": "/robot/elog",
+        "method": "post",
+        "x": 100,
+        "y": 2340,
+        "wires": [
+            [
+                "5a2231773d8e3e29"
+            ]
+        ]
+    },
+    {
+        "id": "5a2231773d8e3e29",
+        "type": "gofa-elog",
+        "z": "4c1e771ad9964524",
+        "name": "Event Log",
+        "robot": "cfg_robot",
+        "domain": "1",
+        "count": 20,
+        "x": 320,
+        "y": 2340,
+        "wires": [
+            [
+                "3531e69f2385e1d0"
+            ]
+        ]
+    },
+    {
+        "id": "3531e69f2385e1d0",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Elog resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 540,
+        "y": 2340,
+        "wires": [
+            [
+                "86b095f4b13d2d0c"
+            ]
+        ]
+    },
+    {
+        "id": "86b095f4b13d2d0c",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 760,
+        "y": 2340,
+        "wires": []
+    },
+    {
+        "id": "57676163f830d649",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/file/read",
+        "url": "/robot/file/read",
+        "method": "post",
+        "x": 100,
+        "y": 2440,
+        "wires": [
+            [
+                "fcda5f3621044e02"
+            ]
+        ]
+    },
+    {
+        "id": "fcda5f3621044e02",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "File read prep",
+        "func": "msg.payload=msg.payload.path||'$HOME/Programs/MainModule.mod';return msg;",
+        "outputs": 1,
+        "x": 320,
+        "y": 2440,
+        "wires": [
+            [
+                "21f360dd73633718"
+            ]
+        ]
+    },
+    {
+        "id": "21f360dd73633718",
+        "type": "gofa-file-read",
+        "z": "4c1e771ad9964524",
+        "name": "File Read",
+        "robot": "cfg_robot",
+        "remotePath": "",
+        "x": 540,
+        "y": 2440,
+        "wires": [
+            [
+                "cab04c54dc7aa70d"
+            ]
+        ]
+    },
+    {
+        "id": "cab04c54dc7aa70d",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "File read resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 760,
+        "y": 2440,
+        "wires": [
+            [
+                "499e3526ba1eb7fd"
+            ]
+        ]
+    },
+    {
+        "id": "499e3526ba1eb7fd",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 980,
+        "y": 2440,
+        "wires": []
+    },
+    {
+        "id": "88977ba6d825d4c8",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/file/upload",
+        "url": "/robot/file/upload",
+        "method": "post",
+        "x": 100,
+        "y": 2520,
+        "wires": [
+            [
+                "020ba5f20153e301"
+            ]
+        ]
+    },
+    {
+        "id": "020ba5f20153e301",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Upload prep",
+        "func": "var p=msg.payload||{};msg.payload={localPath:p.localPath||'',remotePath:p.remotePath||'$HOME/Programs/MainModule.mod'};if(p.localPath){msg.payload=p.localPath;}return msg;",
+        "outputs": 1,
+        "x": 320,
+        "y": 2520,
+        "wires": [
+            [
+                "6b90a91c451075fd"
+            ]
+        ]
+    },
+    {
+        "id": "6b90a91c451075fd",
+        "type": "gofa-upload-mod",
+        "z": "4c1e771ad9964524",
+        "name": "Upload Mod",
+        "robot": "cfg_robot",
+        "remotePath": "$HOME/Programs/MainModule.mod",
+        "x": 540,
+        "y": 2520,
+        "wires": [
+            [
+                "e93ed93a9ee91756"
+            ]
+        ]
+    },
+    {
+        "id": "e93ed93a9ee91756",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Upload resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 760,
+        "y": 2520,
+        "wires": [
+            [
+                "23e57d10a84f7632"
+            ]
+        ]
+    },
+    {
+        "id": "23e57d10a84f7632",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 980,
+        "y": 2520,
+        "wires": []
+    },
+    {
+        "id": "a9f40dbd3c0c56ac",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/points/export",
+        "url": "/robot/points/export",
+        "method": "post",
+        "x": 100,
+        "y": 2620,
+        "wires": [
+            [
+                "44fa35fef834c911"
+            ]
+        ]
+    },
+    {
+        "id": "44fa35fef834c911",
+        "type": "gofa-points-export",
+        "z": "4c1e771ad9964524",
+        "name": "Points Export",
+        "robot": "cfg_robot",
+        "x": 340,
+        "y": 2620,
+        "wires": [
+            [
+                "893f5d1ff06f3644"
+            ]
+        ]
+    },
+    {
+        "id": "893f5d1ff06f3644",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Export resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 560,
+        "y": 2620,
+        "wires": [
+            [
+                "47598e7519fb9cba"
+            ]
+        ]
+    },
+    {
+        "id": "47598e7519fb9cba",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 780,
+        "y": 2620,
+        "wires": []
+    },
+    {
+        "id": "e19d8aa1bb560757",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/points/import",
+        "url": "/robot/points/import",
+        "method": "post",
+        "x": 100,
+        "y": 2700,
+        "wires": [
+            [
+                "557017bfd991eee1"
+            ]
+        ]
+    },
+    {
+        "id": "557017bfd991eee1",
+        "type": "gofa-points-import",
+        "z": "4c1e771ad9964524",
+        "name": "Points Import",
+        "robot": "cfg_robot",
+        "x": 340,
+        "y": 2700,
+        "wires": [
+            [
+                "767b7d3451f654fb"
+            ]
+        ]
+    },
+    {
+        "id": "767b7d3451f654fb",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Import resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 560,
+        "y": 2700,
+        "wires": [
+            [
+                "546496a48ce7049f"
+            ]
+        ]
+    },
+    {
+        "id": "546496a48ce7049f",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 780,
+        "y": 2700,
+        "wires": []
+    },
+    {
+        "id": "b96aedaa6170d012",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/led",
+        "url": "/robot/led",
+        "method": "post",
+        "x": 100,
+        "y": 2960,
+        "wires": [
+            [
+                "7a01d26b195f47d4"
+            ]
+        ]
+    },
+    {
+        "id": "7a01d26b195f47d4",
+        "type": "gofa-asi-led",
+        "z": "4c1e771ad9964524",
+        "name": "ASI LED",
+        "robot": "cfg_robot",
+        "red": 0,
+        "grn": 0,
+        "blu": 0,
+        "period": 0,
+        "blinkCount": 0,
+        "blinkMs": 250,
+        "x": 340,
+        "y": 2960,
+        "wires": [
+            [
+                "65d1e9ae61c67312"
+            ]
+        ]
+    },
+    {
+        "id": "65d1e9ae61c67312",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "LED resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 560,
+        "y": 2960,
+        "wires": [
+            [
+                "6b385094c8fec23b"
+            ]
+        ]
+    },
+    {
+        "id": "6b385094c8fec23b",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 780,
+        "y": 2960,
+        "wires": []
+    },
+    {
+        "id": "786266959c96c6f4",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/rapid/tasks",
+        "url": "/robot/rapid/tasks",
+        "method": "post",
+        "x": 100,
+        "y": 3040,
+        "wires": [
+            [
+                "07eae851d59edcb9"
+            ]
+        ]
+    },
+    {
+        "id": "07eae851d59edcb9",
+        "type": "gofa-rapid-tasks",
+        "z": "4c1e771ad9964524",
+        "name": "Rapid Tasks",
+        "robot": "cfg_robot",
+        "task": "T_ROB1",
+        "x": 340,
+        "y": 3040,
+        "wires": [
+            [
+                "016890dd2a75a7bb"
+            ]
+        ]
+    },
+    {
+        "id": "016890dd2a75a7bb",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Tasks resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 560,
+        "y": 3040,
+        "wires": [
+            [
+                "1cb781560244841c"
+            ]
+        ]
+    },
+    {
+        "id": "1cb781560244841c",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 780,
+        "y": 3040,
+        "wires": []
+    },
+    {
+        "id": "27369e268acc4de4",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/subscribe/state",
+        "url": "/robot/subscribe/state",
+        "method": "post",
+        "x": 100,
+        "y": 3120,
+        "wires": [
+            [
+                "6d37985204bf9186"
+            ]
+        ]
+    },
+    {
+        "id": "6d37985204bf9186",
+        "type": "gofa-subscribe-state",
+        "z": "4c1e771ad9964524",
+        "name": "Subscribe State (oneshot)",
+        "robot": "cfg_robot",
+        "oneshot": true,
+        "x": 360,
+        "y": 3120,
+        "wires": [
+            [
+                "6f1d8904eb33df9c"
+            ]
+        ]
+    },
+    {
+        "id": "6f1d8904eb33df9c",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "State resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 600,
+        "y": 3120,
+        "wires": [
+            [
+                "26dec24e4a723702"
+            ]
+        ]
+    },
+    {
+        "id": "26dec24e4a723702",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 820,
+        "y": 3120,
+        "wires": []
+    },
+    {
+        "id": "b544dc49478ba3f3",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/subscribe/io",
+        "url": "/robot/subscribe/io",
+        "method": "post",
+        "x": 100,
+        "y": 3200,
+        "wires": [
+            [
+                "c99eff0b0bed4f35"
+            ]
+        ]
+    },
+    {
+        "id": "c99eff0b0bed4f35",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Sub IO prep",
+        "func": "msg.payload={signal:(msg.payload&&msg.payload.signal)||'ABB_Scalable_IO_0_DI1'};return msg;",
+        "outputs": 1,
+        "x": 320,
+        "y": 3200,
+        "wires": [
+            [
+                "f5655d807b6c8e26"
+            ]
+        ]
+    },
+    {
+        "id": "f5655d807b6c8e26",
+        "type": "gofa-subscribe-io",
+        "z": "4c1e771ad9964524",
+        "name": "Subscribe IO (oneshot)",
+        "robot": "cfg_robot",
+        "signal": "ABB_Scalable_IO_0_DI1",
+        "oneshot": true,
+        "x": 560,
+        "y": 3200,
+        "wires": [
+            [
+                "e348568dc855215f"
+            ]
+        ]
+    },
+    {
+        "id": "e348568dc855215f",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "IO resp",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "x": 800,
+        "y": 3200,
+        "wires": [
+            [
+                "ffed128c43b61da7"
+            ]
+        ]
+    },
+    {
+        "id": "ffed128c43b61da7",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 1020,
+        "y": 3200,
+        "wires": []
+    },
+    {
+        "id": "46242401adb60e70",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/subscribe/var",
+        "url": "/robot/subscribe/var",
+        "method": "post",
+        "x": 100,
+        "y": 3280,
+        "wires": [
+            [
+                "a24027b6ac9d3106",
+                "fda8b100b7d834a4"
+            ]
+        ]
+    },
+    {
+        "id": "a24027b6ac9d3106",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Var ack (toggles, streams to debug)",
+        "func": "msg.statusCode=200;msg.payload={ok:true,toggled:true};return msg;",
+        "outputs": 1,
+        "x": 340,
+        "y": 3260,
+        "wires": [
+            [
+                "c769a49d52a23d9e"
+            ]
+        ]
+    },
+    {
+        "id": "c769a49d52a23d9e",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 600,
+        "y": 3260,
+        "wires": []
+    },
+    {
+        "id": "fda8b100b7d834a4",
+        "type": "gofa-subscribe-var",
+        "z": "4c1e771ad9964524",
+        "name": "Subscribe Var (toggle)",
+        "robot": "cfg_robot",
+        "task": "T_ROB1",
+        "module": "MainModule",
+        "variable": "zActive",
+        "interval": "1000",
+        "x": 360,
+        "y": 3300,
+        "wires": [
+            [
+                "c5dd101f48128f13"
+            ]
+        ]
+    },
+    {
+        "id": "c5dd101f48128f13",
+        "type": "debug",
+        "z": "4c1e771ad9964524",
+        "name": "{ ok, variable, value, source, stale? }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 620,
+        "y": 3300,
+        "wires": []
+    },
+    {
+        "id": "de46d376886618ae",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/subscribe/pose",
+        "url": "/robot/subscribe/pose",
+        "method": "post",
+        "x": 100,
+        "y": 3360,
+        "wires": [
+            [
+                "25487497a7d58302",
+                "c2a334cc67a5744c"
+            ]
+        ]
+    },
+    {
+        "id": "25487497a7d58302",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Pose ack (toggles, streams to debug)",
+        "func": "msg.statusCode=200;msg.payload={ok:true,toggled:true};return msg;",
+        "outputs": 1,
+        "x": 340,
+        "y": 3340,
+        "wires": [
+            [
+                "31d0f3155a806226"
+            ]
+        ]
+    },
+    {
+        "id": "31d0f3155a806226",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "x": 600,
+        "y": 3340,
+        "wires": []
+    },
+    {
+        "id": "c2a334cc67a5744c",
+        "type": "gofa-subscribe-pose",
+        "z": "4c1e771ad9964524",
+        "name": "Subscribe Pose (toggle)",
+        "robot": "cfg_robot",
+        "interval": "500",
+        "x": 360,
+        "y": 3380,
+        "wires": [
+            [
+                "a3f30c11c9ab5612"
+            ]
+        ]
+    },
+    {
+        "id": "a3f30c11c9ab5612",
+        "type": "debug",
+        "z": "4c1e771ad9964524",
+        "name": "{ ok, x, y, z, q1, q2, q3, q4 }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 620,
+        "y": 3380,
+        "wires": []
+    },
+    {
+        "id": "cfg_robot",
+        "type": "gofa-robot",
+        "name": "ABB-GoFa-12",
+        "ip": "192.168.20.33",
+        "rwsPort": "443",
+        "socketPort": "1025",
+        "username": "Default User",
+        "pointsFile": "points.json",
+        "remotePointsPath": ""
+    },
+    {
+        "id": "bef062068f3489ab",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-contrib-abb-gofa": "1.0.1"
+        }
+    }
+]

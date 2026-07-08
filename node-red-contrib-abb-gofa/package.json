@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-abb-gofa",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Node-RED nodes for controlling an ABB GoFa (CRB 15000) collaborative robot via RWS and a RAPID TCP socket server",
   "keywords": [
     "node-red",
@@ -23,11 +23,12 @@
   },
   "files": [
     "nodes",
-    "rapid"
+    "rapid",
+    "examples"
   ],
   "scripts": {
     "test": "node test.js",
-    "prepack": "node -e \"require('fs').cpSync('../rapid/MainModule.mod','rapid/MainModule.mod')\""
+    "prepack": "node prepack.js"
   },
   "dependencies": {
     "ws": "^8.21.0"
