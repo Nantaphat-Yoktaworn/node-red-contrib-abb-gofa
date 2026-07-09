@@ -406,6 +406,13 @@ needs a firewall rule on the Node-RED host allowing inbound UDP on that port.
 > zero frames will ever arrive. Confirmed live: this looks identical to a firewall problem
 > ("No EGM frames received within 2s") — check `EGM_PC`'s configured address first.
 
+> **Caution — tool load data:** per ABB's EGM Application Manual, the robot should have correct
+> tool load data (`LoadIdentify`) before starting EGM — incorrect load data can cause servo
+> torque overruns or safety halts when EGM issues fast corrections. `MainModuleEGM.mod`'s
+> `tGripper` currently uses an unverified placeholder mass (1 kg); confirm it matches your
+> actual end-of-arm tooling (or run `LoadIdentify`) before relying on EGM with real tooling
+> attached.
+
 #### Input / output
 
 `msg.payload` can be `"start"`, `"stop"`, or an array of 6 numbers (absolute joint target,

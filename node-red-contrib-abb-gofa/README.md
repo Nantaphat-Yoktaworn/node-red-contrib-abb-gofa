@@ -139,6 +139,12 @@ Remote Address = the Node-RED host's IP on the robot's subnet, Remote Port = the
 node's configured UDP port, default `6510`; requires a controller restart), and — on the
 Node-RED host — a firewall rule allowing inbound UDP on that port.
 
+**Caution — tool load data:** per ABB's EGM Application Manual, the robot should have correct
+tool load data (`LoadIdentify`) before starting EGM — incorrect load data can cause servo
+torque overruns or safety halts when EGM issues fast corrections. `MainModuleEGM.mod`'s
+`tGripper` currently uses an unverified placeholder mass (1 kg); confirm it matches your actual
+end-of-arm tooling (or run `LoadIdentify`) before relying on EGM with real tooling attached.
+
 Full node help (input/output shapes, config) is in the Node-RED sidebar for `gofa-egm`.
 
 ## Test

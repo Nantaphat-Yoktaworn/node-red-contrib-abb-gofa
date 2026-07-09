@@ -238,6 +238,15 @@ EGM frames received within 2s" from `gofa-egm` despite the module/mastership/fir
 correct — check `EGM_PC`'s configured Remote Address against the Node-RED host's *current* IP
 before assuming anything else is wrong.
 
+**Tool load data caution (from ABB's EGM Application Manual, not yet acted on):** the manual
+states the robot must have correct tool load data (`LoadIdentify`) before starting EGM —
+incorrect load data can cause servo torque overruns or safety halts when EGM issues fast
+corrections. `MainModuleEGM.mod`'s `tGripper` currently declares an unverified placeholder
+mass (1 kg); `LoadIdentify` has never been run against this robot's actual end-of-arm tooling.
+Not hit live yet (all EGM testing so far has been small-amplitude joint corrections with no
+tooling attached), but run `LoadIdentify` (or otherwise confirm `tGripper`'s load data is
+accurate) before relying on EGM with real tooling mounted.
+
 Full design history and the reasoning behind the two-module decision: see the
 `project_egm_node_red_integration_plan` memory and its linked plan file.
 
