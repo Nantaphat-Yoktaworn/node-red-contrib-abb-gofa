@@ -4409,5 +4409,127 @@
         "modules": {
             "node-red-contrib-abb-gofa": "1.0.1"
         }
+    },
+    {
+        "id": "egmDemoGrp1",
+        "type": "group",
+        "z": "ff1c1e5698ed95ce",
+        "name": "4 - EGM (UDP)",
+        "style": {
+            "stroke": "#aa6600",
+            "stroke-opacity": "1",
+            "fill": "#f8f0e8",
+            "fill-opacity": "0.5",
+            "label": true,
+            "label-position": "nw",
+            "color": "#aa6600"
+        },
+        "nodes": [
+            "egmDemoComment",
+            "egmDemoInjStart",
+            "egmDemoInjStop",
+            "egmDemoNode",
+            "egmDemoDebug"
+        ],
+        "x": 5946,
+        "y": 33,
+        "w": 872,
+        "h": 217
+    },
+    {
+        "id": "egmDemoComment",
+        "type": "comment",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmDemoGrp1",
+        "name": "Requires rapid/MainModuleEGM.mod loaded (not the default MainModule.mod) + one-time UDPUC \"EGM_PC\" controller config. For the full correct-usage example — loading the module and safely setting a target from live feedback — see flows/egm_demo_flow.json.",
+        "info": "",
+        "x": 6350,
+        "y": 65,
+        "wires": []
+    },
+    {
+        "id": "egmDemoInjStart",
+        "type": "inject",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmDemoGrp1",
+        "name": "Start EGM",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "start",
+        "payloadType": "str",
+        "x": 6060,
+        "y": 135,
+        "wires": [
+            [
+                "egmDemoNode"
+            ]
+        ]
+    },
+    {
+        "id": "egmDemoInjStop",
+        "type": "inject",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmDemoGrp1",
+        "name": "Stop EGM",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "stop",
+        "payloadType": "str",
+        "x": 6060,
+        "y": 185,
+        "wires": [
+            [
+                "egmDemoNode"
+            ]
+        ]
+    },
+    {
+        "id": "egmDemoNode",
+        "type": "gofa-egm",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmDemoGrp1",
+        "name": "",
+        "robot": "cfg1",
+        "udpPort": 6510,
+        "throttleMs": 100,
+        "x": 6300,
+        "y": 160,
+        "wires": [
+            [
+                "egmDemoDebug"
+            ]
+        ]
+    },
+    {
+        "id": "egmDemoDebug",
+        "type": "debug",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmDemoGrp1",
+        "name": "{ ok, joints, seqno, mciState, motorsOn, convergence }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 6560,
+        "y": 160,
+        "wires": []
     }
 ]
