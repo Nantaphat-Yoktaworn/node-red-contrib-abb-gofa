@@ -17,4 +17,10 @@
 - [StopMove \Quick unsupported](feedback_stopmove_quick_unsupported.md) — fails RAPID consistency check on this controller despite being in ABB's docs; use plain StopMove
 - [OmniCore AppStudio investigation](reference_omnicore_appstudio_investigation.md) — persistent FlexPendant dashboard ruled out for now, needs RobotStudio GUI step, not RWS-drivable
 - [Always ask before push or merge](feedback_always_ask_before_push_or_merge.md) — always ask the user for explicit approval before running git push or merge
+- [User's learning context](user_learning_context.md) — no defined business use case yet, senior said "learn everything," user wants to enjoy it — favor fun/broad-learning suggestions
+- [Public release](reference_public_release.md) — package is PUBLIC since 2026-07-08 (npm + flow library); release process and public-repo rules
+- [gofa-egm-python project](project_gofa_egm_python.md) — standalone EGM control project, working end-to-end; egm_minmax silent-clamp gotcha, firewall/UDPUC setup notes
+- [EGM Node-RED integration](project_egm_node_red_integration_plan.md) — IMPLEMENTED + published; split into gofa-egm (session) + gofa-egm-move (movement, fallback output), live-verified — no known open bugs
+- [Robot's current IP](project_robot_current_ip.md) — drifts often (was 192.168.20.14 as of 2026-07-09); always verify via /robot-status, don't trust any documented default
 
+Note: this robot's real RWS/admin credentials live only in local (non-repo) Claude memory — deliberately never copied here since this repo is public.
