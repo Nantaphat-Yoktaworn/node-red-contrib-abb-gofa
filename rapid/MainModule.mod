@@ -143,12 +143,12 @@ MODULE MainModule
         VAR num endVal;
         VAR string quotedKey;
         quotedKey := """" + key + """";
-        keyPos := StrFind(json, 1, quotedKey);
-        IF keyPos = 0 RETURN FALSE;
-        startVal := StrFind(json, keyPos + StrLen(quotedKey), """");
-        IF startVal = 0 RETURN FALSE;
-        endVal := StrFind(json, startVal + 1, """");
-        IF endVal = 0 RETURN FALSE;
+        keyPos := StrMatch(json, 1, quotedKey);
+        IF keyPos > StrLen(json) RETURN FALSE;
+        startVal := StrMatch(json, keyPos + StrLen(quotedKey), """");
+        IF startVal > StrLen(json) RETURN FALSE;
+        endVal := StrMatch(json, startVal + 1, """");
+        IF endVal > StrLen(json) RETURN FALSE;
         val := StrPart(json, startVal + 1, endVal - startVal - 1);
         RETURN TRUE;
     ENDFUNC
@@ -161,15 +161,15 @@ MODULE MainModule
         VAR string quotedKey;
         VAR string valstr;
         quotedKey := """" + key + """";
-        keyPos := StrFind(json, 1, quotedKey);
-        IF keyPos = 0 RETURN FALSE;
-        colonPos := StrFind(json, keyPos + StrLen(quotedKey), ":");
-        IF colonPos = 0 RETURN FALSE;
-        endVal := StrFind(json, colonPos + 1, ",");
-        IF endVal = 0 THEN
-            endVal := StrFind(json, colonPos + 1, "}");
+        keyPos := StrMatch(json, 1, quotedKey);
+        IF keyPos > StrLen(json) RETURN FALSE;
+        colonPos := StrMatch(json, keyPos + StrLen(quotedKey), ":");
+        IF colonPos > StrLen(json) RETURN FALSE;
+        endVal := StrMatch(json, colonPos + 1, ",");
+        IF endVal > StrLen(json) THEN
+            endVal := StrMatch(json, colonPos + 1, "}");
         ENDIF
-        IF endVal = 0 RETURN FALSE;
+        IF endVal > StrLen(json) RETURN FALSE;
         valstr := StrPart(json, colonPos + 1, endVal - colonPos - 1);
         valstr := CleanCmd(valstr);
         RETURN StrToVal(valstr, val);
@@ -183,12 +183,12 @@ MODULE MainModule
         VAR string quotedKey;
         VAR string arrayStr;
         quotedKey := """" + key + """";
-        keyPos := StrFind(json, 1, quotedKey);
-        IF keyPos = 0 RETURN FALSE;
-        startBracket := StrFind(json, keyPos + StrLen(quotedKey), "[");
-        IF startBracket = 0 RETURN FALSE;
-        endBracket := StrFind(json, startBracket + 1, "]");
-        IF endBracket = 0 RETURN FALSE;
+        keyPos := StrMatch(json, 1, quotedKey);
+        IF keyPos > StrLen(json) RETURN FALSE;
+        startBracket := StrMatch(json, keyPos + StrLen(quotedKey), "[");
+        IF startBracket > StrLen(json) RETURN FALSE;
+        endBracket := StrMatch(json, startBracket + 1, "]");
+        IF endBracket > StrLen(json) RETURN FALSE;
         arrayStr := StrPart(json, startBracket + 1, endBracket - startBracket - 1);
         arrayStr := NormalizeCommas(arrayStr);
         RETURN ParseNums(arrayStr, arr);
@@ -216,6 +216,7 @@ MODULE MainModule
         VAR num vals{11};
         VAR num jointVals{6};
         VAR num ledVals{4};
+        VAR string rotStr := "";
         VAR num val := 0;
         VAR string name := "";
         VAR string axis := "";
@@ -315,7 +316,7 @@ MODULE MainModule
             SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""movej"",""msg"":""invalid joints""}" + ByteToStr(10\Char));
         CASE "jog":
             IF GetJsonStringVal(json, "axis", axis) AND GetJsonStringVal(json, "sgn", sgn) AND GetJsonNumVal(json, "val", val) THEN
-                rot := (StrFind(json, 1, """rot"":true") > 0);
+                rot := (StrMatch(json, 1, """rot"":true") <= StrLen(json));
                 IF val > 0 AND (axis = "X" OR axis = "Y" OR axis = "Z") THEN
                     IF (rot AND val <= JOG_MAX_DEG) OR (NOT rot AND val <= JOG_MAX_MM) THEN
                         IF sgn = "+" OR sgn = "-" THEN
