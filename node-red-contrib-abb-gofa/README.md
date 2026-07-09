@@ -96,16 +96,24 @@ Ready-made example flows (a per-node demo, a full control dashboard, and a physi
 | `gofa-asi-led` | Socket | Arm status-light color and blink |
 | `gofa-subscribe-state` / `gofa-subscribe-io` | RWS WebSocket | Push on controller-state / I/O-signal changes |
 | `gofa-subscribe-var` / `gofa-subscribe-pose` | RWS poll | Poll a RAPID variable / TCP pose on an interval |
-| `gofa-egm` | UDP (EGM) | Sub-10ms joint-position streaming — see [EGM (optional)](#egm-optional) below, requires `MainModuleEGM.mod` |
+| `gofa-egm` / `gofa-egm-move` | UDP (EGM) | Sub-10ms joint-position streaming — see [EGM (optional)](#egm-optional) below, requires `MainModuleEGM.mod` |
 
 The full RAPID socket protocol reference, RWS endpoint notes, and troubleshooting guide are in the [GitHub README](https://github.com/Nantaphat-Yoktaworn/node-red-contrib-abb-gofa#readme).
 
 ## EGM (optional)
 
-`gofa-egm` streams joint positions over **EGM (Externally Guided Motion)** — a UDP/protobuf
-channel capable of sub-10ms closed-loop motion, unlike the TCP socket protocol or RWS (which
-tops out around 500ms). It needs its own RAPID module and a one-time controller config, so it's
-opt-in rather than part of the default setup above.
+`gofa-egm` + `gofa-egm-move` stream joint positions over **EGM (Externally Guided Motion)** — a
+UDP/protobuf channel capable of sub-10ms closed-loop motion, unlike the TCP socket protocol or
+RWS (which tops out around 500ms). It needs its own RAPID module and a one-time controller
+config, so it's opt-in rather than part of the default setup above.
+
+**Two nodes, split by job.** `gofa-egm` only starts/stops the EGM session and emits telemetry —
+it has an Action dropdown (`Start EGM` / `Stop EGM`), same pattern as `gofa-motor`/
+`gofa-rapid-exec`. `gofa-egm-move` is a separate node that sets the movement target: send it a
+`[j1..j6]` array and it checks whether a `gofa-egm` session is active on the same Robot — if so,
+it updates the live target (output 1); if not, it routes the message unchanged to a fallback
+output (output 2) instead of erroring, e.g. to wire straight into `gofa-movej` for a normal
+non-EGM move.
 
 **Two RAPID modules, one choice at a time:**
 
@@ -145,7 +153,8 @@ torque overruns or safety halts when EGM issues fast corrections. `MainModuleEGM
 `tGripper` currently uses an unverified placeholder mass (1 kg); confirm it matches your actual
 end-of-arm tooling (or run `LoadIdentify`) before relying on EGM with real tooling attached.
 
-Full node help (input/output shapes, config) is in the Node-RED sidebar for `gofa-egm`.
+Full node help (input/output shapes, config) is in the Node-RED sidebar for `gofa-egm` and
+`gofa-egm-move`.
 
 ## Test
 

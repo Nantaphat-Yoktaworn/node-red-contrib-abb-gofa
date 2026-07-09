@@ -352,14 +352,24 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 
 | Node | Protocol | What it does |
 |------|:--------:|-------------|
-| **gofa-egm** | UDP (EGM) | Sub-10ms closed-loop joint-position streaming |
+| **gofa-egm** | UDP (EGM) | Session control + telemetry — Action dropdown (`start`/`stop`) |
+| **gofa-egm-move** | In-memory | Sets the live target if a `gofa-egm` session is active; otherwise routes to a fallback output |
 
 `gofa-egm` streams joint positions over EGM — a UDP/protobuf channel built into RobotWare
 (option `3124-1`, standard on OmniCore), capable of sub-10ms closed-loop motion. Everything
 else in this palette goes through the TCP socket server or RWS, both of which top out around
 100–500ms — EGM is the only path here for real-time control. **Confirmed live** (2026-07-09):
-real motion, closed-loop, driven by this node — a `+3°` target on one joint produces a smooth
-ramp visible in the returned feedback, converging on the commanded value and back.
+real motion, closed-loop — a `+3°` target on one joint produces a smooth ramp visible in the
+returned feedback, converging on the commanded value and back.
+
+**Two nodes, split by job.** `gofa-egm` only starts/stops the session and emits telemetry — it
+has an **Action** dropdown (`Start EGM` / `Stop EGM`, same pattern as `gofa-motor`/
+`gofa-rapid-exec`: put one node instance per action in a flow, each fed by a plain inject).
+`gofa-egm-move` is a separate node that sets the actual movement target: send it a `[j1..j6]`
+array and it checks whether a `gofa-egm` session is active on the same Robot — if so, it updates
+the live target (**output 1**); if not, it routes the same message unchanged to **output 2**
+(fallback) instead of erroring, so you can wire that straight into `gofa-movej` for an automatic
+non-EGM move instead.
 
 **This is opt-in and needs its own RAPID module.** `rapid/MainModule.mod` (the default covered
 by the rest of this README) has no EGM support. `rapid/MainModuleEGM.mod` is a full clone of
@@ -414,19 +424,26 @@ needs a firewall rule on the Node-RED host allowing inbound UDP on that port.
 
 #### Input / output
 
-`msg.payload` can be `"start"`, `"stop"`, or an array of 6 numbers (absolute joint target,
-degrees — requires `"start"` first). Output: `{ ok: true, joints, seqno, mciState, motorsOn,
-convergence, source: 'egm' }`, throttled (config option, default 100ms — real EGM frames arrive
-every ~24ms). Full details in the node's Node-RED sidebar help.
+**`gofa-egm`**: `msg.payload` overrides the node's configured Action — a bare `"start"`/`"stop"`
+string or `{ action: "start" }` / `{ action: "stop" }`; anything else (including a plain inject's
+empty/date payload) just runs the configured Action. Output: `{ ok: true, joints, seqno,
+mciState, motorsOn, convergence, source: 'egm' }`, throttled (config option, default 100ms —
+real EGM frames arrive every ~24ms).
 
-**Ending a session is not automatic — always use `"stop"`, don't just stop sending it
-messages.** EGM's own comm-timeout mechanism does not reliably end a session on its own
+**`gofa-egm-move`**: `msg.payload` = an array of 6 numbers (absolute joint target, degrees) or
+`{ joints: [...] }`. Output 1 (target sent) or output 2 (fallback — EGM session not active)
+fires, never both; `msg.payload` is normalized to a bare `[j1..j6]` array on either output.
+
+Full details in each node's Node-RED sidebar help.
+
+**Ending a session is not automatic — always use `gofa-egm`'s `stop` action, don't just stop
+sending targets.** EGM's own comm-timeout mechanism does not reliably end a session on its own
 (confirmed live: going quiet with a session already connected can leave the controller blocked
-for minutes with no recovery). `"stop"` (or closing/redeploying the node while a session is
-active) sets a dedicated signal via RWS that a RAPID interrupt watches — the controller ends
-the EGM session gracefully (`EGMStop`, from a TRAP) and returns to normal TCP serving on its
-own; the RAPID task itself never actually stops, so this is fast (~1s) and doesn't risk
-leaking controller-side EGM resources the way an external task-level stop would.
+for minutes with no recovery). `stop` (or closing/redeploying the `gofa-egm` node while a
+session is active) sets a dedicated signal via RWS that a RAPID interrupt watches — the
+controller ends the EGM session gracefully (`EGMStop`, from a TRAP) and returns to normal TCP
+serving on its own; the RAPID task itself never actually stops, so this is fast (~1s) and
+doesn't risk leaking controller-side EGM resources the way an external task-level stop would.
 
 While a session is active, every other socket-based node (`gofa-jog`, `gofa-go-point`, etc.)
 fails fast ("connection refused") instead of hanging — the TCP server is genuinely down for
@@ -473,7 +490,8 @@ msg.payload  →  node property (editor)  →  built-in default
 | **gofa-motor** | `'motoron'` / `'motoroff'` (string) · `{ action: 'motoron' }` | `motoron` |
 | **gofa-move** | `'HOME'` / `'SETHOME'` (string) · `{ command: 'HOME' }` | `HOME` |
 | **gofa-rapid-exec** | `'start'` / `'stop'` / `'resetpp'` / `'loadmod'` / `'unloadmod'` / `'activate'` (string) · `{ action: 'start' }` · for `loadmod`: `{ action: 'loadmod', task, modulePath, replace }` · for `unloadmod`/`activate`: `{ action: 'unloadmod', task, module }` | `start` |
-| **gofa-egm** | `'start'` / `'stop'` (string) · array of 6 numbers (absolute joint target, degrees) · `{ joints: [...] }` | (none — requires `start`) |
+| **gofa-egm** | `'start'` / `'stop'` (string) · `{ action: 'start' }` | `start` |
+| **gofa-egm-move** | array of 6 numbers (absolute joint target, degrees) · `{ joints: [...] }` | (none — required) |
 | **gofa-speed-set** | number or string `1`–`100` | `50` |
 | **gofa-zone-set** | `'fine'` / `'z1'` / `'z5'` / `'z10'` / `'z20'` / `'z50'` / `'z100'` | `z10` |
 | **gofa-grip** | `true` / `1` / `'on'` / `'gripon'` or `false` / `0` / `'off'` / `'gripoff'` · `{ action: 'on' }` | `on` |

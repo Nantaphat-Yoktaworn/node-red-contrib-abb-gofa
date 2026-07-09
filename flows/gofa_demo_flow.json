@@ -4487,15 +4487,20 @@
         "nodes": [
             "egmSessionComment",
             "egmInjStart",
+            "egmStartNode",
             "egmInjStop",
-            "egmNode",
+            "egmStopNode",
             "egmFeedbackDebug",
-            "egmSineFn"
+            "egmSineFn",
+            "egmMoveNode",
+            "egmMoveDebug",
+            "egmMovejFallback",
+            "egmMovejFallbackDebug"
         ],
         "x": 6006,
         "y": 269,
-        "w": 1000,
-        "h": 230
+        "w": 1600,
+        "h": 250
     },
     {
         "id": "egmLoadComment",
@@ -4798,9 +4803,9 @@
         "type": "comment",
         "z": "ff1c1e5698ed95ce",
         "g": "egmGrp2",
-        "name": "Start/Stop the EGM UDP session | Sine-sweep function node offsets joint 6 by ±3° every 8s as a live example of feeding real-time targets back into the node (mirrors gofa-egm-python's nudge_joint.py) — replace with your own logic.",
+        "name": "Start/Stop EGM via the Action dropdown (bare date-payload injects, same pattern as gofa-motor's Motors ON/OFF). Sine-sweep function node feeds a live target into gofa-egm-move, which forwards it to the active session (output 1) or falls back to a normal gofa-movej TCP move (output 2) if EGM isn't running.",
         "info": "",
-        "x": 6360,
+        "x": 6440,
         "y": 300,
         "wires": []
     },
@@ -4820,13 +4825,32 @@
         "once": false,
         "onceDelay": 0.1,
         "topic": "",
-        "payload": "start",
-        "payloadType": "str",
+        "payload": "",
+        "payloadType": "date",
         "x": 6120,
         "y": 350,
         "wires": [
             [
-                "egmNode"
+                "egmStartNode"
+            ]
+        ]
+    },
+    {
+        "id": "egmStartNode",
+        "type": "gofa-egm",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp2",
+        "name": "",
+        "robot": "cfg1",
+        "action": "start",
+        "udpPort": 6510,
+        "throttleMs": 100,
+        "x": 6360,
+        "y": 350,
+        "wires": [
+            [
+                "egmFeedbackDebug",
+                "egmSineFn"
             ]
         ]
     },
@@ -4846,32 +4870,30 @@
         "once": false,
         "onceDelay": 0.1,
         "topic": "",
-        "payload": "stop",
-        "payloadType": "str",
+        "payload": "",
+        "payloadType": "date",
         "x": 6120,
-        "y": 400,
+        "y": 420,
         "wires": [
             [
-                "egmNode"
+                "egmStopNode"
             ]
         ]
     },
     {
-        "id": "egmNode",
+        "id": "egmStopNode",
         "type": "gofa-egm",
         "z": "ff1c1e5698ed95ce",
         "g": "egmGrp2",
         "name": "",
         "robot": "cfg1",
+        "action": "stop",
         "udpPort": 6510,
         "throttleMs": 100,
-        "x": 6390,
-        "y": 375,
+        "x": 6360,
+        "y": 420,
         "wires": [
-            [
-                "egmFeedbackDebug",
-                "egmSineFn"
-            ]
+            []
         ]
     },
     {
@@ -4886,8 +4908,8 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 6650,
-        "y": 350,
+        "x": 6620,
+        "y": 320,
         "wires": []
     },
     {
@@ -4895,7 +4917,7 @@
         "type": "function",
         "z": "ff1c1e5698ed95ce",
         "g": "egmGrp2",
-        "name": "Sine sweep joint 6 (±3°, 8s) -> feeds back into EGM",
+        "name": "Sine sweep joint 6 (±3°, 8s) -> feeds into gofa-egm-move",
         "func": "// Mirrors gofa-egm-python's nudge_joint.py: capture the pose on the\n// first feedback frame as baseline, then offset one joint with a smooth\n// sine so it returns to baseline on its own every 8s. Baseline/start are\n// stored in this node's own context, captured once per Node-RED restart\n// or redeploy (context is cleared then) -- re-pressing \"Start EGM\" after\n// a \"Stop EGM\" without redeploying resumes the same sweep rather than\n// re-baselining, which is fine for this demo.\nvar joints = msg.payload && msg.payload.joints;\nif (!Array.isArray(joints) || joints.length !== 6) return null;\n\nif (context.get('baseline') === undefined) {\n    context.set('baseline', joints);\n    context.set('start', Date.now());\n}\n\nvar baseline = context.get('baseline');\nvar elapsed = (Date.now() - context.get('start')) / 1000;\nvar target = baseline.slice();\ntarget[5] = target[5] + 3 * Math.sin(2 * Math.PI * elapsed / 8);\n\nmsg.payload = target;\nreturn msg;",
         "outputs": 1,
         "timeout": 0,
@@ -4903,12 +4925,78 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 6680,
-        "y": 400,
+        "x": 6620,
+        "y": 380,
         "wires": [
             [
-                "egmNode"
+                "egmMoveNode"
             ]
         ]
+    },
+    {
+        "id": "egmMoveNode",
+        "type": "gofa-egm-move",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp2",
+        "name": "",
+        "robot": "cfg1",
+        "x": 6900,
+        "y": 380,
+        "wires": [
+            [
+                "egmMoveDebug"
+            ],
+            [
+                "egmMovejFallback"
+            ]
+        ]
+    },
+    {
+        "id": "egmMoveDebug",
+        "type": "debug",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp2",
+        "name": "target sent (EGM active)",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 7150,
+        "y": 350,
+        "wires": []
+    },
+    {
+        "id": "egmMovejFallback",
+        "type": "gofa-movej",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp2",
+        "name": "Fallback: MOVEJ (EGM not active)",
+        "robot": "cfg1",
+        "joints": "[0,0,85,0,0,0]",
+        "x": 7180,
+        "y": 420,
+        "wires": [
+            [
+                "egmMovejFallbackDebug"
+            ]
+        ]
+    },
+    {
+        "id": "egmMovejFallbackDebug",
+        "type": "debug",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp2",
+        "name": "{ ok, joints } (fallback move result)",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 7430,
+        "y": 420,
+        "wires": []
     }
 ]

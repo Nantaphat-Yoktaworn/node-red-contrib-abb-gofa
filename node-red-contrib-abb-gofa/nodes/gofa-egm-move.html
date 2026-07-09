@@ -1,0 +1,60 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-egm-move', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:  { value: '' },
+            robot: { value: '', type: 'gofa-robot', required: true }
+        },
+        inputs: 1, outputs: 2, icon: 'white-globe.svg',
+        outputLabels: ['target sent', 'EGM not active (fallback)'],
+        label: function() { return this.name || 'EGM Move'; },
+        paletteLabel: 'EGM Move'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-egm-move">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="EGM Move">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-egm-move">
+    <p>Sets the live joint target for an EGM session started by a <code>gofa-egm</code> node
+    wired to the same Robot. Purely a movement node — it does not start/stop EGM itself and does
+    not emit telemetry (that's still <code>gofa-egm</code>'s job).</p>
+
+    <p>On every input, checks whether a <code>gofa-egm</code> session on the configured Robot is
+    currently active:</p>
+    <ul>
+        <li><b>Active</b> — updates the live target the session streams to the robot (picked up
+        on the next EGM frame, ~24ms later) and sends the message out <b>output 1</b>.</li>
+        <li><b>Not active</b> — does <em>not</em> attempt to send anything over EGM. Instead sends
+        the message out <b>output 2</b> (fallback) so the flow can react — e.g. wire it straight
+        into a <code>gofa-movej</code> node for a normal TCP absolute-joint move instead. The
+        target is normalized to a bare <code>[j1..j6]</code> array on both outputs, which
+        <code>gofa-movej</code> accepts directly with no <code>change</code> node needed in
+        between.</li>
+    </ul>
+
+    <p>Requires <code>MainModuleEGM.mod</code> loaded and a <code>gofa-egm</code> "Start EGM"
+    node to have been run first for output 1 to ever fire — see the <code>gofa-egm</code> node's
+    help for the full session prerequisites (module swap, UDPUC <code>EGM_PC</code> config,
+    firewall, tool load data caution).</p>
+
+    <h3>Input</h3>
+    <p><code>msg.payload</code> = an array of 6 numbers (absolute joint target, degrees) or
+    <code>{ joints: [...] }</code>. Any other shape is rejected with an error and produces no
+    output on either wire.</p>
+
+    <h3>Output</h3>
+    <p>Exactly one of the two outputs fires per input, both with <code>msg.payload</code>
+    normalized to a bare <code>[j1..j6]</code> array:</p>
+    <ul>
+        <li><b>1 — target sent:</b> EGM session was active, target forwarded to it.</li>
+        <li><b>2 — fallback:</b> EGM session was not active; wire this to an alternative move
+        path.</li>
+    </ul>
+</script>

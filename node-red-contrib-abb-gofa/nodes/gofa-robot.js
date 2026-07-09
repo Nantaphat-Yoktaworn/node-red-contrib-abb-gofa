@@ -272,6 +272,9 @@ module.exports = function(RED) {
         this._pointsMtime  = null;
         this._seqStop      = false;
         this._seqRunning   = false;
+        this._egmActive    = false;
+        this._egmTarget    = null;
+        this._egmBaseline  = null;
 
         this._loadPoints();
 

@@ -76,7 +76,8 @@
       "gofa-subscribe-var": "nodes/gofa-subscribe-var.js",
       "gofa-subscribe-pose": "nodes/gofa-subscribe-pose.js",
       "gofa-asi-led": "nodes/gofa-asi-led.js",
-      "gofa-egm": "nodes/gofa-egm.js"
+      "gofa-egm": "nodes/gofa-egm.js",
+      "gofa-egm-move": "nodes/gofa-egm-move.js"
     }
   }
 }

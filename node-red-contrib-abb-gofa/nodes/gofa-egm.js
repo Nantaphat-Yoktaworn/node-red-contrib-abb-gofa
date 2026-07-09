@@ -192,22 +192,28 @@ module.exports = function(RED) {
     function GoFaEgmNode(config) {
         RED.nodes.createNode(this, config);
         this.robot      = RED.nodes.getNode(config.robot);
+        this.action     = config.action || 'start';
         this.udpPort    = parseInt(config.udpPort) || 6510;
         this.throttleMs = parseInt(config.throttleMs) || 100;
         var node = this;
 
         node._socket    = null;
-        node._streaming = false;
         node._starting  = false;
         node._stopped   = false;
-        node._baseline  = null;
-        node._target    = null;
         node._lastEmit  = 0;
 
+        // Session state (_egmActive/_egmTarget/_egmBaseline) lives on the
+        // shared gofa-robot config node, not this node instance -- it's the
+        // one true EGM session the controller supports, and gofa-egm-move
+        // (a different node type) needs to read/write the live target. Same
+        // cross-node-coordination pattern as _seqStop/_seqRunning, used by
+        // gofa-sequencer/gofa-stop-seq.
         function stopAll() {
-            node._streaming = false;
-            node._baseline  = null;
-            node._target    = null;
+            if (node.robot) {
+                node.robot._egmActive   = false;
+                node.robot._egmBaseline = null;
+                node.robot._egmTarget   = null;
+            }
             if (node._socket) {
                 try { node._socket.close(); } catch (e) { /* already closing */ }
                 node._socket = null;
@@ -221,14 +227,14 @@ module.exports = function(RED) {
             if (robot.feedbackJoints.length !== 6) return;
 
             // First frame of the session: hold the current pose until a flow
-            // sets an explicit target (nudge_joint.py's "baseline" behavior —
-            // never move on connect).
-            if (!node._baseline) {
-                node._baseline = robot.feedbackJoints;
-                node._target   = node._baseline;
+            // sets an explicit target via gofa-egm-move (nudge_joint.py's
+            // "baseline" behavior — never move on connect).
+            if (!node.robot._egmBaseline) {
+                node.robot._egmBaseline = robot.feedbackJoints;
+                node.robot._egmTarget   = node.robot._egmBaseline;
             }
 
-            node._socket.send(encodeEgmSensor(robot.seqno, node._target), rinfo.port, rinfo.address);
+            node._socket.send(encodeEgmSensor(robot.seqno, node.robot._egmTarget), rinfo.port, rinfo.address);
 
             var now = Date.now();
             if (now - node._lastEmit >= node.throttleMs) {
@@ -272,7 +278,7 @@ module.exports = function(RED) {
                     if (!settled) {
                         settled = true;
                         clearTimeout(noFrameTimer);
-                        node._streaming = true;
+                        node.robot._egmActive = true;
                         node.status({ fill: 'green', shape: 'dot', text: 'streaming (holding)' });
                         resolve();
                     }
@@ -285,7 +291,7 @@ module.exports = function(RED) {
 
         function start() {
             if (!node.robot) return Promise.reject(new Error('No robot configured'));
-            if (node._streaming || node._starting) return Promise.resolve();
+            if (node.robot._egmActive || node._starting) return Promise.resolve();
             node._starting = true;
             node.status({ fill: 'blue', shape: 'dot', text: 'switching to EGM...' });
 
@@ -347,11 +353,10 @@ module.exports = function(RED) {
         }
 
         node.on('input', function(msg, send, done) {
-            var payload = msg.payload;
-            var action = (typeof payload === 'string' && payload) ? payload.toLowerCase()
-                       : (payload && typeof payload === 'object' && !Array.isArray(payload) && payload.action)
-                           ? String(payload.action).toLowerCase()
-                       : null;
+            var raw = msg.payload;
+            var action = (typeof raw === 'string' && raw) ? raw.toLowerCase()
+                       : (raw && raw.action) ? String(raw.action).toLowerCase()
+                       : node.action;
 
             if (action === 'start') {
                 start().then(function() { done(); }).catch(function(err) {
@@ -370,23 +375,8 @@ module.exports = function(RED) {
                 return;
             }
 
-            var joints = Array.isArray(payload) ? payload
-                       : (payload && Array.isArray(payload.joints)) ? payload.joints
-                       : null;
-            if (joints) {
-                if (joints.length !== 6 || joints.some(function(j) { return typeof j !== 'number' || !isFinite(j); })) {
-                    node.error('gofa-egm: target must be an array of 6 finite numbers', msg);
-                    return done();
-                }
-                if (!node._streaming) {
-                    node.error('gofa-egm: not streaming yet — send {action:"start"} first', msg);
-                    return done();
-                }
-                node._target = joints;
-                return done();
-            }
-
-            node.error('gofa-egm: msg.payload must be "start", "stop", or a 6-number joint array', msg);
+            node.error('gofa-egm: action must be "start" or "stop" (got ' + JSON.stringify(action) +
+                ') — to set a target, use the gofa-egm-move node instead', msg);
             done();
         });
 
@@ -396,7 +386,7 @@ module.exports = function(RED) {
             // session was actually active -- avoids needless RWS traffic on
             // every redeploy for a node that never streamed. Best-effort:
             // never let a recovery failure block Node-RED's shutdown/redeploy.
-            if (node._streaming || node._starting) {
+            if ((node.robot && node.robot._egmActive) || node._starting) {
                 stop().catch(function() {}).then(function() { done(); });
             } else {
                 stopAll();

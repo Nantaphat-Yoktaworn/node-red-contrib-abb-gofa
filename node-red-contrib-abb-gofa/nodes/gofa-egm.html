@@ -4,11 +4,12 @@
         defaults: {
             name:       { value: '' },
             robot:      { value: '', type: 'gofa-robot', required: true },
+            action:     { value: 'start' },
             udpPort:    { value: 6510, validate: RED.validators.number() },
             throttleMs: { value: 100,  validate: RED.validators.number() }
         },
         inputs: 1, outputs: 1, icon: 'white-globe.svg',
-        label: function() { return this.name || 'EGM'; },
+        label: function() { return this.name || 'EGM ' + this.action; },
         paletteLabel: 'EGM'
     });
 </script>
@@ -16,6 +17,13 @@
     <div class="form-row">
         <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
         <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-action"><i class="fa fa-flash"></i> Action</label>
+        <select id="node-input-action">
+            <option value="start">Start EGM</option>
+            <option value="stop">Stop EGM</option>
+        </select>
     </div>
     <div class="form-row">
         <label for="node-input-udpPort"><i class="fa fa-random"></i> UDP Port</label>
@@ -84,8 +92,17 @@
     after a genuinely fresh <code>resetpp</code> + <code>start</code>, the problem has moved to
     a stuck EGM resource at the controller level — a full controller restart is the only fix.</p>
 
+    <p><b>This node only controls the EGM session itself (start/stop) and emits telemetry.</b>
+    To send a movement target once a session is active, use the separate
+    <code>gofa-egm-move</code> node — it checks whether this node's session is active and routes
+    to a fallback output (e.g. a normal <code>gofa-movej</code> TCP move) if not.</p>
+
     <h3>Configuration</h3>
     <ul>
+        <li><b>Action</b> — <code>Start EGM</code> or <code>Stop EGM</code>, the action this node
+        instance runs by default on a bare inject. Same pattern as <code>gofa-motor</code>/
+        <code>gofa-rapid-exec</code>: put one node instance per action in a flow (e.g. a "Start
+        EGM" node and a separate "Stop EGM" node), each fed by its own inject.</li>
         <li><b>UDP Port</b> — local port to listen on for EGM frames (must match the UDPUC
         config's Remote Port; default <code>6510</code>)</li>
         <li><b>Output throttle</b> — minimum ms between feedback messages; EGM frames arrive
@@ -93,15 +110,11 @@
     </ul>
 
     <h3>Input</h3>
-    <p><code>msg.payload</code> can be:</p>
-    <ul>
-        <li><code>"start"</code> — switch the controller into EGM mode and begin streaming.
-        Holds the current pose (no motion) until a target is sent.</li>
-        <li><code>"stop"</code> — closes the UDP session and signals RAPID (via RWS) to end the
-        EGM session gracefully, returning the controller to normal TCP serving.</li>
-        <li>An array of 6 numbers (or <code>{ joints: [...] }</code>) — sets the absolute joint
-        target (degrees) the node streams toward. Requires <code>"start"</code> first.</li>
-    </ul>
+    <p><code>msg.payload</code> overrides the configured Action, same as other action-style nodes
+    in this palette — a bare <code>"start"</code>/<code>"stop"</code> string, or
+    <code>{ action: "start" }</code> / <code>{ action: "stop" }</code>. If <code>msg.payload</code>
+    doesn't resolve to either, the node's configured Action runs (so a plain inject with an empty/
+    date payload just fires whichever action this instance is set to).</p>
 
     <h3>Output</h3>
     <p><code>msg.payload = { ok: true, joints: [...], seqno, mciState, motorsOn, convergence,
