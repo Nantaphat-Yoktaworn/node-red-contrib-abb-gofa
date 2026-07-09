@@ -613,6 +613,17 @@ after using `gofa-egm`** — a plain "continue" start is only safe when EGM was 
 restarted through some other path (a bare `start` inject, FlexPendant Play without PP-to-Main,
 etc.).
 
+**If the exact same error still happens after a genuinely fresh `resetpp` + `start`** (check
+the controller's event log — it should say "Program started... from the first instruction,"
+not "restarted... from where it was previously stopped" — if you see the latter, `resetpp`
+didn't actually happen before `start`), the problem is no longer RAPID's program pointer. It's
+a stuck EGM resource at the **controller level** — the `EGM_PC` UC transport can be left
+"still connected" if a previous session was killed mid-negotiation, and no RAPID instruction
+can clear that (confirmed: EGM/UC state isn't exposed anywhere in RWS, so there's no
+lighter-weight fix to try). **A full controller restart clears it** — confirmed live. After
+restarting, the controller comes back in Manual mode with motors in `guardstop` like any
+restart — switch to Auto and turn motors on before retrying.
+
 ### RWS returns 405 (method not allowed)
 
 This palette targets **OmniCore / RWS 2.0** which uses path-based actions (e.g. `/rw/rapid/execution/start`). If you see 405, you may be connecting to an IRC5 controller running RWS 1.0 — the endpoint format is different.

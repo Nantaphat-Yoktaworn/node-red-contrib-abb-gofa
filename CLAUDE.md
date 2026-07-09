@@ -154,6 +154,22 @@ etc.) after an EGM session — even a normal one, not just a stuck one. **Recove
 cleanly. Rule of thumb: after using `gofa-egm` at all, always `resetpp` before the next
 `start`, regardless of which module is loaded or how the EGM session ended.
 
+**If the same error persists even after a genuinely fresh `resetpp`+`start` (confirmed via elog
+— "Program started... from the first instruction," not "restarted... from where it was
+previously stopped"), the problem has moved from RAPID's program pointer to a stuck
+controller-level EGM resource, and only a controller restart clears it — confirmed live
+(2026-07-09).** `RunEgmJoint`'s `EGMReset egmID1;` only resets the RAPID-side handle; the `EGM_PC`
+UC transport itself is a shared, named controller resource, and if a prior session was killed
+mid-negotiation (forced RWS stop while inside `EGMSetupUC`/`EGMActJoint`), the controller can
+keep considering that UC "still connected" independent of which RAPID identifier references it
+next — no RAPID-level instruction can fix that, since it isn't RAPID's state to reset. Checked
+and ruled out first: EGM/UC state is not exposed anywhere in RWS (`/rw/motionsystem/mechunits/
+ROB_1`, `/rw/rapid/tasks/{task}` — neither has any EGM-related field), so there's no
+RWS-visible diagnostic or soft-reset available; a full controller restart is the only fix.
+After restarting: the controller comes back in Manual (Reduced) mode with motors in
+`guardstop` (same as any restart) — needs a physical switch to Auto + motors on before
+retrying, same recovery steps as a normal restart.
+
 **`gofa-egm` (Node.js side)**: `nodes/gofa-egm.js`. Hand-rolled proto2 codec
 (`decodeEgmRobot`/`encodeEgmSensor`, exported for `test.js`) — no protobufjs dependency, `ws`
 stays the package's only runtime dependency. Verified **byte-for-byte** against reference

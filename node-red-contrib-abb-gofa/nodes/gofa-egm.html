@@ -74,6 +74,13 @@
     only matters if RAPID gets restarted some other way (a bare <code>gofa-rapid-exec</code>
     <code>start</code>, FlexPendant Play without PP-to-Main) after EGM was used.</p>
 
+    <p><b>If the same error still happens after a genuinely fresh <code>resetpp</code> +
+    <code>start</code></b> (check the elog says "Program started... from the first
+    instruction," not "restarted... from where it was previously stopped"), the problem has
+    moved from RAPID's program pointer to a stuck EGM resource at the <b>controller level</b> —
+    confirmed live, a full controller restart is the only fix (EGM/UC state isn't exposed
+    anywhere in RWS, so there's no lighter-weight recovery to try).</p>
+
     <h3>Configuration</h3>
     <ul>
         <li><b>UDP Port</b> — local port to listen on for EGM frames (must match the UDPUC
