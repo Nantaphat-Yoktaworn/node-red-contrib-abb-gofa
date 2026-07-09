@@ -197,26 +197,30 @@ module.exports = function(RED) {
         this.throttleMs = parseInt(config.throttleMs) || 100;
         var node = this;
 
-        node._socket    = null;
         node._starting  = false;
         node._stopped   = false;
         node._lastEmit  = 0;
 
-        // Session state (_egmActive/_egmTarget/_egmBaseline) lives on the
-        // shared gofa-robot config node, not this node instance -- it's the
-        // one true EGM session the controller supports, and gofa-egm-move
+        // Session state (_egmActive/_egmTarget/_egmBaseline/_egmSocket) lives
+        // on the shared gofa-robot config node, not this node instance -- it's
+        // the one true EGM session the controller supports, and gofa-egm-move
         // (a different node type) needs to read/write the live target. Same
         // cross-node-coordination pattern as _seqStop/_seqRunning, used by
-        // gofa-sequencer/gofa-stop-seq.
+        // gofa-sequencer/gofa-stop-seq. The socket itself has to be shared
+        // too, not just the flags: confirmed live that splitting "Start EGM"
+        // and "Stop EGM" into two node instances (the documented pattern) left
+        // the dgram socket orphaned -- the Stop instance's stopAll() closed
+        // its OWN (never-bound) node._socket, not the Start instance's real
+        // one, leaking the UDP port until that specific instance redeployed.
         function stopAll() {
             if (node.robot) {
                 node.robot._egmActive   = false;
                 node.robot._egmBaseline = null;
                 node.robot._egmTarget   = null;
-            }
-            if (node._socket) {
-                try { node._socket.close(); } catch (e) { /* already closing */ }
-                node._socket = null;
+                if (node.robot._egmSocket) {
+                    try { node.robot._egmSocket.close(); } catch (e) { /* already closing */ }
+                    node.robot._egmSocket = null;
+                }
             }
         }
 
@@ -234,7 +238,7 @@ module.exports = function(RED) {
                 node.robot._egmTarget   = node.robot._egmBaseline;
             }
 
-            node._socket.send(encodeEgmSensor(robot.seqno, node.robot._egmTarget), rinfo.port, rinfo.address);
+            node.robot._egmSocket.send(encodeEgmSensor(robot.seqno, node.robot._egmTarget), rinfo.port, rinfo.address);
 
             var now = Date.now();
             if (now - node._lastEmit >= node.throttleMs) {
@@ -252,9 +256,16 @@ module.exports = function(RED) {
         // No frame within 2s -> reject, most likely UDPUC config or firewall.
         function bindSocket() {
             return new Promise(function(resolve, reject) {
+                // Defensive: close any stale socket left behind on the shared
+                // robot object before binding a new one, so a leaked/stuck
+                // prior session can't cause EADDRINUSE on a fresh start.
+                if (node.robot._egmSocket) {
+                    try { node.robot._egmSocket.close(); } catch (e) { /* already closing */ }
+                    node.robot._egmSocket = null;
+                }
                 var sock = dgram.createSocket('udp4');
                 var settled = false;
-                node._socket = sock;
+                node.robot._egmSocket = sock;
 
                 var noFrameTimer = setTimeout(function() {
                     if (settled) return;
@@ -295,6 +306,7 @@ module.exports = function(RED) {
             node._starting = true;
             node.status({ fill: 'blue', shape: 'dot', text: 'switching to EGM...' });
 
+            var egmjointAcked = false;
             return node.robot.socketSend('EGMJOINT').then(function(reply) {
                 if (reply === 'ERR:EGMJOINT') {
                     var err = new Error('Controller is running MainModule.mod (no EGM support) — ' +
@@ -304,8 +316,21 @@ module.exports = function(RED) {
                     throw err;
                 }
                 if (!reply.startsWith('OK:EGMJOINT')) throw new Error('Unexpected reply to EGMJOINT: ' + reply);
+                egmjointAcked = true;
                 node.status({ fill: 'yellow', shape: 'ring', text: 'waiting for EGM frames...' });
                 return bindSocket();
+            }).catch(function(err) {
+                // EGMJOINT already succeeded -- the controller is in EGM mode,
+                // blocked in RunEgmJoint -- but something after that failed
+                // locally (bind/no frames). Without this, the session is
+                // orphaned with no natural recovery (confirmed live:
+                // \CommTimeout doesn't reliably end it). Best-effort: never
+                // let a cleanup failure mask the real error.
+                if (egmjointAcked) {
+                    node.robot.rwsPost('/rw/iosystem/signals/' + STOP_SIGNAL + '/set-value', 'lvalue=1')
+                        .catch(function() {});
+                }
+                throw err;
             }).finally(function() { node._starting = false; });
         }
 

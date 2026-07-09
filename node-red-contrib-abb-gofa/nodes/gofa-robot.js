@@ -275,6 +275,7 @@ module.exports = function(RED) {
         this._egmActive    = false;
         this._egmTarget    = null;
         this._egmBaseline  = null;
+        this._egmSocket    = null;
 
         this._loadPoints();
 

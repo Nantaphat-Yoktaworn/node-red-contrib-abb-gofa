@@ -1327,7 +1327,7 @@ await checkAsync('gofa-egm: "start" gets ERR:EGMJOINT -> friendly wrong-module e
     assert.ok(node.errors.some(function(e) { return /MainModuleEGM\.mod/.test(e); }),
         'error should point at loading MainModuleEGM.mod');
     assert.strictEqual(mockRobot._egmActive, false);
-    assert.strictEqual(node._socket, null);
+    assert.ok(!mockRobot._egmSocket, 'no UDP socket should have been created');
 });
 await checkAsync('gofa-egm: an unexpected socket reply on start is surfaced as an error', async function() {
     var mockRobot = { _egmActive: false, socketSend: function() { return Promise.resolve('ERR:UNKNOWN'); } };
@@ -1400,7 +1400,7 @@ await checkAsync('gofa-egm: node close() sets the graceful-stop signal when a se
     };
     var node = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', udpPort: 0, throttleMs: 100 });
     var fakeSocket = { closed: false, close: function() { this.closed = true; } };
-    node._socket = fakeSocket;
+    mockRobot._egmSocket = fakeSocket;
     var doneCalled = false;
     await new Promise(function(resolve) {
         node._handlers['close'](function() { doneCalled = true; resolve(); });
@@ -1408,6 +1408,7 @@ await checkAsync('gofa-egm: node close() sets the graceful-stop signal when a se
     assert.strictEqual(doneCalled, true);
     assert.strictEqual(fakeSocket.closed, true);
     assert.strictEqual(mockRobot._egmActive, false);
+    assert.strictEqual(mockRobot._egmSocket, null, 'socket ref must be cleared, whichever instance created it');
     assert.strictEqual(node._stopped, true);
     assert.ok(calls.indexOf('/rw/iosystem/signals/ABB_Scalable_IO_0_DO16/set-value') >= 0,
         'close on an active session must set the graceful-stop signal');
@@ -1421,6 +1422,40 @@ await checkAsync('gofa-egm: node close() on a never-started node is a fast no-op
     });
     assert.strictEqual(doneCalled, true);
     assert.strictEqual(node._stopped, true);
+});
+// Confirmed live (2026-07-09): splitting "Start EGM"/"Stop EGM" into two node
+// instances (the documented pattern) leaked the UDP socket -- the Stop
+// instance's stopAll() closed its OWN node._socket (never bound, always
+// null), not the Start instance's real one, since the socket lived on the
+// node instance instead of the shared robot object. Fixed by moving it onto
+// robot._egmSocket, same as the other EGM state.
+await checkAsync('gofa-egm: a DIFFERENT node instance can close the socket a Start instance opened', async function() {
+    var mockRobot = { _egmActive: true, rwsPost: function() { return Promise.resolve(''); }, socketSend: function() { return Promise.resolve('OK:PING'); } };
+    var fakeSocket = { closed: false, close: function() { this.closed = true; } };
+    mockRobot._egmSocket = fakeSocket; // as if a separate "Start" instance opened it
+    var stopNode = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'stop', udpPort: 0, throttleMs: 100 });
+    var err = await runInput(stopNode, { payload: 'stop' });
+    assert.strictEqual(err, undefined);
+    assert.strictEqual(fakeSocket.closed, true, 'a Stop instance must close whichever socket is on the shared robot object');
+    assert.strictEqual(mockRobot._egmSocket, null);
+});
+await checkAsync('gofa-egm: start() releases the orphaned controller-side session if EGMJOINT acked but the UDP bind fails', async function() {
+    var dgram = require('dgram');
+    var blocker = dgram.createSocket('udp4');
+    await new Promise(function(resolve) { blocker.bind(0, resolve); });
+    var port = blocker.address().port; // occupy it so gofa-egm's own bind() hits EADDRINUSE fast
+    var calls = [];
+    var mockRobot = {
+        _egmActive: false,
+        socketSend: function() { return Promise.resolve('OK:EGMJOINT'); },
+        rwsPost: function(p, b) { calls.push([p, b]); return Promise.resolve(''); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'start', udpPort: port, throttleMs: 100 });
+    var err = await runInput(node, { payload: 'start' });
+    blocker.close();
+    assert.ok(err, 'bind failure must reject');
+    assert.ok(calls.some(function(c) { return c[0] === '/rw/iosystem/signals/ABB_Scalable_IO_0_DO16/set-value'; }),
+        'must release the controller-side EGM session that EGMJOINT already started, or it is orphaned with no natural recovery');
 });
 
 // gofa-egm-move ──────────────────────────────────────────────────────────────

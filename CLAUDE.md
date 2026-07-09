@@ -268,6 +268,34 @@ functional impact — confirmed live that `gofa-egm-move`'s fallback check (whic
 single-node design too (this refactor only moved *where* the target lives, not this timing
 window). Not chased further; flagged here in case it matters for a future change.
 
+**Bug found and fixed post-publish (2026-07-09, follow-up session): the UDP socket wasn't
+actually shared, only the flags were.** User hit `gofa-egm: bind EADDRINUSE 0.0.0.0:6510` on a
+second "Start EGM" — root cause traced live: the socket-sharing refactor above moved
+`_egmActive`/`_egmTarget`/`_egmBaseline` onto `robot`, but `node._socket` (the actual dgram
+socket) was left as node-instance-local state. With the documented two-instance pattern (a
+"Start EGM" node and a separate "Stop EGM" node, same as `gofa-motor`'s Motors ON/OFF), the Stop
+instance's `stopAll()` closed *its own* `node._socket` (always `null`, since that instance never
+binds one) instead of the Start instance's real socket — leaking the UDP port until that
+specific Start instance got redeployed. Confirmed live: `netstat` showed the port held by a
+stray `node.exe`; killing it and retrying still would have hit the same leak on the next
+Start/Stop cycle without a real fix. **Fix**: moved the socket itself onto `robot._egmSocket`
+too (`gofa-robot.js`'s constructor, alongside the other `_egm*` fields) — any `gofa-egm`
+instance's `stopAll()` now closes whichever socket is actually open, regardless of which
+instance created it. `bindSocket()` also defensively closes any stale `robot._egmSocket` before
+creating a new one, so a leaked reference can't cause `EADDRINUSE` again even in edge cases.
+**Also fixed a related orphaning gap surfaced by the same incident**: if `EGMJOINT` succeeds
+(controller enters EGM mode, closes its TCP server) but the local UDP bind then fails for any
+reason (this `EADDRINUSE`, or a genuine "no frames within 2s"), the controller-side session was
+being abandoned with no natural recovery (same `\CommTimeout`-doesn't-help finding as everywhere
+else in this doc) — `start()` now sends the graceful-stop signal as best-effort cleanup in that
+specific case (EGMJOINT acked, something after it failed), so a failed Start doesn't leave the
+robot silently stuck. **Confirmed live**: reproduced the exact reported scenario (Start on
+instance A → Stop on a *different* instance B → Start on A again) end-to-end via the real node
+files — no `EADDRINUSE`, port cleanly released between cycles, robot healthy throughout. 142/142
+unit tests pass, including two new ones for this (`gofa-egm: a DIFFERENT node instance can close
+the socket a Start instance opened`, `gofa-egm: start() releases the orphaned controller-side
+session if EGMJOINT acked but the UDP bind fails`).
+
 **Prerequisites (one-time, not automatable from Node-RED)**: a UDPUC transmission protocol
 named `EGM_PC` (RobotStudio → Controller → Configuration → Communication → Transmission
 Protocol; Remote Address = the Node-RED host's IP on the robot's subnet, Remote Port =

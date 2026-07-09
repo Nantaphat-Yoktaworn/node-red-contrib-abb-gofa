@@ -613,6 +613,18 @@ IP does. Check it in RobotStudio (**Controller** → **Configuration** → **Com
 **Transmission Protocol** → `EGM_PC`) and restart the controller after fixing it. Also
 double-check the firewall rule for inbound UDP on the configured port.
 
+### `gofa-egm` `start` fails with "bind EADDRINUSE 0.0.0.0:6510" (fixed — for older versions)
+
+**Fixed as of the current `gofa-egm`/`gofa-robot`.** Older versions kept the UDP socket as
+node-instance-local state while the session flags (`_egmActive` etc.) were shared across
+instances — with two separate `gofa-egm` nodes (a "Start EGM" instance and a "Stop EGM"
+instance, the documented pattern below), Stop only closed *its own* never-bound socket, leaking
+the real one that Start opened. The next "Start EGM" then failed to bind the same port. Fixed by
+moving the socket itself onto the shared `gofa-robot` config node too — any `gofa-egm` instance's
+stop now closes whichever socket is actually open. If you're on an older version and hit this,
+find and kill whatever process is holding the port (`netstat -ano | findstr 6510` on Windows,
+`lsof -i :6510` on Linux/macOS) and update.
+
 ### `gofa-egm` session won't end / robot stuck unresponsive to TCP nodes after using EGM
 
 Always use the `"stop"` action (or let the node's own redeploy/close handler run) — don't just
