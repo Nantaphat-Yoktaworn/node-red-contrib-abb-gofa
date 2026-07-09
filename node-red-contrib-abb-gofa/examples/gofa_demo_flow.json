@@ -4425,33 +4425,390 @@
             "color": "#aa6600"
         },
         "nodes": [
-            "egmDemoComment",
-            "egmDemoInjStart",
-            "egmDemoInjStop",
-            "egmDemoNode",
-            "egmDemoDebug"
+            "egmGrp1",
+            "egmGrp2"
         ],
         "x": 5946,
         "y": 33,
-        "w": 872,
-        "h": 217
+        "w": 3000,
+        "h": 500
     },
     {
-        "id": "egmDemoComment",
-        "type": "comment",
+        "id": "egmGrp1",
+        "type": "group",
         "z": "ff1c1e5698ed95ce",
         "g": "egmDemoGrp1",
-        "name": "Requires rapid/MainModuleEGM.mod loaded (not the default MainModule.mod) + one-time UDPUC \"EGM_PC\" controller config. For the full correct-usage example — loading the module and safely setting a target from live feedback — see flows/egm_demo_flow.json.",
+        "name": "0 - Load MainModuleEGM.mod (run once, or when MainModule.mod is loaded)",
+        "style": {
+            "stroke": "#aa6600",
+            "stroke-opacity": "1",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
+            "label": true,
+            "label-position": "nw",
+            "color": "#aa6600"
+        },
+        "nodes": [
+            "egmLoadComment",
+            "egmInjSwitch",
+            "egmStop1",
+            "egmClrPreUnload",
+            "egmUnload",
+            "egmClr1",
+            "egmUpload",
+            "egmClr2",
+            "egmLoadmod",
+            "egmClr3",
+            "egmResetpp",
+            "egmClr4",
+            "egmStart",
+            "egmLoadDebug"
+        ],
+        "x": 6006,
+        "y": 59,
+        "w": 2900,
+        "h": 190
+    },
+    {
+        "id": "egmGrp2",
+        "type": "group",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmDemoGrp1",
+        "name": "1 - EGM Session (UDP)",
+        "style": {
+            "stroke": "#aa6600",
+            "stroke-opacity": "1",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
+            "label": true,
+            "label-position": "nw",
+            "color": "#aa6600"
+        },
+        "nodes": [
+            "egmSessionComment",
+            "egmInjStart",
+            "egmInjStop",
+            "egmNode",
+            "egmFeedbackDebug",
+            "egmSineFn"
+        ],
+        "x": 6006,
+        "y": 269,
+        "w": 1000,
+        "h": 230
+    },
+    {
+        "id": "egmLoadComment",
+        "type": "comment",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp1",
+        "name": "Requires MainModuleEGM.mod loaded on the controller (this pipeline loads it) + one-time UDPUC \"EGM_PC\" controller config (RobotStudio > Controller > Configuration > Communication > Transmission Protocol, Remote Port = 6510, needs a controller restart) + a firewall rule on this host allowing inbound UDP 6510. Run once, or whenever MainModule.mod is currently loaded.",
         "info": "",
-        "x": 6350,
-        "y": 65,
+        "x": 6420,
+        "y": 90,
         "wires": []
     },
     {
-        "id": "egmDemoInjStart",
+        "id": "egmInjSwitch",
         "type": "inject",
         "z": "ff1c1e5698ed95ce",
-        "g": "egmDemoGrp1",
+        "g": "egmGrp1",
+        "name": "Load MainModuleEGM.mod",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 6120,
+        "y": 160,
+        "wires": [
+            [
+                "egmStop1"
+            ]
+        ]
+    },
+    {
+        "id": "egmStop1",
+        "type": "gofa-rapid-exec",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp1",
+        "name": "Stop RAPID",
+        "robot": "cfg1",
+        "action": "stop",
+        "x": 6320,
+        "y": 160,
+        "wires": [
+            [
+                "egmClrPreUnload"
+            ]
+        ]
+    },
+    {
+        "id": "egmClrPreUnload",
+        "type": "change",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp1",
+        "name": "clear payload",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "{}",
+                "tot": "json"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 6520,
+        "y": 160,
+        "wires": [
+            [
+                "egmUnload"
+            ]
+        ]
+    },
+    {
+        "id": "egmUnload",
+        "type": "gofa-rapid-exec",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp1",
+        "name": "Unload MainModule (if loaded)",
+        "robot": "cfg1",
+        "action": "unloadmod",
+        "task": "T_ROB1",
+        "module": "MainModule",
+        "x": 6740,
+        "y": 160,
+        "wires": [
+            [
+                "egmClr1"
+            ]
+        ]
+    },
+    {
+        "id": "egmClr1",
+        "type": "change",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp1",
+        "name": "clear payload",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "{}",
+                "tot": "json"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 6960,
+        "y": 160,
+        "wires": [
+            [
+                "egmUpload"
+            ]
+        ]
+    },
+    {
+        "id": "egmUpload",
+        "type": "gofa-upload-mod",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp1",
+        "name": "Upload MainModuleEGM.mod",
+        "robot": "cfg1",
+        "localPath": "",
+        "remotePath": "$HOME/Programs/MainModuleEGM.mod",
+        "x": 7200,
+        "y": 160,
+        "wires": [
+            [
+                "egmClr2"
+            ]
+        ]
+    },
+    {
+        "id": "egmClr2",
+        "type": "change",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp1",
+        "name": "clear payload",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "{}",
+                "tot": "json"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 7440,
+        "y": 160,
+        "wires": [
+            [
+                "egmLoadmod"
+            ]
+        ]
+    },
+    {
+        "id": "egmLoadmod",
+        "type": "gofa-rapid-exec",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp1",
+        "name": "Load Module",
+        "robot": "cfg1",
+        "action": "loadmod",
+        "task": "T_ROB1",
+        "modulePath": "$HOME/Programs/MainModuleEGM.mod",
+        "replace": true,
+        "module": "MainModuleEGM",
+        "x": 7660,
+        "y": 160,
+        "wires": [
+            [
+                "egmClr3"
+            ]
+        ]
+    },
+    {
+        "id": "egmClr3",
+        "type": "change",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp1",
+        "name": "clear payload",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "{}",
+                "tot": "json"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 7880,
+        "y": 160,
+        "wires": [
+            [
+                "egmResetpp"
+            ]
+        ]
+    },
+    {
+        "id": "egmResetpp",
+        "type": "gofa-rapid-exec",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp1",
+        "name": "Reset PP",
+        "robot": "cfg1",
+        "action": "resetpp",
+        "x": 8100,
+        "y": 160,
+        "wires": [
+            [
+                "egmClr4"
+            ]
+        ]
+    },
+    {
+        "id": "egmClr4",
+        "type": "change",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp1",
+        "name": "clear payload",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "{}",
+                "tot": "json"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 8320,
+        "y": 160,
+        "wires": [
+            [
+                "egmStart"
+            ]
+        ]
+    },
+    {
+        "id": "egmStart",
+        "type": "gofa-rapid-exec",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp1",
+        "name": "Start RAPID",
+        "robot": "cfg1",
+        "action": "start",
+        "x": 8540,
+        "y": 160,
+        "wires": [
+            [
+                "egmLoadDebug"
+            ]
+        ]
+    },
+    {
+        "id": "egmLoadDebug",
+        "type": "debug",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp1",
+        "name": "{ ok, action }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 8730,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "egmSessionComment",
+        "type": "comment",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp2",
+        "name": "Start/Stop the EGM UDP session | Sine-sweep function node offsets joint 6 by ±3° every 8s as a live example of feeding real-time targets back into the node (mirrors gofa-egm-python's nudge_joint.py) — replace with your own logic.",
+        "info": "",
+        "x": 6360,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "egmInjStart",
+        "type": "inject",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp2",
         "name": "Start EGM",
         "props": [
             {
@@ -4465,19 +4822,19 @@
         "topic": "",
         "payload": "start",
         "payloadType": "str",
-        "x": 6060,
-        "y": 135,
+        "x": 6120,
+        "y": 350,
         "wires": [
             [
-                "egmDemoNode"
+                "egmNode"
             ]
         ]
     },
     {
-        "id": "egmDemoInjStop",
+        "id": "egmInjStop",
         "type": "inject",
         "z": "ff1c1e5698ed95ce",
-        "g": "egmDemoGrp1",
+        "g": "egmGrp2",
         "name": "Stop EGM",
         "props": [
             {
@@ -4491,45 +4848,67 @@
         "topic": "",
         "payload": "stop",
         "payloadType": "str",
-        "x": 6060,
-        "y": 185,
+        "x": 6120,
+        "y": 400,
         "wires": [
             [
-                "egmDemoNode"
+                "egmNode"
             ]
         ]
     },
     {
-        "id": "egmDemoNode",
+        "id": "egmNode",
         "type": "gofa-egm",
         "z": "ff1c1e5698ed95ce",
-        "g": "egmDemoGrp1",
+        "g": "egmGrp2",
         "name": "",
         "robot": "cfg1",
         "udpPort": 6510,
         "throttleMs": 100,
-        "x": 6300,
-        "y": 160,
+        "x": 6390,
+        "y": 375,
         "wires": [
             [
-                "egmDemoDebug"
+                "egmFeedbackDebug",
+                "egmSineFn"
             ]
         ]
     },
     {
-        "id": "egmDemoDebug",
+        "id": "egmFeedbackDebug",
         "type": "debug",
         "z": "ff1c1e5698ed95ce",
-        "g": "egmDemoGrp1",
-        "name": "{ ok, joints, seqno, mciState, motorsOn, convergence }",
+        "g": "egmGrp2",
+        "name": "{ joints, seqno, ... }",
         "active": true,
         "tosidebar": true,
         "console": false,
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 6560,
-        "y": 160,
+        "x": 6650,
+        "y": 350,
         "wires": []
+    },
+    {
+        "id": "egmSineFn",
+        "type": "function",
+        "z": "ff1c1e5698ed95ce",
+        "g": "egmGrp2",
+        "name": "Sine sweep joint 6 (±3°, 8s) -> feeds back into EGM",
+        "func": "// Mirrors gofa-egm-python's nudge_joint.py: capture the pose on the\n// first feedback frame as baseline, then offset one joint with a smooth\n// sine so it returns to baseline on its own every 8s. Baseline/start are\n// stored in this node's own context, captured once per Node-RED restart\n// or redeploy (context is cleared then) -- re-pressing \"Start EGM\" after\n// a \"Stop EGM\" without redeploying resumes the same sweep rather than\n// re-baselining, which is fine for this demo.\nvar joints = msg.payload && msg.payload.joints;\nif (!Array.isArray(joints) || joints.length !== 6) return null;\n\nif (context.get('baseline') === undefined) {\n    context.set('baseline', joints);\n    context.set('start', Date.now());\n}\n\nvar baseline = context.get('baseline');\nvar elapsed = (Date.now() - context.get('start')) / 1000;\nvar target = baseline.slice();\ntarget[5] = target[5] + 3 * Math.sin(2 * Math.PI * elapsed / 8);\n\nmsg.payload = target;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 6680,
+        "y": 400,
+        "wires": [
+            [
+                "egmNode"
+            ]
+        ]
     }
 ]

@@ -18,10 +18,9 @@ rapid/
   MainModule.mod                 ← RAPID socket server (must run on controller) — the default
   MainModuleEGM.mod              ← Optional sibling: adds EGM streaming support (see EGM section)
 flows/
-  gofa_demo_flow.json            ← Demo flow — one inject per node
+  gofa_demo_flow.json            ← Demo flow — one inject per node, includes the EGM module-load + streaming demo (see EGM section)
   dashboard_flow.json            ← Full robot control palette flow
   teach_workflow_flow.json       ← Physical-button teach workflow (see below)
-  egm_demo_flow.json             ← EGM module-load + streaming demo (see EGM section)
 MANUAL_CONTROL.md                ← Control the robot directly (curl / raw TCP), no Node-RED needed
 ```
 
@@ -211,10 +210,9 @@ Click **Update** → **Deploy**.
 
 | Flow | What it does |
 |------|-------------|
-| `flows/gofa_demo_flow.json` | One inject per node — good for testing each feature |
+| `flows/gofa_demo_flow.json` | One inject per node — good for testing each feature; includes a "4 - EGM (UDP)" group that loads `MainModuleEGM.mod` and streams (see [EGM](#egm-externally-guided-motion)) |
 | `flows/dashboard_flow.json` | Full robot control palette flow |
 | `flows/teach_workflow_flow.json` | Physical-button teach workflow (see below) |
-| `flows/egm_demo_flow.json` | Load `MainModuleEGM.mod` + EGM streaming demo (see [EGM](#egm-externally-guided-motion)) |
 
 After importing, open the **gofa-robot** config node (click any GoFa node → pencil icon) and verify the IP and credentials match your setup.
 
@@ -386,7 +384,8 @@ sequence, either direction:
 5. `gofa-rapid-exec` → `resetpp`
 6. `gofa-rapid-exec` → `start`
 
-`flows/egm_demo_flow.json` wires this exact sequence up as a ready-made sub-flow (with `change`
+The "0 - Load MainModuleEGM.mod" group inside the "4 - EGM (UDP)" group of
+`flows/gofa_demo_flow.json` wires this exact sequence up as a ready-made sub-flow (with `change`
 nodes clearing `msg.payload` between chained `gofa-rapid-exec` nodes — see the chaining note in
 [msg.payload conventions](#msgpayload-conventions)). If the wrong module ends up loaded anyway,
 `gofa-egm`'s `start` action fails with a clear "load MainModuleEGM.mod first" error instead of
