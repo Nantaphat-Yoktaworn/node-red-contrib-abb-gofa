@@ -109,10 +109,18 @@ MODULE MainModule
     ENDPROC
 
     PROC ServeClient()
+        VAR string firstChar;
         WHILE TRUE DO
             ! Block until a command line arrives from the client
             SocketReceive clientSocket \Str:=rxStr \Time:=WAIT_MAX;
-            Dispatch rxStr;
+            IF StrLen(rxStr) > 0 THEN
+                firstChar := StrPart(rxStr, 1, 1);
+                IF firstChar = "{" THEN
+                    DispatchJson rxStr;
+                ELSE
+                    Dispatch rxStr;
+                ENDIF
+            ENDIF
         ENDWHILE
     ERROR
         IF ERRNO = ERR_SOCK_CLOSED THEN
@@ -127,6 +135,299 @@ MODULE MainModule
         StartMove;
         RETRY;
     ENDPROC
+
+    ! Finds the string value associated with a key in a flat JSON string
+    FUNC bool GetJsonStringVal(string json, string key, INOUT string val)
+        VAR num keyPos;
+        VAR num startVal;
+        VAR num endVal;
+        VAR string quotedKey;
+        quotedKey := """" + key + """";
+        keyPos := StrFind(json, 1, quotedKey);
+        IF keyPos = 0 RETURN FALSE;
+        startVal := StrFind(json, keyPos + StrLen(quotedKey), """");
+        IF startVal = 0 RETURN FALSE;
+        endVal := StrFind(json, startVal + 1, """");
+        IF endVal = 0 RETURN FALSE;
+        val := StrPart(json, startVal + 1, endVal - startVal - 1);
+        RETURN TRUE;
+    ENDFUNC
+
+    ! Finds the numeric value associated with a key in a flat JSON string
+    FUNC bool GetJsonNumVal(string json, string key, INOUT num val)
+        VAR num keyPos;
+        VAR num colonPos;
+        VAR num endVal;
+        VAR string quotedKey;
+        VAR string valstr;
+        quotedKey := """" + key + """";
+        keyPos := StrFind(json, 1, quotedKey);
+        IF keyPos = 0 RETURN FALSE;
+        colonPos := StrFind(json, keyPos + StrLen(quotedKey), ":");
+        IF colonPos = 0 RETURN FALSE;
+        endVal := StrFind(json, colonPos + 1, ",");
+        IF endVal = 0 THEN
+            endVal := StrFind(json, colonPos + 1, "}");
+        ENDIF
+        IF endVal = 0 RETURN FALSE;
+        valstr := StrPart(json, colonPos + 1, endVal - colonPos - 1);
+        valstr := CleanCmd(valstr);
+        RETURN StrToVal(valstr, val);
+    ENDFUNC
+
+    ! Parses a numeric array associated with a key in a flat JSON string (e.g. "val":[1,2,3])
+    FUNC bool GetJsonNumArray(string json, string key, INOUT num arr{*})
+        VAR num keyPos;
+        VAR num startBracket;
+        VAR num endBracket;
+        VAR string quotedKey;
+        VAR string arrayStr;
+        quotedKey := """" + key + """";
+        keyPos := StrFind(json, 1, quotedKey);
+        IF keyPos = 0 RETURN FALSE;
+        startBracket := StrFind(json, keyPos + StrLen(quotedKey), "[");
+        IF startBracket = 0 RETURN FALSE;
+        endBracket := StrFind(json, startBracket + 1, "]");
+        IF endBracket = 0 RETURN FALSE;
+        arrayStr := StrPart(json, startBracket + 1, endBracket - startBracket - 1);
+        arrayStr := NormalizeCommas(arrayStr);
+        RETURN ParseNums(arrayStr, arr);
+    ENDFUNC
+
+    ! Helper to replace commas with semicolons in a string
+    FUNC string NormalizeCommas(string s)
+        VAR string out := "";
+        VAR string ch;
+        VAR num i;
+        FOR i FROM 1 TO StrLen(s) DO
+            ch := StrPart(s, i, 1);
+            IF ch = "," THEN
+                out := out + ";";
+            ELSE
+                out := out + ch;
+            ENDIF
+        ENDFOR
+        RETURN out;
+    ENDFUNC
+
+    ! JSON Dispatcher
+    PROC DispatchJson(string json)
+        VAR string cmd := "";
+        VAR num vals{11};
+        VAR num val := 0;
+        VAR string name := "";
+        VAR string axis := "";
+        VAR string sgn := "";
+        VAR bool rot := FALSE;
+        VAR num jointNo := 0;
+        VAR robtarget t;
+        VAR jointtarget jt;
+        VAR num qn;
+        VAR bool linear;
+        VAR string varname;
+        VAR string valstr;
+        VAR num speedVal;
+        VAR string zoneName;
+
+        IF NOT GetJsonStringVal(json, "cmd", cmd) THEN
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""unknown"",""msg"":""invalid json command""}" + ByteToStr(10\Char));
+            RETURN;
+        ENDIF
+
+        TEST cmd
+        CASE "ping":
+            SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""ping""}" + ByteToStr(10\Char));
+        CASE "home":
+            SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""home""}" + ByteToStr(10\Char));
+            rGoHome;
+        CASE "sethome":
+            pHome := CRobT(\Tool:=tGripper \WObj:=wobj1);
+            SaveHome;
+            SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""sethome""}" + ByteToStr(10\Char));
+        CASE "stop":
+            StopMove;
+            ClearPath;
+            StartMove;
+            bStopMotion := FALSE;
+            SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""stop""}" + ByteToStr(10\Char));
+        CASE "resetled":
+            SetGO Asi1LedRed,    0;
+            SetGO Asi1LedGreen,  255;
+            SetGO Asi1LedBlue,   0;
+            SetGO Asi1LedPeriod, 0;
+            SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""resetled""}" + ByteToStr(10\Char));
+        CASE "speed":
+            IF GetJsonNumVal(json, "val", speedVal) THEN
+                IF speedVal >= 1 AND speedVal <= 100 THEN
+                    SpeedRefresh speedVal;
+                    SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""speed""}" + ByteToStr(10\Char));
+                    RETURN;
+                ENDIF
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""speed"",""msg"":""invalid speed""}" + ByteToStr(10\Char));
+        CASE "zone":
+            IF GetJsonStringVal(json, "val", zoneName) THEN
+                TEST zoneName
+                CASE "FINE":  zActive := fine;
+                CASE "Z1":    zActive := z1;
+                CASE "Z5":    zActive := z5;
+                CASE "Z10":   zActive := z10;
+                CASE "Z20":   zActive := z20;
+                CASE "Z50":   zActive := z50;
+                CASE "Z100":  zActive := z100;
+                DEFAULT:
+                    SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""zone"",""msg"":""unknown zone""}" + ByteToStr(10\Char));
+                    RETURN;
+                ENDTEST
+                SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""zone""}" + ByteToStr(10\Char));
+                RETURN;
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""zone"",""msg"":""invalid zone params""}" + ByteToStr(10\Char));
+        CASE "gotoj", "gotol":
+            linear := (cmd = "gotol");
+            IF GetJsonNumArray(json, "val", vals) THEN
+                qn := Sqrt(vals{4} * vals{4} + vals{5} * vals{5} + vals{6} * vals{6} + vals{7} * vals{7});
+                IF qn <> 0 THEN
+                    t.trans   := [vals{1}, vals{2}, vals{3}];
+                    t.rot     := [vals{4} / qn, vals{5} / qn, vals{6} / qn, vals{7} / qn];
+                    t.robconf := [vals{8}, vals{9}, vals{10}, vals{11}];
+                    t.extax   := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
+                    SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""goto""}" + ByteToStr(10\Char));
+                    IF linear THEN
+                        MoveL \Conc, t, vGoto, fine, tGripper \WObj:=wobj1;
+                    ELSE
+                        MoveJ \Conc, t, vGoto, fine, tGripper \WObj:=wobj1;
+                    ENDIF
+                    RETURN;
+                ENDIF
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""" + cmd + """,""msg"":""invalid target""}" + ByteToStr(10\Char));
+        CASE "movej":
+            IF GetJsonNumArray(json, "val", vals) THEN
+                jt.robax := [vals{1}, vals{2}, vals{3}, vals{4}, vals{5}, vals{6}];
+                jt.extax := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
+                SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""movej""}" + ByteToStr(10\Char));
+                MoveAbsJ \Conc, jt, vGoto, zActive, tGripper \WObj:=wobj1;
+                RETURN;
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""movej"",""msg"":""invalid joints""}" + ByteToStr(10\Char));
+        CASE "jog":
+            IF GetJsonStringVal(json, "axis", axis) AND GetJsonStringVal(json, "sgn", sgn) AND GetJsonNumVal(json, "val", val) THEN
+                rot := (StrFind(json, 1, """rot"":true") > 0);
+                IF val > 0 AND (axis = "X" OR axis = "Y" OR axis = "Z") THEN
+                    IF (rot AND val <= JOG_MAX_DEG) OR (NOT rot AND val <= JOG_MAX_MM) THEN
+                        IF sgn = "+" OR sgn = "-" THEN
+                            IF sgn = "-" val := -val;
+                            SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""jog""}" + ByteToStr(10\Char));
+                            JogMove axis, val, rot;
+                            RETURN;
+                        ENDIF
+                    ENDIF
+                ENDIF
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""jog"",""msg"":""invalid jog params""}" + ByteToStr(10\Char));
+        CASE "jointjog":
+            IF GetJsonNumVal(json, "joint", jointNo) AND GetJsonStringVal(json, "sgn", sgn) AND GetJsonNumVal(json, "val", val) THEN
+                IF jointNo >= 1 AND jointNo <= 6 AND val > 0 AND val <= JOINT_MAX_DEG THEN
+                    IF sgn = "+" OR sgn = "-" THEN
+                        IF sgn = "-" val := -val;
+                        SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""jointjog""}" + ByteToStr(10\Char));
+                        jt := CJointT();
+                        TEST jointNo
+                        CASE 1: jt.robax.rax_1 := jt.robax.rax_1 + val;
+                        CASE 2: jt.robax.rax_2 := jt.robax.rax_2 + val;
+                        CASE 3: jt.robax.rax_3 := jt.robax.rax_3 + val;
+                        CASE 4: jt.robax.rax_4 := jt.robax.rax_4 + val;
+                        CASE 5: jt.robax.rax_5 := jt.robax.rax_5 + val;
+                        CASE 6: jt.robax.rax_6 := jt.robax.rax_6 + val;
+                        ENDTEST
+                        StopMove;
+                        ClearPath;
+                        StartMove;
+                        MoveAbsJ \Conc, jt, vJog, fine, tGripper \WObj:=wobj1;
+                        RETURN;
+                    ENDIF
+                ENDIF
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""jointjog"",""msg"":""invalid jointjog params""}" + ByteToStr(10\Char));
+        CASE "setled":
+            IF GetJsonNumArray(json, "val", vals) THEN
+                SetGO Asi1LedRed,    vals{1};
+                SetGO Asi1LedGreen,  vals{2};
+                SetGO Asi1LedBlue,   vals{3};
+                SetGO Asi1LedPeriod, vals{4};
+                SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""setled""}" + ByteToStr(10\Char));
+                RETURN;
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""setled"",""msg"":""invalid led params""}" + ByteToStr(10\Char));
+        CASE "setdo":
+            IF GetJsonStringVal(json, "name", name) AND GetJsonNumVal(json, "val", val) THEN
+                IF val = 0 OR val = 1 THEN
+                    TEST name
+                    CASE "ABB_SCALABLE_IO_0_DO1":  SetDO ABB_Scalable_IO_0_DO1,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO2":  SetDO ABB_Scalable_IO_0_DO2,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO3":  SetDO ABB_Scalable_IO_0_DO3,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO4":  SetDO ABB_Scalable_IO_0_DO4,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO5":  SetDO ABB_Scalable_IO_0_DO5,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO6":  SetDO ABB_Scalable_IO_0_DO6,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO7":  SetDO ABB_Scalable_IO_0_DO7,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO8":  SetDO ABB_Scalable_IO_0_DO8,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO9":  SetDO ABB_Scalable_IO_0_DO9,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO10": SetDO ABB_Scalable_IO_0_DO10, val;
+                    CASE "ABB_SCALABLE_IO_0_DO11": SetDO ABB_Scalable_IO_0_DO11, val;
+                    CASE "ABB_SCALABLE_IO_0_DO12": SetDO ABB_Scalable_IO_0_DO12, val;
+                    CASE "ABB_SCALABLE_IO_0_DO13": SetDO ABB_Scalable_IO_0_DO13, val;
+                    CASE "ABB_SCALABLE_IO_0_DO14": SetDO ABB_Scalable_IO_0_DO14, val;
+                    CASE "ABB_SCALABLE_IO_0_DO15": SetDO ABB_Scalable_IO_0_DO15, val;
+                    CASE "ABB_SCALABLE_IO_0_DO16": SetDO ABB_Scalable_IO_0_DO16, val;
+                    DEFAULT:
+                        SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""setdo"",""msg"":""unknown signal""}" + ByteToStr(10\Char));
+                        RETURN;
+                    ENDTEST
+                    SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""setdo""}" + ByteToStr(10\Char));
+                    RETURN;
+                ENDIF
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""setdo"",""msg"":""invalid signal params""}" + ByteToStr(10\Char));
+        CASE "getvar":
+            IF GetJsonStringVal(json, "name", name) THEN
+                name := StrMap(name, "abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+                IF name = "NTESTVAR" THEN
+                    SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""getvar"",""val"":""" + NumToStr(nTestVar, 6) + """}" + ByteToStr(10\Char));
+                ELSEIF name = "STESTMSG" THEN
+                    SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""getvar"",""val"":""" + sTestMsg + """}" + ByteToStr(10\Char));
+                ELSE
+                    SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""getvar"",""msg"":""unknown var""}" + ByteToStr(10\Char));
+                ENDIF
+                RETURN;
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""getvar"",""msg"":""invalid var params""}" + ByteToStr(10\Char));
+        CASE "setvar":
+            IF GetJsonStringVal(json, "name", name) THEN
+                varname := StrMap(name, "abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+                IF varname = "NTESTVAR" THEN
+                    IF GetJsonNumVal(json, "val", val) THEN
+                        nTestVar := val;
+                        SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""setvar""}" + ByteToStr(10\Char));
+                        RETURN;
+                    ENDIF
+                ELSEIF varname = "STESTMSG" THEN
+                    IF GetJsonStringVal(json, "val", valstr) THEN
+                        sTestMsg := valstr;
+                        SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""setvar""}" + ByteToStr(10\Char));
+                        RETURN;
+                    ENDIF
+                ELSE
+                    SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""setvar"",""msg"":""unknown var""}" + ByteToStr(10\Char));
+                    RETURN;
+                ENDIF
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""setvar"",""msg"":""invalid var params""}" + ByteToStr(10\Char));
+        DEFAULT:
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""" + cmd + """,""msg"":""unsupported command""}" + ByteToStr(10\Char));
+        ENDTEST
+    ENDPROC
+
 
     ! Parse one command, run the routine, send the ack
     PROC Dispatch(string raw)

@@ -1546,6 +1546,65 @@ await checkAsync('discover: filters out non-ABB servers', async function() {
     }
 });
 
+// gofa-robot: JSON socket protocol ──────────────────────────────────────────
+await checkAsync('socketSend: translates legacy commands to JSON and parses JSON response', async function() {
+    var net = require('net');
+    var received = [];
+    var server = net.createServer(function(socket) {
+        socket.on('data', function(data) {
+            var msg = data.toString().trim();
+            received.push(msg);
+            if (msg.indexOf('{"cmd":"ping"}') >= 0) {
+                socket.write('{"status":"ok","cmd":"ping"}\n');
+            } else if (msg.indexOf('{"cmd":"gotoj"') >= 0) {
+                socket.write('{"status":"ok","cmd":"goto"}\n');
+            } else if (msg.indexOf('{"cmd":"getvar"') >= 0) {
+                socket.write('{"status":"ok","cmd":"getvar","val":"42"}\n');
+            } else {
+                socket.write('{"status":"err","cmd":"unknown","msg":"test error"}\n');
+            }
+        });
+    });
+    var port = await new Promise(function(resolve) { server.listen(0, '127.0.0.1', function() { resolve(server.address().port); }); });
+    try {
+        var client = createRobotClient({ ip: '127.0.0.1', socketPort: port });
+        
+        var resp1 = await client.socketSend('PING');
+        assert.strictEqual(resp1, 'OK:PING');
+        assert.strictEqual(received[0], '{"cmd":"ping"}');
+
+        var resp2 = await client.socketSend('GOTOJ10;20;30;0.5;0.5;0.5;0.5;0;0;0;0');
+        assert.strictEqual(resp2, 'OK:GOTO');
+        assert.ok(received[1].indexOf('"cmd":"gotoj"') >= 0);
+
+        var resp3 = await client.socketSend('GETVAR:nTest');
+        assert.strictEqual(resp3, 'VAL:42');
+        assert.strictEqual(received[2], '{"cmd":"getvar","name":"nTest"}');
+        
+        var resp4 = await client.socketSend('BOGUS');
+        assert.strictEqual(resp4, 'ERR:UNKNOWN');
+    } finally {
+        server.close();
+    }
+});
+
+await checkAsync('socketSend: legacy fallback works when server replies with string', async function() {
+    var net = require('net');
+    var server = net.createServer(function(socket) {
+        socket.on('data', function(data) {
+            socket.write('OK:PING\n');
+        });
+    });
+    var port = await new Promise(function(resolve) { server.listen(0, '127.0.0.1', function() { resolve(server.address().port); }); });
+    try {
+        var client = createRobotClient({ ip: '127.0.0.1', socketPort: port });
+        var resp = await client.socketSend('PING');
+        assert.strictEqual(resp, 'OK:PING');
+    } finally {
+        server.close();
+    }
+});
+
 fs.rmSync(tmpDir, { recursive: true, force: true });
 console.log('\n' + passed + ' passed, ' + failed + ' failed.');
 if (failed) process.exit(1);

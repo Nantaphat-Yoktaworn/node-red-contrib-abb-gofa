@@ -306,6 +306,87 @@ function createRobotClient(opts) {
             req.end();
         });
     }
+function translateToJSON(cmd) {
+        if (typeof cmd !== 'string') return cmd;
+        var trimmed = cmd.trim();
+        if (trimmed.indexOf('{') === 0) return trimmed; // already JSON
+        
+        if (trimmed === 'PING')     return JSON.stringify({ cmd: 'ping' });
+        if (trimmed === 'HOME')     return JSON.stringify({ cmd: 'home' });
+        if (trimmed === 'SETHOME')  return JSON.stringify({ cmd: 'sethome' });
+        if (trimmed === 'STOP')     return JSON.stringify({ cmd: 'stop' });
+        if (trimmed === 'RESETLED') return JSON.stringify({ cmd: 'resetled' });
+        if (trimmed === 'EGMJOINT') return JSON.stringify({ cmd: 'egmjoint' });
+        
+        if (trimmed.indexOf('SPEED') === 0) {
+            var spd = parseInt(trimmed.substring(5));
+            return JSON.stringify({ cmd: 'speed', val: spd });
+        }
+        
+        if (trimmed.indexOf('ZONE') === 0) {
+            var zone = trimmed.substring(4);
+            return JSON.stringify({ cmd: 'zone', val: zone });
+        }
+        
+        var gotoMatch = trimmed.match(/^(GOTOJ|GOTOL|GOTO)(.+)$/);
+        if (gotoMatch) {
+            var type = gotoMatch[1].toLowerCase();
+            if (type === 'goto') type = 'gotoj';
+            var vals = gotoMatch[2].split(';').map(Number);
+            return JSON.stringify({ cmd: type, val: vals });
+        }
+        
+        if (trimmed.indexOf('MOVEJ') === 0) {
+            var vals = trimmed.substring(5).split(';').map(Number);
+            return JSON.stringify({ cmd: 'movej', val: vals });
+        }
+        
+        var jogMatch = trimmed.match(/^(R?)([XYZ])([+-])(\d+(\.\d+)?)$/);
+        if (jogMatch) {
+            var rot = jogMatch[1] === 'R';
+            var axis = jogMatch[2];
+            var sgn = jogMatch[3];
+            var val = Number(jogMatch[4]);
+            return JSON.stringify({ cmd: 'jog', axis: axis, sgn: sgn, val: val, rot: rot });
+        }
+        
+        var jointJogMatch = trimmed.match(/^J([1-6])([+-])(\d+(\.\d+)?)$/);
+        if (jointJogMatch) {
+            var joint = parseInt(jointJogMatch[1]);
+            var sgn = jointJogMatch[2];
+            var val = Number(jointJogMatch[3]);
+            return JSON.stringify({ cmd: 'jointjog', joint: joint, sgn: sgn, val: val });
+        }
+        
+        if (trimmed.indexOf('SETLED:') === 0) {
+            var vals = trimmed.substring(7).split(';').map(Number);
+            return JSON.stringify({ cmd: 'setled', val: vals });
+        }
+        
+        if (trimmed.indexOf('SETDO:') === 0) {
+            var parts = trimmed.substring(6).split(':');
+            var name = parts[0];
+            var val = parseInt(parts[1]);
+            return JSON.stringify({ cmd: 'setdo', name: name, val: val });
+        }
+        
+        if (trimmed.indexOf('GETVAR:') === 0) {
+            var name = trimmed.substring(7);
+            return JSON.stringify({ cmd: 'getvar', name: name });
+        }
+        
+        if (trimmed.indexOf('SETVAR:') === 0) {
+            var parts = trimmed.substring(7).split(':');
+            var name = parts[0];
+            var valstr = parts.slice(1).join(':');
+            var val = Number(valstr);
+            if (isNaN(val)) val = valstr;
+            return JSON.stringify({ cmd: 'setvar', name: name, val: val });
+        }
+
+        return trimmed;
+    }
+
     function socketSend(cmd) {
         return new Promise(function(resolve, reject) {
             var sock = new net.Socket();
@@ -315,11 +396,56 @@ function createRobotClient(opts) {
                 sock.destroy();
                 err ? reject(err) : resolve(val);
             }
+            var jsonCmd = translateToJSON(cmd);
             sock.setTimeout(5000);
-            sock.connect(socketPort, ip, function() { sock.write(cmd + '\n'); });
+            sock.connect(socketPort, ip, function() { sock.write(jsonCmd + '\n'); });
             sock.on('data', function(d) {
                 buf += d.toString();
-                if (buf.indexOf('\n') >= 0) finish(null, buf.trim());
+                if (buf.indexOf('\n') >= 0) {
+                    var rawResp = buf.trim();
+                    if (rawResp.indexOf('{') === 0) {
+                        try {
+                            var json = JSON.parse(rawResp);
+                            if (json.status === 'ok') {
+                                if (json.cmd === 'getvar') {
+                                    finish(null, 'VAL:' + json.val);
+                                } else if (json.cmd === 'ping') {
+                                    finish(null, 'OK:PING');
+                                } else if (json.cmd === 'stop') {
+                                    finish(null, 'OK:STOP');
+                                } else if (json.cmd === 'resetled') {
+                                    finish(null, 'OK:RESETLED');
+                                } else if (json.cmd === 'gotoj' || json.cmd === 'gotol') {
+                                    finish(null, 'OK:GOTO');
+                                } else if (json.cmd === 'movej') {
+                                    finish(null, 'OK:MOVEJ');
+                                } else if (json.cmd === 'zone') {
+                                    finish(null, 'OK:ZONE' + json.val);
+                                } else if (json.cmd === 'setvar') {
+                                    finish(null, 'OK:SETVAR');
+                                } else if (json.cmd === 'setdo') {
+                                    finish(null, 'OK:SETDO');
+                                } else if (json.cmd === 'setled') {
+                                    finish(null, 'OK:SETLED');
+                                } else if (json.cmd === 'jog') {
+                                    finish(null, 'OK:JOG');
+                                } else if (json.cmd === 'jointjog') {
+                                    finish(null, 'OK:JOINTJOG');
+                                } else if (json.cmd === 'egmjoint') {
+                                    finish(null, 'OK:EGMJOINT');
+                                } else {
+                                    finish(null, 'OK:' + json.cmd.toUpperCase());
+                                }
+                            } else {
+                                finish(null, 'ERR:' + (json.cmd || 'UNKNOWN').toUpperCase());
+                            }
+                        } catch (e) {
+                            finish(new Error('failed to parse json response: ' + rawResp));
+                        }
+                    } else {
+                        finish(null, rawResp);
+                    }
+                }
             });
             sock.on('timeout', function() { finish(new Error('socket timeout')); });
             sock.on('error', finish);
