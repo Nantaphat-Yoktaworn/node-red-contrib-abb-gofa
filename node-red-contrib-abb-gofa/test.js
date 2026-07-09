@@ -1352,47 +1352,47 @@ await checkAsync('gofa-egm: an unrecognized payload shape is rejected with a cle
     await runInput(node, { payload: { bogus: true } });
     assert.ok(node.errors.some(function(e) { return /"start", "stop", or a 6-number/.test(e); }));
 });
-// "stop" drives an explicit RWS stop -> resetpp -> start sequence, not just
-// silence -- confirmed live (2026-07-09) that EGM's \CommTimeout does not
-// reliably end a session once connected, so going quiet alone can leave
-// RAPID blocked inside EGMRunJoint indefinitely with no recovery.
-await checkAsync('gofa-egm: "stop" drives stop -> resetpp (mastership) -> start when motors are on', async function() {
+// "stop" sets a dedicated RWS-writable DO signal (watched by an ISignalDO
+// TRAP in MainModuleEGM.mod that calls EGMStop) instead of issuing an RWS
+// task-level stop -- confirmed live (2026-07-09) that a task-level stop
+// skips RunEgmJoint's own cleanup and leaks a controller-side EGM instance
+// every cycle (RobotWare allows max 4 concurrent EGM identities, per ABB's
+// EGM Application Manual 3HAC073318), eventually erroring "Too many EGM
+// instances". EGMStop from a TRAP lets EGMRunJoint return normally instead,
+// so cleanup always runs and the task never actually stops.
+await checkAsync('gofa-egm: "stop" sets the graceful-stop signal via RWS and waits for TCP to resume', async function() {
     var calls = [];
     var mockRobot = {
-        socketSend: function() { return Promise.resolve('OK:EGMJOINT'); },
-        rwsPost: function(p, b) { calls.push(['rwsPost', p, b]); return Promise.resolve(''); },
-        rwsGet: function(p) { calls.push(['rwsGet', p]); return Promise.resolve('<span class="ctrlstate">motoron</span>'); },
-        withMastership: function(fn) { calls.push(['withMastership']); return fn(); },
-        parseXhtml: parseXhtml
+        rwsPost: function(p, b) { calls.push([p, b]); return Promise.resolve(''); },
+        socketSend: function(cmd) { calls.push(['socketSend', cmd]); return Promise.resolve('OK:PING'); }
     };
     var node = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', udpPort: 0, throttleMs: 100 });
     var err = await runInput(node, { payload: 'stop' });
     assert.strictEqual(err, undefined);
     assert.strictEqual(node.statuses[node.statuses.length - 1].text, 'stopped');
-    var rwsPostPaths = calls.filter(function(c) { return c[0] === 'rwsPost'; }).map(function(c) { return c[1]; });
-    assert.deepStrictEqual(rwsPostPaths,
-        ['/rw/rapid/execution/stop', '/rw/rapid/execution/resetpp', '/rw/rapid/execution/start']);
-    assert.ok(calls.some(function(c) { return c[0] === 'withMastership'; }), 'resetpp must go through mastership');
+    assert.deepStrictEqual(calls[0], ['/rw/iosystem/signals/ABB_Scalable_IO_0_DO16/set-value', 'lvalue=1']);
+    assert.deepStrictEqual(calls[1], ['socketSend', 'PING']);
 });
-await checkAsync('gofa-egm: "stop" skips restarting RAPID when motors are off (does not error)', async function() {
+await checkAsync('gofa-egm: "stop" retries PING until TCP mode actually resumes (not just after the signal write)', async function() {
+    var pingAttempts = 0;
     var mockRobot = {
         rwsPost: function() { return Promise.resolve(''); },
-        rwsGet: function() { return Promise.resolve('<span class="ctrlstate">motoroff</span>'); },
-        withMastership: function(fn) { return fn(); },
-        parseXhtml: parseXhtml
+        socketSend: function() {
+            pingAttempts++;
+            if (pingAttempts < 3) return Promise.reject(new Error('connection refused'));
+            return Promise.resolve('OK:PING');
+        }
     };
     var node = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', udpPort: 0, throttleMs: 100 });
     var err = await runInput(node, { payload: 'stop' });
     assert.strictEqual(err, undefined);
-    assert.strictEqual(node.statuses[node.statuses.length - 1].text, 'stopped (motors motoroff)');
+    assert.strictEqual(pingAttempts, 3, 'must keep retrying PING, not just fire-and-forget the signal write');
 });
-await checkAsync('gofa-egm: node close() drives the full recovery when a session was active, and calls done()', async function() {
+await checkAsync('gofa-egm: node close() sets the graceful-stop signal when a session was active, and calls done()', async function() {
     var calls = [];
     var mockRobot = {
         rwsPost: function(p) { calls.push(p); return Promise.resolve(''); },
-        rwsGet: function() { return Promise.resolve('<span class="ctrlstate">motoron</span>'); },
-        withMastership: function(fn) { return fn(); },
-        parseXhtml: parseXhtml
+        socketSend: function() { return Promise.resolve('OK:PING'); }
     };
     var node = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', udpPort: 0, throttleMs: 100 });
     var fakeSocket = { closed: false, close: function() { this.closed = true; } };
@@ -1406,7 +1406,8 @@ await checkAsync('gofa-egm: node close() drives the full recovery when a session
     assert.strictEqual(fakeSocket.closed, true);
     assert.strictEqual(node._streaming, false);
     assert.strictEqual(node._stopped, true);
-    assert.ok(calls.indexOf('/rw/rapid/execution/stop') >= 0, 'close on an active session must drive an RWS stop');
+    assert.ok(calls.indexOf('/rw/iosystem/signals/ABB_Scalable_IO_0_DO16/set-value') >= 0,
+        'close on an active session must set the graceful-stop signal');
 });
 await checkAsync('gofa-egm: node close() on a never-started node is a fast no-op (no RWS calls)', async function() {
     var mockRobot = { rwsPost: function() { throw new Error('must not be called'); } };

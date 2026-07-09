@@ -413,12 +413,14 @@ degrees — requires `"start"` first). Output: `{ ok: true, joints, seqno, mciSt
 convergence, source: 'egm' }`, throttled (config option, default 100ms — real EGM frames arrive
 every ~24ms). Full details in the node's Node-RED sidebar help.
 
-**Ending a session is not automatic.** `"stop"` (or closing/redeploying the node while a
-session is active) drives an explicit RWS `stop` → `resetpp` → `start` sequence to return the
-controller to normal TCP serving — **confirmed live that EGM's own comm-timeout mechanism does
-not reliably end a session on its own**: going quiet with a session already connected can leave
-the controller blocked for minutes with no recovery. Always use `"stop"`, don't just stop
-sending it messages.
+**Ending a session is not automatic — always use `"stop"`, don't just stop sending it
+messages.** EGM's own comm-timeout mechanism does not reliably end a session on its own
+(confirmed live: going quiet with a session already connected can leave the controller blocked
+for minutes with no recovery). `"stop"` (or closing/redeploying the node while a session is
+active) sets a dedicated signal via RWS that a RAPID interrupt watches — the controller ends
+the EGM session gracefully (`EGMStop`, from a TRAP) and returns to normal TCP serving on its
+own; the RAPID task itself never actually stops, so this is fast (~1s) and doesn't risk
+leaking controller-side EGM resources the way an external task-level stop would.
 
 While a session is active, every other socket-based node (`gofa-jog`, `gofa-go-point`, etc.)
 fails fast ("connection refused") instead of hanging — the TCP server is genuinely down for
@@ -590,58 +592,55 @@ double-check the firewall rule for inbound UDP on the configured port.
 ### `gofa-egm` session won't end / robot stuck unresponsive to TCP nodes after using EGM
 
 Always use the `"stop"` action (or let the node's own redeploy/close handler run) — don't just
-stop sending it messages and assume the controller will recover on its own. EGM's own
-comm-timeout mechanism does **not** reliably end a session by itself (confirmed live — it can
-hang for minutes with no recovery), so `gofa-egm`'s `"stop"` drives an explicit RWS
-stop/resetpp/start sequence instead. If the robot is already stuck (e.g. from an interrupted
-Node-RED process that never got to run its close handler), the fix is the same sequence run
-manually: `gofa-rapid-exec` → `stop`, then `resetpp`, then `start` (motors must be on).
+stop sending it messages and assume the controller will recover on its own. `gofa-egm`'s
+`"stop"` sets a dedicated signal (`ABB_Scalable_IO_0_DO16`) via RWS, which triggers a RAPID
+TRAP that ends the EGM session gracefully (`EGMStop`) and returns straight to TCP serving —
+the RAPID task itself never stops. If the robot is stuck anyway (e.g. an interrupted Node-RED
+process that never got to run its close handler, or a genuinely external stop — FlexPendant,
+e-stop — while a session was active), recover manually: `gofa-rapid-exec` → `stop`, then
+`resetpp`, then `start` (motors must be on).
 
 ### RAPID error "You have to disconnect an EGM instance using EGMReset before you can connect another"
 
-You (or a `gofa-rapid-exec` "start") resumed RAPID with a plain **continue** start — resuming
-execution from wherever the program pointer happened to be — after an EGM session. If that
-left the program pointer sitting near/inside the EGM code block, resuming there re-enters EGM
-setup without going through `RunEgmJoint`'s own `EGMReset`, which only runs when execution
-starts fresh from `main()`. Confirmed live: this immediately throws the error above and stops
-the task again ("spontaneous error" in the elog).
+This happens if RAPID is resumed with a plain **continue** start — resuming execution from
+wherever the program pointer happened to be — after an EGM session was interrupted by
+something *other* than `gofa-egm` itself (FlexPendant Stop, e-stop, module switching). Normal
+`gofa-egm` `start`/`stop` cycles no longer stop the task at all, so this shouldn't come up in
+everyday use anymore — but if RAPID ever *is* externally stopped mid-session and then resumed
+with a bare "continue," the program pointer can be left sitting near/inside the EGM code block;
+resuming there re-enters EGM setup without going through `RunEgmJoint`'s own `EGMReset`, which
+only runs when execution starts fresh from `main()`.
 
 **Fix**: `gofa-rapid-exec` → `stop`, then `resetpp` (resets the program pointer to the top of
-`main()`), then `start`. **Always `resetpp` before `start` any time RAPID is being restarted
-after using `gofa-egm`** — a plain "continue" start is only safe when EGM was never involved.
-`gofa-egm.js`'s own `"stop"` action already does this correctly; this only bites when RAPID is
-restarted through some other path (a bare `start` inject, FlexPendant Play without PP-to-Main,
-etc.).
+`main()`), then `start`. Rule of thumb: after any *external* interruption while `gofa-egm` was
+active, always `resetpp` before the next `start` — a plain "continue" start is only safe when
+EGM was never involved.
 
 **If the exact same error still happens after a genuinely fresh `resetpp` + `start`** (check
 the controller's event log — it should say "Program started... from the first instruction,"
-not "restarted... from where it was previously stopped" — if you see the latter, `resetpp`
-didn't actually happen before `start`), the problem is no longer RAPID's program pointer. It's
-a stuck EGM resource at the **controller level** — the `EGM_PC` UC transport can be left
-"still connected" if a previous session was killed mid-negotiation, and no RAPID instruction
-can clear that (confirmed: EGM/UC state isn't exposed anywhere in RWS, so there's no
-lighter-weight fix to try). **A full controller restart clears it** — confirmed live. After
-restarting, the controller comes back in Manual mode with motors in `guardstop` like any
-restart — switch to Auto and turn motors on before retrying.
+not "restarted... from where it was previously stopped"), the problem has moved to a stuck EGM
+resource at the **controller level** rather than RAPID's program pointer — a full controller
+restart is the only fix (EGM/UC state isn't exposed anywhere in RWS, so there's no
+lighter-weight recovery). This should be rare now that normal `gofa-egm` usage doesn't
+externally kill sessions anymore (see the next entry).
 
-### RAPID error "Too many EGM instances"
+### RAPID error "Too many EGM instances" (fixed 2026-07-09 — informational, for older versions)
 
-Every `gofa-egm` session that ends via a forced stop (which is *every* session — see
-[Ending a session](#egm-externally-guided-motion) above) skips `RunEgmJoint`'s own cleanup,
-including the `EGMReset` that releases the controller-side EGM resource. That resource doesn't
-get released — it leaks, one per start/stop cycle. Confirmed live: **8 cycles in 90 seconds**
-was enough to exhaust the controller's EGM instance pool and produce this exact error.
+**This is fixed as of the current `gofa-egm`/`MainModuleEGM.mod`.** Older versions ended every
+EGM session via an external RWS task stop, which skipped `RunEgmJoint`'s own `EGMReset` and
+leaked one controller-side EGM instance per cycle — RobotWare allows a maximum of **4**
+concurrent EGM identities (per ABB's EGM Application Manual, 3HAC073318), so as few as ~8
+cycles could exhaust the pool. The fix, per that same manual: `EGMStop`, called from a RAPID
+TRAP, ends a running `EGMRunJoint` *gracefully* instead of via an external kill, so cleanup
+runs every time and the instance is actually released. Confirmed live: 12 consecutive
+start/stop cycles with stable timing and zero errors, no instance exhaustion.
 
-A short `\CondTime` (hoping `EGMRunJoint` would exit gracefully on its own instead of being
-externally killed, avoiding the leak) was tested live and **disproven** — even at 11x the
-configured value, the session stayed blocked with zero self-recovery. There's currently no
-known fix, only mitigation: **avoid unnecessary `gofa-egm` start/stop cycling**, and expect to
-need a controller restart periodically during heavy EGM use/testing.
-
-**Recovery**: same as the previous entry — a full controller restart is the only way to clear
-the leaked instance pool (`resetpp`+`start` alone brings RAPID back for plain TCP use, but does
-**not** reclaim the leaked EGM instances). After restarting: Manual mode + `guardstop` motors,
-switch to Auto + motors on before retrying, same as any restart.
+If you're on an old copy of `MainModuleEGM.mod` (no `TrapEgmStop`/`ISignalDO` in it) and still
+see this error: update to the current module (re-run the [load sequence](#loading-mainmoduleegmmod)
+with the latest `rapid/MainModuleEGM.mod`) and `gofa-egm.js`. Immediate recovery is unchanged —
+a full controller restart is the only way to clear an already-leaked instance pool
+(`resetpp`+`start` alone brings RAPID back for plain TCP use, but does **not** reclaim leaked
+EGM instances).
 
 ### RWS returns 405 (method not allowed)
 

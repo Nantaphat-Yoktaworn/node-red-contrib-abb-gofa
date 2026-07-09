@@ -51,11 +51,13 @@
     <p>While a session is active, the robot's TCP socket server is stopped — every other
     socket-based node (<code>gofa-jog</code>, <code>gofa-go-point</code>, etc.) will fail to
     connect until the session ends. <b>Ending a session requires the <code>"stop"</code> action
-    (or closing/redeploying this node) — it is not automatic.</b> Confirmed live: EGM's own
-    comm-timeout mechanism does not reliably end a session once connected; going quiet on its
-    own can leave the controller blocked for minutes with no recovery. <code>"stop"</code>
-    instead drives an explicit RWS stop/resetpp/start sequence that reliably returns the
-    controller to normal TCP serving within a few seconds.</p>
+    (or closing/redeploying this node) — it is not automatic</b> (EGM's own comm-timeout
+    mechanism does not reliably end a session once connected; going quiet on its own can leave
+    the controller blocked for minutes with no recovery). <code>"stop"</code> sets a dedicated
+    signal via RWS that a RAPID interrupt (TRAP) watches — the controller ends the session
+    <em>gracefully</em> (<code>EGMStop</code>) and returns to TCP serving on its own; the RAPID
+    task itself never actually stops, so this is fast (~1s) and doesn't leak controller-side EGM
+    resources.</p>
 
     <p>One-time controller setup (not done by this node): a UDPUC transmission protocol named
     <code>EGM_PC</code> (RobotStudio &gt; Controller &gt; Configuration &gt; Communication &gt;
@@ -65,28 +67,15 @@
     restart after changing), and — on the machine running Node-RED — a firewall rule allowing
     inbound UDP on the configured port.</p>
 
-    <p><b>After using this node, always <code>resetpp</code> before the next plain RAPID
-    <code>start</code>.</b> Confirmed live: resuming RAPID with a bare "continue" start (program
-    pointer wherever it was left) after an EGM session can resume execution inside the EGM code
-    block itself, skipping <code>RunEgmJoint</code>'s own <code>EGMReset</code> and throwing
-    "You have to disconnect an EGM instance using EGMReset before you can connect another".
-    This node's own <code>"stop"</code> action already does <code>resetpp</code> for you — this
-    only matters if RAPID gets restarted some other way (a bare <code>gofa-rapid-exec</code>
-    <code>start</code>, FlexPendant Play without PP-to-Main) after EGM was used.</p>
-
-    <p><b>If the same error still happens after a genuinely fresh <code>resetpp</code> +
-    <code>start</code></b> (check the elog says "Program started... from the first
-    instruction," not "restarted... from where it was previously stopped"), the problem has
-    moved from RAPID's program pointer to a stuck EGM resource at the <b>controller level</b> —
-    confirmed live, a full controller restart is the only fix (EGM/UC state isn't exposed
-    anywhere in RWS, so there's no lighter-weight recovery to try).</p>
-
-    <p><b>Repeated start/stop cycling can eventually produce RAPID error "Too many EGM
-    instances."</b> Every session ends via a forced stop, which skips this node's own cleanup
-    on the RAPID side — the underlying controller-side EGM resource leaks, one per cycle
-    (confirmed live: 8 cycles in 90s was enough). No fix found yet (a shorter session timeout
-    was tested and disproven — it doesn't self-recover). Mitigate by not cycling start/stop
-    more than necessary; recovery is the same controller restart as above.</p>
+    <p><b>If RAPID is ever stopped some other way</b> while a session is active (FlexPendant
+    Stop, e-stop, module switching — normal <code>"start"</code>/<code>"stop"</code> use of this
+    node no longer stops the task at all) <b>always <code>resetpp</code> before the next plain
+    RAPID <code>start</code></b>. Resuming with a bare "continue" start (program pointer
+    wherever it was left) can resume execution inside the EGM code block itself, skipping
+    <code>RunEgmJoint</code>'s own <code>EGMReset</code> and throwing "You have to disconnect an
+    EGM instance using EGMReset before you can connect another". If the same error still happens
+    after a genuinely fresh <code>resetpp</code> + <code>start</code>, the problem has moved to
+    a stuck EGM resource at the controller level — a full controller restart is the only fix.</p>
 
     <h3>Configuration</h3>
     <ul>
@@ -101,8 +90,8 @@
     <ul>
         <li><code>"start"</code> — switch the controller into EGM mode and begin streaming.
         Holds the current pose (no motion) until a target is sent.</li>
-        <li><code>"stop"</code> — closes the UDP session and drives an RWS stop/resetpp/start
-        sequence to return the controller to normal TCP serving.</li>
+        <li><code>"stop"</code> — closes the UDP session and signals RAPID (via RWS) to end the
+        EGM session gracefully, returning the controller to normal TCP serving.</li>
         <li>An array of 6 numbers (or <code>{ joints: [...] }</code>) — sets the absolute joint
         target (degrees) the node streams toward. Requires <code>"start"</code> first.</li>
     </ul>

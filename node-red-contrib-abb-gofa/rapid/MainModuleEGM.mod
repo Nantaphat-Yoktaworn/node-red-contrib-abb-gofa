@@ -21,8 +21,10 @@ MODULE MainModuleEGM
     !   P2   -> rPickPos2    P3 -> rPlacePos
     !   EGMJOINT -> ack OK:EGMJOINT, then this task stops serving TCP and
     !               blocks in an EGM joint-streaming session (see
-    !               RunEgmJoint below) until the Node-RED gofa-egm node
-    !               stops replying, at which point TCP serving resumes.
+    !               RunEgmJoint below) until gofa-egm.js sets
+    !               ABB_Scalable_IO_0_DO16 via RWS to request a graceful
+    !               stop (TrapEgmStop/EGMStop), at which point TCP serving
+    !               resumes automatically -- see RunEgmJoint below.
     ! Reply: "OK:<CMD>\n" (or "ERR:<CMD>\n" for unknown command)
     !
     ! No RWS mastership / no program-pointer handling needed:
@@ -109,6 +111,14 @@ MODULE MainModuleEGM
     ! what target is sent, with no error anywhere (confirmed the hard way
     ! in gofa-egm-python at +/-0.001 -- widened to +/-10.0 there).
     CONST egm_minmax egm_minmax1 := [-10.0, 10.0];
+
+    ! Interrupt used to gracefully end an EGM session from inside the task
+    ! (see RunEgmJoint / TrapEgmStop below) -- ABB_Scalable_IO_0_DO16 is
+    ! reserved as the "please stop EGM now" trigger gofa-egm.js sets via
+    ! RWS. Confirmed live it already has Access:All, no RobotStudio change
+    ! needed. If this signal is ever needed for something else, move this
+    ! to a different spare DO and update gofa-egm.js's STOP_SIGNAL to match.
+    VAR intnum egmStopIntNo;
 
     ! -------------------------------------------------------
     ! MAIN - go home, then serve forever. Any socket fault
@@ -322,10 +332,31 @@ MODULE MainModuleEGM
     ! that repeated start/stop cycles (~8 in 90s) eventually produce RAPID
     ! error "Too many EGM instances," recoverable only by a full controller
     ! restart (elog/RWS show zero visibility into EGM/UC state to clear it
-    ! any other way). No fix found yet; mitigate by not cycling gofa-egm
-    ! start/stop more than necessary, and expect to restart the controller
-    ! periodically during heavy EGM testing.
+    ! any other way). No fix found by RAPID-level means alone -- see below,
+    ! this is what the interrupt/EGMStop mechanism actually fixes.
+    !
+    ! FIXED (2026-07-09), per ABB's own EGM Application Manual
+    ! (3HAC073318): EGMStop is a real instruction, documented specifically
+    ! to be called "in a TRAP routine" or "from a RAPID TRAP or background
+    ! task" to stop an in-progress EGMRunJoint/EGMRunPose. Unlike an
+    ! external RWS task-level stop, a TRAP-driven EGMStop makes EGMRunJoint
+    ! return NORMALLY -- so the cleanup below (IDelete + EGMReset) runs
+    ! every time, and the underlying EGM instance is actually released.
+    ! The manual also confirms the "Too many EGM instances" ceiling: max 4
+    ! concurrent EGM identities, matching exactly what was seen live (~8
+    ! leaked cycles was enough to exhaust it).
+    !
+    ! gofa-egm.js's stop() now sets ABB_Scalable_IO_0_DO16 via RWS
+    ! (POST .../set-value, lvalue=1) instead of issuing an RWS task stop.
+    ! CONNECT+ISignalDO below fires TrapEgmStop the moment that happens,
+    ! EGMStop ends the session gracefully, and this task never actually
+    ! stops -- main()'s loop just continues straight into ServeForever
+    ! once RunEgmJoint returns. No resetpp/start needed on the Node-RED
+    ! side anymore either.
     PROC RunEgmJoint()
+        CONNECT egmStopIntNo WITH TrapEgmStop;
+        ISignalDO ABB_Scalable_IO_0_DO16, 1, egmStopIntNo;
+
         EGMReset egmID1;
         EGMGetId egmID1;
         egmSt1 := EGMGetState(egmID1);
@@ -342,17 +373,30 @@ MODULE MainModuleEGM
         EGMRunJoint egmID1, EGM_STOP_HOLD \J1 \J2 \J3 \J4 \J5 \J6
             \CondTime:=300 \RampInTime:=1.0;
 
+        IDelete egmStopIntNo;
+        SetDO ABB_Scalable_IO_0_DO16, 0;
+
         egmSt1 := EGMGetState(egmID1);
         IF egmSt1 = EGM_STATE_CONNECTED THEN
             EGMReset egmID1;
         ENDIF
     ERROR
-        ! Comm timeout (gofa-egm stopped replying) or any other EGM fault
-        ! -- reset and fall back to TCP serving instead of leaving this
-        ! task stuck waiting on EGM forever.
+        ! Comm timeout, TrapEgmStop's EGMStop surfacing here instead of a
+        ! normal return, or any other EGM fault -- clean up and fall back
+        ! to TCP serving instead of leaving this task stuck.
+        IDelete egmStopIntNo;
+        SetDO ABB_Scalable_IO_0_DO16, 0;
         EGMReset egmID1;
         RETURN;
     ENDPROC
+
+    ! Fired by ISignalDO in RunEgmJoint the moment gofa-egm.js sets
+    ! ABB_Scalable_IO_0_DO16 via RWS. EGMStop makes the blocking
+    ! EGMRunJoint above return normally (see the FIXED note above for why
+    ! that matters -- it's what actually releases the EGM instance).
+    TRAP TrapEgmStop
+        EGMStop egmID1, EGM_STOP_HOLD;
+    ENDTRAP
 
     ! Parse a jog token and execute it. Tokens (after CleanCmd):
     !   translation mm:  X+20  X-20  Y+20 ...   (base/work frame, via Offs)

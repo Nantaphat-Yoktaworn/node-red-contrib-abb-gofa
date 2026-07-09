@@ -116,62 +116,70 @@ flag and runs `RunEgmJoint` (transplanted from `gofa-egm-python/rapid/EGMJointMo
 mode the closed server socket makes every other socket-based node fail fast with "connection
 refused" instead of hanging.
 
-**Mode exit is NOT self-healing — corrected after a live test, 2026-07-09.** The original
-design assumed `\CommTimeout` would raise a comm-timeout error once `gofa-egm` stopped
-replying, so the ERROR handler would reset and fall back to TCP serving on its own. Confirmed
-FALSE live: with a real EGM session connected and streaming, going silent (closing the UDP
-socket) left the task blocked inside `EGMRunJoint` for 2+ minutes with no error and no
-recovery — whatever `\CommTimeout` actually governs on this firmware, it is not "seconds of
-silence before giving up" in any way this can rely on. The mechanism that DOES reliably work,
-confirmed live twice: an **external RWS stop** (`POST /rw/rapid/execution/stop`)
-hard-interrupts `EGMRunJoint` immediately regardless of EGM state. `gofa-egm`'s `stop` action
-(and its `close` handler, when a session is active) now drives this explicitly — `stop` →
-`withMastership(resetpp)` → check `ctrl-state` → `start` if motors are on — the same
-stop/resetpp/start shape already used elsewhere in this palette (`gofa-rapid-exec`,
-`reload_module.js`). A forced stop does **not** run `RunEgmJoint`'s own ERROR handler or
-cleanup (it's an external interrupt, not a RAPID error), which is why `bEgmRequested` in
-`MainModuleEGM.mod`'s `main()` is cleared **before** calling `RunEgmJoint`, not after — that's
-the only reset guaranteed to have already happened by the time the next resetpp+start runs;
-clearing it afterward (the original code) left it stuck `TRUE` after a forced stop, so the
-very next TCP command would immediately close and kick straight back into another blocking EGM
-session instead of being served. `\CommTimeout`/`\CondTime` are kept in `RunEgmJoint` only as
-documentation placeholders, not a working backstop — see next.
+**Mode exit — FIXED design (2026-07-09), using EGMStop from a RAPID TRAP.** Per ABB's own EGM
+Application Manual (3HAC073318): `EGMStop` is a documented instruction specifically meant to
+be called "in a TRAP routine" or "from a RAPID TRAP or background task" to end an in-progress
+`EGMRunJoint`/`EGMRunPose` **gracefully** — the instruction returns *normally*, unlike an
+external task-level kill. `RunEgmJoint` now does `CONNECT egmStopIntNo WITH TrapEgmStop;
+ISignalDO ABB_Scalable_IO_0_DO16, 1, egmStopIntNo;` before starting the session; `gofa-egm.js`'s
+`stop` action (and `close`, when a session is active) sets that signal via RWS
+(`POST /rw/iosystem/signals/ABB_Scalable_IO_0_DO16/set-value`, `lvalue=1`) instead of issuing
+an RWS task stop, then polls `PING` until TCP serving resumes as confirmation. `TrapEgmStop`
+fires, calls `EGMStop egmID1, EGM_STOP_HOLD;`, `EGMRunJoint` returns normally, and
+`RunEgmJoint`'s own cleanup (`IDelete` + `EGMReset`) runs every time — **the RAPID task never
+actually stops**, so no `resetpp`/`start` is needed on the Node-RED side anymore either.
+Confirmed live: zero "Program stopped"/"Program started" elog events across a full
+start→stream→stop cycle — proof the task genuinely stayed running throughout, not just that
+`PING` happened to succeed.
 
-**Known unresolved cost of the external-stop design: each stop leaks one controller-side EGM
-instance, eventually producing RAPID error "Too many EGM instances."** Confirmed live
-(2026-07-09): 8 `gofa-egm` start/stop cycles inside 90 seconds was enough to exhaust the
-controller's EGM instance pool. Root cause: an external RWS stop skips `RunEgmJoint`'s own
-cleanup entirely (see above), including the `EGMReset` that's supposed to release the
-controller-side resource — so it doesn't get released, every cycle. **A hypothesis that a
-SHORT `\CondTime` (instead of the original `300`) would let `EGMRunJoint` return normally on
-its own, avoiding the external kill and the leak, was tested live and disproven**: with
-`\CondTime:=6`, a real session was started, confirmed streaming, then the client process was
-killed abruptly (simulating a crash, not a clean `stop()`) — 70+ seconds later (11x+
-`\CondTime`), `ctrlexecstate` was still `running`, zero recovery. `\CondTime` does not cause a
-graceful self-exit on this firmware; do not re-attempt this fix without genuinely new evidence.
-**No fix found yet.** The only confirmed recovery once "Too many EGM instances" hits is a full
-controller restart (EGM/UC state has zero visibility in RWS — checked `/rw/motionsystem/
-mechunits/ROB_1` and `/rw/rapid/tasks/{task}`, nothing there either — so there's no lighter
-clear-instances call to make). Practical mitigation until a real fix is found: don't cycle
-`gofa-egm` start/stop more than necessary during testing, and expect to restart the controller
-periodically during heavy EGM use — plain `resetpp`+`start` recovers RAPID enough to serve TCP
-again, but does **not** reclaim the leaked EGM instance pool itself.
+**History (superseded, kept for context — do not re-implement the old design):** the original
+implementation assumed `\CommTimeout` would raise a comm-timeout error once `gofa-egm` stopped
+replying, letting an ERROR handler reset and fall back to TCP serving on its own. Confirmed
+FALSE live: going silent left the task blocked inside `EGMRunJoint` for 2+ minutes with no
+error and no recovery. The fix at the time was an **external RWS stop**
+(`POST /rw/rapid/execution/stop`) → `withMastership(resetpp)` → `start` if motors on — which
+worked, but skipped `RunEgmJoint`'s own cleanup entirely (an external kill isn't a RAPID error,
+so no ERROR handler runs), which is **why `bEgmRequested` is cleared before calling
+`RunEgmJoint`, not after** — that ordering fix is still correct and still needed today, since a
+genuinely external stop (FlexPendant, e-stop, etc.) can still interrupt an EGM session the same
+way. `\CommTimeout` is still not relied on for anything; `\CondTime:=300` remains a
+documentation placeholder / hard backstop only.
+
+**RESOLVED (2026-07-09): the external-stop design leaked one controller-side EGM instance per
+cycle, eventually producing RAPID error "Too many EGM instances."** Root cause: an external RWS
+stop skips `RunEgmJoint`'s own `EGMReset` (see History above), so the controller-side resource
+never got released. RobotWare allows a maximum of **4** concurrent EGM identities (confirmed in
+ABB's EGM Application Manual) — confirmed live that ~8 leaked start/stop cycles in 90 seconds
+was enough to exhaust the pool. **A hypothesis that a SHORT `\CondTime` would let `EGMRunJoint`
+return normally on its own was tested live and disproven** first (with `\CondTime:=6`, a
+session killed abruptly stayed blocked 70+ seconds later, 11x+ the configured value, zero
+recovery) — the real fix was the TRAP/`EGMStop` mechanism described above, found by reading
+ABB's own manual rather than guessing further. **Confirmed fixed live**: 12 consecutive
+start/stop cycles (1.5x the count that broke the old design) all succeeded with stable timing
+(~80ms start, ~1050ms stop, no drift across cycles) — no instance exhaustion. If "Too many EGM
+instances" is ever seen again despite this fix being in place, a full controller restart is
+still the only known recovery (EGM/UC state has zero visibility in RWS — checked
+`/rw/motionsystem/mechunits/ROB_1` and `/rw/rapid/tasks/{task}`, nothing there either).
+
+**The two notes below predate the TRAP/EGMStop fix and now apply to a narrower case: RAPID
+being stopped by something *other* than `gofa-egm.js` itself** (FlexPendant Stop, an
+emergency/guard stop, module switching's own `stop`/`unloadmod` sequence) while an EGM session
+is active. Normal `gofa-egm` `start`/`stop` usage no longer stops the task at all, so it can't
+trigger either of these anymore — but if RAPID is ever externally stopped mid-session, the same
+risk exists as before.
 
 **Never resume RAPID with a plain "continue" start after any EGM interruption — always
 `resetpp` first.** Confirmed live (2026-07-09): a bare `gofa-rapid-exec` `start` (RWS
 `regain=continue`, i.e. "resume from wherever the program pointer is") after an EGM session
-had been force-stopped resumed execution *mid-EGM-code* instead of from the top of `main()` —
-the program pointer was left sitting near/inside the EGM block from the earlier interrupt, and
-resuming there re-entered EGM setup without going through `RunEgmJoint`'s own `EGMReset`
-(which only runs when execution starts fresh from `main()`). Result: RAPID error **"You have
-to disconnect an EGM instance using EGMReset before you can connect another"**, immediate
-`Execution error state`, task stopped again. `gofa-egm.js`'s own `stop()` sequence is immune
-to this (it always does `resetpp` before `start`), but this bites if RAPID is restarted through
-any *other* path (a plain `gofa-rapid-exec` "start" inject, FlexPendant Play without PP-to-Main,
-etc.) after an EGM session — even a normal one, not just a stuck one. **Recovery**: `stop` →
-`resetpp` → `start`, same sequence as `gofa-egm.js` itself uses — confirmed live, resolves
-cleanly. Rule of thumb: after using `gofa-egm` at all, always `resetpp` before the next
-`start`, regardless of which module is loaded or how the EGM session ended.
+had been externally stopped resumed execution *mid-EGM-code* instead of from the top of
+`main()` — the program pointer was left sitting near/inside the EGM block from the earlier
+interrupt, and resuming there re-entered EGM setup without going through `RunEgmJoint`'s own
+`EGMReset` (which only runs when execution starts fresh from `main()`). Result: RAPID error
+**"You have to disconnect an EGM instance using EGMReset before you can connect another"**,
+immediate `Execution error state`, task stopped again. **Recovery**: `stop` → `resetpp` →
+`start`. Rule of thumb: after any *external* stop while using `gofa-egm`, always `resetpp`
+before the next `start` — not needed for `gofa-egm`'s own `start`/`stop` cycle anymore, since
+that no longer stops the task.
 
 **If the same error persists even after a genuinely fresh `resetpp`+`start` (confirmed via elog
 — "Program started... from the first instruction," not "restarted... from where it was
@@ -201,8 +209,9 @@ binds UDP and waits up to 2s for the first frame (timeout → check `EGM_PC` con
 Holds the current pose (echoes feedback back unchanged) until a flow sends a `[j1..j6]` target
 — never moves on connect. Output throttled (`throttleMs`, default 100ms) since real EGM frames
 arrive every ~24ms, far faster than most flows need. On `stop` (and on `close` if a session was
-active): drives the RWS stop/resetpp/start recovery sequence described above, not just silence
-— see the mode-exit correction.
+active): sets `ABB_Scalable_IO_0_DO16` via RWS to trigger the TRAP/`EGMStop` graceful exit
+described above, then polls `PING` (up to 8s) until TCP serving resumes as confirmation — see
+the mode-exit fix.
 
 **Confirmed live end-to-end, 2026-07-09** (GoFa 12 / OmniCore C30, RobotWare 7.21.0+229):
 `gofa-egm` `start` → baseline hold (no motion) → a `+3°` target on joint 6 → real, visible
@@ -210,8 +219,11 @@ motion, telemetry converging smoothly from baseline through the full ramp to the
 → target set back to baseline → smooth return → `stop` → `PING` confirms TCP mode restored,
 repeatably. Also confirmed: `start` while RAPID is stopped fails in ~5s with a clear error, not
 a hang; a simulated mid-session Node-RED redeploy (`close()` while streaming) recovers the
-robot to TCP mode via the same explicit recovery path. This is also where the mode-exit
-correction above and the `bEgmRequested` ordering bug were found and fixed.
+robot cleanly. **Also confirmed (same day, later session) with the TRAP/`EGMStop` fix in
+place**: 12 consecutive start/stop cycles, ~80ms per `start` and ~1.05s per `stop` with zero
+timing drift across all 12, zero errors, zero "Too many EGM instances" — and zero
+"Program stopped"/"Program started" elog events for the whole run, proving the task genuinely
+never stops on a normal `gofa-egm` cycle anymore.
 
 **Prerequisites (one-time, not automatable from Node-RED)**: a UDPUC transmission protocol
 named `EGM_PC` (RobotStudio → Controller → Configuration → Communication → Transmission

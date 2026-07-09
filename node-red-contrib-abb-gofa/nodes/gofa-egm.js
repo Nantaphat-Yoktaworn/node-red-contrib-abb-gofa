@@ -1,6 +1,13 @@
 'use strict';
 var dgram = require('dgram');
 
+// Reserved DO signal: gofa-egm's "please stop gracefully" trigger, watched
+// by an ISignalDO interrupt in MainModuleEGM.mod's RunEgmJoint. Already has
+// Access:All on this controller (confirmed live) so no RobotStudio change
+// is needed to write it over RWS. If this signal is ever needed elsewhere,
+// move it in both places (here and MainModuleEGM.mod).
+var STOP_SIGNAL = 'ABB_Scalable_IO_0_DO16';
+
 // ── EGM protobuf codec (hand-rolled, proto2 wire format) ────────────────────
 // Covers only the fields this node actually reads/writes — see
 // gofa-egm-python/proto/egm.proto (ABB's own wire schema) for the full
@@ -296,39 +303,46 @@ module.exports = function(RED) {
             }).finally(function() { node._starting = false; });
         }
 
-        // Confirmed live (2026-07-09): EGM's \CommTimeout does NOT reliably
-        // end a session once connected -- going quiet (closing the UDP
-        // socket, which is all this used to do) left RAPID blocked inside
-        // EGMRunJoint for 2+ minutes with no comm-timeout error ever raised.
-        // The mechanism that DOES reliably work, confirmed live twice: an
-        // explicit RWS stop hard-interrupts EGMRunJoint immediately. resetpp
-        // + start then resume normal TCP serving -- MainModuleEGM.mod's
-        // main() clears its EGM mode flag BEFORE calling RunEgmJoint
-        // specifically so this forced-stop path leaves the task in a clean
-        // state, not stuck re-entering EGM mode on the next TCP command.
+        // Polls PING until the TCP socket server responds again -- the only
+        // way to confirm RunEgmJoint actually returned and main() rebuilt
+        // ServeForever, since setting the stop signal alone doesn't prove
+        // the TRAP fired. Most attempts before the server is back fail fast
+        // (connection refused, not a hang), so a short poll interval is fine.
+        function waitForTcpBack(timeoutMs) {
+            var deadline = Date.now() + timeoutMs;
+            function attempt() {
+                return node.robot.socketSend('PING').then(function(reply) {
+                    if (reply !== 'OK:PING') throw new Error('unexpected reply: ' + reply);
+                }).catch(function(err) {
+                    if (Date.now() >= deadline) throw err;
+                    return new Promise(function(res) { setTimeout(res, 300); }).then(attempt);
+                });
+            }
+            return attempt();
+        }
+
+        // FIXED (2026-07-09), per ABB's EGM Application Manual (3HAC073318):
+        // an external RWS task-level stop (the original design here) skips
+        // RunEgmJoint's own cleanup entirely, leaking one controller-side
+        // EGM instance every cycle -- RobotWare allows max 4 concurrent EGM
+        // identities, so repeated start/stop cycling reliably exhausted the
+        // pool ("Too many EGM instances"), confirmed live. The manual
+        // documents EGMStop specifically for use in a RAPID TRAP to end a
+        // running EGMRunJoint/EGMRunPose *gracefully* -- the task never
+        // actually stops, so its own cleanup (EGMReset) always runs.
+        // MainModuleEGM.mod wires a TRAP to STOP_SIGNAL via ISignalDO; this
+        // just sets that signal over RWS and waits for TCP serving to
+        // resume as confirmation the graceful exit completed. No RWS stop/
+        // resetpp/start needed anymore -- the task keeps running throughout.
         function stop() {
             stopAll();
             if (!node.robot) { node.status({ fill: 'grey', shape: 'ring', text: 'stopped' }); return Promise.resolve(); }
             node.status({ fill: 'yellow', shape: 'ring', text: 'exiting EGM mode...' });
 
-            return node.robot.rwsPost('/rw/rapid/execution/stop', 'stopmode=stop&usetsp=normal')
+            return node.robot.rwsPost('/rw/iosystem/signals/' + STOP_SIGNAL + '/set-value', 'lvalue=1')
+                .then(function() { return waitForTcpBack(8000); })
                 .then(function() {
-                    return node.robot.withMastership(function() {
-                        return node.robot.rwsPost('/rw/rapid/execution/resetpp', '');
-                    });
-                })
-                .then(function() { return node.robot.rwsGet('/rw/panel/ctrl-state'); })
-                .then(function(body) {
-                    var ctrlstate = node.robot.parseXhtml(body, 'ctrlstate');
-                    if (ctrlstate !== 'motoron') {
-                        node.status({ fill: 'grey', shape: 'ring', text: 'stopped (motors ' + ctrlstate + ')' });
-                        return;
-                    }
-                    return node.robot.rwsPost('/rw/rapid/execution/start',
-                        'regain=continue&execmode=continue&cycle=forever&condition=none&stopatbp=disabled&alltaskbytsp=false'
-                    ).then(function() {
-                        node.status({ fill: 'grey', shape: 'ring', text: 'stopped' });
-                    });
+                    node.status({ fill: 'grey', shape: 'ring', text: 'stopped' });
                 });
         }
 
