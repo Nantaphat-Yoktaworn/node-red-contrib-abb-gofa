@@ -16,3 +16,5 @@
 - [Autonomous sequence feature](project_autonomous_sequence_feature.md) — standalone RAPID point-sequencer, ABANDONED — branch deleted, recoverable from commit a5aeada
 - [StopMove \Quick unsupported](feedback_stopmove_quick_unsupported.md) — fails RAPID consistency check on this controller despite being in ABB's docs; use plain StopMove
 - [OmniCore AppStudio investigation](reference_omnicore_appstudio_investigation.md) — persistent FlexPendant dashboard ruled out for now, needs RobotStudio GUI step, not RWS-drivable
+- [Always ask before push or merge](feedback_always_ask_before_push_or_merge.md) — always ask the user for explicit approval before running git push or merge
+
