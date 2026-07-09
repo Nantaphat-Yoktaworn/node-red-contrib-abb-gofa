@@ -214,6 +214,8 @@ MODULE MainModule
     PROC DispatchJson(string json)
         VAR string cmd := "";
         VAR num vals{11};
+        VAR num jointVals{6};
+        VAR num ledVals{4};
         VAR num val := 0;
         VAR string name := "";
         VAR string axis := "";
@@ -303,8 +305,8 @@ MODULE MainModule
             ENDIF
             SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""" + cmd + """,""msg"":""invalid target""}" + ByteToStr(10\Char));
         CASE "movej":
-            IF GetJsonNumArray(json, "val", vals) THEN
-                jt.robax := [vals{1}, vals{2}, vals{3}, vals{4}, vals{5}, vals{6}];
+            IF GetJsonNumArray(json, "val", jointVals) THEN
+                jt.robax := [jointVals{1}, jointVals{2}, jointVals{3}, jointVals{4}, jointVals{5}, jointVals{6}];
                 jt.extax := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
                 SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""movej""}" + ByteToStr(10\Char));
                 MoveAbsJ \Conc, jt, vGoto, zActive, tGripper \WObj:=wobj1;
@@ -351,11 +353,11 @@ MODULE MainModule
             ENDIF
             SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""jointjog"",""msg"":""invalid jointjog params""}" + ByteToStr(10\Char));
         CASE "setled":
-            IF GetJsonNumArray(json, "val", vals) THEN
-                SetGO Asi1LedRed,    vals{1};
-                SetGO Asi1LedGreen,  vals{2};
-                SetGO Asi1LedBlue,   vals{3};
-                SetGO Asi1LedPeriod, vals{4};
+            IF GetJsonNumArray(json, "val", ledVals) THEN
+                SetGO Asi1LedRed,    ledVals{1};
+                SetGO Asi1LedGreen,  ledVals{2};
+                SetGO Asi1LedBlue,   ledVals{3};
+                SetGO Asi1LedPeriod, ledVals{4};
                 SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""setled""}" + ByteToStr(10\Char));
                 RETURN;
             ENDIF
