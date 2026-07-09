@@ -4,6 +4,7 @@ const http  = require('http');
 const net   = require('net');
 const fs    = require('fs');
 const path  = require('path');
+const os    = require('os');
 
 function parseXhtml(body, cls) {
     var m = body.match(new RegExp('class="' + cls + '">([^<]+)<'));
@@ -55,6 +56,89 @@ function gotoToken(t, moveType) {
         r(t.q1,4), r(t.q2,4), r(t.q3,4), r(t.q4,4),
         Math.round(t.cf1), Math.round(t.cf4), Math.round(t.cf6), Math.round(t.cfx)
     ].join(';');
+}
+
+function scanIp(ip, port, timeout) {
+    return new Promise(function(resolve) {
+        var socket = new net.Socket();
+        var status = false;
+        socket.setTimeout(timeout);
+        socket.connect(port, ip, function() {
+            status = true;
+            socket.destroy();
+        });
+        socket.on('error', function() { socket.destroy(); });
+        socket.on('timeout', function() { socket.destroy(); });
+        socket.on('close', function() { resolve({ ip: ip, open: status }); });
+    });
+}
+
+function verifyIsABB(ip, port) {
+    return new Promise(function(resolve) {
+        var proto = port === 443 ? https : http;
+        var req = proto.request({
+            hostname: ip, port: port, path: '/rw/system', method: 'GET',
+            rejectUnauthorized: false, timeout: 1000
+        }, function(res) {
+            var authHeader = res.headers['www-authenticate'] || '';
+            var isABB = authHeader.toLowerCase().indexOf('abb') >= 0 || authHeader.toLowerCase().indexOf('robot') >= 0;
+            var isRWS = isABB || res.statusCode === 401 || res.statusCode === 200;
+            resolve(isRWS);
+        });
+        req.on('error', function() { resolve(false); });
+        req.on('timeout', function() { req.destroy(); resolve(false); });
+        req.end();
+    });
+}
+
+function discover(opts) {
+    opts = opts || {};
+    var rwsPort = parseInt(opts.rwsPort) || 443;
+    var timeout = parseInt(opts.timeout) || 250;
+    
+    var subnets = [];
+    var interfaces = os.networkInterfaces();
+    for (var name of Object.keys(interfaces)) {
+        for (var info of interfaces[name]) {
+            if (info.family === 'IPv4' && (!info.internal || opts.includeInternal)) {
+                var parts = info.address.split('.');
+                if (parts.length === 4) {
+                    subnets.push(parts.slice(0, 3).join('.'));
+                }
+            }
+        }
+    }
+    
+    subnets = subnets.filter(function(item, pos, self) {
+        return self.indexOf(item) === pos;
+    });
+    
+    if (subnets.length === 0) {
+        return Promise.resolve([]);
+    }
+    
+    var scanPromises = [];
+    subnets.forEach(function(base) {
+        for (var i = 1; i <= 254; i++) {
+            var ip = base + '.' + i;
+            scanPromises.push(scanIp(ip, rwsPort, timeout));
+        }
+    });
+    
+    return Promise.all(scanPromises).then(function(results) {
+        var openIps = results.filter(function(r) { return r.open; }).map(function(r) { return r.ip; });
+        if (openIps.length === 0) return [];
+        
+        var verifyPromises = openIps.map(function(ip) {
+            return verifyIsABB(ip, rwsPort).then(function(isABB) {
+                return { ip: ip, isABB: isABB };
+            });
+        });
+        
+        return Promise.all(verifyPromises).then(function(verifyResults) {
+            return verifyResults.filter(function(r) { return r.isABB; }).map(function(r) { return r.ip; });
+        });
+    });
 }
 
 // RED-independent RWS/socket client — carries the session/auth/cookie state
@@ -404,6 +488,13 @@ module.exports = function(RED) {
         node.remoteGetPoints().then(function(pts) { res.json(pts); }).catch(function() { res.json([]); });
     });
 
+    RED.httpAdmin.get('/gofa-robot/discover', RED.auth.needsPermission('gofa-robot.read'), function(req, res) {
+        var rwsPort = parseInt(req.query.rwsPort) || 443;
+        discover({ rwsPort: rwsPort })
+            .then(function(ips) { res.json(ips); })
+            .catch(function() { res.json([]); });
+    });
+
     RED.nodes.registerType('gofa-robot', GoFaRobotNode, {
         credentials: { password: { type: 'password' } }
     });
@@ -415,3 +506,4 @@ module.exports.resolveMoveType     = resolveMoveType;
 module.exports.atomicWriteFileSync = atomicWriteFileSync;
 module.exports.fileMtimeMs         = fileMtimeMs;
 module.exports.createRobotClient   = createRobotClient;
+module.exports.discover            = discover;

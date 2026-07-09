@@ -13,6 +13,7 @@ var parseLiSpans       = require('./nodes/gofa-rapid-tasks').parseLiSpans;
 var args = process.argv.slice(2);
 var full = args.indexOf('--full') >= 0;
 var json = args.indexOf('--json') >= 0;
+var discoverFlag = args.indexOf('--discover') >= 0;
 
 var cfg = {
     ip:         process.env.GOFA_IP         || '192.168.20.36',
@@ -22,7 +23,33 @@ var cfg = {
     password:   process.env.GOFA_PASSWORD   || 'robotics'  // ABB factory default
 };
 
-var client = createRobotClient(cfg);
+if (discoverFlag) {
+    if (!json) console.log('Scanning network for ABB GoFa controllers...');
+    robot.discover({ rwsPort: cfg.rwsPort }).then(function(ips) {
+        if (json) {
+            console.log(JSON.stringify({ ok: true, controllers: ips }, null, 2));
+        } else {
+            if (ips.length === 0) {
+                console.log('No ABB GoFa controllers discovered on the network.');
+            } else {
+                console.log('Discovered ' + ips.length + ' controller(s) on the network:');
+                ips.forEach(function(ip) {
+                    console.log('  - ' + ip);
+                });
+            }
+        }
+        process.exit(0);
+    }).catch(function(err) {
+        if (json) {
+            console.log(JSON.stringify({ ok: false, error: err.message }, null, 2));
+        } else {
+            console.log('Discovery failed: ' + err.message);
+        }
+        process.exit(1);
+    });
+} else {
+    runCheck();
+}
 
 function settled(label, promise) {
     return promise.then(
@@ -31,45 +58,52 @@ function settled(label, promise) {
     );
 }
 
-Promise.all([
-    settled('ctrlstate', client.rwsGet('/rw/panel/ctrl-state')),
-    settled('opmode',    client.rwsGet('/rw/panel/opmode')),
-    settled('execution', client.rwsGet('/rw/rapid/execution')),
-    settled('speed',     client.rwsGet('/rw/panel/speedratio')),
-    settled('socket',    (function() {
-        var t0 = Date.now();
-        return client.socketSend('PING').then(function(resp) {
-            if (resp.indexOf('OK:') !== 0) throw new Error('unexpected reply: ' + resp);
-            return Date.now() - t0;
+function checkStatus(ip) {
+    var checkCfg = Object.assign({}, cfg, { ip: ip });
+    var checkClient = createRobotClient(checkCfg);
+
+    return Promise.all([
+        settled('ctrlstate', checkClient.rwsGet('/rw/panel/ctrl-state')),
+        settled('opmode',    checkClient.rwsGet('/rw/panel/opmode')),
+        settled('execution', checkClient.rwsGet('/rw/rapid/execution')),
+        settled('speed',     checkClient.rwsGet('/rw/panel/speedratio')),
+        settled('socket',    (function() {
+            var t0 = Date.now();
+            return checkClient.socketSend('PING').then(function(resp) {
+                if (resp.indexOf('OK:') !== 0) throw new Error('unexpected reply: ' + resp);
+                return Date.now() - t0;
+            });
+        })())
+    ]).then(function(results) {
+        var find = function(label) { return results.filter(function(r) { return r.label === label; })[0]; };
+        var ctrlstate = find('ctrlstate');
+        var opmode    = find('opmode');
+        var execution = find('execution');
+        var speed     = find('speed');
+        var socket    = find('socket');
+
+        var rwsOk = ctrlstate.ok || opmode.ok || execution.ok;
+
+        var out = {
+            ok: rwsOk && socket.ok,
+            ip: ip,
+            motors: ctrlstate.ok ? parseXhtml(ctrlstate.value, 'ctrlstate') : null,
+            mode:   opmode.ok    ? parseXhtml(opmode.value, 'opmode')       : null,
+            rapid:  execution.ok ? parseXhtml(execution.value, 'ctrlexecstate') : null,
+            speed:  speed.ok     ? parseInt(parseXhtml(speed.value, 'speedratio')) || 0 : null,
+            socket: socket.ok    ? { ok: true, rtt: socket.value } : { ok: false, error: socket.error },
+            errors: results.filter(function(r) { return !r.ok; }).map(function(r) { return r.label + ': ' + r.error; })
+        };
+
+        var extra = full ? fetchFull(checkClient) : Promise.resolve(null);
+        return extra.then(function(fullInfo) {
+            if (fullInfo) out.full = fullInfo;
+            return { out: out, rwsOk: rwsOk };
         });
-    })())
-]).then(function(results) {
-    var find = function(label) { return results.filter(function(r) { return r.label === label; })[0]; };
-    var ctrlstate = find('ctrlstate');
-    var opmode    = find('opmode');
-    var execution = find('execution');
-    var speed     = find('speed');
-    var socket    = find('socket');
-
-    var rwsOk = ctrlstate.ok || opmode.ok || execution.ok; // any core RWS call succeeding means RWS itself is reachable
-
-    var out = {
-        ok: rwsOk && socket.ok,
-        ip: cfg.ip,
-        motors: ctrlstate.ok ? parseXhtml(ctrlstate.value, 'ctrlstate') : null,
-        mode:   opmode.ok    ? parseXhtml(opmode.value, 'opmode')       : null,
-        rapid:  execution.ok ? parseXhtml(execution.value, 'ctrlexecstate') : null,
-        speed:  speed.ok     ? parseInt(parseXhtml(speed.value, 'speedratio')) || 0 : null,
-        socket: socket.ok    ? { ok: true, rtt: socket.value } : { ok: false, error: socket.error },
-        errors: results.filter(function(r) { return !r.ok; }).map(function(r) { return r.label + ': ' + r.error; })
-    };
-
-    var extra = full ? fetchFull() : Promise.resolve(null);
-    return extra.then(function(fullInfo) {
-        if (fullInfo) out.full = fullInfo;
-        print(out, rwsOk);
     });
-}).catch(function(err) {
+}
+
+function handleFatalError(err) {
     if (json) {
         console.log(JSON.stringify({ ok: false, ip: cfg.ip, error: err.message }, null, 2));
     } else {
@@ -77,14 +111,54 @@ Promise.all([
         console.log('Status : UNREACHABLE (' + err.message + ')');
     }
     process.exit(1);
-});
+}
 
-function fetchFull() {
+function runCheck() {
+    checkStatus(cfg.ip).then(function(res) {
+        if (res.rwsOk) {
+            print(res.out, res.rwsOk, false);
+        } else {
+            if (!json) {
+                console.log('GoFa @ ' + cfg.ip + ' (RWS:' + cfg.rwsPort + ' socket:' + cfg.socketPort + ')');
+                console.log('Status : UNREACHABLE (' + res.out.errors.join('; ') + ')');
+                console.log('Scanning network for ABB GoFa controllers...');
+            }
+            robot.discover({ rwsPort: cfg.rwsPort }).then(function(ips) {
+                if (ips.length === 0) {
+                    if (json) {
+                        console.log(JSON.stringify({ ok: false, ip: cfg.ip, error: 'Unreachable and no controllers discovered' }, null, 2));
+                    } else {
+                        console.log('No ABB GoFa controllers discovered on the network.');
+                    }
+                    process.exit(1);
+                } else if (ips.length === 1) {
+                    var newIp = ips[0];
+                    if (!json) {
+                        console.log('Found exactly one controller at ' + newIp + '. Re-checking status...');
+                    }
+                    checkStatus(newIp).then(function(newRes) {
+                        print(newRes.out, newRes.rwsOk, true);
+                    }).catch(handleFatalError);
+                } else {
+                    if (json) {
+                        console.log(JSON.stringify({ ok: false, ip: cfg.ip, error: 'Unreachable, found multiple controllers: ' + ips.join(', ') }, null, 2));
+                    } else {
+                        console.log('Found multiple controllers on the network: ' + ips.join(', '));
+                        console.log('Please specify the target IP using the GOFA_IP environment variable.');
+                    }
+                    process.exit(1);
+                }
+            }).catch(handleFatalError);
+        }
+    }).catch(handleFatalError);
+}
+
+function fetchFull(clientInstance) {
     return Promise.all([
-        settled('system', client.rwsGet('/rw/system')),
-        settled('identity', client.rwsGet('/ctrl/identity')),
-        settled('tasks', client.rwsGet('/rw/rapid/tasks')),
-        settled('elog', client.rwsGet('/rw/elog/1?lang=en&lim=3'))
+        settled('system', clientInstance.rwsGet('/rw/system')),
+        settled('identity', clientInstance.rwsGet('/ctrl/identity')),
+        settled('tasks', clientInstance.rwsGet('/rw/rapid/tasks')),
+        settled('elog', clientInstance.rwsGet('/rw/elog/1?lang=en&lim=3'))
     ]).then(function(results) {
         var find = function(label) { return results.filter(function(r) { return r.label === label; })[0]; };
         var system   = find('system');
@@ -113,7 +187,6 @@ function fetchFull() {
                     var cls = span[1].trim();
                     if (fields.indexOf(cls) >= 0) entry[cls] = span[2].trim();
                 }
-                // msgtype 1 = error, 2 = warning (matches gofa-elog.js's raw field passthrough)
                 if (entry.msgtype === '1' || entry.msgtype === '2') entries.push(entry);
             }
             info.recentErrors = entries.slice(0, 3);
@@ -122,11 +195,12 @@ function fetchFull() {
     });
 }
 
-function print(out, rwsOk) {
+function print(out, rwsOk, autoDiscovered) {
     if (json) {
+        if (autoDiscovered) out.autoDiscovered = true;
         console.log(JSON.stringify(out, null, 2));
     } else {
-        console.log('GoFa @ ' + cfg.ip + ' (RWS:' + cfg.rwsPort + ' socket:' + cfg.socketPort + ')');
+        console.log('GoFa @ ' + out.ip + ' (RWS:' + cfg.rwsPort + ' socket:' + cfg.socketPort + ')' + (autoDiscovered ? ' [AUTO-DISCOVERED]' : ''));
         console.log('Motors : ' + (out.motors || 'ERROR'));
         console.log('Mode   : ' + (out.mode || 'ERROR'));
         console.log('RAPID  : ' + (out.rapid || 'ERROR'));

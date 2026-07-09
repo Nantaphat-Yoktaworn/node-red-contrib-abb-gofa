@@ -1507,6 +1507,45 @@ await checkAsync('gofa-egm-move: {joints:[...]} input is accepted and normalized
     assert.deepStrictEqual(node.sent[0][1].payload, [10, 20, 30, 40, 50, 60]);
 });
 
+// gofa-robot: discover (auto-discovery) ──────────────────────────────────────
+await checkAsync('discover: finds mock RWS server on loopback interface', async function() {
+    var server = http.createServer(function(req, res) {
+        if (req.url === '/rw/system') {
+            res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="ABB Robot Web Services"' });
+            res.end();
+        } else {
+            res.writeHead(404);
+            res.end();
+        }
+    });
+    var port = await new Promise(function(resolve) { server.listen(0, '127.0.0.1', function() { resolve(server.address().port); }); });
+    try {
+        var ips = await robot.discover({ includeInternal: true, rwsPort: port, timeout: 50 });
+        assert.ok(ips.indexOf('127.0.0.1') >= 0, 'should discover 127.0.0.1');
+    } finally {
+        server.close();
+    }
+});
+
+await checkAsync('discover: returns empty list when no servers respond', async function() {
+    var ips = await robot.discover({ includeInternal: true, rwsPort: 65530, timeout: 50 });
+    assert.deepStrictEqual(ips, [], 'should return empty array when no port is open');
+});
+
+await checkAsync('discover: filters out non-ABB servers', async function() {
+    var server = http.createServer(function(req, res) {
+        res.writeHead(404);
+        res.end();
+    });
+    var port = await new Promise(function(resolve) { server.listen(0, '127.0.0.1', function() { resolve(server.address().port); }); });
+    try {
+        var ips = await robot.discover({ includeInternal: true, rwsPort: port, timeout: 50 });
+        assert.deepStrictEqual(ips, [], 'should filter out non-ABB server');
+    } finally {
+        server.close();
+    }
+});
+
 fs.rmSync(tmpDir, { recursive: true, force: true });
 console.log('\n' + passed + ' passed, ' + failed + ' failed.');
 if (failed) process.exit(1);
