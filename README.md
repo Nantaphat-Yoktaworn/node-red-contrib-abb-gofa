@@ -597,6 +597,22 @@ stop/resetpp/start sequence instead. If the robot is already stuck (e.g. from an
 Node-RED process that never got to run its close handler), the fix is the same sequence run
 manually: `gofa-rapid-exec` → `stop`, then `resetpp`, then `start` (motors must be on).
 
+### RAPID error "You have to disconnect an EGM instance using EGMReset before you can connect another"
+
+You (or a `gofa-rapid-exec` "start") resumed RAPID with a plain **continue** start — resuming
+execution from wherever the program pointer happened to be — after an EGM session. If that
+left the program pointer sitting near/inside the EGM code block, resuming there re-enters EGM
+setup without going through `RunEgmJoint`'s own `EGMReset`, which only runs when execution
+starts fresh from `main()`. Confirmed live: this immediately throws the error above and stops
+the task again ("spontaneous error" in the elog).
+
+**Fix**: `gofa-rapid-exec` → `stop`, then `resetpp` (resets the program pointer to the top of
+`main()`), then `start`. **Always `resetpp` before `start` any time RAPID is being restarted
+after using `gofa-egm`** — a plain "continue" start is only safe when EGM was never involved.
+`gofa-egm.js`'s own `"stop"` action already does this correctly; this only bites when RAPID is
+restarted through some other path (a bare `start` inject, FlexPendant Play without PP-to-Main,
+etc.).
+
 ### RWS returns 405 (method not allowed)
 
 This palette targets **OmniCore / RWS 2.0** which uses path-based actions (e.g. `/rw/rapid/execution/start`). If you see 405, you may be connecting to an IRC5 controller running RWS 1.0 — the endpoint format is different.

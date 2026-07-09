@@ -138,6 +138,22 @@ session instead of being served. `\CommTimeout`/`\CondTime` are kept in `RunEgmJ
 a hard backstop (e.g. `gofa-egm`'s process dying without ever sending `stop`), not as the exit
 path.
 
+**Never resume RAPID with a plain "continue" start after any EGM interruption — always
+`resetpp` first.** Confirmed live (2026-07-09): a bare `gofa-rapid-exec` `start` (RWS
+`regain=continue`, i.e. "resume from wherever the program pointer is") after an EGM session
+had been force-stopped resumed execution *mid-EGM-code* instead of from the top of `main()` —
+the program pointer was left sitting near/inside the EGM block from the earlier interrupt, and
+resuming there re-entered EGM setup without going through `RunEgmJoint`'s own `EGMReset`
+(which only runs when execution starts fresh from `main()`). Result: RAPID error **"You have
+to disconnect an EGM instance using EGMReset before you can connect another"**, immediate
+`Execution error state`, task stopped again. `gofa-egm.js`'s own `stop()` sequence is immune
+to this (it always does `resetpp` before `start`), but this bites if RAPID is restarted through
+any *other* path (a plain `gofa-rapid-exec` "start" inject, FlexPendant Play without PP-to-Main,
+etc.) after an EGM session — even a normal one, not just a stuck one. **Recovery**: `stop` →
+`resetpp` → `start`, same sequence as `gofa-egm.js` itself uses — confirmed live, resolves
+cleanly. Rule of thumb: after using `gofa-egm` at all, always `resetpp` before the next
+`start`, regardless of which module is loaded or how the EGM session ended.
+
 **`gofa-egm` (Node.js side)**: `nodes/gofa-egm.js`. Hand-rolled proto2 codec
 (`decodeEgmRobot`/`encodeEgmSensor`, exported for `test.js`) — no protobufjs dependency, `ws`
 stays the package's only runtime dependency. Verified **byte-for-byte** against reference

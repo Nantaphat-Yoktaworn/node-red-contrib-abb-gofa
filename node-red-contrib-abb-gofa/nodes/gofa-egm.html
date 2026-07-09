@@ -65,6 +65,15 @@
     restart after changing), and — on the machine running Node-RED — a firewall rule allowing
     inbound UDP on the configured port.</p>
 
+    <p><b>After using this node, always <code>resetpp</code> before the next plain RAPID
+    <code>start</code>.</b> Confirmed live: resuming RAPID with a bare "continue" start (program
+    pointer wherever it was left) after an EGM session can resume execution inside the EGM code
+    block itself, skipping <code>RunEgmJoint</code>'s own <code>EGMReset</code> and throwing
+    "You have to disconnect an EGM instance using EGMReset before you can connect another".
+    This node's own <code>"stop"</code> action already does <code>resetpp</code> for you — this
+    only matters if RAPID gets restarted some other way (a bare <code>gofa-rapid-exec</code>
+    <code>start</code>, FlexPendant Play without PP-to-Main) after EGM was used.</p>
+
     <h3>Configuration</h3>
     <ul>
         <li><b>UDP Port</b> — local port to listen on for EGM frames (must match the UDPUC
