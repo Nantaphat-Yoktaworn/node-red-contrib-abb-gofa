@@ -81,6 +81,13 @@
     confirmed live, a full controller restart is the only fix (EGM/UC state isn't exposed
     anywhere in RWS, so there's no lighter-weight recovery to try).</p>
 
+    <p><b>Repeated start/stop cycling can eventually produce RAPID error "Too many EGM
+    instances."</b> Every session ends via a forced stop, which skips this node's own cleanup
+    on the RAPID side — the underlying controller-side EGM resource leaks, one per cycle
+    (confirmed live: 8 cycles in 90s was enough). No fix found yet (a shorter session timeout
+    was tested and disproven — it doesn't self-recover). Mitigate by not cycling start/stop
+    more than necessary; recovery is the same controller restart as above.</p>
+
     <h3>Configuration</h3>
     <ul>
         <li><b>UDP Port</b> — local port to listen on for EGM frames (must match the UDPUC

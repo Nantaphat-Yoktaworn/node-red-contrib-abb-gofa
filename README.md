@@ -624,6 +624,25 @@ lighter-weight fix to try). **A full controller restart clears it** — confirme
 restarting, the controller comes back in Manual mode with motors in `guardstop` like any
 restart — switch to Auto and turn motors on before retrying.
 
+### RAPID error "Too many EGM instances"
+
+Every `gofa-egm` session that ends via a forced stop (which is *every* session — see
+[Ending a session](#egm-externally-guided-motion) above) skips `RunEgmJoint`'s own cleanup,
+including the `EGMReset` that releases the controller-side EGM resource. That resource doesn't
+get released — it leaks, one per start/stop cycle. Confirmed live: **8 cycles in 90 seconds**
+was enough to exhaust the controller's EGM instance pool and produce this exact error.
+
+A short `\CondTime` (hoping `EGMRunJoint` would exit gracefully on its own instead of being
+externally killed, avoiding the leak) was tested live and **disproven** — even at 11x the
+configured value, the session stayed blocked with zero self-recovery. There's currently no
+known fix, only mitigation: **avoid unnecessary `gofa-egm` start/stop cycling**, and expect to
+need a controller restart periodically during heavy EGM use/testing.
+
+**Recovery**: same as the previous entry — a full controller restart is the only way to clear
+the leaked instance pool (`resetpp`+`start` alone brings RAPID back for plain TCP use, but does
+**not** reclaim the leaked EGM instances). After restarting: Manual mode + `guardstop` motors,
+switch to Auto + motors on before retrying, same as any restart.
+
 ### RWS returns 405 (method not allowed)
 
 This palette targets **OmniCore / RWS 2.0** which uses path-based actions (e.g. `/rw/rapid/execution/start`). If you see 405, you may be connecting to an IRC5 controller running RWS 1.0 — the endpoint format is different.

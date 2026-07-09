@@ -300,9 +300,31 @@ MODULE MainModuleEGM
     ! next resetpp+start runs.
     !
     ! \CommTimeout and \CondTime below are consequently no longer load-
-    ! bearing for session exit -- CondTime is kept only as a hard backstop
-    ! in case a session is ever left running unattended (e.g. gofa-egm's
-    ! process dies without Node-RED ever issuing stop).
+    ! bearing for session exit -- CondTime is kept only as a documentation
+    ! placeholder, NOT a working backstop (see next paragraph).
+    !
+    ! TESTED AND DISPROVEN (2026-07-09): hypothesized that a SHORT CondTime
+    ! (as opposed to the original 300s) might let EGMRunJoint return
+    ! normally on its own once the client goes quiet, avoiding the need for
+    ! an external kill and the EGM-instance leak that causes (see below).
+    ! Live test: CondTime set to 6, a real session started and confirmed
+    ! streaming, then the Node-RED-side process was killed abruptly with no
+    ! stop() call (simulating a crash, not a clean disconnect). Result:
+    ! still blocked inside EGMRunJoint 70+ seconds later (11x+ CondTime) --
+    ! ctrlexecstate stayed "running", no error, no recovery. CondTime does
+    ! NOT cause a graceful self-exit on this firmware, full stop. Do not
+    ! re-attempt this fix without genuinely new evidence -- the external
+    ! RWS-stop design is confirmed necessary, not just a first guess.
+    !
+    ! Known cost of that design: each external stop skips this proc's own
+    ! cleanup (the EGMReset calls below and in ERROR), which appears to
+    ! leak the underlying controller-side EGM instance -- confirmed live
+    ! that repeated start/stop cycles (~8 in 90s) eventually produce RAPID
+    ! error "Too many EGM instances," recoverable only by a full controller
+    ! restart (elog/RWS show zero visibility into EGM/UC state to clear it
+    ! any other way). No fix found yet; mitigate by not cycling gofa-egm
+    ! start/stop more than necessary, and expect to restart the controller
+    ! periodically during heavy EGM testing.
     PROC RunEgmJoint()
         EGMReset egmID1;
         EGMGetId egmID1;

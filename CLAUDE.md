@@ -135,8 +135,27 @@ the only reset guaranteed to have already happened by the time the next resetpp+
 clearing it afterward (the original code) left it stuck `TRUE` after a forced stop, so the
 very next TCP command would immediately close and kick straight back into another blocking EGM
 session instead of being served. `\CommTimeout`/`\CondTime` are kept in `RunEgmJoint` only as
-a hard backstop (e.g. `gofa-egm`'s process dying without ever sending `stop`), not as the exit
-path.
+documentation placeholders, not a working backstop — see next.
+
+**Known unresolved cost of the external-stop design: each stop leaks one controller-side EGM
+instance, eventually producing RAPID error "Too many EGM instances."** Confirmed live
+(2026-07-09): 8 `gofa-egm` start/stop cycles inside 90 seconds was enough to exhaust the
+controller's EGM instance pool. Root cause: an external RWS stop skips `RunEgmJoint`'s own
+cleanup entirely (see above), including the `EGMReset` that's supposed to release the
+controller-side resource — so it doesn't get released, every cycle. **A hypothesis that a
+SHORT `\CondTime` (instead of the original `300`) would let `EGMRunJoint` return normally on
+its own, avoiding the external kill and the leak, was tested live and disproven**: with
+`\CondTime:=6`, a real session was started, confirmed streaming, then the client process was
+killed abruptly (simulating a crash, not a clean `stop()`) — 70+ seconds later (11x+
+`\CondTime`), `ctrlexecstate` was still `running`, zero recovery. `\CondTime` does not cause a
+graceful self-exit on this firmware; do not re-attempt this fix without genuinely new evidence.
+**No fix found yet.** The only confirmed recovery once "Too many EGM instances" hits is a full
+controller restart (EGM/UC state has zero visibility in RWS — checked `/rw/motionsystem/
+mechunits/ROB_1` and `/rw/rapid/tasks/{task}`, nothing there either — so there's no lighter
+clear-instances call to make). Practical mitigation until a real fix is found: don't cycle
+`gofa-egm` start/stop more than necessary during testing, and expect to restart the controller
+periodically during heavy EGM use — plain `resetpp`+`start` recovers RAPID enough to serve TCP
+again, but does **not** reclaim the leaked EGM instance pool itself.
 
 **Never resume RAPID with a plain "continue" start after any EGM interruption — always
 `resetpp` first.** Confirmed live (2026-07-09): a bare `gofa-rapid-exec` `start` (RWS
