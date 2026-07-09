@@ -1,9 +1,9 @@
 # Mastership-gated RWS test
 
 Run the standalone mastership-test script to live-test an RWS endpoint that
-requires edit mastership (`resetpp`, `loadmod`, `activate`, a RAPID var write,
-or any newly-discovered mastership-gated action), instead of hand-rolling
-separate `curl` calls for request/action/release.
+requires edit mastership (`resetpp`, `loadmod`, `unloadmod`, `activate`, a
+RAPID var write, or any newly-discovered mastership-gated action), instead of
+hand-rolling separate `curl` calls for request/action/release.
 
 1. Check robot status first — see `/robot-status`. Don't run a mastership test
    blind against an unknown robot state.

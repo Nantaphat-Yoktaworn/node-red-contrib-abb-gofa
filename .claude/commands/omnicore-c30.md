@@ -174,12 +174,19 @@ controller clearly runs 3 tasks — **resolved 2026-07-07**: `GET /rw/system` co
 `3114-1 Multitasking` is genuinely installed on this controller (full options list also in the
 `abb-rws` skill's version-snapshot section), so it's installed, not just an assumption.
 
-**EGM [3124-1] is also installed** (same `GET /rw/system` options list) but unused by this
-project — this is relevant to the pose-subscription gap documented below: continuous
-Cartesian/joint streaming isn't available over RWS's subscription system, and EGM (Externally
-Guided Motion, UDP-based) is ABB's actual mechanism for that. It was already licensed on this
-controller the whole time the pose-polling limitation was being investigated, in case a future
-session wants to build real-time streaming instead of `gofa-subscribe-pose`'s 500ms poll.
+**EGM [3124-1] is also installed** (same `GET /rw/system` options list) — this is relevant to
+the pose-subscription gap documented below: continuous Cartesian/joint streaming isn't
+available over RWS's subscription system, and EGM (Externally Guided Motion, UDP-based) is
+ABB's actual mechanism for that. It sat unused for a while during the pose-polling investigation,
+then got built and live-verified: **`gofa-egm`** (Node-RED node, `node-red-contrib-abb-gofa`)
+streams joint positions over EGM UDP/protobuf at sub-10ms latency, confirmed live with real
+motion. Needs `rapid/MainModuleEGM.mod` loaded (a sibling of the palette's default
+`MainModule.mod`, not a merge) plus a one-time UDPUC `EGM_PC` transmission-protocol config —
+see the top-level `CLAUDE.md`'s EGM section and the `project_egm_node_red_integration_plan`
+memory for the full design/live-test history, including two live-disproven assumptions
+(`\CommTimeout` is not self-healing; module swaps need an explicit `unloadmod` first).
+`gofa-subscribe-pose` still exists and still polls at 500ms — EGM is a separate, opt-in path
+for when sub-10ms actually matters, not a replacement for it.
 
 ---
 

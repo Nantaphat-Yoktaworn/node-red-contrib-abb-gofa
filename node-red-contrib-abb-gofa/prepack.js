@@ -4,6 +4,7 @@
 const fs = require('fs');
 
 fs.cpSync('../rapid/MainModule.mod', 'rapid/MainModule.mod');
+fs.cpSync('../rapid/MainModuleEGM.mod', 'rapid/MainModuleEGM.mod');
 
 // Example flows = repo flows with this lab's username/IP genericized
 fs.mkdirSync('examples', { recursive: true });
@@ -13,4 +14,4 @@ for (const f of fs.readdirSync('../flows').filter(f => f.endsWith('.json'))) {
         .replace(/192\.168\.20\.\d+/g, '192.168.20.33');
     fs.writeFileSync('examples/' + f, text);
 }
-console.log('prepack: synced rapid/MainModule.mod and examples/ from repo root');
+console.log('prepack: synced rapid/*.mod and examples/ from repo root');

@@ -13,13 +13,15 @@ Node-RED palette for controlling the **ABB GoFa 12** (CRB 15000-12/1.27) collabo
 ## What's in this repo
 
 ```
-node-red-contrib-abb-gofa/       ← Node-RED palette (npm installable)
+node-red-contrib-abb-gofa/       ← Node-RED palette (npm installable: node-red-contrib-abb-gofa)
 rapid/
-  MainModule.mod                 ← RAPID socket server (must run on controller)
+  MainModule.mod                 ← RAPID socket server (must run on controller) — the default
+  MainModuleEGM.mod              ← Optional sibling: adds EGM streaming support (see EGM section)
 flows/
   gofa_demo_flow.json            ← Demo flow — one inject per node
   dashboard_flow.json            ← Full robot control palette flow
   teach_workflow_flow.json       ← Physical-button teach workflow (see below)
+  egm_demo_flow.json             ← EGM module-load + streaming demo (see EGM section)
 MANUAL_CONTROL.md                ← Control the robot directly (curl / raw TCP), no Node-RED needed
 ```
 
@@ -159,12 +161,8 @@ $tcp.Close()
 
 ## 4. Install the Node-RED palette
 
-```bash
-cd ~/.node-red
-npm install /path/to/node-red-contrib-abb-gofa
-```
-
-Or from npm, once published:
+This package is published on npm — install it directly, or via **Menu → Manage palette →
+Install** inside the Node-RED editor and search for `node-red-contrib-abb-gofa`:
 
 ```bash
 cd ~/.node-red
@@ -173,9 +171,19 @@ npm install node-red-contrib-abb-gofa
 
 Restart Node-RED. The **ABB GoFa** section will appear in the palette sidebar.
 
+### Installing from a local checkout instead (contributing / pre-release changes)
+
+If you're working from a clone of this repo rather than the published package (e.g. testing an
+unreleased change):
+
+```bash
+cd ~/.node-red
+npm install /path/to/node-red-contrib-abb-gofa/node-red-contrib-abb-gofa
+```
+
 > **Note (local install):** npm 7+ creates a symlink instead of copying. The palette depends on the `ws` package — run `npm install` once inside the palette directory to make sure it resolves correctly:
 > ```bash
-> cd /path/to/node-red-contrib-abb-gofa && npm install
+> cd /path/to/node-red-contrib-abb-gofa/node-red-contrib-abb-gofa && npm install
 > ```
 
 ---
@@ -206,6 +214,7 @@ Click **Update** → **Deploy**.
 | `flows/gofa_demo_flow.json` | One inject per node — good for testing each feature |
 | `flows/dashboard_flow.json` | Full robot control palette flow |
 | `flows/teach_workflow_flow.json` | Physical-button teach workflow (see below) |
+| `flows/egm_demo_flow.json` | Load `MainModuleEGM.mod` + EGM streaming demo (see [EGM](#egm-externally-guided-motion)) |
 
 After importing, open the **gofa-robot** config node (click any GoFa node → pencil icon) and verify the IP and credentials match your setup.
 
@@ -295,16 +304,18 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 
 | Node | Protocol | What it does |
 |------|:--------:|-------------|
-| **gofa-rapid-exec** | RWS | `start` / `stop` / `resetpp` / `loadmod` / `activate` the RAPID program |
+| **gofa-rapid-exec** | RWS | `start` / `stop` / `resetpp` / `loadmod` / `unloadmod` / `activate` the RAPID program |
 | **gofa-rapid-var-read** | TCP + RWS | Read a RAPID PERS variable via `GETVAR:<name>` socket command; falls back to a stale RWS module-text read if the variable isn't allow-listed |
 | **gofa-rapid-var-write** | TCP | Write a RAPID PERS variable via `SETVAR:<name>:<value>` socket command — no RWS fallback exists (see below) |
 | **gofa-rapid-tasks** | RWS | List RAPID tasks on the controller and the modules loaded in one of them |
 
-> `gofa-rapid-exec` requires the RWS user to have **Remote Start** and **Remote Stop** grants (see Step 2). `resetpp`, `loadmod`, and `activate` additionally acquire edit mastership automatically.
+> `gofa-rapid-exec` requires the RWS user to have **Remote Start** and **Remote Stop** grants (see Step 2). `resetpp`, `loadmod`, `unloadmod`, and `activate` additionally acquire edit mastership automatically.
 >
 > `loadmod` reloads a module file already on the controller's disk into a task — the RWS equivalent of the FlexPendant's **Load Module** step (see [Load and start on the FlexPendant](#load-and-start-on-the-flexpendant)). Use it after **gofa-upload-mod** to make a running task pick up a changed `.mod` file without touching the FlexPendant. `activate` makes a named module the task's active/bound one — confirmed working but only needed if you must explicitly (re)bind a module by name; the common "edit and re-upload `MainModule.mod`" workflow only needs `loadmod`.
 >
-> **`loadmod` and `activate` both require RAPID to be stopped** — confirmed live: both return HTTP 403 ("Operation not allowed for current PGM state") while RAPID is running. Stop RAPID first (`stop`), run `loadmod`/`activate`, then `start` again — with `resetpp` in between if the program pointer also needs resetting to Main.
+> **`unloadmod` removes a module from the task without touching the file on disk.** Necessary before `loadmod`-ing a *differently-named* module — `loadmod`'s `replace` option only replaces a module with the **same name**, so loading e.g. `MainModuleEGM` while `MainModule` is still loaded leaves **both** loaded. Since both declare `PROC main()`, RAPID then rejects `resetpp`/`start` with `(87,5): Global routine name main ambiguous` — confirmed live building the [EGM](#egm-externally-guided-motion) feature. Swap sequence either direction: `stop` → `unloadmod` (whichever module is currently loaded) → upload the other file → `loadmod` → `resetpp` → `start`.
+>
+> **`loadmod`, `unloadmod`, and `activate` all require RAPID to be stopped** — confirmed live: all three return HTTP 403 ("Operation not allowed for current PGM state") while RAPID is running. Stop RAPID first (`stop`), run `loadmod`/`unloadmod`/`activate`, then `start` again — with `resetpp` in between if the program pointer also needs resetting to Main.
 
 > `gofa-rapid-var-read` / `gofa-rapid-var-write` use the TCP socket and work on standard OmniCore C30 without any extra RobotWare options. The variable must be listed in `TryGetVar` / `TrySetVar` in `MainModule.mod`. Built-in test variables: `nTestVar` (num) and `sTestMsg` (string). See [Adding RAPID variables](#adding-rapid-variables) below.
 >
@@ -338,6 +349,80 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | **gofa-subscribe-pose** | RWS poll | Poll TCP position on an interval |
 
 > **One-shot checkbox** — both `gofa-subscribe-state` and `gofa-subscribe-io` have a **One-shot** option in their properties. When checked, each inject triggers a single poll and returns the current value immediately without opening a persistent subscription.
+
+### EGM (Externally Guided Motion)
+
+| Node | Protocol | What it does |
+|------|:--------:|-------------|
+| **gofa-egm** | UDP (EGM) | Sub-10ms closed-loop joint-position streaming |
+
+`gofa-egm` streams joint positions over EGM — a UDP/protobuf channel built into RobotWare
+(option `3124-1`, standard on OmniCore), capable of sub-10ms closed-loop motion. Everything
+else in this palette goes through the TCP socket server or RWS, both of which top out around
+100–500ms — EGM is the only path here for real-time control. **Confirmed live** (2026-07-09):
+real motion, closed-loop, driven by this node — a `+3°` target on one joint produces a smooth
+ramp visible in the returned feedback, converging on the commanded value and back.
+
+**This is opt-in and needs its own RAPID module.** `rapid/MainModule.mod` (the default covered
+by the rest of this README) has no EGM support. `rapid/MainModuleEGM.mod` is a full clone of
+it — identical TCP command server — plus one added command, `EGMJOINT`, that switches the
+controller into a blocking EGM session. Only one of the two can be loaded on the controller at
+a time.
+
+#### Loading MainModuleEGM.mod
+
+Same as [uploading MainModule.mod](#3-upload-and-run-the-rapid-program), but with one
+extra required step. **Switching between the two modules always needs an explicit unload
+first** — see the `unloadmod` note under [RAPID program control](#rapid-program-control)
+above for why (`loadmod`'s `replace` only replaces a same-named module; skipping the unload
+leaves both loaded and RAPID rejects `resetpp`/`start` with an ambiguous-`main` error). Full
+sequence, either direction:
+
+1. `gofa-rapid-exec` → `stop`
+2. `gofa-rapid-exec` → `unloadmod` (module = whichever is currently loaded, e.g. `MainModule`)
+3. `gofa-upload-mod` → the other file (e.g. `rapid/MainModuleEGM.mod`, remote path
+   `$HOME/Programs/MainModuleEGM.mod`)
+4. `gofa-rapid-exec` → `loadmod` (module path from step 3)
+5. `gofa-rapid-exec` → `resetpp`
+6. `gofa-rapid-exec` → `start`
+
+`flows/egm_demo_flow.json` wires this exact sequence up as a ready-made sub-flow (with `change`
+nodes clearing `msg.payload` between chained `gofa-rapid-exec` nodes — see the chaining note in
+[msg.payload conventions](#msgpayload-conventions)). If the wrong module ends up loaded anyway,
+`gofa-egm`'s `start` action fails with a clear "load MainModuleEGM.mod first" error instead of
+hanging.
+
+#### One-time controller setup (RobotStudio, not done by any node)
+
+A UDPUC transmission protocol named `EGM_PC`: **Controller** → **Configuration** →
+**Communication** → **Transmission Protocol** → Add — `Name: EGM_PC`, `Type: UDPUC`,
+`Remote Address:` the Node-RED host's IP on the robot's subnet, `Remote Port: 6510` (must match
+`gofa-egm`'s configured UDP Port). **Requires a controller restart to take effect.** Also
+needs a firewall rule on the Node-RED host allowing inbound UDP on that port.
+
+> **`EGM_PC`'s Remote Address drifts the same way the robot's own IP does** (see
+> [Set your robot IP](#1-set-your-robot-ip)) — if the Node-RED host's IP changes, `EGM_PC`
+> needs updating too, or `gofa-egm`'s `start` will succeed (`OK:EGMJOINT`, UDP binds fine) but
+> zero frames will ever arrive. Confirmed live: this looks identical to a firewall problem
+> ("No EGM frames received within 2s") — check `EGM_PC`'s configured address first.
+
+#### Input / output
+
+`msg.payload` can be `"start"`, `"stop"`, or an array of 6 numbers (absolute joint target,
+degrees — requires `"start"` first). Output: `{ ok: true, joints, seqno, mciState, motorsOn,
+convergence, source: 'egm' }`, throttled (config option, default 100ms — real EGM frames arrive
+every ~24ms). Full details in the node's Node-RED sidebar help.
+
+**Ending a session is not automatic.** `"stop"` (or closing/redeploying the node while a
+session is active) drives an explicit RWS `stop` → `resetpp` → `start` sequence to return the
+controller to normal TCP serving — **confirmed live that EGM's own comm-timeout mechanism does
+not reliably end a session on its own**: going quiet with a session already connected can leave
+the controller blocked for minutes with no recovery. Always use `"stop"`, don't just stop
+sending it messages.
+
+While a session is active, every other socket-based node (`gofa-jog`, `gofa-go-point`, etc.)
+fails fast ("connection refused") instead of hanging — the TCP server is genuinely down for
+that duration, same as any other time `MainModule.mod`'s socket server isn't running.
 
 ---
 
@@ -379,7 +464,8 @@ msg.payload  →  node property (editor)  →  built-in default
 |------|----------------------|---------|
 | **gofa-motor** | `'motoron'` / `'motoroff'` (string) · `{ action: 'motoron' }` | `motoron` |
 | **gofa-move** | `'HOME'` / `'SETHOME'` (string) · `{ command: 'HOME' }` | `HOME` |
-| **gofa-rapid-exec** | `'start'` / `'stop'` / `'resetpp'` / `'loadmod'` / `'activate'` (string) · `{ action: 'start' }` · for `loadmod`: `{ action: 'loadmod', task, modulePath, replace }` · for `activate`: `{ action: 'activate', task, module }` | `start` |
+| **gofa-rapid-exec** | `'start'` / `'stop'` / `'resetpp'` / `'loadmod'` / `'unloadmod'` / `'activate'` (string) · `{ action: 'start' }` · for `loadmod`: `{ action: 'loadmod', task, modulePath, replace }` · for `unloadmod`/`activate`: `{ action: 'unloadmod', task, module }` | `start` |
+| **gofa-egm** | `'start'` / `'stop'` (string) · array of 6 numbers (absolute joint target, degrees) · `{ joints: [...] }` | (none — requires `start`) |
 | **gofa-speed-set** | number or string `1`–`100` | `50` |
 | **gofa-zone-set** | `'fine'` / `'z1'` / `'z5'` / `'z10'` / `'z20'` / `'z50'` / `'z100'` | `z10` |
 | **gofa-grip** | `true` / `1` / `'on'` / `'gripon'` or `false` / `0` / `'off'` / `'gripoff'` · `{ action: 'on' }` | `on` |
@@ -483,6 +569,33 @@ Then restart Node-RED.
 ### Subscribe IO used to always fall back to polling (fixed)
 
 `gofa-subscribe-io` previously requested WebSocket subscriptions with resource suffix `;lvalue`, which OmniCore rejects with `400 Invalid resource URI` for **every** signal — not just ASI ones. The `.catch` on that 400 silently started the 500 ms poll fallback, so this node was never actually using WebSocket push; it was polling for every signal, always. This is fixed as of the commit that changed the suffix to `;state` (the correct fixed resource-type keyword OmniCore expects for I/O signal subscriptions — confirmed live, including on ASI signals like `Asi1Button1`/`Asi1Button2`). If you're on an older build and see it always polling, update.
+
+### `gofa-rapid-exec` `loadmod`/`resetpp`/`start` fails with "Global routine name main ambiguous"
+
+Both `MainModule` and `MainModuleEGM` are loaded on the task at once — `loadmod`'s `replace`
+option only replaces a module with the **same name**, so loading one while the other is still
+loaded leaves both, and both declare `PROC main()`. Fix: `gofa-rapid-exec` → `unloadmod` for
+whichever module you don't want, **before** `loadmod`-ing the other. See
+[EGM → Loading MainModuleEGM.mod](#loading-mainmoduleegmmod) for the full sequence.
+
+### `gofa-egm` `start` succeeds but no motion / "No EGM frames received within 2s"
+
+`OK:EGMJOINT` came back and the UDP socket bound fine, but zero frames arrive from the
+controller. Almost always a stale `EGM_PC` transmission-protocol config — its **Remote
+Address** must be the Node-RED host's *current* IP, which drifts the same way the robot's own
+IP does. Check it in RobotStudio (**Controller** → **Configuration** → **Communication** →
+**Transmission Protocol** → `EGM_PC`) and restart the controller after fixing it. Also
+double-check the firewall rule for inbound UDP on the configured port.
+
+### `gofa-egm` session won't end / robot stuck unresponsive to TCP nodes after using EGM
+
+Always use the `"stop"` action (or let the node's own redeploy/close handler run) — don't just
+stop sending it messages and assume the controller will recover on its own. EGM's own
+comm-timeout mechanism does **not** reliably end a session by itself (confirmed live — it can
+hang for minutes with no recovery), so `gofa-egm`'s `"stop"` drives an explicit RWS
+stop/resetpp/start sequence instead. If the robot is already stuck (e.g. from an interrupted
+Node-RED process that never got to run its close handler), the fix is the same sequence run
+manually: `gofa-rapid-exec` → `stop`, then `resetpp`, then `start` (motors must be on).
 
 ### RWS returns 405 (method not allowed)
 

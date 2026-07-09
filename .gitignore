@@ -15,10 +15,12 @@ node-red-contrib-abb-gofa/package-lock.json
 !flows/dashboard_flow.json
 !flows/gofa_payload_test_flow.json
 !flows/teach_workflow_flow.json
+!flows/egm_demo_flow.json
 
 # RAPID program
 !rapid/
 !rapid/MainModule.mod
+!rapid/MainModuleEGM.mod
 
 # This file, README, license, CI, and Claude Code project config
 !.gitignore

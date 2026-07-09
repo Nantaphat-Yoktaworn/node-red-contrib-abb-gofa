@@ -48,6 +48,7 @@ Rule: **motion always goes through the socket; read-only data and motor control 
 | `SETLED:<r>;<g>;<b>;<period>` | Set ASI status light color (0–255 each) and hardware blink period; replies `OK:SETLED` |
 | `RESETLED` | Restore ASI LED to default RAPID-running state (solid green); replies `OK:RESETLED` |
 | `SETDO:<name>:<value>` | Set a digital output by RWS signal name (0/1); replies `OK:SETDO`, `ERR:UNKNOWN_SIGNAL`, or `ERR:PARSE` |
+| `EGMJOINT` | **`MainModuleEGM.mod` only** — ack `OK:EGMJOINT`, then this task stops serving TCP and blocks in an EGM joint-streaming session until the `gofa-egm` node's UDP session goes quiet, at which point TCP serving resumes. On plain `MainModule.mod` this command doesn't exist and falls through to `ERR:EGMJOINT` like any other unrecognized command — see the EGM section below. |
 
 Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPath/StartMove) keeps the server alive on motion faults.
 
@@ -63,7 +64,7 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 
 **SERVER_IP note**: `MainModule.mod` binds its socket server with `CONST string SERVER_IP := "..."`, which RAPID's `SocketBind` requires to be a real configured interface address (no wildcard bind). If this drifts from the controller's actual IP, `SocketBind` silently fails and every socket command times out with no error on the controller side. `gofa-upload-mod` mitigates this by always rewriting `SERVER_IP` to the `gofa-robot` config node's IP on every upload (`patchServerIp` no-ops on any file that doesn't contain the constant, so this is safe for uploading other files too); the constant in the repo copy is just the fallback for a first upload or manual FlexPendant/SD-card load.
 
-**Module reload (`loadmod`) note**: reloading a module file already on disk into a running task (the FlexPendant's **Load Module** step) *is* possible over RWS, but not via the documented RWS 1.0/IRC5 query-action form — `POST /rw/rapid/tasks/{task}?action=loadmod` is `405` on this controller (same red-herring `Allow: GET,POST,OPTIONS` header as the `/rw/rapid/symbols` case below; that resource's real POST use is `/subscription`). The working call is **path-based**: `POST /rw/rapid/tasks/{task}/loadmod`, body `modulepath=<path>&replace=true`, and — the one exception in this whole palette — it requires `Accept: application/hal+json;v=2.0`, not the `xhtml+xml` every other endpoint uses (xhtml Accept errors on this resource). Gated on edit mastership, same as `resetpp`. Confirmed live against `T_ROB1`/`MainModule` (RobotWare 7.21.0+229): `200` with JSON body `{"state":[{"name":"MainModule", ...}]}`, no side effects. `gofa-rapid-exec`'s `loadmod` action wraps this (`rwsPostHal` in `gofa-robot.js` sends the hal+json Accept header). A companion `activate` action (`POST /rw/rapid/tasks/{task}/activate`, body `module=<name>`) works the same way and is now also wired into `gofa-rapid-exec`. **Both require RAPID to be stopped** — confirmed live in both directions: succeeds (`204`) with `ctrlexecstate: stopped`, fails `403` (`rws_resource_rapid_task.cpp: Operation not allowed for current PGM state`) with `ctrlexecstate: running`, on the identical call. `gofa-rapid-exec` surfaces the RWS error's own reason text (previously discarded — `gofa-robot.js`'s `request()` only threw `HTTP <code> <path>` with no body detail) and adds a specific hint for this rejection. Full test log: see the `abb-rws` skill and the `project_robot_live_test_log` memory.
+**Module reload (`loadmod`) note**: reloading a module file already on disk into a running task (the FlexPendant's **Load Module** step) *is* possible over RWS, but not via the documented RWS 1.0/IRC5 query-action form — `POST /rw/rapid/tasks/{task}?action=loadmod` is `405` on this controller (same red-herring `Allow: GET,POST,OPTIONS` header as the `/rw/rapid/symbols` case below; that resource's real POST use is `/subscription`). The working call is **path-based**: `POST /rw/rapid/tasks/{task}/loadmod`, body `modulepath=<path>&replace=true`, and — the one exception in this whole palette — it requires `Accept: application/hal+json;v=2.0`, not the `xhtml+xml` every other endpoint uses (xhtml Accept errors on this resource). Gated on edit mastership, same as `resetpp`. Confirmed live against `T_ROB1`/`MainModule` (RobotWare 7.21.0+229): `200` with JSON body `{"state":[{"name":"MainModule", ...}]}`, no side effects. `gofa-rapid-exec`'s `loadmod` action wraps this (`rwsPostHal` in `gofa-robot.js` sends the hal+json Accept header). A companion `activate` action (`POST /rw/rapid/tasks/{task}/activate`, body `module=<name>`) works the same way and is now also wired into `gofa-rapid-exec`, as does `unloadmod` (`POST /rw/rapid/tasks/{task}/unloadmod`, body `module=<name>` — same hal+json/mastership requirements; removes the named module from the task only, the file stays on the controller's disk). `unloadmod` was needed once it was confirmed live that `loadmod`'s `replace` only replaces a *same-named* module — loading `MainModuleEGM` while `MainModule` is still loaded leaves both loaded, both declaring `PROC main()`, and RAPID rejects `resetpp`/`start` with `(87,5): Global routine name main ambiguous` (see the EGM section below). **All three require RAPID to be stopped** — confirmed live in both directions: succeeds (`204`) with `ctrlexecstate: stopped`, fails `403` (`rws_resource_rapid_task.cpp: Operation not allowed for current PGM state`) with `ctrlexecstate: running`, on the identical call. `gofa-rapid-exec` surfaces the RWS error's own reason text (previously discarded — `gofa-robot.js`'s `request()` only threw `HTTP <code> <path>` with no body detail) and adds a specific hint for this rejection. Full test log: see the `abb-rws` skill and the `project_robot_live_test_log` memory.
 
 **GOTOJ/GOTOL note**: bare `GOTO<11 nums>` (no `J`/`L` letter) is still accepted by `TryGoTo` as an alias for `GOTOJ`, for backward compatibility. `gofa-go-point` and `gofa-sequencer` always send the explicit `J`/`L` form based on their "Move type" dropdown. `MoveJ` (joint-interpolated) is the more predictable/reliable choice — RAPID has freedom in how each axis gets there, so it won't fault or slow drastically near a singularity — and is therefore the default at every fallback point: `gotoToken(t, moveType)` in `gofa-robot.js` maps anything other than exactly `'L'` to `'J'`, and both nodes' config defaults are `'J'`. `MoveL` follows a straight line to the target and can hit singularities or joint limits along that line that `MoveJ` would route around, so it's opt-in, not a safer default.
 
@@ -79,7 +80,105 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 
 **`gofa-rapid-exec` chaining hazard — clear `msg.payload` between two chained instances.** `gofa-rapid-exec` supports overriding its configured `action` via `msg.payload.action` (or a bare `msg.payload` string) — a deliberate, useful feature. But its own success output is `{ok:true, action:<the action it ran>}`, which has exactly that shape. Wiring one `gofa-rapid-exec` node's output straight into another (even through a passthrough `switch` gate, which doesn't alter the message) makes the second node see the first node's `action` as an override and silently repeat it instead of running its own configured action. Caught live in `flows/teach_workflow_flow.json`: `Reset Program Pointer` (action `resetpp`) wired into `Restart RAPID` (action `start`) via a `switch` gate — `Restart RAPID`'s own debug output showed `{ok:true, action:"resetpp"}`, and RAPID never actually restarted (confirmed via `gofa-status`: `rapid` stayed `stopped`). Fixed by inserting a `change` node that resets `msg.payload` to `{}` between them. This only bites when two `gofa-rapid-exec` nodes are chained with nothing in between that replaces `payload` — a `gofa-status` node in between is safe, since it always overwrites `payload` regardless of what it received.
 
-## Nodes (40 total)
+## EGM (Externally Guided Motion) — optional second RAPID module
+
+**Two RAPID modules, one loaded at a time.** `rapid/MainModule.mod` (the default, everything
+above assumes this) has no EGM support. `rapid/MainModuleEGM.mod` is a full clone of it —
+same TCP command server, byte-identical logic — plus the `EGMJOINT` command and a mode state
+machine. Deliberately a separate file rather than a merge into `MainModule.mod`: an EGM
+session (`EGMRunJoint`) blocks the RAPID task for its whole duration, so `MainModuleEGM.mod`
+can't serve TCP commands while streaming either way — keeping it separate means the module
+every other node in this palette depends on carries zero risk from the EGM code, and reverting
+is just reloading `MainModule.mod` (untouched, not a "revert a merge" operation).
+
+**Switching between the two modules requires unloading the current one first — confirmed live,
+not optional.** `loadmod`'s `replace=true` only replaces a module with the *same name*
+(confirmed live: RWS docs and behavior agree). `MainModule` and `MainModuleEGM` are different
+module names, so loading one while the other is still loaded does **not** replace it — both
+stay loaded, both declare `PROC main()`, and RAPID rejects `resetpp`/`start` with `HTTP 400`
+and RAPID error `(87,5): Global routine name main ambiguous`. The fix, also confirmed live: an
+explicit `unloadmod` (`POST /rw/rapid/tasks/{task}/unloadmod`, body `module=<name>`, same
+hal+json + mastership requirements as `loadmod`) removes the *other* module from the task
+first — it only detaches it from the running task, the `.mod` file itself is untouched on the
+controller's disk, so nothing is lost. Full swap sequence either direction: `stop` →
+`unloadmod` (the module currently loaded) → upload the new file → `loadmod` (`replace=true`)
+→ `resetpp` → `start`. (This ambiguity also bit the very first live test of this feature: the
+controller had `EGMJointModule` — the sibling `gofa-egm-python` project's own module, left
+loaded from earlier standalone testing — sitting alongside a freshly-loaded `MainModule`, same
+error, same fix.)
+
+**Mode switch — `gofa-egm`'s `start` action sends `EGMJOINT`** over the TCP socket (ack
+`OK:EGMJOINT`), which sets a flag that `ServeClient`/`ServeForever` check right after
+`Dispatch` returns — they close the client and server sockets and return, `main()` sees the
+flag and runs `RunEgmJoint` (transplanted from `gofa-egm-python/rapid/EGMJointModule.mod`:
+`EGMSetupUC ... "EGM_PC" \Joint \CommTimeout:=5` → `EGMActJoint` with the
+`egm_minmax1 := [-10.0, 10.0]` hard clamp → `EGMRunJoint ... \CondTime:=300`). While in EGM
+mode the closed server socket makes every other socket-based node fail fast with "connection
+refused" instead of hanging.
+
+**Mode exit is NOT self-healing — corrected after a live test, 2026-07-09.** The original
+design assumed `\CommTimeout` would raise a comm-timeout error once `gofa-egm` stopped
+replying, so the ERROR handler would reset and fall back to TCP serving on its own. Confirmed
+FALSE live: with a real EGM session connected and streaming, going silent (closing the UDP
+socket) left the task blocked inside `EGMRunJoint` for 2+ minutes with no error and no
+recovery — whatever `\CommTimeout` actually governs on this firmware, it is not "seconds of
+silence before giving up" in any way this can rely on. The mechanism that DOES reliably work,
+confirmed live twice: an **external RWS stop** (`POST /rw/rapid/execution/stop`)
+hard-interrupts `EGMRunJoint` immediately regardless of EGM state. `gofa-egm`'s `stop` action
+(and its `close` handler, when a session is active) now drives this explicitly — `stop` →
+`withMastership(resetpp)` → check `ctrl-state` → `start` if motors are on — the same
+stop/resetpp/start shape already used elsewhere in this palette (`gofa-rapid-exec`,
+`reload_module.js`). A forced stop does **not** run `RunEgmJoint`'s own ERROR handler or
+cleanup (it's an external interrupt, not a RAPID error), which is why `bEgmRequested` in
+`MainModuleEGM.mod`'s `main()` is cleared **before** calling `RunEgmJoint`, not after — that's
+the only reset guaranteed to have already happened by the time the next resetpp+start runs;
+clearing it afterward (the original code) left it stuck `TRUE` after a forced stop, so the
+very next TCP command would immediately close and kick straight back into another blocking EGM
+session instead of being served. `\CommTimeout`/`\CondTime` are kept in `RunEgmJoint` only as
+a hard backstop (e.g. `gofa-egm`'s process dying without ever sending `stop`), not as the exit
+path.
+
+**`gofa-egm` (Node.js side)**: `nodes/gofa-egm.js`. Hand-rolled proto2 codec
+(`decodeEgmRobot`/`encodeEgmSensor`, exported for `test.js`) — no protobufjs dependency, `ws`
+stays the package's only runtime dependency. Verified **byte-for-byte** against reference
+bytes generated by the proven `gofa-egm-python` project's `egm_pb2` (compiled from ABB's own
+`proto/egm.proto`), not just self-consistency — see the codec tests in `test.js`. Uses Node's
+built-in `dgram`, lifecycle modeled on `gofa-subscribe-io.js` (`_stopped` flag, status color
+convention, teardown on `node.on('close')`). On `start`: sends `EGMJOINT`; `ERR:EGMJOINT`
+means `MainModule.mod` (wrong module) is loaded — surfaced as a specific error, not a hang;
+binds UDP and waits up to 2s for the first frame (timeout → check `EGM_PC` config / firewall).
+Holds the current pose (echoes feedback back unchanged) until a flow sends a `[j1..j6]` target
+— never moves on connect. Output throttled (`throttleMs`, default 100ms) since real EGM frames
+arrive every ~24ms, far faster than most flows need. On `stop` (and on `close` if a session was
+active): drives the RWS stop/resetpp/start recovery sequence described above, not just silence
+— see the mode-exit correction.
+
+**Confirmed live end-to-end, 2026-07-09** (GoFa 12 / OmniCore C30, RobotWare 7.21.0+229):
+`gofa-egm` `start` → baseline hold (no motion) → a `+3°` target on joint 6 → real, visible
+motion, telemetry converging smoothly from baseline through the full ramp to the new target
+→ target set back to baseline → smooth return → `stop` → `PING` confirms TCP mode restored,
+repeatably. Also confirmed: `start` while RAPID is stopped fails in ~5s with a clear error, not
+a hang; a simulated mid-session Node-RED redeploy (`close()` while streaming) recovers the
+robot to TCP mode via the same explicit recovery path. This is also where the mode-exit
+correction above and the `bEgmRequested` ordering bug were found and fixed.
+
+**Prerequisites (one-time, not automatable from Node-RED)**: a UDPUC transmission protocol
+named `EGM_PC` (RobotStudio → Controller → Configuration → Communication → Transmission
+Protocol; Remote Address = the Node-RED host's IP on the robot's subnet, Remote Port =
+`gofa-egm`'s configured UDP port, default 6510; needs a controller restart), and a firewall
+rule on the Node-RED host allowing inbound UDP on that port. **The Remote Address drifts the
+same way the robot's own IP does** (see the robot-IP-drift note elsewhere in this doc) —
+confirmed live: `start` bound UDP fine and got `OK:EGMJOINT`, but zero frames ever arrived and
+RAPID hung indefinitely (see the mode-exit correction — nothing timed out on its own), because
+`EGM_PC`'s Remote Address was stale from a prior session's dev-PC IP. Symptom is exactly "no
+EGM frames received within 2s" from `gofa-egm` despite the module/mastership/firewall all being
+correct — check `EGM_PC`'s configured Remote Address against the Node-RED host's *current* IP
+before assuming anything else is wrong.
+
+Full design history and the reasoning behind the two-module decision: see the
+`project_egm_node_red_integration_plan` memory and its linked plan file.
+
+## Nodes (41 total)
 
 | Node | Transport | Description |
 |------|-----------|-------------|
@@ -107,7 +206,7 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 | `gofa-points-import` | disk | Replace points list from `msg.payload` (local storage only) |
 | `gofa-sequencer` | Socket + disk/RWS | Visit saved points in order (Local `points.json` or On-Robot file); per-step dwell + move type override, loop count, ping-pong, startStep |
 | `gofa-stop-seq` | Socket + in-memory | Sets `_seqStop` flag and sends immediate `STOP` socket command |
-| `gofa-rapid-exec` | RWS | Start/stop/resetPP/loadmod RAPID program *(requires Remote Start/Stop UAS grants; loadmod/resetpp need Edit mastership, granted automatically)* |
+| `gofa-rapid-exec` | RWS | Start/stop/resetPP/loadmod/unloadmod/activate RAPID program *(requires Remote Start/Stop UAS grants; resetpp/loadmod/unloadmod/activate need Edit mastership, granted automatically)* |
 | `gofa-rapid-var-read` | Socket | Read a RAPID PERS variable via `GETVAR:<name>` socket command |
 | `gofa-rapid-var-write` | Socket | Write a RAPID PERS variable via `SETVAR:<name>:<value>` socket command |
 | `gofa-rapid-tasks` | RWS | List RAPID tasks and the modules loaded in one of them |
@@ -123,6 +222,7 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 | `gofa-subscribe-io` | RWS WS | Push on every I/O signal change (real WebSocket push, confirmed live down to a single button tap); falls back to 500 ms polling only if the subscribe request itself fails; one-shot mode available |
 | `gofa-subscribe-var` | RWS poll | Poll a RAPID variable on an interval; toggles on/off per inject |
 | `gofa-subscribe-pose` | RWS poll | Poll TCP position on an interval; stops if inject has no payload |
+| `gofa-egm` | Socket + UDP (EGM) | Sub-10ms joint-position streaming; sends `EGMJOINT` to switch mode, then holds/streams via UDP. Requires `MainModuleEGM.mod` loaded, not the default `MainModule.mod` — see EGM section above |
 
 ## Saved points format
 
@@ -188,6 +288,7 @@ node-red-contrib-abb-gofa/        ← npm palette package
 node-red-contrib-abb-gofa/check-status.js  ← standalone robot preflight check, see /robot-status above
 node-red-contrib-abb-gofa/mastership-test.js ← standalone mastership-gated RWS test, see /mastership-test above
 rapid/MainModule.mod               ← RAPID socket server (must run on controller)
+rapid/MainModuleEGM.mod            ← optional: MainModule.mod clone + EGM mode (gofa-egm), see EGM section
 flows/gofa_demo_flow.json          ← one inject per node, for testing
 flows/dashboard_flow.json          ← full robot control palette flow
 flows/teach_workflow_flow.json     ← physical ASI-button teach workflow (own tab/config, see README)

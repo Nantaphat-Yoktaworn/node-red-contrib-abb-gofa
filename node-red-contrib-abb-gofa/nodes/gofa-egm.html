@@ -1,0 +1,90 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-egm', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name:       { value: '' },
+            robot:      { value: '', type: 'gofa-robot', required: true },
+            udpPort:    { value: 6510, validate: RED.validators.number() },
+            throttleMs: { value: 100,  validate: RED.validators.number() }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || 'EGM'; },
+        paletteLabel: 'EGM'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-egm">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-udpPort"><i class="fa fa-random"></i> UDP Port</label>
+        <input type="text" id="node-input-udpPort" placeholder="6510">
+    </div>
+    <div class="form-row">
+        <label for="node-input-throttleMs"><i class="fa fa-clock-o"></i> Output throttle (ms)</label>
+        <input type="text" id="node-input-throttleMs" placeholder="100">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="EGM">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-egm">
+    <p>Streams joint positions to/from the robot over EGM (Externally Guided Motion) — a
+    UDP/protobuf channel capable of sub-10ms closed-loop motion, unlike the TCP socket
+    protocol or RWS (which tops out around 500ms).</p>
+
+    <p><b>Requires <code>MainModuleEGM.mod</code>, not the default <code>MainModule.mod</code>,
+    to be loaded on the controller.</b> The default module has no EGM support. If
+    <code>MainModule.mod</code> is currently loaded, first: <code>gofa-rapid-exec</code>
+    (<code>stop</code>) → <code>gofa-rapid-exec</code> (<code>unloadmod</code>, module
+    <code>MainModule</code> — this only detaches it from the task, the file stays on disk) →
+    <code>gofa-upload-mod</code> (<code>rapid/MainModuleEGM.mod</code>) →
+    <code>gofa-rapid-exec</code> (<code>loadmod</code> → <code>resetpp</code> →
+    <code>start</code>). Skipping the unload step leaves <em>both</em> modules loaded — RAPID
+    rejects <code>resetpp</code>/<code>start</code> with "Global routine name main ambiguous"
+    (confirmed live) since both declare <code>PROC main()</code>. If the wrong module ends up
+    loaded anyway, <code>start</code> on this node fails with a "wrong module loaded" error
+    instead of hanging.</p>
+
+    <p>While a session is active, the robot's TCP socket server is stopped — every other
+    socket-based node (<code>gofa-jog</code>, <code>gofa-go-point</code>, etc.) will fail to
+    connect until the session ends. <b>Ending a session requires the <code>"stop"</code> action
+    (or closing/redeploying this node) — it is not automatic.</b> Confirmed live: EGM's own
+    comm-timeout mechanism does not reliably end a session once connected; going quiet on its
+    own can leave the controller blocked for minutes with no recovery. <code>"stop"</code>
+    instead drives an explicit RWS stop/resetpp/start sequence that reliably returns the
+    controller to normal TCP serving within a few seconds.</p>
+
+    <p>One-time controller setup (not done by this node): a UDPUC transmission protocol named
+    <code>EGM_PC</code> (RobotStudio &gt; Controller &gt; Configuration &gt; Communication &gt;
+    Transmission Protocol; Remote Address = the Node-RED host's current IP — this drifts the
+    same way the robot's own IP does, and a stale address here looks identical to a firewall
+    problem: <code>start</code> succeeds but no EGM frames ever arrive — requires a controller
+    restart after changing), and — on the machine running Node-RED — a firewall rule allowing
+    inbound UDP on the configured port.</p>
+
+    <h3>Configuration</h3>
+    <ul>
+        <li><b>UDP Port</b> — local port to listen on for EGM frames (must match the UDPUC
+        config's Remote Port; default <code>6510</code>)</li>
+        <li><b>Output throttle</b> — minimum ms between feedback messages; EGM frames arrive
+        far faster (~24ms) than most flows need to see</li>
+    </ul>
+
+    <h3>Input</h3>
+    <p><code>msg.payload</code> can be:</p>
+    <ul>
+        <li><code>"start"</code> — switch the controller into EGM mode and begin streaming.
+        Holds the current pose (no motion) until a target is sent.</li>
+        <li><code>"stop"</code> — closes the UDP session and drives an RWS stop/resetpp/start
+        sequence to return the controller to normal TCP serving.</li>
+        <li>An array of 6 numbers (or <code>{ joints: [...] }</code>) — sets the absolute joint
+        target (degrees) the node streams toward. Requires <code>"start"</code> first.</li>
+    </ul>
+
+    <h3>Output</h3>
+    <p><code>msg.payload = { ok: true, joints: [...], seqno, mciState, motorsOn, convergence,
+    source: 'egm' }</code>, emitted at most once per throttle interval while streaming.</p>
+</script>

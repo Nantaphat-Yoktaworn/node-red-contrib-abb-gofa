@@ -38,7 +38,7 @@ npm install node-red-contrib-abb-gofa
 
 (or **Menu → Manage palette → Install** inside the Node-RED editor.)
 
-Restart Node-RED — a `gofa-robot` config node and 39 `gofa-*` nodes appear under the **GoFa** category.
+Restart Node-RED — a `gofa-robot` config node and 40 `gofa-*` nodes appear under the **GoFa** category.
 
 ## Controller setup (once)
 
@@ -87,7 +87,7 @@ Ready-made example flows (a per-node demo, a full control dashboard, and a physi
 | `gofa-save-point` / `gofa-go-point` / `gofa-point-list` / `gofa-delete-point` | mixed | Teach & replay named points, stored locally or on the robot's own disk |
 | `gofa-points-export` / `gofa-points-import` | disk | Bulk export/import of the point list |
 | `gofa-sequencer` / `gofa-stop-seq` | Socket | Visit saved points in order (dwell, loops, ping-pong) / stop the sequence |
-| `gofa-rapid-exec` | RWS | Start / stop / reset-PP / load / activate RAPID program |
+| `gofa-rapid-exec` | RWS | Start / stop / reset-PP / load / unload / activate RAPID program |
 | `gofa-rapid-var-read` / `gofa-rapid-var-write` | Socket | Read/write RAPID PERS variables |
 | `gofa-rapid-tasks` | RWS | List RAPID tasks and modules |
 | `gofa-upload-mod` / `gofa-file-read` | RWS | Upload / download controller files |
@@ -96,8 +96,50 @@ Ready-made example flows (a per-node demo, a full control dashboard, and a physi
 | `gofa-asi-led` | Socket | Arm status-light color and blink |
 | `gofa-subscribe-state` / `gofa-subscribe-io` | RWS WebSocket | Push on controller-state / I/O-signal changes |
 | `gofa-subscribe-var` / `gofa-subscribe-pose` | RWS poll | Poll a RAPID variable / TCP pose on an interval |
+| `gofa-egm` | UDP (EGM) | Sub-10ms joint-position streaming — see [EGM (optional)](#egm-optional) below, requires `MainModuleEGM.mod` |
 
 The full RAPID socket protocol reference, RWS endpoint notes, and troubleshooting guide are in the [GitHub README](https://github.com/Nantaphat-Yoktaworn/node-red-contrib-abb-gofa#readme).
+
+## EGM (optional)
+
+`gofa-egm` streams joint positions over **EGM (Externally Guided Motion)** — a UDP/protobuf
+channel capable of sub-10ms closed-loop motion, unlike the TCP socket protocol or RWS (which
+tops out around 500ms). It needs its own RAPID module and a one-time controller config, so it's
+opt-in rather than part of the default setup above.
+
+**Two RAPID modules, one choice at a time:**
+
+| Module | Use when |
+|---|---|
+| `rapid/MainModule.mod` | Default. Everything in this README works. No EGM support. |
+| `rapid/MainModuleEGM.mod` | A full clone of `MainModule.mod` plus one added command, `EGMJOINT`, that switches the controller into a blocking EGM session. Load this instead when a flow needs `gofa-egm`. |
+
+Only one can run at a time — whichever is loaded on the controller. **Switching requires
+unloading the currently-loaded module first** — `loadmod`'s `replace` option only replaces a
+module with the *same name*, and `MainModule`/`MainModuleEGM` are different names, so loading
+one while the other is still loaded leaves both loaded and RAPID rejects start with "Global
+routine name main ambiguous" (both declare `PROC main()`). Full switch sequence either
+direction: `gofa-rapid-exec` (`stop`) → `gofa-rapid-exec` (`unloadmod`, naming the module
+*currently* loaded — this only detaches it from the task, the file stays on the controller's
+disk) → `gofa-upload-mod` (the other file) → `gofa-rapid-exec` (`loadmod` → `resetpp` →
+`start`). `gofa-egm` detects the wrong module itself (`start` fails with a clear "load
+MainModuleEGM.mod first" error instead of hanging) — but there is no way to run without one or
+the other, so mixing them up just costs a reload, not a broken robot.
+
+**Why two modules instead of one:** an EGM session (`EGMRunJoint`) blocks the RAPID task for
+its whole duration, so the same task can't also be running the plain TCP socket server that
+every other node in this package depends on — while `gofa-egm` is streaming, `gofa-jog`,
+`gofa-go-point`, and the rest simply can't connect. Keeping EGM support in a separate module
+means the default `MainModule.mod` — and everything that depends on it — is completely
+unaffected by this feature; it's not merged into the file every other node already relies on.
+
+**One-time controller setup**, not done by any node: a UDPUC transmission protocol named
+`EGM_PC` (RobotStudio → Controller → Configuration → Communication → Transmission Protocol;
+Remote Address = the Node-RED host's IP on the robot's subnet, Remote Port = the `gofa-egm`
+node's configured UDP port, default `6510`; requires a controller restart), and — on the
+Node-RED host — a firewall rule allowing inbound UDP on that port.
+
+Full node help (input/output shapes, config) is in the Node-RED sidebar for `gofa-egm`.
 
 ## Test
 
@@ -107,7 +149,7 @@ From a git checkout (the test suite is not included in the npm package):
 npm test
 ```
 
-Runs `test.js` — unit tests for the pure helpers (`gotoToken`, `parseXhtml`, points persistence, LED payload resolution) plus integration-style tests that drive node `input` handlers against a minimal Node-RED harness.
+Runs `test.js` — unit tests for the pure helpers (`gotoToken`, `parseXhtml`, points persistence, LED payload resolution, the hand-rolled EGM protobuf codec) plus integration-style tests that drive node `input` handlers against a minimal Node-RED harness.
 
 ## License
 

@@ -28,14 +28,15 @@ module.exports = function(RED) {
                 stop:    'stopmode=stop&usetsp=normal',
                 resetpp: '',
                 loadmod: '',
+                unloadmod: '',
                 activate: ''
             };
 
-            var labels = { start: 'running', stop: 'stopped', resetpp: 'PP reset', loadmod: 'module loaded', activate: 'module activated' };
+            var labels = { start: 'running', stop: 'stopped', resetpp: 'PP reset', loadmod: 'module loaded', unloadmod: 'module unloaded', activate: 'module activated' };
 
             if (!bodies.hasOwnProperty(action)) {
-                msg.payload = { ok: false, error: 'Unknown action: ' + action + ' (use start, stop, resetpp, loadmod, or activate)' };
-                node.error('Unknown action: ' + action + ' (use start, stop, resetpp, loadmod, or activate)', msg);
+                msg.payload = { ok: false, error: 'Unknown action: ' + action + ' (use start, stop, resetpp, loadmod, unloadmod, or activate)' };
+                node.error('Unknown action: ' + action + ' (use start, stop, resetpp, loadmod, unloadmod, or activate)', msg);
                 node.status({ fill: 'red', shape: 'ring', text: 'bad action' });
                 send(msg); return done();
             }
@@ -108,6 +109,18 @@ module.exports = function(RED) {
                 doAction = node.robot.withMastership(function() {
                     return node.robot.rwsPostHal('/rw/rapid/tasks/' + task + '/loadmod', body);
                 });
+            } else if (action === 'unloadmod') {
+                // unloadmod requires edit mastership and hal+json, same as loadmod/activate —
+                // removes the named module from this task ONLY (the .mod file stays on the
+                // controller's disk untouched). Needed before loadmod-ing a differently-named
+                // module: replace=true only replaces a module with the SAME name, so loading
+                // e.g. MainModuleEGM while MainModule is still loaded leaves both loaded and
+                // RAPID rejects resetpp/start with "Global routine name main ambiguous" (both
+                // declare PROC main()) — confirmed live. unloadmod first avoids that.
+                var unloadBody = 'module=' + encodeURIComponent(moduleName);
+                doAction = node.robot.withMastership(function() {
+                    return node.robot.rwsPostHal('/rw/rapid/tasks/' + task + '/unloadmod', unloadBody);
+                });
             } else if (action === 'activate') {
                 // activate requires edit mastership and hal+json, same as loadmod — makes
                 // the named module the task's active/bound one. 204 No Content on success.
@@ -129,7 +142,7 @@ module.exports = function(RED) {
                         var loaded = JSON.parse(result).state[0];
                         msg.payload.module = loaded && loaded.name;
                     } catch (e) { /* leave module unset if the response shape ever changes */ }
-                } else if (action === 'activate') {
+                } else if (action === 'activate' || action === 'unloadmod') {
                     msg.payload.task = task;
                     msg.payload.module = moduleName;
                 }
@@ -140,10 +153,11 @@ module.exports = function(RED) {
                 var hint = '';
                 if (err.message.indexOf('-757') >= 0 || err.message.indexOf('not allowed access') >= 0) {
                     hint = ' (requires Remote Start/Stop grant — RobotStudio → Edit User Accounts)';
-                } else if ((action === 'loadmod' || action === 'activate') && err.message.indexOf('PGM state') >= 0) {
-                    // Confirmed live: loadmod/activate are rejected with HTTP 403 while RAPID is
-                    // running — both require the task to be stopped first (stop, then loadmod/
-                    // activate, then start again — resetpp in between if PP also needs resetting).
+                } else if ((action === 'loadmod' || action === 'unloadmod' || action === 'activate') && err.message.indexOf('PGM state') >= 0) {
+                    // Confirmed live: loadmod/unloadmod/activate are rejected with HTTP 403 while
+                    // RAPID is running — all three require the task to be stopped first (stop,
+                    // then loadmod/unloadmod/activate, then start again — resetpp in between if
+                    // PP also needs resetting).
                     hint = ' (RAPID must be stopped for ' + action + ' — stop it first, e.g. gofa-rapid-exec action "stop")';
                 }
                 msg.payload = { ok: false, error: err.message + hint, action: action };

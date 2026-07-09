@@ -12,16 +12,16 @@
         },
         inputs: 1, outputs: 1, icon: 'white-globe.svg',
         label: function() {
-            var labels = { start: 'RAPID Start', stop: 'RAPID Stop', resetpp: 'RAPID Reset PP', loadmod: 'Load Module', activate: 'Activate Module' };
+            var labels = { start: 'RAPID Start', stop: 'RAPID Stop', resetpp: 'RAPID Reset PP', loadmod: 'Load Module', unloadmod: 'Unload Module', activate: 'Activate Module' };
             return this.name || labels[this.action] || 'RAPID Exec';
         },
         paletteLabel: 'RAPID Exec',
         oneditprepare: function() {
             function toggleFields() {
                 var action = $('#node-input-action').val();
-                $('#node-task-field').toggle(action === 'loadmod' || action === 'activate');
+                $('#node-task-field').toggle(action === 'loadmod' || action === 'unloadmod' || action === 'activate');
                 $('#node-loadmod-fields').toggle(action === 'loadmod');
-                $('#node-activate-fields').toggle(action === 'activate');
+                $('#node-activate-fields').toggle(action === 'unloadmod' || action === 'activate');
             }
             $('#node-input-action').on('change', toggleFields);
             toggleFields();
@@ -40,6 +40,7 @@
             <option value="stop">Stop RAPID</option>
             <option value="resetpp">Reset Program Pointer (PP)</option>
             <option value="loadmod">Load Module</option>
+            <option value="unloadmod">Unload Module</option>
             <option value="activate">Activate Module</option>
         </select>
     </div>
@@ -75,8 +76,8 @@
         <dt>payload <span class="property-type">string | object</span></dt>
         <dd>
             <ul>
-                <li><b>string</b> — <code>'start'</code>, <code>'stop'</code>, <code>'resetpp'</code>, <code>'loadmod'</code>, or <code>'activate'</code></li>
-                <li><b>object</b> — <code>{ action: 'start' }</code>; for <code>loadmod</code>: <code>{ action: 'loadmod', task, modulePath, replace }</code>; for <code>activate</code>: <code>{ action: 'activate', task, module }</code> (any of these override the node's configured values)</li>
+                <li><b>string</b> — <code>'start'</code>, <code>'stop'</code>, <code>'resetpp'</code>, <code>'loadmod'</code>, <code>'unloadmod'</code>, or <code>'activate'</code></li>
+                <li><b>object</b> — <code>{ action: 'start' }</code>; for <code>loadmod</code>: <code>{ action: 'loadmod', task, modulePath, replace }</code>; for <code>unloadmod</code>/<code>activate</code>: <code>{ action: 'unloadmod', task, module }</code> (any of these override the node's configured values)</li>
                 <li><b>(absent)</b> — uses the <em>Action</em> dropdown (default: <code>start</code>)</li>
             </ul>
         </dd>
@@ -88,8 +89,8 @@
         <dd>
             <code>{ ok: true, action: '...' }</code> on success (for <code>loadmod</code>, also
             <code>task</code>, <code>modulePath</code>, and <code>module</code> — the name RWS
-            reports as loaded; for <code>activate</code>, also <code>task</code> and
-            <code>module</code>).<br>
+            reports as loaded; for <code>unloadmod</code>/<code>activate</code>, also
+            <code>task</code> and <code>module</code>).<br>
             On failure: <code>{ ok: false, action: '...', error: '...' }</code>, plus
             <code>ctrlstate</code> and/or <code>execstate</code> when the failure relates to
             motor/execution state (see <em>Notes</em> below).
@@ -106,6 +107,17 @@
         This is the RWS equivalent of the FlexPendant's <b>Load Module</b> step. Requires Edit
         mastership (granted automatically). Follow with <b>resetpp</b> if you also need the
         program pointer moved back to Main before <code>start</code>.</li>
+        <li><b>unloadmod</b> — remove a named module from the task ONLY; the <code>.mod</code>
+        file itself stays on the controller's disk untouched. Requires Edit mastership
+        (granted automatically). Necessary before <code>loadmod</code>-ing a
+        <em>differently-named</em> module — <code>loadmod</code>'s <b>replace</b> option only
+        replaces a module with the same name, so loading e.g. <code>MainModuleEGM</code> while
+        <code>MainModule</code> is still loaded leaves both loaded and RAPID rejects
+        <code>resetpp</code>/<code>start</code> with "Global routine name main ambiguous"
+        (confirmed live — both modules declare <code>PROC main()</code>). Swap sequence either
+        direction: <code>stop</code> → <code>unloadmod</code> (the module currently loaded) →
+        <b>gofa-upload-mod</b> (the new file) → <code>loadmod</code> → <code>resetpp</code> →
+        <code>start</code>.</li>
         <li><b>activate</b> — make a named module the task's active/bound module. Requires
         Edit mastership (granted automatically). Confirmed live but not required for the
         common "edit and re-upload <code>MainModule.mod</code>" workflow — <code>loadmod</code>
@@ -117,14 +129,14 @@
     <p>Controller must be in <b>AUTO</b> mode and motors must be ON before calling <code>start</code>.
     Use <b>gofa-motor</b> to enable motors first.</p>
     <p><b>Requires Remote Start/Stop UAS grant</b> — set in RobotStudio → Edit User Accounts.
-    <b>resetpp</b>, <b>loadmod</b>, and <b>activate</b> additionally require Edit mastership
-    (granted automatically by this node).</p>
-    <p><b>loadmod and activate require RAPID to be stopped</b> — confirmed live: both return
-    HTTP 403 ("Operation not allowed for current PGM state") while RAPID is running. Use
-    <code>stop</code> first, then <code>loadmod</code>/<code>activate</code>, then
-    <code>start</code> again (with <code>resetpp</code> in between if the program pointer also
-    needs resetting to Main). This node surfaces the RWS error's own reason text and adds a
-    hint pointing at this when it detects that specific rejection.</p>
+    <b>resetpp</b>, <b>loadmod</b>, <b>unloadmod</b>, and <b>activate</b> additionally require
+    Edit mastership (granted automatically by this node).</p>
+    <p><b>loadmod, unloadmod, and activate require RAPID to be stopped</b> — confirmed live:
+    all three return HTTP 403 ("Operation not allowed for current PGM state") while RAPID is
+    running. Use <code>stop</code> first, then <code>loadmod</code>/<code>unloadmod</code>/
+    <code>activate</code>, then <code>start</code> again (with <code>resetpp</code> in between
+    if the program pointer also needs resetting to Main). This node surfaces the RWS error's
+    own reason text and adds a hint pointing at this when it detects that specific rejection.</p>
 
     <h3>Detecting a failed start (RAPID error 20055 and similar)</h3>
     <p>RWS accepts <code>POST /rw/rapid/execution/start</code> with HTTP 200 even when the

@@ -377,6 +377,82 @@ check('resolvePayload: color preset + r override blends correctly', function() {
     assert.deepStrictEqual(res, { r: 255, g: 128, b: 0, period: 0 });
 });
 
+// ── gofa-egm (EGM protobuf codec) ────────────────────────────────────────────
+var egm             = require('./nodes/gofa-egm');
+var decodeEgmRobot  = egm.decodeEgmRobot;
+var encodeEgmSensor = egm.encodeEgmSensor;
+
+// Reference bytes generated once by the proven gofa-egm-python project's
+// egm_pb2 (compiled from ABB's own egm.proto via grpcio-tools) — proves this
+// hand-rolled codec is wire-compatible with a real protobuf implementation,
+// not just internally self-consistent.
+//   EgmRobot{ header{seqno:42, tm:1000}, feedBack.joints:[1..6],
+//             planned.joints:[1.1,2.1,3.1,4.1,5.1,6.1], motorState:MOTORS_ON,
+//             mciState:MCI_RUNNING, mciConvergenceMet:true }
+var REF_ROBOT_HEX = '0a05082a10e80712380a3609000000000000f03f090000000000000040' +
+    '09000000000000084009000000000000104009000000000000144009000000000000' +
+    '18401a380a36099a9999999999f13f09cdcccccccccc004009cdcccccccccc084009' +
+    '6666666666661040096666666666661440096666666666661840220208012a02080' +
+    '33001';
+// EgmSensor{ header{seqno:42, mtype:MSGTYPE_CORRECTION}, planned.joints:[1.1..6.1] }
+var REF_SENSOR_HEX = '0a04082a180312380a36099a9999999999f13f09cdcccccccccc004009' +
+    'cdcccccccccc08400966666666666610400966666666666614400966666666666618' +
+    '40';
+
+check('decodeEgmRobot: decodes every field from a real egm_pb2-generated message', function() {
+    var out = decodeEgmRobot(Buffer.from(REF_ROBOT_HEX, 'hex'));
+    assert.strictEqual(out.seqno, 42);
+    assert.strictEqual(out.tm, 1000);
+    assert.deepStrictEqual(out.feedbackJoints, [1, 2, 3, 4, 5, 6]);
+    assert.deepStrictEqual(out.plannedJoints, [1.1, 2.1, 3.1, 4.1, 5.1, 6.1]);
+    assert.strictEqual(out.motorsOn, true);
+    assert.strictEqual(out.mciState, 3); // MCI_RUNNING
+    assert.strictEqual(out.convergence, true);
+});
+
+check('encodeEgmSensor: byte-for-byte match with egm_pb2 reference output', function() {
+    var buf = encodeEgmSensor(42, [1.1, 2.1, 3.1, 4.1, 5.1, 6.1]);
+    assert.strictEqual(buf.toString('hex'), REF_SENSOR_HEX);
+});
+
+check('EGM codec: encode -> decode round trip preserves seqno and joints', function() {
+    // EgmSensor.planned is field 2, which happens to be EgmRobot.feedBack's
+    // field number too — both wrap the identical EgmJoints{repeated double}
+    // shape, so decodeEgmRobot's feedBack parsing can read an encoded
+    // EgmSensor back for a structural round-trip check with no extra decoder.
+    var sent = encodeEgmSensor(7, [10, -20.5, 30, -40, 50.25, -60]);
+    var back = decodeEgmRobot(sent);
+    assert.strictEqual(back.seqno, 7);
+    assert.deepStrictEqual(back.feedbackJoints, [10, -20.5, 30, -40, 50.25, -60]);
+});
+
+check('EGM codec: decodes a packed (length-delimited) repeated double the same as unpacked', function() {
+    // proto2 default is unpacked (see REF_ROBOT_HEX), but a decoder must also
+    // accept the packed alternative — build one by hand: EgmRobot.feedBack=2{
+    // joints=1{ joints=1 (packed 6 doubles) } }.
+    var packedDoubles = Buffer.concat([1, 2, 3, 4, 5, 6].map(function(v) {
+        var b = Buffer.alloc(8); b.writeDoubleLE(v, 0); return b;
+    }));
+    var jointsMsg  = Buffer.concat([Buffer.from([0x0a, packedDoubles.length]), packedDoubles]); // tag(1,2)+len+data
+    var feedBackMsg = Buffer.concat([Buffer.from([0x0a, jointsMsg.length]), jointsMsg]);
+    var top = Buffer.concat([Buffer.from([0x12, feedBackMsg.length]), feedBackMsg]); // tag(2,2)
+    var out = decodeEgmRobot(top);
+    assert.deepStrictEqual(out.feedbackJoints, [1, 2, 3, 4, 5, 6]);
+});
+
+check('encodeEgmSensor: rejects a joints array that is not length 6', function() {
+    assert.throws(function() { encodeEgmSensor(1, [1, 2, 3]); });
+});
+check('encodeEgmSensor: rejects non-finite values', function() {
+    assert.throws(function() { encodeEgmSensor(1, [1, 2, 3, 4, 5, NaN]); });
+});
+
+check('decodeEgmRobot: empty buffer decodes to empty/default fields, does not throw', function() {
+    var out = decodeEgmRobot(Buffer.alloc(0));
+    assert.strictEqual(out.seqno, 0);
+    assert.deepStrictEqual(out.feedbackJoints, []);
+});
+
 // ── async node tests (drive the real 'input' handlers) ──────────────────────
 (async function() {
 
@@ -886,6 +962,31 @@ await checkAsync('gofa-rapid-exec: msg.payload can override task/modulePath/repl
     assert.strictEqual(call[1], '/rw/rapid/tasks/T_ROB2/loadmod');
     assert.ok(call[2].indexOf('Other.mod') >= 0 && call[2].indexOf('replace=false') >= 0, call[2]);
 });
+await checkAsync('gofa-rapid-exec: unloadmod acquires mastership, uses hal+json, and reports task/module', async function() {
+    var mockRobot = makeRapidExecRobot({ ctrlstate: 'motoroff' });
+    var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', action: 'unloadmod', task: 'T_ROB1', module: 'MainModule'
+    });
+    var msg = {};
+    await runInput(node, msg);
+    assert.deepStrictEqual(msg.payload, { ok: true, action: 'unloadmod', task: 'T_ROB1', module: 'MainModule' });
+    var call = mockRobot.calls.filter(function(c) { return c[0] === 'POST-HAL'; })[0];
+    assert.ok(call, 'must call rwsPostHal, not rwsPost, for unloadmod');
+    assert.strictEqual(call[1], '/rw/rapid/tasks/T_ROB1/unloadmod');
+    assert.strictEqual(call[2], 'module=MainModule');
+});
+await checkAsync('gofa-rapid-exec: unloadmod PGM-state 403 gets the "stop RAPID first" hint', async function() {
+    // Confirmed live: RWS rejects unloadmod with this exact message while RAPID is running.
+    var pgmStateError = new Error('HTTP 403 /rw/rapid/tasks/T_ROB1/unloadmod — Operation not allowed for current PGM state (Started/Stopped/Ready)');
+    var mockRobot = makeRapidExecRobot({ postError: pgmStateError });
+    var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', action: 'unloadmod', task: 'T_ROB1', module: 'MainModule'
+    });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(msg.payload.error.indexOf('RAPID must be stopped for unloadmod') >= 0, msg.payload.error);
+});
 await checkAsync('gofa-rapid-exec: activate acquires mastership, uses hal+json, and reports task/module', async function() {
     var mockRobot = makeRapidExecRobot({ ctrlstate: 'motoroff' });
     var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({
@@ -1205,6 +1306,117 @@ await checkAsync('gofa-robot: node close calls logout and invokes done()', async
         assert.strictEqual(doneCalled, true, 'close handler must call done()');
         assert.strictEqual(mock.logoutCookies().length, 1, 'close must log out the session via GET /logout');
     } finally { mock.server.close(); }
+});
+
+// gofa-egm ───────────────────────────────────────────────────────────────────
+await checkAsync('gofa-egm: no robot configured reports an error and does not hang', async function() {
+    var node = new (loadNodeType('./nodes/gofa-egm', {}))({ udpPort: 0, throttleMs: 100 });
+    var err = await runInput(node, { payload: 'start' });
+    assert.ok(err, 'done(err) should be called');
+    assert.ok(node.errors.some(function(e) { return /no robot configured/i.test(e); }));
+});
+await checkAsync('gofa-egm: "start" gets ERR:EGMJOINT -> friendly wrong-module error, no UDP bind attempted', async function() {
+    var mockRobot = { socketSend: function(cmd) { assert.strictEqual(cmd, 'EGMJOINT'); return Promise.resolve('ERR:EGMJOINT'); } };
+    var node = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', udpPort: 0, throttleMs: 100 });
+    var err = await runInput(node, { payload: 'start' });
+    assert.ok(err);
+    assert.ok(node.errors.some(function(e) { return /MainModuleEGM\.mod/.test(e); }),
+        'error should point at loading MainModuleEGM.mod');
+    assert.strictEqual(node._streaming, false);
+    assert.strictEqual(node._socket, null);
+});
+await checkAsync('gofa-egm: an unexpected socket reply on start is surfaced as an error', async function() {
+    var mockRobot = { socketSend: function() { return Promise.resolve('ERR:UNKNOWN'); } };
+    var node = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', udpPort: 0, throttleMs: 100 });
+    var err = await runInput(node, { payload: 'start' });
+    assert.ok(err);
+    assert.strictEqual(node._streaming, false);
+});
+await checkAsync('gofa-egm: a joint-array target before "start" is rejected, not silently queued', async function() {
+    var mockRobot = { socketSend: function() { return Promise.resolve('OK:EGMJOINT'); } };
+    var node = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', udpPort: 0, throttleMs: 100 });
+    await runInput(node, { payload: [1, 2, 3, 4, 5, 6] });
+    assert.ok(node.errors.some(function(e) { return /not streaming yet/i.test(e); }));
+    assert.strictEqual(node._target, null);
+});
+await checkAsync('gofa-egm: a malformed joint array (wrong length) is rejected', async function() {
+    var mockRobot = { socketSend: function() { return Promise.resolve('OK:EGMJOINT'); } };
+    var node = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', udpPort: 0, throttleMs: 100 });
+    node._streaming = true; // simulate an active session without a real UDP socket
+    await runInput(node, { payload: [1, 2, 3] });
+    assert.ok(node.errors.some(function(e) { return /6 finite numbers/.test(e); }));
+});
+await checkAsync('gofa-egm: an unrecognized payload shape is rejected with a clear hint', async function() {
+    var mockRobot = { socketSend: function() { return Promise.resolve('OK:EGMJOINT'); } };
+    var node = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', udpPort: 0, throttleMs: 100 });
+    await runInput(node, { payload: { bogus: true } });
+    assert.ok(node.errors.some(function(e) { return /"start", "stop", or a 6-number/.test(e); }));
+});
+// "stop" drives an explicit RWS stop -> resetpp -> start sequence, not just
+// silence -- confirmed live (2026-07-09) that EGM's \CommTimeout does not
+// reliably end a session once connected, so going quiet alone can leave
+// RAPID blocked inside EGMRunJoint indefinitely with no recovery.
+await checkAsync('gofa-egm: "stop" drives stop -> resetpp (mastership) -> start when motors are on', async function() {
+    var calls = [];
+    var mockRobot = {
+        socketSend: function() { return Promise.resolve('OK:EGMJOINT'); },
+        rwsPost: function(p, b) { calls.push(['rwsPost', p, b]); return Promise.resolve(''); },
+        rwsGet: function(p) { calls.push(['rwsGet', p]); return Promise.resolve('<span class="ctrlstate">motoron</span>'); },
+        withMastership: function(fn) { calls.push(['withMastership']); return fn(); },
+        parseXhtml: parseXhtml
+    };
+    var node = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', udpPort: 0, throttleMs: 100 });
+    var err = await runInput(node, { payload: 'stop' });
+    assert.strictEqual(err, undefined);
+    assert.strictEqual(node.statuses[node.statuses.length - 1].text, 'stopped');
+    var rwsPostPaths = calls.filter(function(c) { return c[0] === 'rwsPost'; }).map(function(c) { return c[1]; });
+    assert.deepStrictEqual(rwsPostPaths,
+        ['/rw/rapid/execution/stop', '/rw/rapid/execution/resetpp', '/rw/rapid/execution/start']);
+    assert.ok(calls.some(function(c) { return c[0] === 'withMastership'; }), 'resetpp must go through mastership');
+});
+await checkAsync('gofa-egm: "stop" skips restarting RAPID when motors are off (does not error)', async function() {
+    var mockRobot = {
+        rwsPost: function() { return Promise.resolve(''); },
+        rwsGet: function() { return Promise.resolve('<span class="ctrlstate">motoroff</span>'); },
+        withMastership: function(fn) { return fn(); },
+        parseXhtml: parseXhtml
+    };
+    var node = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', udpPort: 0, throttleMs: 100 });
+    var err = await runInput(node, { payload: 'stop' });
+    assert.strictEqual(err, undefined);
+    assert.strictEqual(node.statuses[node.statuses.length - 1].text, 'stopped (motors motoroff)');
+});
+await checkAsync('gofa-egm: node close() drives the full recovery when a session was active, and calls done()', async function() {
+    var calls = [];
+    var mockRobot = {
+        rwsPost: function(p) { calls.push(p); return Promise.resolve(''); },
+        rwsGet: function() { return Promise.resolve('<span class="ctrlstate">motoron</span>'); },
+        withMastership: function(fn) { return fn(); },
+        parseXhtml: parseXhtml
+    };
+    var node = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', udpPort: 0, throttleMs: 100 });
+    var fakeSocket = { closed: false, close: function() { this.closed = true; } };
+    node._socket = fakeSocket;
+    node._streaming = true;
+    var doneCalled = false;
+    await new Promise(function(resolve) {
+        node._handlers['close'](function() { doneCalled = true; resolve(); });
+    });
+    assert.strictEqual(doneCalled, true);
+    assert.strictEqual(fakeSocket.closed, true);
+    assert.strictEqual(node._streaming, false);
+    assert.strictEqual(node._stopped, true);
+    assert.ok(calls.indexOf('/rw/rapid/execution/stop') >= 0, 'close on an active session must drive an RWS stop');
+});
+await checkAsync('gofa-egm: node close() on a never-started node is a fast no-op (no RWS calls)', async function() {
+    var mockRobot = { rwsPost: function() { throw new Error('must not be called'); } };
+    var node = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', udpPort: 0, throttleMs: 100 });
+    var doneCalled = false;
+    await new Promise(function(resolve) {
+        node._handlers['close'](function() { doneCalled = true; resolve(); });
+    });
+    assert.strictEqual(doneCalled, true);
+    assert.strictEqual(node._stopped, true);
 });
 
 fs.rmSync(tmpDir, { recursive: true, force: true });
