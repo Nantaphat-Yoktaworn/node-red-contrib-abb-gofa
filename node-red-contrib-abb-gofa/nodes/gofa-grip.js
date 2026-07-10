@@ -21,10 +21,14 @@ module.exports = function(RED) {
                 } else if (raw === false || raw === 0 || String(raw).toLowerCase() === 'off' || String(raw).toLowerCase() === 'gripoff') {
                     action = 'off';
                 } else {
-                    msg.payload = { ok: false, error: 'Invalid grip action: ' + raw };
-                    node.error('Invalid grip action: ' + raw, msg);
-                    node.status({ fill: 'red', shape: 'ring', text: 'bad action' });
-                    send(msg); return done();
+                    if (typeof raw === 'number' && raw > 1) {
+                        action = node.action;
+                    } else {
+                        msg.payload = { ok: false, error: 'Invalid grip action: ' + raw };
+                        node.error('Invalid grip action: ' + raw, msg);
+                        node.status({ fill: 'red', shape: 'ring', text: 'bad action' });
+                        send(msg); return done();
+                    }
                 }
             } else {
                 action = node.action;

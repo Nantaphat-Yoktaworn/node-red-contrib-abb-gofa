@@ -79,6 +79,16 @@ MODULE MainModule
     VAR socketdev clientSocket;
     VAR string    rxStr;
 
+    VAR num concCount := 0;
+
+    PROC AddConcMove()
+        concCount := concCount + 1;
+        IF concCount >= 5 THEN
+            WaitRob;
+            concCount := 0;
+        ENDIF
+    ENDPROC
+
     ! -------------------------------------------------------
     ! MAIN - go home, then serve forever. Any socket fault
     ! tears the server down and rebuilds it (robust to a
@@ -132,6 +142,7 @@ MODULE MainModule
         ! (SocketReceive). Clear the path and go back to listening.
         StopMove;
         ClearPath;
+        concCount := 0;
         StartMove;
         RETRY;
     ENDPROC
@@ -250,6 +261,7 @@ MODULE MainModule
         CASE "stop":
             StopMove;
             ClearPath;
+            concCount := 0;
             StartMove;
             bStopMotion := FALSE;
             SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""stop""}" + ByteToStr(10\Char));
@@ -296,6 +308,7 @@ MODULE MainModule
                     t.robconf := [vals{8}, vals{9}, vals{10}, vals{11}];
                     t.extax   := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
                     SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""goto""}" + ByteToStr(10\Char));
+                    AddConcMove;
                     IF linear THEN
                         MoveL \Conc, t, vGoto, fine, tGripper \WObj:=wobj1;
                     ELSE
@@ -310,6 +323,7 @@ MODULE MainModule
                 jt.robax := [jointVals{1}, jointVals{2}, jointVals{3}, jointVals{4}, jointVals{5}, jointVals{6}];
                 jt.extax := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
                 SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""movej""}" + ByteToStr(10\Char));
+                AddConcMove;
                 MoveAbsJ \Conc, jt, vGoto, zActive, tGripper \WObj:=wobj1;
                 RETURN;
             ENDIF
@@ -346,6 +360,7 @@ MODULE MainModule
                         ENDTEST
                         StopMove;
                         ClearPath;
+                        concCount := 0;
                         StartMove;
                         MoveAbsJ \Conc, jt, vJog, fine, tGripper \WObj:=wobj1;
                         RETURN;
@@ -463,6 +478,7 @@ MODULE MainModule
         CASE "STOP":
             StopMove;
             ClearPath;
+            concCount := 0;
             StartMove;
             bStopMotion := FALSE;
             SocketSend clientSocket \Str:=("OK:STOP" + ByteToStr(10\Char));
@@ -560,6 +576,7 @@ MODULE MainModule
         p := CRobT(\Tool:=tGripper \WObj:=wobj1);
         StopMove;
         ClearPath;
+        concCount := 0;
         StartMove;
         IF rot THEN
             TEST axis
@@ -616,6 +633,7 @@ MODULE MainModule
         ENDTEST
         StopMove;
         ClearPath;
+        concCount := 0;
         StartMove;
         MoveAbsJ \Conc, jt, vJog, fine, tGripper \WObj:=wobj1;
         RETURN TRUE;
@@ -678,6 +696,7 @@ MODULE MainModule
         t.extax   := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
         ! Valid -> ack first (snappy UI), then move
         SocketSend clientSocket \Str:=("OK:GOTO" + ByteToStr(10\Char));
+        AddConcMove;
         IF linear THEN
             MoveL \Conc, t, vGoto, fine, tGripper \WObj:=wobj1;
         ELSE
@@ -804,6 +823,7 @@ MODULE MainModule
         jt.robax := [vals{1}, vals{2}, vals{3}, vals{4}, vals{5}, vals{6}];
         jt.extax := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
         SocketSend clientSocket \Str:=("OK:MOVEJ" + ByteToStr(10\Char));
+        AddConcMove;
         MoveAbsJ \Conc, jt, vGoto, zActive, tGripper \WObj:=wobj1;
         RETURN TRUE;
     ENDFUNC

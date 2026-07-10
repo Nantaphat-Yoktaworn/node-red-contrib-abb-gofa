@@ -31,8 +31,16 @@ module.exports = function(RED) {
 
             node.status({ fill: 'blue', shape: 'dot', text: variable + '=' + value });
 
-            // SETVAR:<name>:<value> — handled by TrySetVar in MainModule.mod
-            node.robot.socketSend({ cmd: 'setvar', name: variable, val: value })
+            var parsedValue = value;
+            var isNumericString = typeof value === 'string' && value !== '' && !isNaN(Number(value));
+            if (isNumericString) {
+                var isStringPrefix = variable.toLowerCase().startsWith('s');
+                if (!isStringPrefix) {
+                    parsedValue = Number(value);
+                }
+            }
+
+            node.robot.socketSend({ cmd: 'setvar', name: variable, val: parsedValue })
             .then(function(reply) {
                 if (reply.startsWith('OK:SETVAR')) {
                     msg.payload = { ok: true, variable: variable, value: String(value) };

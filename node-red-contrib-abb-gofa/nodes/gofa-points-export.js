@@ -20,6 +20,10 @@ module.exports = function(RED) {
                 send(msg); return done();
             }
 
+            if (!/\.json$/i.test(savePath)) {
+                savePath += '.json';
+            }
+
             try {
                 fs.writeFileSync(savePath, JSON.stringify(points, null, 2), 'utf8');
                 msg.payload.savedTo = savePath;

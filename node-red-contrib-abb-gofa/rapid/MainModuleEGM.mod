@@ -1,30 +1,14 @@
-MODULE MainModuleEGM
+MODULE MainModule
 
     ! -------------------------------------------------------
-    ! ABB GoFa CRB 15000 - Socket command server + EGM mode
-    !
-    ! This is a clone of MainModule.mod (same TCP command server --
-    ! HOME/GOTO/jog/GETVAR/SETVAR/SETDO/etc, byte-identical logic) with
-    ! one addition: an "EGMJOINT" command that switches the task into a
-    ! blocking EGM (Externally Guided Motion) UDP streaming session, then
-    ! falls back to serving TCP commands when that session ends.
-    !
-    ! MainModule.mod itself is untouched and stays the default/known-good
-    ! module -- load THIS one only when a flow needs the gofa-egm node.
-    ! Loading either module is a plain gofa-upload-mod + gofa-rapid-exec
-    ! (loadmod/resetpp/start) operation; see CLAUDE.md for the two-module
-    ! setup and the one-time UDPUC ("EGM_PC") controller config required
-    ! before EGM will connect to anything.
+    ! ABB GoFa CRB 15000 - Socket command server
+    ! main() runs a TCP server on :1025 forever. Node-RED
+    ! connects and sends a one-line command; this program
+    ! dispatches to the matching routine and replies "OK:<cmd>".
     !
     ! Protocol (newline-terminated, case-insensitive):
     !   HOME -> rGoHome      P1 -> rPickPos1
     !   P2   -> rPickPos2    P3 -> rPlacePos
-    !   EGMJOINT -> ack OK:EGMJOINT, then this task stops serving TCP and
-    !               blocks in an EGM joint-streaming session (see
-    !               RunEgmJoint below) until gofa-egm.js sets
-    !               ABB_Scalable_IO_0_DO16 via RWS to request a graceful
-    !               stop (TrapEgmStop/EGMStop), at which point TCP serving
-    !               resumes automatically -- see RunEgmJoint below.
     ! Reply: "OK:<CMD>\n" (or "ERR:<CMD>\n" for unknown command)
     !
     ! No RWS mastership / no program-pointer handling needed:
@@ -42,9 +26,14 @@ MODULE MainModuleEGM
     PERS wobjdata wobj1    := [FALSE, TRUE, "", [[0,0,0],[1,0,0,0]], [[0,0,0],[1,0,0,0]]];
     PERS zonedata zActive  := [FALSE, 10, 15, 15, 1.5, 15, 1.5];
     PERS bool bStopMotion  := FALSE;
+    PERS bool bEgmRequested := FALSE;
+    VAR egmident  egmID1;
+    VAR egmstate  egmSt1;
+    CONST egm_minmax egm_minmax1 := [-10.0, 10.0];
+    VAR intnum egmStopIntNo;
 
     ! Test variables for RAPID Var Read / Write nodes
-    ! Task: T_ROB1  Module: MainModuleEGM
+    ! Task: T_ROB1  Module: MainModule
     PERS num    nTestVar := 0;
     PERS string sTestMsg := "hello";
 
@@ -95,52 +84,26 @@ MODULE MainModuleEGM
     VAR socketdev clientSocket;
     VAR string    rxStr;
 
-    ! -------------------------------------------------------
-    ! EGM mode state
-    ! -------------------------------------------------------
-    ! Set TRUE by Dispatch on "EGMJOINT"; checked after ServeClient/
-    ! ServeForever return so the TCP sockets unwind cleanly before main()
-    ! runs the blocking EGM session.
-    VAR bool      bEgmRequested := FALSE;
-    VAR egmident  egmID1;
-    VAR egmstate  egmSt1;
-    ! Hard position-correction envelope in degrees -- RobotWare clamps any
-    ! commanded offset to within this window of the joint's nominal
-    ! trajectory. NOT a tracking tolerance. Must stay bigger than whatever
-    ! amplitude gofa-egm ever asks for, or the joint holds still no matter
-    ! what target is sent, with no error anywhere (confirmed the hard way
-    ! in gofa-egm-python at +/-0.001 -- widened to +/-10.0 there).
-    CONST egm_minmax egm_minmax1 := [-10.0, 10.0];
+    VAR num concCount := 0;
 
-    ! Interrupt used to gracefully end an EGM session from inside the task
-    ! (see RunEgmJoint / TrapEgmStop below) -- ABB_Scalable_IO_0_DO16 is
-    ! reserved as the "please stop EGM now" trigger gofa-egm.js sets via
-    ! RWS. Confirmed live it already has Access:All, no RobotStudio change
-    ! needed. If this signal is ever needed for something else, move this
-    ! to a different spare DO and update gofa-egm.js's STOP_SIGNAL to match.
-    VAR intnum egmStopIntNo;
+    PROC AddConcMove()
+        concCount := concCount + 1;
+        IF concCount >= 5 THEN
+            WaitRob;
+            concCount := 0;
+        ENDIF
+    ENDPROC
 
     ! -------------------------------------------------------
     ! MAIN - go home, then serve forever. Any socket fault
     ! tears the server down and rebuilds it (robust to a
-    ! Node-RED restart or a dropped connection). An EGMJOINT
-    ! command instead runs one EGM session, then loops back
-    ! to serving TCP commands.
+    ! Node-RED restart or a dropped connection).
     ! -------------------------------------------------------
     PROC main()
         LoadHome;
         WHILE TRUE DO
             ServeForever;
             IF bEgmRequested THEN
-                ! Clear the flag BEFORE running, not after: RunEgmJoint can be
-                ! cut off by an external RWS stop (confirmed live -- EGM's own
-                ! \CommTimeout does not reliably end a session with no client
-                ! replying, so a forced stop is the real recovery path, not a
-                ! fallback). A stop does not run RunEgmJoint's own cleanup, so
-                ! clearing the flag here is the only place guaranteed to run
-                ! before the next resetpp+start -- otherwise the stale TRUE
-                ! flag would immediately kick the very next TCP command straight
-                ! back into another blocking EGM session instead of serving it.
                 bEgmRequested := FALSE;
                 RunEgmJoint;
             ELSE
@@ -158,9 +121,6 @@ MODULE MainModuleEGM
             SocketAccept serverSocket, clientSocket \Time:=WAIT_MAX;
             ServeClient;
             IF bEgmRequested THEN
-                ! EGMJOINT received -- close the listening socket so TCP
-                ! clients get a fast "connection refused" during the EGM
-                ! session instead of hanging, then return to main().
                 SocketClose serverSocket;
                 RETURN;
             ENDIF
@@ -173,14 +133,19 @@ MODULE MainModuleEGM
     ENDPROC
 
     PROC ServeClient()
+        VAR string firstChar;
         WHILE TRUE DO
             ! Block until a command line arrives from the client
             SocketReceive clientSocket \Str:=rxStr \Time:=WAIT_MAX;
-            Dispatch rxStr;
+            IF StrLen(rxStr) > 0 THEN
+                firstChar := StrPart(rxStr, 1, 1);
+                IF firstChar = "{" THEN
+                    DispatchJson rxStr;
+                ELSE
+                    Dispatch rxStr;
+                ENDIF
+            ENDIF
             IF bEgmRequested THEN
-                ! EGMJOINT received -- close this client connection and
-                ! unwind back to ServeForever, which closes the server
-                ! socket too before returning to main().
                 SocketClose clientSocket;
                 RETURN;
             ENDIF
@@ -195,9 +160,350 @@ MODULE MainModuleEGM
         ! (SocketReceive). Clear the path and go back to listening.
         StopMove;
         ClearPath;
+        concCount := 0;
         StartMove;
         RETRY;
     ENDPROC
+
+    ! Finds the string value associated with a key in a flat JSON string
+    FUNC bool GetJsonStringVal(string json, string key, INOUT string val)
+        VAR num keyPos;
+        VAR num startVal;
+        VAR num endVal;
+        VAR string quotedKey;
+        quotedKey := """" + key + """";
+        keyPos := StrMatch(json, 1, quotedKey);
+        IF keyPos > StrLen(json) RETURN FALSE;
+        startVal := StrMatch(json, keyPos + StrLen(quotedKey), """");
+        IF startVal > StrLen(json) RETURN FALSE;
+        endVal := StrMatch(json, startVal + 1, """");
+        IF endVal > StrLen(json) RETURN FALSE;
+        val := StrPart(json, startVal + 1, endVal - startVal - 1);
+        RETURN TRUE;
+    ENDFUNC
+
+    ! Finds the numeric value associated with a key in a flat JSON string
+    FUNC bool GetJsonNumVal(string json, string key, INOUT num val)
+        VAR num keyPos;
+        VAR num colonPos;
+        VAR num endVal;
+        VAR string quotedKey;
+        VAR string valstr;
+        quotedKey := """" + key + """";
+        keyPos := StrMatch(json, 1, quotedKey);
+        IF keyPos > StrLen(json) RETURN FALSE;
+        colonPos := StrMatch(json, keyPos + StrLen(quotedKey), ":");
+        IF colonPos > StrLen(json) RETURN FALSE;
+        endVal := StrMatch(json, colonPos + 1, ",");
+        IF endVal > StrLen(json) THEN
+            endVal := StrMatch(json, colonPos + 1, "}");
+        ENDIF
+        IF endVal > StrLen(json) RETURN FALSE;
+        valstr := StrPart(json, colonPos + 1, endVal - colonPos - 1);
+        valstr := CleanCmd(valstr);
+        RETURN StrToVal(valstr, val);
+    ENDFUNC
+
+    ! Parses a numeric array associated with a key in a flat JSON string (e.g. "val":[1,2,3])
+    FUNC bool GetJsonNumArray(string json, string key, INOUT num arr{*})
+        VAR num keyPos;
+        VAR num startBracket;
+        VAR num endBracket;
+        VAR string quotedKey;
+        VAR string arrayStr;
+        quotedKey := """" + key + """";
+        keyPos := StrMatch(json, 1, quotedKey);
+        IF keyPos > StrLen(json) RETURN FALSE;
+        startBracket := StrMatch(json, keyPos + StrLen(quotedKey), "[");
+        IF startBracket > StrLen(json) RETURN FALSE;
+        endBracket := StrMatch(json, startBracket + 1, "]");
+        IF endBracket > StrLen(json) RETURN FALSE;
+        arrayStr := StrPart(json, startBracket + 1, endBracket - startBracket - 1);
+        arrayStr := NormalizeCommas(arrayStr);
+        RETURN ParseNums(arrayStr, arr);
+    ENDFUNC
+
+    ! Helper to replace commas with semicolons in a string
+    FUNC string NormalizeCommas(string s)
+        VAR string out := "";
+        VAR string ch;
+        VAR num i;
+        FOR i FROM 1 TO StrLen(s) DO
+            ch := StrPart(s, i, 1);
+            IF ch = "," THEN
+                out := out + ";";
+            ELSE
+                out := out + ch;
+            ENDIF
+        ENDFOR
+        RETURN out;
+    ENDFUNC
+
+    TRAP TrapEgmStop
+        EGMStop egmID1, EGM_STOP_HOLD;
+    ENDTRAP
+
+    PROC RunEgmJoint()
+        CONNECT egmStopIntNo WITH TrapEgmStop;
+        ISignalDO ABB_Scalable_IO_0_DO16, 1, egmStopIntNo;
+
+        EGMReset egmID1;
+        EGMGetId egmID1;
+        egmSt1 := EGMGetState(egmID1);
+
+        IF egmSt1 <= EGM_STATE_CONNECTED THEN
+            EGMSetupUC ROB_1, egmID1, "default", "EGM_PC" \Joint \CommTimeout:=5;
+        ENDIF
+
+        EGMActJoint egmID1
+            \J1:=egm_minmax1 \J2:=egm_minmax1 \J3:=egm_minmax1
+            \J4:=egm_minmax1 \J5:=egm_minmax1 \J6:=egm_minmax1
+            \LpFilter:=4 \MaxSpeedRatio:=100;
+
+        EGMRunJoint egmID1, EGM_STOP_HOLD \J1 \J2 \J3 \J4 \J5 \J6
+            \CondTime:=60 \RampOutTime:=0.05;
+
+        IDelete egmStopIntNo;
+
+        egmSt1 := EGMGetState(egmID1);
+        IF egmSt1 = EGM_STATE_CONNECTED THEN
+            EGMReset egmID1;
+        ENDIF
+    ERROR
+        IDelete egmStopIntNo;
+        EGMReset egmID1;
+        RETRY;
+    ENDPROC
+
+    ! JSON Dispatcher
+    PROC DispatchJson(string json)
+        VAR string cmd := "";
+        VAR num vals{11};
+        VAR num jointVals{6};
+        VAR num ledVals{4};
+        VAR string rotStr := "";
+        VAR num val := 0;
+        VAR string name := "";
+        VAR string axis := "";
+        VAR string sgn := "";
+        VAR bool rot := FALSE;
+        VAR num jointNo := 0;
+        VAR robtarget t;
+        VAR jointtarget jt;
+        VAR num qn;
+        VAR bool linear;
+        VAR string varname;
+        VAR string valstr;
+        VAR num speedVal;
+        VAR string zoneName;
+
+        IF NOT GetJsonStringVal(json, "cmd", cmd) THEN
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""unknown"",""msg"":""invalid json command""}" + ByteToStr(10\Char));
+            RETURN;
+        ENDIF
+
+        TEST cmd
+        CASE "ping":
+            SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""ping""}" + ByteToStr(10\Char));
+        CASE "home":
+            SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""home""}" + ByteToStr(10\Char));
+            rGoHome;
+        CASE "sethome":
+            pHome := CRobT(\Tool:=tGripper \WObj:=wobj1);
+            SaveHome;
+            SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""sethome""}" + ByteToStr(10\Char));
+        CASE "stop":
+            StopMove;
+            ClearPath;
+            concCount := 0;
+            StartMove;
+            bStopMotion := FALSE;
+            SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""stop""}" + ByteToStr(10\Char));
+        CASE "resetled":
+            SetGO Asi1LedRed,    0;
+            SetGO Asi1LedGreen,  255;
+            SetGO Asi1LedBlue,   0;
+            SetGO Asi1LedPeriod, 0;
+            SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""resetled""}" + ByteToStr(10\Char));
+        CASE "speed":
+            IF GetJsonNumVal(json, "val", speedVal) THEN
+                IF speedVal >= 1 AND speedVal <= 100 THEN
+                    SpeedRefresh speedVal;
+                    SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""speed""}" + ByteToStr(10\Char));
+                    RETURN;
+                ENDIF
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""speed"",""msg"":""invalid speed""}" + ByteToStr(10\Char));
+        CASE "zone":
+            IF GetJsonStringVal(json, "val", zoneName) THEN
+                TEST zoneName
+                CASE "FINE":  zActive := fine;
+                CASE "Z1":    zActive := z1;
+                CASE "Z5":    zActive := z5;
+                CASE "Z10":   zActive := z10;
+                CASE "Z20":   zActive := z20;
+                CASE "Z50":   zActive := z50;
+                CASE "Z100":  zActive := z100;
+                DEFAULT:
+                    SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""zone"",""msg"":""unknown zone""}" + ByteToStr(10\Char));
+                    RETURN;
+                ENDTEST
+                SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""zone""}" + ByteToStr(10\Char));
+                RETURN;
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""zone"",""msg"":""invalid zone params""}" + ByteToStr(10\Char));
+        CASE "gotoj", "gotol":
+            linear := (cmd = "gotol");
+            IF GetJsonNumArray(json, "val", vals) THEN
+                qn := Sqrt(vals{4} * vals{4} + vals{5} * vals{5} + vals{6} * vals{6} + vals{7} * vals{7});
+                IF qn <> 0 THEN
+                    t.trans   := [vals{1}, vals{2}, vals{3}];
+                    t.rot     := [vals{4} / qn, vals{5} / qn, vals{6} / qn, vals{7} / qn];
+                    t.robconf := [vals{8}, vals{9}, vals{10}, vals{11}];
+                    t.extax   := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
+                    SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""goto""}" + ByteToStr(10\Char));
+                    AddConcMove;
+                    IF linear THEN
+                        MoveL \Conc, t, vGoto, fine, tGripper \WObj:=wobj1;
+                    ELSE
+                        MoveJ \Conc, t, vGoto, fine, tGripper \WObj:=wobj1;
+                    ENDIF
+                    RETURN;
+                ENDIF
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""" + cmd + """,""msg"":""invalid target""}" + ByteToStr(10\Char));
+        CASE "movej":
+            IF GetJsonNumArray(json, "val", jointVals) THEN
+                jt.robax := [jointVals{1}, jointVals{2}, jointVals{3}, jointVals{4}, jointVals{5}, jointVals{6}];
+                jt.extax := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
+                SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""movej""}" + ByteToStr(10\Char));
+                AddConcMove;
+                MoveAbsJ \Conc, jt, vGoto, zActive, tGripper \WObj:=wobj1;
+                RETURN;
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""movej"",""msg"":""invalid joints""}" + ByteToStr(10\Char));
+        CASE "egmjoint":
+            bEgmRequested := TRUE;
+            SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""egmjoint""}" + ByteToStr(10\Char));
+            RETURN;
+        CASE "jog":
+            IF GetJsonStringVal(json, "axis", axis) AND GetJsonStringVal(json, "sgn", sgn) AND GetJsonNumVal(json, "val", val) THEN
+                rot := (StrMatch(json, 1, """rot"":true") <= StrLen(json));
+                IF val > 0 AND (axis = "X" OR axis = "Y" OR axis = "Z") THEN
+                    IF (rot AND val <= JOG_MAX_DEG) OR (NOT rot AND val <= JOG_MAX_MM) THEN
+                        IF sgn = "+" OR sgn = "-" THEN
+                            IF sgn = "-" val := -val;
+                            SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""jog""}" + ByteToStr(10\Char));
+                            JogMove axis, val, rot;
+                            RETURN;
+                        ENDIF
+                    ENDIF
+                ENDIF
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""jog"",""msg"":""invalid jog params""}" + ByteToStr(10\Char));
+        CASE "jointjog":
+            IF GetJsonNumVal(json, "joint", jointNo) AND GetJsonStringVal(json, "sgn", sgn) AND GetJsonNumVal(json, "val", val) THEN
+                IF jointNo >= 1 AND jointNo <= 6 AND val > 0 AND val <= JOINT_MAX_DEG THEN
+                    IF sgn = "+" OR sgn = "-" THEN
+                        IF sgn = "-" val := -val;
+                        SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""jointjog""}" + ByteToStr(10\Char));
+                        jt := CJointT();
+                        TEST jointNo
+                        CASE 1: jt.robax.rax_1 := jt.robax.rax_1 + val;
+                        CASE 2: jt.robax.rax_2 := jt.robax.rax_2 + val;
+                        CASE 3: jt.robax.rax_3 := jt.robax.rax_3 + val;
+                        CASE 4: jt.robax.rax_4 := jt.robax.rax_4 + val;
+                        CASE 5: jt.robax.rax_5 := jt.robax.rax_5 + val;
+                        CASE 6: jt.robax.rax_6 := jt.robax.rax_6 + val;
+                        ENDTEST
+                        StopMove;
+                        ClearPath;
+                        concCount := 0;
+                        StartMove;
+                        MoveAbsJ \Conc, jt, vJog, fine, tGripper \WObj:=wobj1;
+                        RETURN;
+                    ENDIF
+                ENDIF
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""jointjog"",""msg"":""invalid jointjog params""}" + ByteToStr(10\Char));
+        CASE "setled":
+            IF GetJsonNumArray(json, "val", ledVals) THEN
+                SetGO Asi1LedRed,    ledVals{1};
+                SetGO Asi1LedGreen,  ledVals{2};
+                SetGO Asi1LedBlue,   ledVals{3};
+                SetGO Asi1LedPeriod, ledVals{4};
+                SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""setled""}" + ByteToStr(10\Char));
+                RETURN;
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""setled"",""msg"":""invalid led params""}" + ByteToStr(10\Char));
+        CASE "setdo":
+            IF GetJsonStringVal(json, "name", name) AND GetJsonNumVal(json, "val", val) THEN
+                IF val = 0 OR val = 1 THEN
+                    TEST name
+                    CASE "ABB_SCALABLE_IO_0_DO1":  SetDO ABB_Scalable_IO_0_DO1,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO2":  SetDO ABB_Scalable_IO_0_DO2,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO3":  SetDO ABB_Scalable_IO_0_DO3,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO4":  SetDO ABB_Scalable_IO_0_DO4,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO5":  SetDO ABB_Scalable_IO_0_DO5,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO6":  SetDO ABB_Scalable_IO_0_DO6,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO7":  SetDO ABB_Scalable_IO_0_DO7,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO8":  SetDO ABB_Scalable_IO_0_DO8,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO9":  SetDO ABB_Scalable_IO_0_DO9,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO10": SetDO ABB_Scalable_IO_0_DO10, val;
+                    CASE "ABB_SCALABLE_IO_0_DO11": SetDO ABB_Scalable_IO_0_DO11, val;
+                    CASE "ABB_SCALABLE_IO_0_DO12": SetDO ABB_Scalable_IO_0_DO12, val;
+                    CASE "ABB_SCALABLE_IO_0_DO13": SetDO ABB_Scalable_IO_0_DO13, val;
+                    CASE "ABB_SCALABLE_IO_0_DO14": SetDO ABB_Scalable_IO_0_DO14, val;
+                    CASE "ABB_SCALABLE_IO_0_DO15": SetDO ABB_Scalable_IO_0_DO15, val;
+                    CASE "ABB_SCALABLE_IO_0_DO16": SetDO ABB_Scalable_IO_0_DO16, val;
+                    DEFAULT:
+                        SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""setdo"",""msg"":""unknown signal""}" + ByteToStr(10\Char));
+                        RETURN;
+                    ENDTEST
+                    SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""setdo""}" + ByteToStr(10\Char));
+                    RETURN;
+                ENDIF
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""setdo"",""msg"":""invalid signal params""}" + ByteToStr(10\Char));
+        CASE "getvar":
+            IF GetJsonStringVal(json, "name", name) THEN
+                name := StrMap(name, "abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+                IF name = "NTESTVAR" THEN
+                    SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""getvar"",""val"":""" + NumToStr(nTestVar, 6) + """}" + ByteToStr(10\Char));
+                ELSEIF name = "STESTMSG" THEN
+                    SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""getvar"",""val"":""" + sTestMsg + """}" + ByteToStr(10\Char));
+                ELSE
+                    SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""getvar"",""msg"":""unknown var""}" + ByteToStr(10\Char));
+                ENDIF
+                RETURN;
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""getvar"",""msg"":""invalid var params""}" + ByteToStr(10\Char));
+        CASE "setvar":
+            IF GetJsonStringVal(json, "name", name) THEN
+                varname := StrMap(name, "abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+                IF varname = "NTESTVAR" THEN
+                    IF GetJsonNumVal(json, "val", val) THEN
+                        nTestVar := val;
+                        SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""setvar""}" + ByteToStr(10\Char));
+                        RETURN;
+                    ENDIF
+                ELSEIF varname = "STESTMSG" THEN
+                    IF GetJsonStringVal(json, "val", valstr) THEN
+                        sTestMsg := valstr;
+                        SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""setvar""}" + ByteToStr(10\Char));
+                        RETURN;
+                    ENDIF
+                ELSE
+                    SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""setvar"",""msg"":""unknown var""}" + ByteToStr(10\Char));
+                    RETURN;
+                ENDIF
+            ENDIF
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""setvar"",""msg"":""invalid var params""}" + ByteToStr(10\Char));
+        DEFAULT:
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""" + cmd + """,""msg"":""unsupported command""}" + ByteToStr(10\Char));
+        ENDTEST
+    ENDPROC
+
 
     ! Parse one command, run the routine, send the ack
     PROC Dispatch(string raw)
@@ -230,6 +536,7 @@ MODULE MainModuleEGM
         CASE "STOP":
             StopMove;
             ClearPath;
+            concCount := 0;
             StartMove;
             bStopMotion := FALSE;
             SocketSend clientSocket \Str:=("OK:STOP" + ByteToStr(10\Char));
@@ -244,11 +551,6 @@ MODULE MainModuleEGM
             SetGO Asi1LedBlue,   0;
             SetGO Asi1LedPeriod, 0;
             SocketSend clientSocket \Str:=("OK:RESETLED" + ByteToStr(10\Char));
-        CASE "EGMJOINT":
-            ! Ack, then hand control to main() via bEgmRequested -- see
-            ! ServeClient/ServeForever/main for the unwind sequence.
-            SocketSend clientSocket \Str:=("OK:EGMJOINT" + ByteToStr(10\Char));
-            bEgmRequested := TRUE;
         DEFAULT:
             ! Not a named point - try GOTO <11 nums>, jog (X+20...),
             ! joint jog (J1+5), then speed override (SPEED50)
@@ -277,126 +579,6 @@ MODULE MainModuleEGM
             ENDIF
         ENDTEST
     ENDPROC
-
-    ! -------------------------------------------------------
-    ! EGM (Externally Guided Motion) joint-streaming session
-    ! -------------------------------------------------------
-    ! One EGM joint session over UDPUC transmission protocol "EGM_PC"
-    ! (RobotStudio > Controller > Configuration > Communication >
-    ! Transmission Protocol -- one-time setup, needs a controller restart;
-    ! see CLAUDE.md). Blocks this task for the duration, which is why the
-    ! TCP server sockets are already closed by the time this runs (see
-    ! ServeClient/ServeForever) -- main() rebuilds them when this returns.
-    !
-    ! CORRECTED after a live test (2026-07-09): session exit is NOT
-    ! comm-driven. The original design here assumed \CommTimeout would
-    ! raise a comm-timeout error once gofa-egm stopped replying, letting
-    ! the ERROR handler below reset and fall back to TCP serving on its
-    ! own -- confirmed FALSE live: with a real EGM session already
-    ! connected and streaming, going silent left this task blocked inside
-    ! EGMRunJoint for 2+ minutes with no error and no recovery. Whatever
-    ! \CommTimeout actually governs, it is not "seconds of silence before
-    ! giving up" in a way this can rely on.
-    !
-    ! The mechanism that DOES reliably work, confirmed live twice: an
-    ! external RWS stop (POST /rw/rapid/execution/stop) hard-interrupts
-    ! EGMRunJoint immediately, regardless of EGM state. gofa-egm's stop
-    ! action now drives that explicitly (stop -> resetpp -> start) instead
-    ! of just going quiet and hoping. A stop does NOT run this ERROR
-    ! handler or any of RunEgmJoint's own cleanup -- it's an external
-    ! interrupt, not a RAPID error -- which is exactly why bEgmRequested
-    ! is cleared in main() BEFORE calling RunEgmJoint, not after: that's
-    ! the only reset guaranteed to have already happened by the time the
-    ! next resetpp+start runs.
-    !
-    ! \CommTimeout and \CondTime below are consequently no longer load-
-    ! bearing for session exit -- CondTime is kept only as a documentation
-    ! placeholder, NOT a working backstop (see next paragraph).
-    !
-    ! TESTED AND DISPROVEN (2026-07-09): hypothesized that a SHORT CondTime
-    ! (as opposed to the original 300s) might let EGMRunJoint return
-    ! normally on its own once the client goes quiet, avoiding the need for
-    ! an external kill and the EGM-instance leak that causes (see below).
-    ! Live test: CondTime set to 6, a real session started and confirmed
-    ! streaming, then the Node-RED-side process was killed abruptly with no
-    ! stop() call (simulating a crash, not a clean disconnect). Result:
-    ! still blocked inside EGMRunJoint 70+ seconds later (11x+ CondTime) --
-    ! ctrlexecstate stayed "running", no error, no recovery. CondTime does
-    ! NOT cause a graceful self-exit on this firmware, full stop. Do not
-    ! re-attempt this fix without genuinely new evidence -- the external
-    ! RWS-stop design is confirmed necessary, not just a first guess.
-    !
-    ! Known cost of that design: each external stop skips this proc's own
-    ! cleanup (the EGMReset calls below and in ERROR), which appears to
-    ! leak the underlying controller-side EGM instance -- confirmed live
-    ! that repeated start/stop cycles (~8 in 90s) eventually produce RAPID
-    ! error "Too many EGM instances," recoverable only by a full controller
-    ! restart (elog/RWS show zero visibility into EGM/UC state to clear it
-    ! any other way). No fix found by RAPID-level means alone -- see below,
-    ! this is what the interrupt/EGMStop mechanism actually fixes.
-    !
-    ! FIXED (2026-07-09), per ABB's own EGM Application Manual
-    ! (3HAC073318): EGMStop is a real instruction, documented specifically
-    ! to be called "in a TRAP routine" or "from a RAPID TRAP or background
-    ! task" to stop an in-progress EGMRunJoint/EGMRunPose. Unlike an
-    ! external RWS task-level stop, a TRAP-driven EGMStop makes EGMRunJoint
-    ! return NORMALLY -- so the cleanup below (IDelete + EGMReset) runs
-    ! every time, and the underlying EGM instance is actually released.
-    ! The manual also confirms the "Too many EGM instances" ceiling: max 4
-    ! concurrent EGM identities, matching exactly what was seen live (~8
-    ! leaked cycles was enough to exhaust it).
-    !
-    ! gofa-egm.js's stop() now sets ABB_Scalable_IO_0_DO16 via RWS
-    ! (POST .../set-value, lvalue=1) instead of issuing an RWS task stop.
-    ! CONNECT+ISignalDO below fires TrapEgmStop the moment that happens,
-    ! EGMStop ends the session gracefully, and this task never actually
-    ! stops -- main()'s loop just continues straight into ServeForever
-    ! once RunEgmJoint returns. No resetpp/start needed on the Node-RED
-    ! side anymore either.
-    PROC RunEgmJoint()
-        CONNECT egmStopIntNo WITH TrapEgmStop;
-        ISignalDO ABB_Scalable_IO_0_DO16, 1, egmStopIntNo;
-
-        EGMReset egmID1;
-        EGMGetId egmID1;
-        egmSt1 := EGMGetState(egmID1);
-
-        IF egmSt1 <= EGM_STATE_CONNECTED THEN
-            EGMSetupUC ROB_1, egmID1, "default", "EGM_PC" \Joint \CommTimeout:=5;
-        ENDIF
-
-        EGMActJoint egmID1
-            \J1:=egm_minmax1 \J2:=egm_minmax1 \J3:=egm_minmax1
-            \J4:=egm_minmax1 \J5:=egm_minmax1 \J6:=egm_minmax1
-            \LpFilter:=3 \SampleRate:=24 \MaxSpeedDeviation:=30;
-
-        EGMRunJoint egmID1, EGM_STOP_HOLD \J1 \J2 \J3 \J4 \J5 \J6
-            \CondTime:=300 \RampInTime:=1.0;
-
-        IDelete egmStopIntNo;
-        SetDO ABB_Scalable_IO_0_DO16, 0;
-
-        egmSt1 := EGMGetState(egmID1);
-        IF egmSt1 = EGM_STATE_CONNECTED THEN
-            EGMReset egmID1;
-        ENDIF
-    ERROR
-        ! Comm timeout, TrapEgmStop's EGMStop surfacing here instead of a
-        ! normal return, or any other EGM fault -- clean up and fall back
-        ! to TCP serving instead of leaving this task stuck.
-        IDelete egmStopIntNo;
-        SetDO ABB_Scalable_IO_0_DO16, 0;
-        EGMReset egmID1;
-        RETURN;
-    ENDPROC
-
-    ! Fired by ISignalDO in RunEgmJoint the moment gofa-egm.js sets
-    ! ABB_Scalable_IO_0_DO16 via RWS. EGMStop makes the blocking
-    ! EGMRunJoint above return normally (see the FIXED note above for why
-    ! that matters -- it's what actually releases the EGM instance).
-    TRAP TrapEgmStop
-        EGMStop egmID1, EGM_STOP_HOLD;
-    ENDTRAP
 
     ! Parse a jog token and execute it. Tokens (after CleanCmd):
     !   translation mm:  X+20  X-20  Y+20 ...   (base/work frame, via Offs)
@@ -452,6 +634,7 @@ MODULE MainModuleEGM
         p := CRobT(\Tool:=tGripper \WObj:=wobj1);
         StopMove;
         ClearPath;
+        concCount := 0;
         StartMove;
         IF rot THEN
             TEST axis
@@ -508,6 +691,7 @@ MODULE MainModuleEGM
         ENDTEST
         StopMove;
         ClearPath;
+        concCount := 0;
         StartMove;
         MoveAbsJ \Conc, jt, vJog, fine, tGripper \WObj:=wobj1;
         RETURN TRUE;
@@ -570,6 +754,7 @@ MODULE MainModuleEGM
         t.extax   := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
         ! Valid -> ack first (snappy UI), then move
         SocketSend clientSocket \Str:=("OK:GOTO" + ByteToStr(10\Char));
+        AddConcMove;
         IF linear THEN
             MoveL \Conc, t, vGoto, fine, tGripper \WObj:=wobj1;
         ELSE
@@ -696,6 +881,7 @@ MODULE MainModuleEGM
         jt.robax := [vals{1}, vals{2}, vals{3}, vals{4}, vals{5}, vals{6}];
         jt.extax := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
         SocketSend clientSocket \Str:=("OK:MOVEJ" + ByteToStr(10\Char));
+        AddConcMove;
         MoveAbsJ \Conc, jt, vGoto, zActive, tGripper \WObj:=wobj1;
         RETURN TRUE;
     ENDFUNC
