@@ -258,7 +258,7 @@ MODULE MainModuleEGM
         EGMActJoint egmID1
             \J1:=egm_minmax1 \J2:=egm_minmax1 \J3:=egm_minmax1
             \J4:=egm_minmax1 \J5:=egm_minmax1 \J6:=egm_minmax1
-            \LpFilter:=4 \MaxSpeedRatio:=100;
+            \LpFilter:=4;
 
         EGMRunJoint egmID1, EGM_STOP_HOLD \J1 \J2 \J3 \J4 \J5 \J6
             \CondTime:=60 \RampOutTime:=0.05;
