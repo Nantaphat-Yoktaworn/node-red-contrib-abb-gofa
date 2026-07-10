@@ -225,6 +225,7 @@ module.exports = function(RED) {
         }
 
         function onFrame(buf, rinfo) {
+            if (!node.robot || !node.robot._egmActive || !node.robot._egmSocket) return;
             var robot;
             try { robot = decodeEgmRobot(buf); }
             catch (e) { node.error('EGM decode error: ' + e.message); return; }

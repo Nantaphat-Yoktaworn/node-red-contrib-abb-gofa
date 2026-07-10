@@ -258,15 +258,7 @@ payload sent to `gofa-egm` no longer triggers movement (old contract genuinely r
 falls through to the node's configured Action), and `{action:'bogus'}` is rejected with the
 expected error.
 
-**Minor pre-existing observation, not a regression from the split**: after `stop()` completes,
-`robot._egmTarget` was observed left non-null (a stray in-flight UDP frame arriving during the
-~1s graceful-stop window re-triggers `onFrame`'s "first frame of session" baseline-capture logic,
-since `robot._egmBaseline` was just nulled by `stopAll()`) instead of staying `null`. No
-functional impact — confirmed live that `gofa-egm-move`'s fallback check (which only reads
-`robot._egmActive`, already correctly `false`) routes correctly regardless — and the same
-`node._socket.send(...)`-after-close hazard this implies existed byte-for-byte in the original
-single-node design too (this refactor only moved *where* the target lives, not this timing
-window). Not chased further; flagged here in case it matters for a future change.
+**EGM Node Hazard Fixed (2026-07-10)**: after `stop()` completes, `robot._egmTarget` was previously left non-null (a stray in-flight UDP frame arriving during the ~1s graceful-stop window re-triggered `onFrame`'s "first frame of session" baseline-capture logic, since `robot._egmBaseline` was just nulled by `stopAll()`) instead of staying `null`. Fixed by returning early in `onFrame` if `!node.robot || !node.robot._egmActive || !node.robot._egmSocket`, which prevents late UDP frames from re-populating baseline/target or attempting to send on the nulled socket. Added a test confirming this behavior.
 
 **Bug found and fixed post-publish (2026-07-09, follow-up session): the UDP socket wasn't
 actually shared, only the flags were.** User hit `gofa-egm: bind EADDRINUSE 0.0.0.0:6510` on a

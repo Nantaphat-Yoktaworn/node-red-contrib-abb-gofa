@@ -1481,6 +1481,88 @@ await checkAsync('gofa-egm: start() releases the orphaned controller-side sessio
         'must release the controller-side EGM session that EGMJOINT already started, or it is orphaned with no natural recovery');
 });
 
+await checkAsync('gofa-egm: straggler UDP frame arriving after stop() does not re-populate _egmTarget or throw', async function() {
+    var dgram = require('dgram');
+    var originalCreateSocket = dgram.createSocket;
+    var messageHandler = null;
+    var mockSocket = {
+        on: function(evt, fn) {
+            if (evt === 'message') messageHandler = fn;
+        },
+        bind: function(port, cb) {
+            if (cb) cb();
+        },
+        close: function() {
+            this.closed = true;
+        },
+        send: function(buf, port, addr, cb) {
+            this.sent = this.sent || [];
+            this.sent.push(buf);
+            if (cb) cb();
+        }
+    };
+
+    dgram.createSocket = function(type) {
+        return mockSocket;
+    };
+
+    try {
+        var mockRobot = {
+            _egmActive: false,
+            _egmBaseline: null,
+            _egmTarget: null,
+            _egmSocket: null,
+            socketSend: function(cmd) {
+                if (cmd.cmd === 'egmjoint') return Promise.resolve('OK:EGMJOINT');
+                if (cmd.cmd === 'ping') return Promise.resolve('OK:PING');
+                return Promise.reject(new Error('unknown cmd'));
+            },
+            rwsPost: function() { return Promise.resolve(''); }
+        };
+
+        var node = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'start', udpPort: 12345, throttleMs: 100 });
+        
+        // Start EGM
+        var startPromise = runInput(node, { payload: 'start' });
+        
+        // Wait a tick for the promise chain to call bindSocket()
+        await new Promise(function(resolve) { setImmediate(resolve); });
+        
+        // Simulate EGM message arriving to settle the start
+        assert.ok(messageHandler);
+        var buf = Buffer.from(REF_ROBOT_HEX, 'hex');
+        messageHandler(buf, { address: '127.0.0.1', port: 12345 });
+        
+        await startPromise;
+        
+        assert.strictEqual(mockRobot._egmActive, true);
+        assert.ok(mockRobot._egmTarget);
+        assert.ok(mockRobot._egmBaseline);
+        assert.strictEqual(mockRobot._egmSocket, mockSocket);
+
+        // Now stop EGM
+        var stopNode = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'stop', udpPort: 12345, throttleMs: 100 });
+        var stopPromise = runInput(stopNode, { payload: 'stop' });
+        
+        // At this point, stopAll() has run synchronously, setting target/baseline to null and closing the socket.
+        assert.strictEqual(mockRobot._egmActive, false);
+        assert.strictEqual(mockRobot._egmBaseline, null);
+        assert.strictEqual(mockRobot._egmTarget, null);
+        assert.strictEqual(mockRobot._egmSocket, null);
+
+        // Simulate a straggler message arriving during the stop process
+        messageHandler(buf, { address: '127.0.0.1', port: 12345 });
+
+        // Target must remain null and no exception should be thrown
+        assert.strictEqual(mockRobot._egmTarget, null, 'EGM target must remain null after stop');
+        assert.strictEqual(mockRobot._egmBaseline, null, 'EGM baseline must remain null after stop');
+
+        await stopPromise;
+    } finally {
+        dgram.createSocket = originalCreateSocket;
+    }
+});
+
 // gofa-egm-move ──────────────────────────────────────────────────────────────
 await checkAsync('gofa-egm-move: no robot configured reports an error and sends nothing', async function() {
     var node = new (loadNodeType('./nodes/gofa-egm-move', {}))({});
