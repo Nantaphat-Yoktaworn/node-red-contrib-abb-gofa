@@ -1,4 +1,4 @@
-MODULE MainModule
+MODULE MainModuleEGM
 
     ! -------------------------------------------------------
     ! ABB GoFa CRB 15000 - Socket command server
