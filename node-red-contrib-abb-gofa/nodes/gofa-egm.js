@@ -371,7 +371,11 @@ module.exports = function(RED) {
             node.status({ fill: 'yellow', shape: 'ring', text: 'exiting EGM mode...' });
 
             return node.robot.rwsPost('/rw/iosystem/signals/' + STOP_SIGNAL + '/set-value', 'lvalue=1')
-                .then(function() { return waitForTcpBack(8000); })
+                .then(function() {
+                    return waitForTcpBack(15000).finally(function() {
+                        return node.robot.rwsPost('/rw/iosystem/signals/' + STOP_SIGNAL + '/set-value', 'lvalue=0').catch(function() {});
+                    });
+                })
                 .then(function() {
                     node.status({ fill: 'grey', shape: 'ring', text: 'stopped' });
                 });
