@@ -2642,15 +2642,25 @@ await checkAsync('gofa-rapid-var-read: propagates socket connectivity errors wit
     assert.strictEqual(rwsGetCalled, false, 'should not call rwsGet or fall back to module-text on connection error');
 });
 
-await checkAsync('gofa-save-point: empty name is rejected', async function() {
+await checkAsync('gofa-save-point: a blank name is passed through to addPoint (auto-numbered "Point N"), not rejected', async function() {
+    // resolvePointName() in gofa-robot.js already auto-generates "Point N" for a
+    // blank name — this is a real, intentional feature (the demo flow's
+    // gofa-save-point nodes rely on it: pointName left blank on purpose). An
+    // earlier version of this fix incorrectly rejected blank names outright.
+    var sampleTargetBody = '<span class="x">1</span><span class="y">2</span><span class="z">3</span>' +
+        '<span class="q1">0</span><span class="q2">0</span><span class="q3">0</span><span class="q4">1</span>' +
+        '<span class="cf1">0</span><span class="cf4">0</span><span class="cf6">0</span><span class="cfx">0</span>';
     var mockRobot = {
-        rwsGet: function() { throw new Error('must not be called'); }
+        rwsGet: function() { return Promise.resolve(sampleTargetBody); },
+        parseXhtml: parseXhtml,
+        addPoint: function(name, target) { return { id: 'p1', name: 'Point 1', target: target }; },
+        getPoints: function() { return [{ id: 'p1', name: 'Point 1' }]; }
     };
     var node = new (loadNodeType('./nodes/gofa-save-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', pointName: '' });
     var msg = { payload: { name: '  ' } };
     await runInput(node, msg);
-    assert.strictEqual(msg.payload.ok, false);
-    assert.strictEqual(msg.payload.error, 'Empty point name');
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.point.name, 'Point 1');
 });
 
 await checkAsync('gofa-status: error during status fetch sets red status and propagates error', async function() {

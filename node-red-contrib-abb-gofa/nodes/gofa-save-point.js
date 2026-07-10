@@ -19,12 +19,11 @@ module.exports = function(RED) {
             if (!name) {
                 name = node.pointName || '';
             }
+            // A blank name is intentional, not an error — resolvePointName() in
+            // gofa-robot.js (used by both addPoint/remoteAddPoint below) already
+            // auto-generates "Point N" for an empty name. Rejecting it here would
+            // break that documented auto-numbering workflow.
             name = String(name).trim();
-            if (!name) {
-                msg.payload = { ok: false, error: 'Empty point name' };
-                node.status({ fill: 'red', shape: 'ring', text: 'Empty point name' });
-                send(msg); return done();
-            }
             var storage = (msg.payload && typeof msg.payload === 'object' && msg.payload.storage) || node.storage;
             var r = node.robot;
             node.status({ fill: 'blue', shape: 'dot', text: 'reading pose...' });
