@@ -331,11 +331,11 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | **gofa-upload-mod** | RWS | Upload a `.mod` file — local path set in node properties or via `msg.payload` |
 | **gofa-io-list** | RWS | List all I/O signals |
 | **gofa-di-read** | RWS | Read a digital input (0 or 1) |
-| **gofa-do-write** | RWS | Write a digital output (0 or 1) |
+| **gofa-do-write** | RWS or TCP | Write a digital output (0 or 1) — **Transport** dropdown: RWS `/set-value` (default) or Socket `SETDO` |
 
-> **Writing a digital output needs the signal's Access Level set to `All`.** RWS writes go through `POST /rw/iosystem/signals/{name}/set-value` — this only succeeds if the target signal's `Access` config attribute is `All` (RobotStudio: `Controller` → `Configuration` → `I/O System` → `Signal` → `Access Level`; requires a controller restart to take effect). Left at the factory default (`Rapid|LocalManual`), the write correctly fails with `403`. **The action name matters too**: the IRC5/RWS-1.0-documented `/set` path 405s unconditionally on OmniCore/RWS 2.0, regardless of Access Level — `/set-value` is the real OmniCore action (see the [405 troubleshooting entry](#rws-returns-405-method-not-allowed) below). This project has no analog I/O (`gofa-ai-read`/`gofa-ao-write` were removed) — the standard OmniCore C30/CRB 15000 combo has no native analog port; ABB's `DSQC1032` Analog Add-On module (attaches to an existing digital Scalable I/O base device) would be needed to add one.
+> **Writing a digital output needs the signal's Access Level set to `All` — unless you use the Socket transport instead.** RWS writes go through `POST /rw/iosystem/signals/{name}/set-value` — this only succeeds if the target signal's `Access` config attribute is `All` (RobotStudio: `Controller` → `Configuration` → `I/O System` → `Signal` → `Access Level`; requires a controller restart to take effect). Left at the factory default (`Rapid|LocalManual`), the write correctly fails with `403`. **The action name matters too**: the IRC5/RWS-1.0-documented `/set` path 405s unconditionally on OmniCore/RWS 2.0, regardless of Access Level — `/set-value` is the real OmniCore action (see the [405 troubleshooting entry](#rws-returns-405-method-not-allowed) below). This project has no analog I/O (`gofa-ai-read`/`gofa-ao-write` were removed) — the standard OmniCore C30/CRB 15000 combo has no native analog port; ABB's `DSQC1032` Analog Add-On module (attaches to an existing digital Scalable I/O base device) would be needed to add one.
 >
-> **Alternative: `SETDO:<name>:<value>` socket command.** `MainModule.mod` also has a `TrySetDo` handler using RAPID's `SetDO` instruction against an explicit per-signal allow-list — useful if you'd rather not open a signal's Access Level to `All` (which permits any authenticated RWS client to write it) but still want Node-RED control. Not wired into any node today (add one following the `gofa-rapid-var-write`/`SETVAR` pattern if you want it); `gofa-do-write`/`gofa-grip` use RWS exclusively.
+> **`gofa-do-write`'s Socket transport** sends the write over the TCP socket instead of RWS — RAPID's `SetDO` against an explicit per-signal allow-list in `MainModule.mod` (`ABB_Scalable_IO_0_DO1`–`DO16`), bypassing the Access Level restriction entirely (RAPID always has access to its own I/O). Needs RAPID actually running. **Gotcha confirmed live**: the signal name is matched **case-sensitively** on this path (RAPID's `DispatchJson`, added in the JSON socket-protocol rewrite, gets the raw name with no `CleanCmd`-style uppercasing) — `gofa-do-write.js` upper-cases the name before sending so this palette's own mixed-case default (`ABB_Scalable_IO_0_DO1`) still works; if you write your own socket call by hand, remember to upper-case the signal name yourself.
 
 ### Real-time subscriptions
 
@@ -509,7 +509,7 @@ msg.payload  →  node property (editor)  →  built-in default
 | **gofa-rapid-var-read** | `{ task, module, variable }` | T_ROB1 / MainModule / (property) |
 | **gofa-rapid-var-write** | bare value · `{ variable, value }` | (property) |
 | **gofa-rapid-tasks** | `{ task }` — overrides which task's modules to list | T_ROB1 / (property) |
-| **gofa-do-write** | `0` or `1` (number) · `{ signal, value }` | signal: ABB_Scalable_IO_0_DO1, value: 0 |
+| **gofa-do-write** | `0` or `1` (number) · `{ signal, value, transport }` — `transport`: `'rws'`/`'socket'` | signal: ABB_Scalable_IO_0_DO1, value: 0, transport: rws |
 | **gofa-di-read** | signal name (string) | `ABB_Scalable_IO_0_DI1` |
 | **gofa-subscribe-io** | `{ signal }` | `ABB_Scalable_IO_0_DI1` |
 | **gofa-subscribe-var** | `{ task, module, variable }` (toggles polling) | T_ROB1 / MainModule / (property) |

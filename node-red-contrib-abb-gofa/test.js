@@ -1245,6 +1245,49 @@ await checkAsync('gofa-elog: default minSeverity (1) keeps every entry', async f
     assert.strictEqual(msg.payload.entries.length, 1);
 });
 
+// gofa-do-write ──────────────────────────────────────────────────────────────
+
+await checkAsync('gofa-do-write: RWS transport (default) posts /set-value, unchanged from before the Socket transport was added', async function() {
+    var calls = [];
+    var mockRobot = { rwsPost: function(p, body) { calls.push({ path: p, body: body }); return Promise.resolve(); } };
+    var node = new (loadNodeType('./nodes/gofa-do-write', { nodesById: { r1: mockRobot } }))({ robot: 'r1', signal: 'ABB_Scalable_IO_0_DO1', value: 1 });
+    var msg = { payload: 1 };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.transport, 'rws');
+    assert.strictEqual(calls[0].path, '/rw/iosystem/signals/ABB_Scalable_IO_0_DO1/set-value');
+    assert.strictEqual(calls[0].body, 'lvalue=1');
+});
+await checkAsync('gofa-do-write: Socket transport upper-cases the signal name (RAPID DispatchJson matches case-sensitively, unlike the legacy text protocol)', async function() {
+    var calls = [];
+    var mockRobot = { socketSend: function(cmd) { calls.push(cmd); return Promise.resolve('OK:SETDO'); } };
+    var node = new (loadNodeType('./nodes/gofa-do-write', { nodesById: { r1: mockRobot } }))({ robot: 'r1', signal: 'ABB_Scalable_IO_0_DO1', value: 1, transport: 'socket' });
+    var msg = { payload: 1 };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.transport, 'socket');
+    assert.deepStrictEqual(calls[0], { cmd: 'setdo', name: 'ABB_SCALABLE_IO_0_DO1', val: 1 });
+});
+await checkAsync('gofa-do-write: Socket transport surfaces an ERR:SETDO reply (e.g. unknown signal) as a failure', async function() {
+    var mockRobot = { socketSend: function() { return Promise.resolve('ERR:SETDO'); } };
+    var node = new (loadNodeType('./nodes/gofa-do-write', { nodesById: { r1: mockRobot } }))({ robot: 'r1', signal: 'ABB_Scalable_IO_0_DO1', value: 1, transport: 'socket' });
+    var msg = { payload: 1 };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+});
+await checkAsync('gofa-do-write: msg.payload.transport overrides the configured transport at runtime', async function() {
+    var socketCalled = false, rwsCalled = false;
+    var mockRobot = {
+        socketSend: function() { socketCalled = true; return Promise.resolve('OK:SETDO'); },
+        rwsPost: function() { rwsCalled = true; return Promise.resolve(); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-do-write', { nodesById: { r1: mockRobot } }))({ robot: 'r1', signal: 'ABB_Scalable_IO_0_DO1', value: 1, transport: 'rws' });
+    var msg = { payload: { value: 1, transport: 'socket' } };
+    await runInput(node, msg);
+    assert.strictEqual(socketCalled, true);
+    assert.strictEqual(rwsCalled, false);
+});
+
 // gofa-subscribe-var ─────────────────────────────────────────────────────────
 
 await checkAsync('gofa-subscribe-var: reads via module-text only, never attempts the dead RWS symbol path', async function() {

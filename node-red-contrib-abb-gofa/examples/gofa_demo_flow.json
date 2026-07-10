@@ -1,15 +1,15 @@
 [
     {
-        "id": "ff1c1e5698ed95ce",
+        "id": "a520b411b857ec3c",
         "type": "tab",
         "label": "ABB-GoFa-12 Demo",
         "disabled": false,
         "info": ""
     },
     {
-        "id": "f09a7ed360c38258",
+        "id": "f3c28d7a440cbeee",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
+        "z": "a520b411b857ec3c",
         "name": "1 - RWS (HTTPS 443)",
         "style": {
             "stroke": "#0099cc",
@@ -21,14 +21,14 @@
             "color": "#0099cc"
         },
         "nodes": [
-            "43c73d6bb4f4e259",
-            "ced7e5ce810e9bd8",
-            "0e17a5796d3b32ef",
-            "e218bf7ee6241d9e",
-            "d3157a1d76b1578d",
-            "f35cd8980e0d81ca",
-            "004a32b70e94e91d",
-            "dead652caa5834b2"
+            "3e11854f08f13fae",
+            "bcebb1f688bc0e41",
+            "220d685a24069293",
+            "0c6d1a0571c4d1c6",
+            "1edb510d0e1876f8",
+            "1fd0eb48da704295",
+            "50ac319274bc98bd",
+            "b8c71f7a58a6d882"
         ],
         "x": 38,
         "y": 33,
@@ -36,9 +36,9 @@
         "h": 2519
     },
     {
-        "id": "63056b3709913eae",
+        "id": "7d45abfc5ddd9ce9",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
+        "z": "a520b411b857ec3c",
         "name": "2 - TCP Socket (port 1025)",
         "style": {
             "stroke": "#00aa44",
@@ -50,14 +50,14 @@
             "color": "#00aa44"
         },
         "nodes": [
-            "a8d2e1805288f17f",
-            "577f70c9b247bd59",
-            "3bcfcf50cc88f6cd",
-            "999595ac9927089b",
-            "fa7d232a45554b46",
-            "f52233ede842db89",
-            "a031f97d1cbfd15e",
-            "180d9fb7454899d7"
+            "a47af3ecc11ce0f1",
+            "33be944ad3922a76",
+            "eca82887de186755",
+            "5469b15e8a5437be",
+            "7f67148b43e52842",
+            "fafb15f93f64a3a5",
+            "5b29cf3e491568e9",
+            "d11bddb54bb63ffb"
         ],
         "x": 1828,
         "y": 33,
@@ -65,9 +65,9 @@
         "h": 2416
     },
     {
-        "id": "6788fa641ae280bb",
+        "id": "76d96ab02f6d28a1",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
+        "z": "a520b411b857ec3c",
         "name": "3 - Local (No Network)",
         "style": {
             "stroke": "#009999",
@@ -79,8 +79,8 @@
             "color": "#009999"
         },
         "nodes": [
-            "86a22e85afb77b00",
-            "21af3f2988ad0fb6"
+            "feec6542cfd99499",
+            "8cd35590d4a969bd"
         ],
         "x": 3928,
         "y": 33,
@@ -88,10 +88,10 @@
         "h": 529
     },
     {
-        "id": "43c73d6bb4f4e259",
+        "id": "3e11854f08f13fae",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f09a7ed360c38258",
+        "z": "a520b411b857ec3c",
+        "g": "f3c28d7a440cbeee",
         "name": "Read Robot State",
         "style": {
             "stroke": "#0099cc",
@@ -103,16 +103,16 @@
             "color": "#0099cc"
         },
         "nodes": [
-            "7cdeeb3e5cec4e60",
-            "38524f209bd4c09b",
-            "320e9b43d7e22019",
-            "6af1a025578fe4e7",
-            "763a1daaf53f9807",
-            "a9bad1ee0f86cedc",
-            "0ff07f155cb95deb",
-            "0e8989dc4fe2efd6",
-            "437df0b810a008b6",
-            "fa5813385fe4af16"
+            "d8516de9eb857697",
+            "9de3e684e6b562a6",
+            "f7540734982fa672",
+            "66bbebce5cb66a02",
+            "ab09d094bb69d989",
+            "e9ecec7bab68b096",
+            "6086adff0cf098cd",
+            "e746994379b6eeae",
+            "cfb2838bc29c752a",
+            "f43f7522f2fbf350"
         ],
         "x": 609,
         "y": 59,
@@ -120,10 +120,10 @@
         "h": 247
     },
     {
-        "id": "ced7e5ce810e9bd8",
+        "id": "bcebb1f688bc0e41",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f09a7ed360c38258",
+        "z": "a520b411b857ec3c",
+        "g": "f3c28d7a440cbeee",
         "name": "Motor Control",
         "style": {
             "stroke": "#0099cc",
@@ -135,13 +135,13 @@
             "color": "#0099cc"
         },
         "nodes": [
-            "2448b1d703fe89b0",
-            "4104670e40e042e4",
-            "9fb1a422e0fe870a",
-            "947cd2985cdbd52c",
-            "168a2118d16deb15",
-            "b8003f0d5f6f788a",
-            "e7e7b78861a8b962"
+            "cfc134b29b3a1ddc",
+            "b3ea3e9c5143868e",
+            "2bc1b79736829ae9",
+            "83f088d473233544",
+            "d319cd3e6ad9a19f",
+            "644706b5de4afbd8",
+            "fe9983f568539c79"
         ],
         "x": 574,
         "y": 344,
@@ -149,10 +149,10 @@
         "h": 192
     },
     {
-        "id": "0e17a5796d3b32ef",
+        "id": "220d685a24069293",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f09a7ed360c38258",
+        "z": "a520b411b857ec3c",
+        "g": "f3c28d7a440cbeee",
         "name": "Save Point",
         "style": {
             "stroke": "#0099cc",
@@ -164,13 +164,13 @@
             "color": "#0099cc"
         },
         "nodes": [
-            "f63809884eb18bc1",
-            "19eedf3abaa32ee3",
-            "78d7a50e98aeb117",
-            "81a02bb20a3c6185",
-            "4a62d76797f6f985",
-            "b69d11325acfb12d",
-            "fd468eb4666d3b80"
+            "4e662e35e35f47d5",
+            "b864dda1ead4ca6a",
+            "e872ded62773f0bd",
+            "ecd925ef7667a950",
+            "0a218717bc2a8f9c",
+            "28a3cba44de10caa",
+            "8434ed5976c14722"
         ],
         "x": 64,
         "y": 574,
@@ -178,10 +178,10 @@
         "h": 182
     },
     {
-        "id": "e218bf7ee6241d9e",
+        "id": "0c6d1a0571c4d1c6",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f09a7ed360c38258",
+        "z": "a520b411b857ec3c",
+        "g": "f3c28d7a440cbeee",
         "name": "System, Log & Files",
         "style": {
             "stroke": "#0099cc",
@@ -193,22 +193,22 @@
             "color": "#0099cc"
         },
         "nodes": [
-            "09ba6b7b2772caf9",
-            "c250559d204cd130",
-            "e95ff670c99eda62",
-            "194f8c50e9177c4d",
-            "a50cbd99c39459e4",
-            "0f070b3e20836b56",
-            "0e8990ee108ba602",
-            "98e564bfec29f961",
-            "1795fa33e642232a",
-            "a689e3d0992fbbe3",
-            "3621fdb3b4eda745",
-            "c7156110c8ed0e25",
-            "3f5a037980f0168f",
-            "f55c8fce36d2c520",
-            "64a5932b16a4bd1f",
-            "649b54b325eb5286"
+            "dbf33f58110c8439",
+            "c37c9b869ae726c0",
+            "eaa6b6d92727eae9",
+            "865a5a5916ad0c8f",
+            "9b205c394b861433",
+            "3623f5cd5959379c",
+            "cc53309b8ee4604f",
+            "e84f6c9ea63e8de9",
+            "0cfc46a7f4b61ac3",
+            "579c13035cdcab3b",
+            "effe9d98cc2e5185",
+            "ebd2235e8af0ab09",
+            "a87f21b85f254699",
+            "08a06617e3edef90",
+            "4ea80dd2a7e06eda",
+            "27a80d5a9bd823a6"
         ],
         "x": 194,
         "y": 749,
@@ -216,10 +216,10 @@
         "h": 357
     },
     {
-        "id": "d3157a1d76b1578d",
+        "id": "1edb510d0e1876f8",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f09a7ed360c38258",
+        "z": "a520b411b857ec3c",
+        "g": "f3c28d7a440cbeee",
         "name": "I/O Signals",
         "style": {
             "stroke": "#0099cc",
@@ -231,17 +231,17 @@
             "color": "#0099cc"
         },
         "nodes": [
-            "84d4ceb32d5b4ece",
-            "4fdc625927197fa4",
-            "f9a36939720f2692",
-            "a0bb02a7c54d1c49",
-            "053dd832b4cf20e9",
-            "35e2c74248d82fab",
-            "e83ab0944443a932",
-            "a375af4f9bcc239c",
-            "ad6c6a0123eaab1c",
-            "3671855f9f752223",
-            "21dca3d1279dfc06"
+            "1074c9c3ad32d19c",
+            "dae43c1e5c2f6129",
+            "978e7132586df8ef",
+            "13e89fe7c62f25d5",
+            "2af8e5f152d995c7",
+            "5aeec4a42d3fb34c",
+            "0747f7e03efa639d",
+            "5e6ace1c877d175c",
+            "ec557c787980d761",
+            "3a99ba87d8098a2b",
+            "9e20ad06b9525264"
         ],
         "x": 114,
         "y": 1144,
@@ -249,10 +249,10 @@
         "h": 302
     },
     {
-        "id": "f35cd8980e0d81ca",
+        "id": "1fd0eb48da704295",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f09a7ed360c38258",
+        "z": "a520b411b857ec3c",
+        "g": "f3c28d7a440cbeee",
         "name": "Lead-through",
         "style": {
             "stroke": "#0099cc",
@@ -264,13 +264,13 @@
             "color": "#0099cc"
         },
         "nodes": [
-            "0731de01be3cc0e7",
-            "ac5f691096c4a671",
-            "1ca8966876223dc0",
-            "020377a217e13f59",
-            "eaa88840d43c9568",
-            "cbc7fdc67b7ad0bd",
-            "e4ec8bf012423126"
+            "f4bf030b193984d3",
+            "2775041ecbf3469a",
+            "d8eeb5ac67fe8f3d",
+            "e0eded77c68b6636",
+            "cab52e59a6579f9d",
+            "4b4fca9e323e4337",
+            "177a08b6dbebd6d3"
         ],
         "x": 454,
         "y": 1539,
@@ -278,10 +278,10 @@
         "h": 192
     },
     {
-        "id": "004a32b70e94e91d",
+        "id": "50ac319274bc98bd",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f09a7ed360c38258",
+        "z": "a520b411b857ec3c",
+        "g": "f3c28d7a440cbeee",
         "name": "Real-time Subscriptions",
         "style": {
             "stroke": "#0099cc",
@@ -293,30 +293,33 @@
             "color": "#0099cc"
         },
         "nodes": [
-            "151a8679945d97f5",
-            "8473475acf46b6e4",
-            "349d4106e090a1bb",
-            "73a9ad0861be833c",
-            "348b95404ef5eeb8",
-            "c353f606a856ef77",
-            "deeba66dce718a2d",
-            "5b0c0558abe32513",
-            "0a9d50ae8ad6f748",
-            "8e23a6e3dc406441",
-            "51a48c5d655db2d6",
-            "e3c6e501c97de3cd",
-            "81309d0a6e05849b"
+            "1ca00946206eeafb",
+            "83df9ed99783d985",
+            "ebb541122994653a",
+            "398a6fed063bb10a",
+            "29e343610d4f1e5a",
+            "5622d1be6dfdcb92",
+            "8c207bb882c398a4",
+            "37dc499ffa4a43a6",
+            "8ca53a7aa3ac77f5",
+            "00b7eaaefef41217",
+            "65d5cfd837516be5",
+            "e705c98c2351e234",
+            "afbcc99795890248",
+            "0b3f4cc207a82ba2",
+            "b567e48ac4cbd2c6",
+            "32fb7047f03bd862"
         ],
         "x": 364,
         "y": 1769,
         "w": 1057,
-        "h": 302
+        "h": 360
     },
     {
-        "id": "dead652caa5834b2",
+        "id": "b8c71f7a58a6d882",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f09a7ed360c38258",
+        "z": "a520b411b857ec3c",
+        "g": "f3c28d7a440cbeee",
         "name": "RAPID Execution Control",
         "style": {
             "stroke": "#0099cc",
@@ -328,22 +331,22 @@
             "color": "#0099cc"
         },
         "nodes": [
-            "8084ba2a22fae5bb",
-            "060453ce2a6ee83b",
-            "31dd4a39a393dbcd",
-            "a7b7ca436169c2c5",
-            "6f6b60b4e8c34695",
-            "9f736dc6b71f7ec4",
-            "df2291152c6d05ba",
-            "c9430f9cc315fea7",
-            "4685b62fca0551d3",
-            "92dc2c03831afeb0",
-            "4ed442e36f40af28",
-            "9dca340e6f0cc6b2",
-            "4002a686f50ddf11",
-            "1af73c9480d42d91",
-            "abd8e4f2a78a8e31",
-            "3dd8d82306987b6c"
+            "e61e7d7c6f24badc",
+            "91f4907292809160",
+            "9d1746004d14ee01",
+            "42bbf550e1152031",
+            "ab1f53237968ab7e",
+            "a97108324650ea50",
+            "ce18bcbff97f011f",
+            "9f5d196254062b88",
+            "27e08a030cc09a37",
+            "9f23ad4ee2dd852b",
+            "7d815b2f956cc198",
+            "a6518f5e6f9499be",
+            "2fa9f8fa83791f70",
+            "3bdc296c41906f5e",
+            "285769f68e0deca0",
+            "33ae8386ac91e848"
         ],
         "x": 109,
         "y": 2109,
@@ -351,10 +354,10 @@
         "h": 417
     },
     {
-        "id": "a8d2e1805288f17f",
+        "id": "a47af3ecc11ce0f1",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "63056b3709913eae",
+        "z": "a520b411b857ec3c",
+        "g": "7d45abfc5ddd9ce9",
         "name": "Move Home / Set Home",
         "style": {
             "stroke": "#00aa44",
@@ -366,13 +369,13 @@
             "color": "#00aa44"
         },
         "nodes": [
-            "7d86726abdb40850",
-            "7f372a4cf28d83cc",
-            "ad990b7c699ca51a",
-            "808f999b5f6b2413",
-            "6722fbb6413136e7",
-            "a459f75365404349",
-            "954bbc4f64235e08"
+            "05ca1bf2f6e419d0",
+            "5de110dcf927f163",
+            "5f5b1c06e9c9a675",
+            "a5710e01c171abcf",
+            "a828675ccc8e13c7",
+            "95e8eef07225cad3",
+            "8d1a8f16547cdcd1"
         ],
         "x": 2294,
         "y": 59,
@@ -380,10 +383,10 @@
         "h": 199
     },
     {
-        "id": "577f70c9b247bd59",
+        "id": "33be944ad3922a76",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "63056b3709913eae",
+        "z": "a520b411b857ec3c",
+        "g": "7d45abfc5ddd9ce9",
         "name": "Cartesian Jog",
         "style": {
             "stroke": "#00aa44",
@@ -395,19 +398,19 @@
             "color": "#00aa44"
         },
         "nodes": [
-            "ca83cba10386df7d",
-            "798bc3acd9ddc29c",
-            "d6f869ef205484f4",
-            "3831227c45cb4990",
-            "c355b67d6862d213",
-            "d79b71d73a6cb920",
-            "e269bf6dcb53c1d0",
-            "fe721334dbb127a4",
-            "53f000981ac7a9cb",
-            "aafc5ec5b9cc5e84",
-            "d69fa6a257cbc267",
-            "f1361cb7b415ee70",
-            "915c98dda97e4675"
+            "7c1f73bda0f815c1",
+            "c16f9974975e2f95",
+            "b003e3a4035ba618",
+            "a8aa2ce96451e404",
+            "926daf0705a38776",
+            "28746bd7d5207b93",
+            "0d3d43f36f65d6c8",
+            "c03418fb130321a8",
+            "77c2d09e0d3f81d6",
+            "7e6c07f70728b565",
+            "0e9d6a222258da35",
+            "0ffbfe917a7cf976",
+            "11e716e01b17b53b"
         ],
         "x": 2244,
         "y": 296,
@@ -415,10 +418,10 @@
         "h": 302
     },
     {
-        "id": "3bcfcf50cc88f6cd",
+        "id": "eca82887de186755",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "63056b3709913eae",
+        "z": "a520b411b857ec3c",
+        "g": "7d45abfc5ddd9ce9",
         "name": "Joint Jog",
         "style": {
             "stroke": "#00aa44",
@@ -430,13 +433,13 @@
             "color": "#00aa44"
         },
         "nodes": [
-            "7d2ceb261cde08ab",
-            "44ed58fc0d46b64d",
-            "bca5501b993bdc77",
-            "a040c3091017eeab",
-            "dcde56dcb93f85b1",
-            "3f11b7262500847f",
-            "10ec85610536a18d"
+            "104d59e1a0dfee53",
+            "fbc5faca21708e29",
+            "912bf3f2291ef046",
+            "2b89b53716819804",
+            "faac32a30689f326",
+            "f9dbc13580f30f9f",
+            "719e3923d0d2721a"
         ],
         "x": 2314,
         "y": 636,
@@ -444,10 +447,10 @@
         "h": 192
     },
     {
-        "id": "999595ac9927089b",
+        "id": "5469b15e8a5437be",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "63056b3709913eae",
+        "z": "a520b411b857ec3c",
+        "g": "7d45abfc5ddd9ce9",
         "name": "TCP Motion",
         "style": {
             "stroke": "#00aa44",
@@ -459,25 +462,25 @@
             "color": "#00aa44"
         },
         "nodes": [
-            "52d35ce823f52573",
-            "fc5aefe408bd86c6",
-            "4249df5639f31f7e",
-            "5843572a0ce0309e",
-            "71ce5ba43abe776a",
-            "1d5e6591137ad0a4",
-            "f8babd3cbaba64fa",
-            "374ede90595a51d2",
-            "be8683ab6dbd3bcb",
-            "ee5397e338c10ea7",
-            "db13748985934e76",
-            "bc4ee2d4d355db7d",
-            "dcae853d6bd6cd6b",
-            "0e5d5021f2de3a66",
-            "67c5bb322fad89cb",
-            "c79dccc1d9194b08",
-            "23a14f9673bd6bbe",
-            "3c65f4158ed6d3c0",
-            "ad6dd1164f2d1310"
+            "9f800b8a5ff11935",
+            "8ff6b76e5cd92256",
+            "af439376afc82a5e",
+            "b5f73ae1f1c46f09",
+            "9d4044b2513ae009",
+            "aee8279f3c406416",
+            "54d722cb05f9eb52",
+            "7b0738ff563fccd4",
+            "735c4cd73c27a3a5",
+            "1b30706679e0021e",
+            "fb4438878888e93e",
+            "75a9cd8622ff8758",
+            "2edc0f4291c1dfb0",
+            "c58f95d49763bfb9",
+            "61b1e0473263485a",
+            "c1151de873c6733e",
+            "43baaf3029b4b519",
+            "558a62310d844b6d",
+            "ab99f4b30f665005"
         ],
         "x": 2044,
         "y": 866,
@@ -485,10 +488,10 @@
         "h": 412
     },
     {
-        "id": "fa7d232a45554b46",
+        "id": "7f67148b43e52842",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "63056b3709913eae",
+        "z": "a520b411b857ec3c",
+        "g": "7d45abfc5ddd9ce9",
         "name": "Speed & RAPID Variables",
         "style": {
             "stroke": "#00aa44",
@@ -500,25 +503,25 @@
             "color": "#00aa44"
         },
         "nodes": [
-            "9d8d63a16bf1aef9",
-            "6dd017ebf8c1d0b1",
-            "143a2482f3c88b0d",
-            "577530fb8526b7d4",
-            "32d1dfb4918a540e",
-            "26bf81aee0e2cbba",
-            "e11bc1b3dbc1b97e",
-            "ac8f3fea047f2527",
-            "065fc18d2a0efecb",
-            "498557b6d2bb8f2b",
-            "030d5d30bae29fe5",
-            "17b8f0772257fe69",
-            "7173c220441dc1dc",
-            "7cdaaeb0bdcff9c1",
-            "aa3d31b611ab71ef",
-            "7c16ad80176c4b2f",
-            "7e1a0f10b7b392f9",
-            "0d68d871e68b2c03",
-            "e4986c66c261cbf7"
+            "47770e0abd4258c6",
+            "fac904f3b9367f13",
+            "f97f9f3f4c523597",
+            "64e6c14877789e2c",
+            "03102ef219d0cfbb",
+            "8dc35b1d7671d4ee",
+            "a8e109eb4c26640e",
+            "1eb0c9f73c5d0d36",
+            "a98a0d95595e55e2",
+            "d81006a99626060d",
+            "c813baa42e7484f7",
+            "31e5e6e65886b54b",
+            "05832570b4225120",
+            "688dd4814bb8bf6f",
+            "aa2145cb4b0a7ce2",
+            "128225c4a4d600c6",
+            "94fe4d2d0b721143",
+            "5429677fabe5d3e4",
+            "8c0f52ef41a5de81"
         ],
         "x": 1864,
         "y": 1316,
@@ -526,10 +529,10 @@
         "h": 417
     },
     {
-        "id": "f52233ede842db89",
+        "id": "fafb15f93f64a3a5",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "63056b3709913eae",
+        "z": "a520b411b857ec3c",
+        "g": "7d45abfc5ddd9ce9",
         "name": "Go To Point",
         "style": {
             "stroke": "#00aa44",
@@ -541,13 +544,13 @@
             "color": "#00aa44"
         },
         "nodes": [
-            "adcf1d29fcaedc7a",
-            "d35d8a1e472b46ed",
-            "a07cdd7814cca4c9",
-            "de727c9546360da4",
-            "629af0d96dfe22bd",
-            "6dd7264585e46e01",
-            "19db8725d9b8ba5e"
+            "4d1142a0b0ac9d66",
+            "626efb16763f69e4",
+            "147acb27186a6aae",
+            "d41dba79da1d5c66",
+            "dbdd80bf79b9c99e",
+            "19cacaa80ccd65f3",
+            "17138ebb2106afe5"
         ],
         "x": 2004,
         "y": 1771,
@@ -555,10 +558,10 @@
         "h": 137
     },
     {
-        "id": "a031f97d1cbfd15e",
+        "id": "5b29cf3e491568e9",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "63056b3709913eae",
+        "z": "a520b411b857ec3c",
+        "g": "7d45abfc5ddd9ce9",
         "name": "Sequence Runner",
         "style": {
             "stroke": "#00aa44",
@@ -570,17 +573,17 @@
             "color": "#00aa44"
         },
         "nodes": [
-            "2572542b0c27f6b2",
-            "f4a9dc4e9820656c",
-            "01e86cecd182a3e7",
-            "70e89de49dbc8063",
-            "a084dabe299f6a8c",
-            "354079614aac7639",
-            "51c6005dcd227b4e",
-            "e960698affad3b3a",
-            "f5a9788a2a0c75af",
-            "4cbc121247a107f5",
-            "5209799340623fab"
+            "d7404c8410ee9cda",
+            "57eb4819de7f66a4",
+            "2f4468b2aee2d47a",
+            "6325f1bb96748c3c",
+            "107c21066029bfb4",
+            "33f97148eec902d8",
+            "0246c56c954dfbd8",
+            "4674f441889f065c",
+            "10426752437ee07d",
+            "6ff22119748b5f14",
+            "890ffde33a017e7e"
         ],
         "x": 1854,
         "y": 1946,
@@ -588,10 +591,10 @@
         "h": 247
     },
     {
-        "id": "180d9fb7454899d7",
+        "id": "d11bddb54bb63ffb",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "63056b3709913eae",
+        "z": "a520b411b857ec3c",
+        "g": "7d45abfc5ddd9ce9",
         "name": "ASI Status LED",
         "style": {
             "stroke": "#00aa44",
@@ -603,13 +606,13 @@
             "color": "#00aa44"
         },
         "nodes": [
-            "753c4955d182b8ce",
-            "78aba927ea938cc9",
-            "1d4eff0915e2e36f",
-            "3d01efa6bbbec47c",
-            "7d35edac84211f62",
-            "ff947770a78357d2",
-            "437a7e27cc3d590c"
+            "6f9a8d3643423c12",
+            "d8272f3afedc2e2b",
+            "17947859975bc08a",
+            "6d68920b93c068c7",
+            "aff252b80db6b0fa",
+            "d82ffe306ec54c12",
+            "1bc1a2da10856fd5"
         ],
         "x": 2084,
         "y": 2231,
@@ -617,10 +620,10 @@
         "h": 192
     },
     {
-        "id": "86a22e85afb77b00",
+        "id": "feec6542cfd99499",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "6788fa641ae280bb",
+        "z": "a520b411b857ec3c",
+        "g": "76d96ab02f6d28a1",
         "name": "Point List & Delete",
         "style": {
             "stroke": "#009999",
@@ -632,19 +635,19 @@
             "color": "#009999"
         },
         "nodes": [
-            "fa89ff3bf68a848e",
-            "b890d527cbc6d475",
-            "2884e71188993876",
-            "649fb16b8a1ac546",
-            "07432a6cb604c8de",
-            "83aa45cd126536a5",
-            "18d12759dbbef5c9",
-            "d92479597a2fd132",
-            "4a4587e7ac29ab21",
-            "6127dd0e2d2cedb2",
-            "96029a6402580bb4",
-            "2e8d607abf42c9ab",
-            "4034c5de69bbe3cf"
+            "6e55bd3b02f94554",
+            "c09e9b0b9485ebed",
+            "081de24632110cd6",
+            "07748a5619ab98d6",
+            "6bbae6830b9a4752",
+            "d02733b447911ac0",
+            "9b16fee465ce6c51",
+            "ea9ed5c71d9782b6",
+            "a2cad4e4dbf6947f",
+            "30f22ce5f2d47e44",
+            "cd542a5c16babf8e",
+            "f67f49016ad60e07",
+            "2c5e72395be60fa3"
         ],
         "x": 3954,
         "y": 59,
@@ -652,10 +655,10 @@
         "h": 247
     },
     {
-        "id": "21af3f2988ad0fb6",
+        "id": "8cd35590d4a969bd",
         "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "6788fa641ae280bb",
+        "z": "a520b411b857ec3c",
+        "g": "76d96ab02f6d28a1",
         "name": "Points Transfer",
         "style": {
             "stroke": "#009999",
@@ -667,13 +670,13 @@
             "color": "#009999"
         },
         "nodes": [
-            "c2036f0b7f7905ed",
-            "e39113a533b26586",
-            "64e609a525e0fb1d",
-            "f895dea4e04a56b0",
-            "bcad9bda19496e63",
-            "ea45d1f5fe2453ee",
-            "4798b2f0a51598b4"
+            "f8797db9926ecdf2",
+            "0b55fccd776237cd",
+            "163315dd06328736",
+            "4dc67eca9254b849",
+            "b81421c84a4e2094",
+            "c149c842494bdf01",
+            "176dc3c277bf8ada"
         ],
         "x": 4064,
         "y": 344,
@@ -681,10 +684,65 @@
         "h": 192
     },
     {
-        "id": "7cdeeb3e5cec4e60",
+        "id": "9da1c40682401e26",
+        "type": "group",
+        "z": "a520b411b857ec3c",
+        "name": "4 - EGM (UDP)",
+        "style": {
+            "stroke": "#aa6600",
+            "stroke-opacity": "1",
+            "fill": "#f8f0e8",
+            "fill-opacity": "0.5",
+            "label": true,
+            "label-position": "nw",
+            "color": "#aa6600"
+        },
+        "nodes": [
+            "d985d2ec6155d7fe"
+        ],
+        "x": 3948,
+        "y": 803,
+        "w": 2244,
+        "h": 254
+    },
+    {
+        "id": "d985d2ec6155d7fe",
+        "type": "group",
+        "z": "a520b411b857ec3c",
+        "g": "9da1c40682401e26",
+        "name": "1 - EGM Session (UDP)",
+        "style": {
+            "stroke": "#aa6600",
+            "stroke-opacity": "1",
+            "fill": "#ffffff",
+            "fill-opacity": "0.3",
+            "label": true,
+            "label-position": "nw",
+            "color": "#aa6600"
+        },
+        "nodes": [
+            "b3e23309e9d15dcd",
+            "45e54e7f8b3dd7e6",
+            "1cebd988d37a0389",
+            "10546e9e6656422d",
+            "8035823922e247e0",
+            "319180765be4ddd6",
+            "4f2fefb0e67c653a",
+            "3f5c96968e34cc50",
+            "a1cfe1a20752a8c5",
+            "db10ff8f9f4d3923",
+            "8e1c1e3158ea690c"
+        ],
+        "x": 3974,
+        "y": 829,
+        "w": 2192,
+        "h": 202
+    },
+    {
+        "id": "d8516de9eb857697",
         "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "43c73d6bb4f4e259",
+        "z": "a520b411b857ec3c",
+        "g": "3e11854f08f13fae",
         "name": "Input: any msg  |  Output: ctrlstate / opmode / speed / rapid / x,y,z / j1-j6",
         "info": "",
         "x": 890,
@@ -692,10 +750,10 @@
         "wires": []
     },
     {
-        "id": "38524f209bd4c09b",
+        "id": "9de3e684e6b562a6",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "43c73d6bb4f4e259",
+        "z": "a520b411b857ec3c",
+        "g": "3e11854f08f13fae",
         "name": "Read Status",
         "props": [
             {
@@ -713,30 +771,30 @@
         "y": 155,
         "wires": [
             [
-                "320e9b43d7e22019"
+                "f7540734982fa672"
             ]
         ]
     },
     {
-        "id": "320e9b43d7e22019",
+        "id": "f7540734982fa672",
         "type": "gofa-status",
-        "z": "ff1c1e5698ed95ce",
-        "g": "43c73d6bb4f4e259",
+        "z": "a520b411b857ec3c",
+        "g": "3e11854f08f13fae",
         "name": "",
         "robot": "cfg1",
         "x": 960,
         "y": 155,
         "wires": [
             [
-                "6af1a025578fe4e7"
+                "66bbebce5cb66a02"
             ]
         ]
     },
     {
-        "id": "6af1a025578fe4e7",
+        "id": "66bbebce5cb66a02",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "43c73d6bb4f4e259",
+        "z": "a520b411b857ec3c",
+        "g": "3e11854f08f13fae",
         "name": "{ ctrlstate, opmode, speed, rapid }",
         "active": true,
         "tosidebar": true,
@@ -749,10 +807,10 @@
         "wires": []
     },
     {
-        "id": "763a1daaf53f9807",
+        "id": "ab09d094bb69d989",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "43c73d6bb4f4e259",
+        "z": "a520b411b857ec3c",
+        "g": "3e11854f08f13fae",
         "name": "Read Pose",
         "props": [
             {
@@ -770,30 +828,30 @@
         "y": 210,
         "wires": [
             [
-                "a9bad1ee0f86cedc"
+                "e9ecec7bab68b096"
             ]
         ]
     },
     {
-        "id": "a9bad1ee0f86cedc",
+        "id": "e9ecec7bab68b096",
         "type": "gofa-pose",
-        "z": "ff1c1e5698ed95ce",
-        "g": "43c73d6bb4f4e259",
+        "z": "a520b411b857ec3c",
+        "g": "3e11854f08f13fae",
         "name": "",
         "robot": "cfg1",
         "x": 960,
         "y": 210,
         "wires": [
             [
-                "0ff07f155cb95deb"
+                "6086adff0cf098cd"
             ]
         ]
     },
     {
-        "id": "0ff07f155cb95deb",
+        "id": "6086adff0cf098cd",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "43c73d6bb4f4e259",
+        "z": "a520b411b857ec3c",
+        "g": "3e11854f08f13fae",
         "name": "{ x, y, z, q1-q4, cf1/4/6/x }",
         "active": true,
         "tosidebar": true,
@@ -806,10 +864,10 @@
         "wires": []
     },
     {
-        "id": "0e8989dc4fe2efd6",
+        "id": "e746994379b6eeae",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "43c73d6bb4f4e259",
+        "z": "a520b411b857ec3c",
+        "g": "3e11854f08f13fae",
         "name": "Read Joints",
         "props": [
             {
@@ -827,30 +885,30 @@
         "y": 265,
         "wires": [
             [
-                "437df0b810a008b6"
+                "cfb2838bc29c752a"
             ]
         ]
     },
     {
-        "id": "437df0b810a008b6",
+        "id": "cfb2838bc29c752a",
         "type": "gofa-joints",
-        "z": "ff1c1e5698ed95ce",
-        "g": "43c73d6bb4f4e259",
+        "z": "a520b411b857ec3c",
+        "g": "3e11854f08f13fae",
         "name": "",
         "robot": "cfg1",
         "x": 960,
         "y": 265,
         "wires": [
             [
-                "fa5813385fe4af16"
+                "f43f7522f2fbf350"
             ]
         ]
     },
     {
-        "id": "fa5813385fe4af16",
+        "id": "f43f7522f2fbf350",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "43c73d6bb4f4e259",
+        "z": "a520b411b857ec3c",
+        "g": "3e11854f08f13fae",
         "name": "{ j1, j2, j3, j4, j5, j6 } degrees",
         "active": true,
         "tosidebar": true,
@@ -863,10 +921,10 @@
         "wires": []
     },
     {
-        "id": "7d86726abdb40850",
+        "id": "05ca1bf2f6e419d0",
         "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "a8d2e1805288f17f",
+        "z": "a520b411b857ec3c",
+        "g": "a47af3ecc11ce0f1",
         "name": "HOME: robot moves to saved home position  |  SETHOME: saves current pose as the new home",
         "info": "",
         "x": 2650,
@@ -874,10 +932,10 @@
         "wires": []
     },
     {
-        "id": "7f372a4cf28d83cc",
+        "id": "5de110dcf927f163",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "a8d2e1805288f17f",
+        "z": "a520b411b857ec3c",
+        "g": "a47af3ecc11ce0f1",
         "name": "Move HOME",
         "props": [
             {
@@ -895,15 +953,15 @@
         "y": 162,
         "wires": [
             [
-                "ad990b7c699ca51a"
+                "5f5b1c06e9c9a675"
             ]
         ]
     },
     {
-        "id": "ad990b7c699ca51a",
+        "id": "5f5b1c06e9c9a675",
         "type": "gofa-move",
-        "z": "ff1c1e5698ed95ce",
-        "g": "a8d2e1805288f17f",
+        "z": "a520b411b857ec3c",
+        "g": "a47af3ecc11ce0f1",
         "name": "HOME",
         "robot": "cfg1",
         "command": "HOME",
@@ -911,15 +969,15 @@
         "y": 162,
         "wires": [
             [
-                "808f999b5f6b2413"
+                "a5710e01c171abcf"
             ]
         ]
     },
     {
-        "id": "808f999b5f6b2413",
+        "id": "a5710e01c171abcf",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "a8d2e1805288f17f",
+        "z": "a520b411b857ec3c",
+        "g": "a47af3ecc11ce0f1",
         "name": "{ ok, ack:'OK:HOME' }",
         "active": true,
         "tosidebar": true,
@@ -932,10 +990,10 @@
         "wires": []
     },
     {
-        "id": "6722fbb6413136e7",
+        "id": "a828675ccc8e13c7",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "a8d2e1805288f17f",
+        "z": "a520b411b857ec3c",
+        "g": "a47af3ecc11ce0f1",
         "name": "Set Home (here)",
         "props": [
             {
@@ -953,15 +1011,15 @@
         "y": 217,
         "wires": [
             [
-                "a459f75365404349"
+                "95e8eef07225cad3"
             ]
         ]
     },
     {
-        "id": "a459f75365404349",
+        "id": "95e8eef07225cad3",
         "type": "gofa-move",
-        "z": "ff1c1e5698ed95ce",
-        "g": "a8d2e1805288f17f",
+        "z": "a520b411b857ec3c",
+        "g": "a47af3ecc11ce0f1",
         "name": "SETHOME",
         "robot": "cfg1",
         "command": "SETHOME",
@@ -969,15 +1027,15 @@
         "y": 217,
         "wires": [
             [
-                "954bbc4f64235e08"
+                "8d1a8f16547cdcd1"
             ]
         ]
     },
     {
-        "id": "954bbc4f64235e08",
+        "id": "8d1a8f16547cdcd1",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "a8d2e1805288f17f",
+        "z": "a520b411b857ec3c",
+        "g": "a47af3ecc11ce0f1",
         "name": "{ ok, ack:'OK:SETHOME' }",
         "active": true,
         "tosidebar": true,
@@ -990,10 +1048,10 @@
         "wires": []
     },
     {
-        "id": "2448b1d703fe89b0",
+        "id": "cfc134b29b3a1ddc",
         "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "ced7e5ce810e9bd8",
+        "z": "a520b411b857ec3c",
+        "g": "bcebb1f688bc0e41",
         "name": "Controls motor power via RWS  |  Override: msg.payload.action = 'motoron' | 'motoroff'",
         "info": "",
         "x": 890,
@@ -1001,10 +1059,10 @@
         "wires": []
     },
     {
-        "id": "4104670e40e042e4",
+        "id": "b3ea3e9c5143868e",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "ced7e5ce810e9bd8",
+        "z": "a520b411b857ec3c",
+        "g": "bcebb1f688bc0e41",
         "name": "Motors ON",
         "props": [
             {
@@ -1022,15 +1080,15 @@
         "y": 440,
         "wires": [
             [
-                "9fb1a422e0fe870a"
+                "2bc1b79736829ae9"
             ]
         ]
     },
     {
-        "id": "9fb1a422e0fe870a",
+        "id": "2bc1b79736829ae9",
         "type": "gofa-motor",
-        "z": "ff1c1e5698ed95ce",
-        "g": "ced7e5ce810e9bd8",
+        "z": "a520b411b857ec3c",
+        "g": "bcebb1f688bc0e41",
         "name": "Motors ON",
         "robot": "cfg1",
         "action": "motoron",
@@ -1038,15 +1096,15 @@
         "y": 440,
         "wires": [
             [
-                "947cd2985cdbd52c"
+                "83f088d473233544"
             ]
         ]
     },
     {
-        "id": "947cd2985cdbd52c",
+        "id": "83f088d473233544",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "ced7e5ce810e9bd8",
+        "z": "a520b411b857ec3c",
+        "g": "bcebb1f688bc0e41",
         "name": "{ ok:true, action:'motoron' }",
         "active": true,
         "tosidebar": true,
@@ -1059,10 +1117,10 @@
         "wires": []
     },
     {
-        "id": "168a2118d16deb15",
+        "id": "d319cd3e6ad9a19f",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "ced7e5ce810e9bd8",
+        "z": "a520b411b857ec3c",
+        "g": "bcebb1f688bc0e41",
         "name": "Motors OFF",
         "props": [
             {
@@ -1080,15 +1138,15 @@
         "y": 495,
         "wires": [
             [
-                "b8003f0d5f6f788a"
+                "644706b5de4afbd8"
             ]
         ]
     },
     {
-        "id": "b8003f0d5f6f788a",
+        "id": "644706b5de4afbd8",
         "type": "gofa-motor",
-        "z": "ff1c1e5698ed95ce",
-        "g": "ced7e5ce810e9bd8",
+        "z": "a520b411b857ec3c",
+        "g": "bcebb1f688bc0e41",
         "name": "Motors OFF",
         "robot": "cfg1",
         "action": "motoroff",
@@ -1096,15 +1154,15 @@
         "y": 495,
         "wires": [
             [
-                "e7e7b78861a8b962"
+                "fe9983f568539c79"
             ]
         ]
     },
     {
-        "id": "e7e7b78861a8b962",
+        "id": "fe9983f568539c79",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "ced7e5ce810e9bd8",
+        "z": "a520b411b857ec3c",
+        "g": "bcebb1f688bc0e41",
         "name": "{ ok:true, action:'motoroff' }",
         "active": true,
         "tosidebar": true,
@@ -1117,10 +1175,10 @@
         "wires": []
     },
     {
-        "id": "ca83cba10386df7d",
+        "id": "7c1f73bda0f815c1",
         "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "577f70c9b247bd59",
+        "z": "a520b411b857ec3c",
+        "g": "33be944ad3922a76",
         "name": "Moves TCP relative to current pose  |  X/Y/Z = base frame mm (max 50)  |  RX/RY/RZ = tool frame deg (max 30)",
         "info": "",
         "x": 2640,
@@ -1128,10 +1186,10 @@
         "wires": []
     },
     {
-        "id": "798bc3acd9ddc29c",
+        "id": "c16f9974975e2f95",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "577f70c9b247bd59",
+        "z": "a520b411b857ec3c",
+        "g": "33be944ad3922a76",
         "name": "Jog X +20 mm",
         "props": [
             {
@@ -1149,15 +1207,15 @@
         "y": 392,
         "wires": [
             [
-                "d6f869ef205484f4"
+                "b003e3a4035ba618"
             ]
         ]
     },
     {
-        "id": "d6f869ef205484f4",
+        "id": "b003e3a4035ba618",
         "type": "gofa-jog",
-        "z": "ff1c1e5698ed95ce",
-        "g": "577f70c9b247bd59",
+        "z": "a520b411b857ec3c",
+        "g": "33be944ad3922a76",
         "name": "Jog X +20 mm",
         "robot": "cfg1",
         "axis": "X",
@@ -1167,15 +1225,15 @@
         "y": 392,
         "wires": [
             [
-                "3831227c45cb4990"
+                "a8aa2ce96451e404"
             ]
         ]
     },
     {
-        "id": "3831227c45cb4990",
+        "id": "a8aa2ce96451e404",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "577f70c9b247bd59",
+        "z": "a520b411b857ec3c",
+        "g": "33be944ad3922a76",
         "name": "{ ok, ack, token }",
         "active": true,
         "tosidebar": true,
@@ -1188,10 +1246,10 @@
         "wires": []
     },
     {
-        "id": "c355b67d6862d213",
+        "id": "926daf0705a38776",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "577f70c9b247bd59",
+        "z": "a520b411b857ec3c",
+        "g": "33be944ad3922a76",
         "name": "Jog Y +20 mm",
         "props": [
             {
@@ -1209,15 +1267,15 @@
         "y": 447,
         "wires": [
             [
-                "d79b71d73a6cb920"
+                "28746bd7d5207b93"
             ]
         ]
     },
     {
-        "id": "d79b71d73a6cb920",
+        "id": "28746bd7d5207b93",
         "type": "gofa-jog",
-        "z": "ff1c1e5698ed95ce",
-        "g": "577f70c9b247bd59",
+        "z": "a520b411b857ec3c",
+        "g": "33be944ad3922a76",
         "name": "Jog Y +20 mm",
         "robot": "cfg1",
         "axis": "Y",
@@ -1227,15 +1285,15 @@
         "y": 447,
         "wires": [
             [
-                "e269bf6dcb53c1d0"
+                "0d3d43f36f65d6c8"
             ]
         ]
     },
     {
-        "id": "e269bf6dcb53c1d0",
+        "id": "0d3d43f36f65d6c8",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "577f70c9b247bd59",
+        "z": "a520b411b857ec3c",
+        "g": "33be944ad3922a76",
         "name": "{ ok, ack, token }",
         "active": true,
         "tosidebar": true,
@@ -1248,10 +1306,10 @@
         "wires": []
     },
     {
-        "id": "fe721334dbb127a4",
+        "id": "c03418fb130321a8",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "577f70c9b247bd59",
+        "z": "a520b411b857ec3c",
+        "g": "33be944ad3922a76",
         "name": "Jog Z +20 mm",
         "props": [
             {
@@ -1269,15 +1327,15 @@
         "y": 502,
         "wires": [
             [
-                "53f000981ac7a9cb"
+                "77c2d09e0d3f81d6"
             ]
         ]
     },
     {
-        "id": "53f000981ac7a9cb",
+        "id": "77c2d09e0d3f81d6",
         "type": "gofa-jog",
-        "z": "ff1c1e5698ed95ce",
-        "g": "577f70c9b247bd59",
+        "z": "a520b411b857ec3c",
+        "g": "33be944ad3922a76",
         "name": "Jog Z +20 mm",
         "robot": "cfg1",
         "axis": "Z",
@@ -1287,15 +1345,15 @@
         "y": 502,
         "wires": [
             [
-                "aafc5ec5b9cc5e84"
+                "7e6c07f70728b565"
             ]
         ]
     },
     {
-        "id": "aafc5ec5b9cc5e84",
+        "id": "7e6c07f70728b565",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "577f70c9b247bd59",
+        "z": "a520b411b857ec3c",
+        "g": "33be944ad3922a76",
         "name": "{ ok, ack, token }",
         "active": true,
         "tosidebar": true,
@@ -1308,10 +1366,10 @@
         "wires": []
     },
     {
-        "id": "d69fa6a257cbc267",
+        "id": "0e9d6a222258da35",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "577f70c9b247bd59",
+        "z": "a520b411b857ec3c",
+        "g": "33be944ad3922a76",
         "name": "Jog RZ +5 deg",
         "props": [
             {
@@ -1329,15 +1387,15 @@
         "y": 557,
         "wires": [
             [
-                "f1361cb7b415ee70"
+                "0ffbfe917a7cf976"
             ]
         ]
     },
     {
-        "id": "f1361cb7b415ee70",
+        "id": "0ffbfe917a7cf976",
         "type": "gofa-jog",
-        "z": "ff1c1e5698ed95ce",
-        "g": "577f70c9b247bd59",
+        "z": "a520b411b857ec3c",
+        "g": "33be944ad3922a76",
         "name": "Jog RZ +5 deg",
         "robot": "cfg1",
         "axis": "RZ",
@@ -1347,15 +1405,15 @@
         "y": 557,
         "wires": [
             [
-                "915c98dda97e4675"
+                "11e716e01b17b53b"
             ]
         ]
     },
     {
-        "id": "915c98dda97e4675",
+        "id": "11e716e01b17b53b",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "577f70c9b247bd59",
+        "z": "a520b411b857ec3c",
+        "g": "33be944ad3922a76",
         "name": "{ ok, ack, token }",
         "active": true,
         "tosidebar": true,
@@ -1368,10 +1426,10 @@
         "wires": []
     },
     {
-        "id": "7d2ceb261cde08ab",
+        "id": "104d59e1a0dfee53",
         "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "3bcfcf50cc88f6cd",
+        "z": "a520b411b857ec3c",
+        "g": "eca82887de186755",
         "name": "Rotates one joint by a relative angle (max 30 deg)  |  Override: msg.payload.{joint,dir,step}",
         "info": "",
         "x": 2640,
@@ -1379,10 +1437,10 @@
         "wires": []
     },
     {
-        "id": "44ed58fc0d46b64d",
+        "id": "fbc5faca21708e29",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "3bcfcf50cc88f6cd",
+        "z": "a520b411b857ec3c",
+        "g": "eca82887de186755",
         "name": "Joint J1 +5 deg",
         "props": [
             {
@@ -1400,15 +1458,15 @@
         "y": 732,
         "wires": [
             [
-                "bca5501b993bdc77"
+                "912bf3f2291ef046"
             ]
         ]
     },
     {
-        "id": "bca5501b993bdc77",
+        "id": "912bf3f2291ef046",
         "type": "gofa-joint-jog",
-        "z": "ff1c1e5698ed95ce",
-        "g": "3bcfcf50cc88f6cd",
+        "z": "a520b411b857ec3c",
+        "g": "eca82887de186755",
         "name": "Joint J1 +5 deg",
         "robot": "cfg1",
         "joint": "J1",
@@ -1418,15 +1476,15 @@
         "y": 732,
         "wires": [
             [
-                "a040c3091017eeab"
+                "2b89b53716819804"
             ]
         ]
     },
     {
-        "id": "a040c3091017eeab",
+        "id": "2b89b53716819804",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "3bcfcf50cc88f6cd",
+        "z": "a520b411b857ec3c",
+        "g": "eca82887de186755",
         "name": "{ ok, ack, token }",
         "active": true,
         "tosidebar": true,
@@ -1439,10 +1497,10 @@
         "wires": []
     },
     {
-        "id": "dcde56dcb93f85b1",
+        "id": "faac32a30689f326",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "3bcfcf50cc88f6cd",
+        "z": "a520b411b857ec3c",
+        "g": "eca82887de186755",
         "name": "Joint J2 +5 deg",
         "props": [
             {
@@ -1460,15 +1518,15 @@
         "y": 787,
         "wires": [
             [
-                "3f11b7262500847f"
+                "f9dbc13580f30f9f"
             ]
         ]
     },
     {
-        "id": "3f11b7262500847f",
+        "id": "f9dbc13580f30f9f",
         "type": "gofa-joint-jog",
-        "z": "ff1c1e5698ed95ce",
-        "g": "3bcfcf50cc88f6cd",
+        "z": "a520b411b857ec3c",
+        "g": "eca82887de186755",
         "name": "Joint J2 +5 deg",
         "robot": "cfg1",
         "joint": "J2",
@@ -1478,15 +1536,15 @@
         "y": 787,
         "wires": [
             [
-                "10ec85610536a18d"
+                "719e3923d0d2721a"
             ]
         ]
     },
     {
-        "id": "10ec85610536a18d",
+        "id": "719e3923d0d2721a",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "3bcfcf50cc88f6cd",
+        "z": "a520b411b857ec3c",
+        "g": "eca82887de186755",
         "name": "{ ok, ack, token }",
         "active": true,
         "tosidebar": true,
@@ -1499,10 +1557,10 @@
         "wires": []
     },
     {
-        "id": "f63809884eb18bc1",
+        "id": "4e662e35e35f47d5",
         "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "0e17a5796d3b32ef",
+        "z": "a520b411b857ec3c",
+        "g": "220d685a24069293",
         "name": "Read current pose via RWS and save it as a named point  |  Storage: Local (points.json) or On-Robot (JSON file on the robot's own disk via RWS, no local file needed)  |  Go to a saved point: TCP Socket group → Go To Point  |  List/Delete saved points: Local group → Point List & Delete",
         "info": "",
         "x": 890,
@@ -1510,10 +1568,10 @@
         "wires": []
     },
     {
-        "id": "19eedf3abaa32ee3",
+        "id": "b864dda1ead4ca6a",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "0e17a5796d3b32ef",
+        "z": "a520b411b857ec3c",
+        "g": "220d685a24069293",
         "name": "1. Save Current Pose",
         "props": [
             {
@@ -1531,15 +1589,15 @@
         "y": 670,
         "wires": [
             [
-                "78d7a50e98aeb117"
+                "e872ded62773f0bd"
             ]
         ]
     },
     {
-        "id": "78d7a50e98aeb117",
+        "id": "e872ded62773f0bd",
         "type": "gofa-save-point",
-        "z": "ff1c1e5698ed95ce",
-        "g": "0e17a5796d3b32ef",
+        "z": "a520b411b857ec3c",
+        "g": "220d685a24069293",
         "name": "1. Save Current Pose",
         "robot": "cfg1",
         "pointName": "",
@@ -1547,15 +1605,15 @@
         "y": 670,
         "wires": [
             [
-                "81a02bb20a3c6185"
+                "ecd925ef7667a950"
             ]
         ]
     },
     {
-        "id": "81a02bb20a3c6185",
+        "id": "ecd925ef7667a950",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "0e17a5796d3b32ef",
+        "z": "a520b411b857ec3c",
+        "g": "220d685a24069293",
         "name": "{ ok, point:{id,name,target}, points:[] }",
         "active": true,
         "tosidebar": true,
@@ -1568,10 +1626,10 @@
         "wires": []
     },
     {
-        "id": "4a62d76797f6f985",
+        "id": "0a218717bc2a8f9c",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "0e17a5796d3b32ef",
+        "z": "a520b411b857ec3c",
+        "g": "220d685a24069293",
         "name": "1b. Save Current Pose (On-Robot)",
         "props": [
             {
@@ -1589,15 +1647,15 @@
         "y": 715,
         "wires": [
             [
-                "b69d11325acfb12d"
+                "28a3cba44de10caa"
             ]
         ]
     },
     {
-        "id": "b69d11325acfb12d",
+        "id": "28a3cba44de10caa",
         "type": "gofa-save-point",
-        "z": "ff1c1e5698ed95ce",
-        "g": "0e17a5796d3b32ef",
+        "z": "a520b411b857ec3c",
+        "g": "220d685a24069293",
         "name": "1b. Save Current Pose (On-Robot)",
         "robot": "cfg1",
         "pointName": "",
@@ -1606,15 +1664,15 @@
         "y": 715,
         "wires": [
             [
-                "fd468eb4666d3b80"
+                "8434ed5976c14722"
             ]
         ]
     },
     {
-        "id": "fd468eb4666d3b80",
+        "id": "8434ed5976c14722",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "0e17a5796d3b32ef",
+        "z": "a520b411b857ec3c",
+        "g": "220d685a24069293",
         "name": "{ ok, point, points } (on-robot)",
         "active": true,
         "tosidebar": true,
@@ -1627,10 +1685,10 @@
         "wires": []
     },
     {
-        "id": "b890d527cbc6d475",
+        "id": "c09e9b0b9485ebed",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "86a22e85afb77b00",
+        "z": "a520b411b857ec3c",
+        "g": "feec6542cfd99499",
         "name": "2. List All Points",
         "props": [
             {
@@ -1648,30 +1706,30 @@
         "y": 155,
         "wires": [
             [
-                "2884e71188993876"
+                "081de24632110cd6"
             ]
         ]
     },
     {
-        "id": "2884e71188993876",
+        "id": "081de24632110cd6",
         "type": "gofa-point-list",
-        "z": "ff1c1e5698ed95ce",
-        "g": "86a22e85afb77b00",
+        "z": "a520b411b857ec3c",
+        "g": "feec6542cfd99499",
         "name": "2. List All Points",
         "robot": "cfg1",
         "x": 4670,
         "y": 155,
         "wires": [
             [
-                "649fb16b8a1ac546"
+                "07748a5619ab98d6"
             ]
         ]
     },
     {
-        "id": "649fb16b8a1ac546",
+        "id": "07748a5619ab98d6",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "86a22e85afb77b00",
+        "z": "a520b411b857ec3c",
+        "g": "feec6542cfd99499",
         "name": "[ {id, name, target}, ... ]",
         "active": true,
         "tosidebar": true,
@@ -1684,10 +1742,10 @@
         "wires": []
     },
     {
-        "id": "d35d8a1e472b46ed",
+        "id": "626efb16763f69e4",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f52233ede842db89",
+        "z": "a520b411b857ec3c",
+        "g": "fafb15f93f64a3a5",
         "name": "3. Go to Point",
         "props": [
             {
@@ -1705,15 +1763,15 @@
         "y": 1867,
         "wires": [
             [
-                "a07cdd7814cca4c9"
+                "147acb27186a6aae"
             ]
         ]
     },
     {
-        "id": "a07cdd7814cca4c9",
+        "id": "147acb27186a6aae",
         "type": "gofa-go-point",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f52233ede842db89",
+        "z": "a520b411b857ec3c",
+        "g": "fafb15f93f64a3a5",
         "name": "3. Go to Point",
         "robot": "cfg1",
         "pointName": "Point 1",
@@ -1721,15 +1779,15 @@
         "y": 1867,
         "wires": [
             [
-                "de727c9546360da4"
+                "d41dba79da1d5c66"
             ]
         ]
     },
     {
-        "id": "de727c9546360da4",
+        "id": "d41dba79da1d5c66",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f52233ede842db89",
+        "z": "a520b411b857ec3c",
+        "g": "fafb15f93f64a3a5",
         "name": "{ ok, ack, point }",
         "active": true,
         "tosidebar": true,
@@ -1742,10 +1800,10 @@
         "wires": []
     },
     {
-        "id": "629af0d96dfe22bd",
+        "id": "dbdd80bf79b9c99e",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f52233ede842db89",
+        "z": "a520b411b857ec3c",
+        "g": "fafb15f93f64a3a5",
         "name": "3b. Go to Point (On-Robot)",
         "props": [
             {
@@ -1763,15 +1821,15 @@
         "y": 1867,
         "wires": [
             [
-                "6dd7264585e46e01"
+                "19cacaa80ccd65f3"
             ]
         ]
     },
     {
-        "id": "6dd7264585e46e01",
+        "id": "19cacaa80ccd65f3",
         "type": "gofa-go-point",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f52233ede842db89",
+        "z": "a520b411b857ec3c",
+        "g": "fafb15f93f64a3a5",
         "name": "3b. Go to Point (On-Robot)",
         "robot": "cfg1",
         "pointName": "Point 1",
@@ -1781,15 +1839,15 @@
         "y": 1867,
         "wires": [
             [
-                "19db8725d9b8ba5e"
+                "17138ebb2106afe5"
             ]
         ]
     },
     {
-        "id": "19db8725d9b8ba5e",
+        "id": "17138ebb2106afe5",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f52233ede842db89",
+        "z": "a520b411b857ec3c",
+        "g": "fafb15f93f64a3a5",
         "name": "{ ok, ack, point } (on-robot)",
         "active": true,
         "tosidebar": true,
@@ -1802,10 +1860,10 @@
         "wires": []
     },
     {
-        "id": "07432a6cb604c8de",
+        "id": "6bbae6830b9a4752",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "86a22e85afb77b00",
+        "z": "a520b411b857ec3c",
+        "g": "feec6542cfd99499",
         "name": "4. Delete Point",
         "props": [
             {
@@ -1823,15 +1881,15 @@
         "y": 265,
         "wires": [
             [
-                "83aa45cd126536a5"
+                "d02733b447911ac0"
             ]
         ]
     },
     {
-        "id": "83aa45cd126536a5",
+        "id": "d02733b447911ac0",
         "type": "gofa-delete-point",
-        "z": "ff1c1e5698ed95ce",
-        "g": "86a22e85afb77b00",
+        "z": "a520b411b857ec3c",
+        "g": "feec6542cfd99499",
         "name": "4. Delete Point",
         "robot": "cfg1",
         "pointName": "Demo Point",
@@ -1839,15 +1897,15 @@
         "y": 265,
         "wires": [
             [
-                "18d12759dbbef5c9"
+                "9b16fee465ce6c51"
             ]
         ]
     },
     {
-        "id": "18d12759dbbef5c9",
+        "id": "9b16fee465ce6c51",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "86a22e85afb77b00",
+        "z": "a520b411b857ec3c",
+        "g": "feec6542cfd99499",
         "name": "{ ok, deleted, points:[] }",
         "active": true,
         "tosidebar": true,
@@ -1860,10 +1918,10 @@
         "wires": []
     },
     {
-        "id": "d92479597a2fd132",
+        "id": "ea9ed5c71d9782b6",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "86a22e85afb77b00",
+        "z": "a520b411b857ec3c",
+        "g": "feec6542cfd99499",
         "name": "2b. List All Points (On-Robot)",
         "props": [
             {
@@ -1881,15 +1939,15 @@
         "y": 155,
         "wires": [
             [
-                "4a4587e7ac29ab21"
+                "a2cad4e4dbf6947f"
             ]
         ]
     },
     {
-        "id": "4a4587e7ac29ab21",
+        "id": "a2cad4e4dbf6947f",
         "type": "gofa-point-list",
-        "z": "ff1c1e5698ed95ce",
-        "g": "86a22e85afb77b00",
+        "z": "a520b411b857ec3c",
+        "g": "feec6542cfd99499",
         "name": "2b. List All Points (On-Robot)",
         "robot": "cfg1",
         "storage": "remote",
@@ -1897,15 +1955,15 @@
         "y": 155,
         "wires": [
             [
-                "6127dd0e2d2cedb2"
+                "30f22ce5f2d47e44"
             ]
         ]
     },
     {
-        "id": "6127dd0e2d2cedb2",
+        "id": "30f22ce5f2d47e44",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "86a22e85afb77b00",
+        "z": "a520b411b857ec3c",
+        "g": "feec6542cfd99499",
         "name": "[ {id, name, target}, ... ] (on-robot)",
         "active": true,
         "tosidebar": true,
@@ -1918,10 +1976,10 @@
         "wires": []
     },
     {
-        "id": "96029a6402580bb4",
+        "id": "cd542a5c16babf8e",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "86a22e85afb77b00",
+        "z": "a520b411b857ec3c",
+        "g": "feec6542cfd99499",
         "name": "4b. Delete Point (On-Robot)",
         "props": [
             {
@@ -1939,15 +1997,15 @@
         "y": 265,
         "wires": [
             [
-                "2e8d607abf42c9ab"
+                "f67f49016ad60e07"
             ]
         ]
     },
     {
-        "id": "2e8d607abf42c9ab",
+        "id": "f67f49016ad60e07",
         "type": "gofa-delete-point",
-        "z": "ff1c1e5698ed95ce",
-        "g": "86a22e85afb77b00",
+        "z": "a520b411b857ec3c",
+        "g": "feec6542cfd99499",
         "name": "4b. Delete Point (On-Robot)",
         "robot": "cfg1",
         "pointName": "Demo Point",
@@ -1956,15 +2014,15 @@
         "y": 265,
         "wires": [
             [
-                "4034c5de69bbe3cf"
+                "2c5e72395be60fa3"
             ]
         ]
     },
     {
-        "id": "4034c5de69bbe3cf",
+        "id": "2c5e72395be60fa3",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "86a22e85afb77b00",
+        "z": "a520b411b857ec3c",
+        "g": "feec6542cfd99499",
         "name": "{ ok, deleted, points:[] } (on-robot)",
         "active": true,
         "tosidebar": true,
@@ -1977,10 +2035,10 @@
         "wires": []
     },
     {
-        "id": "2572542b0c27f6b2",
+        "id": "d7404c8410ee9cda",
         "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "a031f97d1cbfd15e",
+        "z": "a520b411b857ec3c",
+        "g": "5b29cf3e491568e9",
         "name": "Run Sequence: visits each saved point in order  |  Output 1 = after each step  |  Output 2 = done/stopped  |  Stop: halts after current step  |  Left: Storage=Local  |  Right: Storage=On-Robot (fetches the whole list once per run, not once per step)",
         "info": "",
         "x": 2640,
@@ -1988,10 +2046,10 @@
         "wires": []
     },
     {
-        "id": "f4a9dc4e9820656c",
+        "id": "57eb4819de7f66a4",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "a031f97d1cbfd15e",
+        "z": "a520b411b857ec3c",
+        "g": "5b29cf3e491568e9",
         "name": "Run Sequence",
         "props": [
             {
@@ -2009,15 +2067,15 @@
         "y": 2042,
         "wires": [
             [
-                "01e86cecd182a3e7"
+                "2f4468b2aee2d47a"
             ]
         ]
     },
     {
-        "id": "01e86cecd182a3e7",
+        "id": "2f4468b2aee2d47a",
         "type": "gofa-sequencer",
-        "z": "ff1c1e5698ed95ce",
-        "g": "a031f97d1cbfd15e",
+        "z": "a520b411b857ec3c",
+        "g": "5b29cf3e491568e9",
         "name": "Demo Sequence",
         "robot": "cfg1",
         "steps": [
@@ -2035,18 +2093,18 @@
         "y": 2042,
         "wires": [
             [
-                "70e89de49dbc8063"
+                "6325f1bb96748c3c"
             ],
             [
-                "a084dabe299f6a8c"
+                "107c21066029bfb4"
             ]
         ]
     },
     {
-        "id": "70e89de49dbc8063",
+        "id": "6325f1bb96748c3c",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "a031f97d1cbfd15e",
+        "z": "a520b411b857ec3c",
+        "g": "5b29cf3e491568e9",
         "name": "{ step, total, name, ack }",
         "active": true,
         "tosidebar": true,
@@ -2059,10 +2117,10 @@
         "wires": []
     },
     {
-        "id": "f5a9788a2a0c75af",
+        "id": "10426752437ee07d",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "a031f97d1cbfd15e",
+        "z": "a520b411b857ec3c",
+        "g": "5b29cf3e491568e9",
         "name": "Run Sequence (On-Robot)",
         "props": [
             {
@@ -2080,15 +2138,15 @@
         "y": 2042,
         "wires": [
             [
-                "4cbc121247a107f5"
+                "6ff22119748b5f14"
             ]
         ]
     },
     {
-        "id": "4cbc121247a107f5",
+        "id": "6ff22119748b5f14",
         "type": "gofa-sequencer",
-        "z": "ff1c1e5698ed95ce",
-        "g": "a031f97d1cbfd15e",
+        "z": "a520b411b857ec3c",
+        "g": "5b29cf3e491568e9",
         "name": "Demo Sequence (On-Robot)",
         "robot": "cfg1",
         "steps": [
@@ -2107,18 +2165,18 @@
         "y": 2042,
         "wires": [
             [
-                "5209799340623fab"
+                "890ffde33a017e7e"
             ],
             [
-                "5209799340623fab"
+                "890ffde33a017e7e"
             ]
         ]
     },
     {
-        "id": "5209799340623fab",
+        "id": "890ffde33a017e7e",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "a031f97d1cbfd15e",
+        "z": "a520b411b857ec3c",
+        "g": "5b29cf3e491568e9",
         "name": "step / done / stopped (on-robot)",
         "active": true,
         "tosidebar": true,
@@ -2131,10 +2189,10 @@
         "wires": []
     },
     {
-        "id": "a084dabe299f6a8c",
+        "id": "107c21066029bfb4",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "a031f97d1cbfd15e",
+        "z": "a520b411b857ec3c",
+        "g": "5b29cf3e491568e9",
         "name": "{ done:true } or { stopped:true }",
         "active": true,
         "tosidebar": true,
@@ -2147,10 +2205,10 @@
         "wires": []
     },
     {
-        "id": "354079614aac7639",
+        "id": "33f97148eec902d8",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "a031f97d1cbfd15e",
+        "z": "a520b411b857ec3c",
+        "g": "5b29cf3e491568e9",
         "name": "Stop Sequence",
         "props": [
             {
@@ -2168,30 +2226,30 @@
         "y": 2152,
         "wires": [
             [
-                "51c6005dcd227b4e"
+                "0246c56c954dfbd8"
             ]
         ]
     },
     {
-        "id": "51c6005dcd227b4e",
+        "id": "0246c56c954dfbd8",
         "type": "gofa-stop-seq",
-        "z": "ff1c1e5698ed95ce",
-        "g": "a031f97d1cbfd15e",
+        "z": "a520b411b857ec3c",
+        "g": "5b29cf3e491568e9",
         "name": "",
         "robot": "cfg1",
         "x": 2710,
         "y": 2152,
         "wires": [
             [
-                "e960698affad3b3a"
+                "4674f441889f065c"
             ]
         ]
     },
     {
-        "id": "e960698affad3b3a",
+        "id": "4674f441889f065c",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "a031f97d1cbfd15e",
+        "z": "a520b411b857ec3c",
+        "g": "5b29cf3e491568e9",
         "name": "{ ok:true, message:'stop requested' }",
         "active": true,
         "tosidebar": true,
@@ -2204,10 +2262,10 @@
         "wires": []
     },
     {
-        "id": "52d35ce823f52573",
+        "id": "9f800b8a5ff11935",
         "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "999595ac9927089b",
+        "z": "a520b411b857ec3c",
+        "g": "5469b15e8a5437be",
         "name": "PING: connectivity test  |  MOVEJ: absolute joint target  |  GRIP: gripper on/off via RWS /set-value (needs Access:All on the target DO)  |  ZONE: blend radius  |  STOP: halt motion",
         "info": "",
         "x": 2640,
@@ -2215,10 +2273,10 @@
         "wires": []
     },
     {
-        "id": "fc5aefe408bd86c6",
+        "id": "8ff6b76e5cd92256",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "999595ac9927089b",
+        "z": "a520b411b857ec3c",
+        "g": "5469b15e8a5437be",
         "name": "Ping",
         "props": [
             {
@@ -2236,30 +2294,30 @@
         "y": 962,
         "wires": [
             [
-                "4249df5639f31f7e"
+                "af439376afc82a5e"
             ]
         ]
     },
     {
-        "id": "4249df5639f31f7e",
+        "id": "af439376afc82a5e",
         "type": "gofa-ping",
-        "z": "ff1c1e5698ed95ce",
-        "g": "999595ac9927089b",
+        "z": "a520b411b857ec3c",
+        "g": "5469b15e8a5437be",
         "name": "",
         "robot": "cfg1",
         "x": 2710,
         "y": 962,
         "wires": [
             [
-                "5843572a0ce0309e"
+                "b5f73ae1f1c46f09"
             ]
         ]
     },
     {
-        "id": "5843572a0ce0309e",
+        "id": "b5f73ae1f1c46f09",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "999595ac9927089b",
+        "z": "a520b411b857ec3c",
+        "g": "5469b15e8a5437be",
         "name": "{ ok, ack:'OK:PING', rtt }",
         "active": true,
         "tosidebar": true,
@@ -2272,10 +2330,10 @@
         "wires": []
     },
     {
-        "id": "71ce5ba43abe776a",
+        "id": "9d4044b2513ae009",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "999595ac9927089b",
+        "z": "a520b411b857ec3c",
+        "g": "5469b15e8a5437be",
         "name": "MoveJ [0,0,85,0,0,0]",
         "props": [
             {
@@ -2293,15 +2351,15 @@
         "y": 1017,
         "wires": [
             [
-                "1d5e6591137ad0a4"
+                "aee8279f3c406416"
             ]
         ]
     },
     {
-        "id": "1d5e6591137ad0a4",
+        "id": "aee8279f3c406416",
         "type": "gofa-movej",
-        "z": "ff1c1e5698ed95ce",
-        "g": "999595ac9927089b",
+        "z": "a520b411b857ec3c",
+        "g": "5469b15e8a5437be",
         "name": "",
         "robot": "cfg1",
         "joints": "[0,0,85,0,0,0]",
@@ -2309,15 +2367,15 @@
         "y": 1017,
         "wires": [
             [
-                "f8babd3cbaba64fa"
+                "54d722cb05f9eb52"
             ]
         ]
     },
     {
-        "id": "f8babd3cbaba64fa",
+        "id": "54d722cb05f9eb52",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "999595ac9927089b",
+        "z": "a520b411b857ec3c",
+        "g": "5469b15e8a5437be",
         "name": "{ ok, joints:[0,0,85,0,0,0] }",
         "active": true,
         "tosidebar": true,
@@ -2330,10 +2388,10 @@
         "wires": []
     },
     {
-        "id": "374ede90595a51d2",
+        "id": "7b0738ff563fccd4",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "999595ac9927089b",
+        "z": "a520b411b857ec3c",
+        "g": "5469b15e8a5437be",
         "name": "Grip ON",
         "props": [
             {
@@ -2351,15 +2409,15 @@
         "y": 1072,
         "wires": [
             [
-                "be8683ab6dbd3bcb"
+                "735c4cd73c27a3a5"
             ]
         ]
     },
     {
-        "id": "be8683ab6dbd3bcb",
+        "id": "735c4cd73c27a3a5",
         "type": "gofa-grip",
-        "z": "ff1c1e5698ed95ce",
-        "g": "999595ac9927089b",
+        "z": "a520b411b857ec3c",
+        "g": "5469b15e8a5437be",
         "name": "GRIPON",
         "robot": "cfg1",
         "action": "on",
@@ -2368,15 +2426,15 @@
         "y": 1072,
         "wires": [
             [
-                "ee5397e338c10ea7"
+                "1b30706679e0021e"
             ]
         ]
     },
     {
-        "id": "ee5397e338c10ea7",
+        "id": "1b30706679e0021e",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "999595ac9927089b",
+        "z": "a520b411b857ec3c",
+        "g": "5469b15e8a5437be",
         "name": "{ ok, action:'on', signal }",
         "active": true,
         "tosidebar": true,
@@ -2389,10 +2447,10 @@
         "wires": []
     },
     {
-        "id": "db13748985934e76",
+        "id": "fb4438878888e93e",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "999595ac9927089b",
+        "z": "a520b411b857ec3c",
+        "g": "5469b15e8a5437be",
         "name": "Grip OFF",
         "props": [
             {
@@ -2410,15 +2468,15 @@
         "y": 1127,
         "wires": [
             [
-                "bc4ee2d4d355db7d"
+                "75a9cd8622ff8758"
             ]
         ]
     },
     {
-        "id": "bc4ee2d4d355db7d",
+        "id": "75a9cd8622ff8758",
         "type": "gofa-grip",
-        "z": "ff1c1e5698ed95ce",
-        "g": "999595ac9927089b",
+        "z": "a520b411b857ec3c",
+        "g": "5469b15e8a5437be",
         "name": "GRIPOFF",
         "robot": "cfg1",
         "action": "off",
@@ -2427,15 +2485,15 @@
         "y": 1127,
         "wires": [
             [
-                "dcae853d6bd6cd6b"
+                "2edc0f4291c1dfb0"
             ]
         ]
     },
     {
-        "id": "dcae853d6bd6cd6b",
+        "id": "2edc0f4291c1dfb0",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "999595ac9927089b",
+        "z": "a520b411b857ec3c",
+        "g": "5469b15e8a5437be",
         "name": "{ ok, action:'off', signal }",
         "active": true,
         "tosidebar": true,
@@ -2448,10 +2506,10 @@
         "wires": []
     },
     {
-        "id": "0e5d5021f2de3a66",
+        "id": "c58f95d49763bfb9",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "999595ac9927089b",
+        "z": "a520b411b857ec3c",
+        "g": "5469b15e8a5437be",
         "name": "Zone z10",
         "props": [
             {
@@ -2469,15 +2527,15 @@
         "y": 1182,
         "wires": [
             [
-                "67c5bb322fad89cb"
+                "61b1e0473263485a"
             ]
         ]
     },
     {
-        "id": "67c5bb322fad89cb",
+        "id": "61b1e0473263485a",
         "type": "gofa-zone-set",
-        "z": "ff1c1e5698ed95ce",
-        "g": "999595ac9927089b",
+        "z": "a520b411b857ec3c",
+        "g": "5469b15e8a5437be",
         "name": "",
         "robot": "cfg1",
         "zone": "fine",
@@ -2485,15 +2543,15 @@
         "y": 1182,
         "wires": [
             [
-                "c79dccc1d9194b08"
+                "c1151de873c6733e"
             ]
         ]
     },
     {
-        "id": "c79dccc1d9194b08",
+        "id": "c1151de873c6733e",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "999595ac9927089b",
+        "z": "a520b411b857ec3c",
+        "g": "5469b15e8a5437be",
         "name": "{ ok, zone:'z10' }",
         "active": true,
         "tosidebar": true,
@@ -2506,10 +2564,10 @@
         "wires": []
     },
     {
-        "id": "23a14f9673bd6bbe",
+        "id": "43baaf3029b4b519",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "999595ac9927089b",
+        "z": "a520b411b857ec3c",
+        "g": "5469b15e8a5437be",
         "name": "Stop Motion",
         "props": [
             {
@@ -2527,30 +2585,30 @@
         "y": 1237,
         "wires": [
             [
-                "3c65f4158ed6d3c0"
+                "558a62310d844b6d"
             ]
         ]
     },
     {
-        "id": "3c65f4158ed6d3c0",
+        "id": "558a62310d844b6d",
         "type": "gofa-stop-motion",
-        "z": "ff1c1e5698ed95ce",
-        "g": "999595ac9927089b",
+        "z": "a520b411b857ec3c",
+        "g": "5469b15e8a5437be",
         "name": "",
         "robot": "cfg1",
         "x": 2710,
         "y": 1237,
         "wires": [
             [
-                "ad6dd1164f2d1310"
+                "ab99f4b30f665005"
             ]
         ]
     },
     {
-        "id": "ad6dd1164f2d1310",
+        "id": "ab99f4b30f665005",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "999595ac9927089b",
+        "z": "a520b411b857ec3c",
+        "g": "5469b15e8a5437be",
         "name": "{ ok, ack:'OK:STOP' }",
         "active": true,
         "tosidebar": true,
@@ -2563,10 +2621,10 @@
         "wires": []
     },
     {
-        "id": "6dd017ebf8c1d0b1",
+        "id": "fac904f3b9367f13",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "fa7d232a45554b46",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
         "name": "Set Speed 75%",
         "props": [],
         "repeat": "",
@@ -2578,15 +2636,15 @@
         "y": 1412,
         "wires": [
             [
-                "143a2482f3c88b0d"
+                "f97f9f3f4c523597"
             ]
         ]
     },
     {
-        "id": "143a2482f3c88b0d",
+        "id": "f97f9f3f4c523597",
         "type": "gofa-speed-set",
-        "z": "ff1c1e5698ed95ce",
-        "g": "fa7d232a45554b46",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
         "name": "",
         "robot": "cfg1",
         "speed": "100",
@@ -2594,15 +2652,15 @@
         "y": 1412,
         "wires": [
             [
-                "577530fb8526b7d4"
+                "64e6c14877789e2c"
             ]
         ]
     },
     {
-        "id": "577530fb8526b7d4",
+        "id": "64e6c14877789e2c",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "fa7d232a45554b46",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
         "name": "{ ok, speed:75 }",
         "active": true,
         "tosidebar": true,
@@ -2615,10 +2673,10 @@
         "wires": []
     },
     {
-        "id": "32d1dfb4918a540e",
+        "id": "03102ef219d0cfbb",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "fa7d232a45554b46",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
         "name": "Read",
         "props": [
             {
@@ -2636,15 +2694,15 @@
         "y": 1472,
         "wires": [
             [
-                "26bf81aee0e2cbba"
+                "8dc35b1d7671d4ee"
             ]
         ]
     },
     {
-        "id": "26bf81aee0e2cbba",
+        "id": "8dc35b1d7671d4ee",
         "type": "gofa-rapid-var-read",
-        "z": "ff1c1e5698ed95ce",
-        "g": "fa7d232a45554b46",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
         "name": "",
         "robot": "cfg1",
         "task": "T_ROB1",
@@ -2654,15 +2712,15 @@
         "y": 1467,
         "wires": [
             [
-                "e11bc1b3dbc1b97e"
+                "a8e109eb4c26640e"
             ]
         ]
     },
     {
-        "id": "e11bc1b3dbc1b97e",
+        "id": "a8e109eb4c26640e",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "fa7d232a45554b46",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
         "name": "{ ok, variable, value, source, stale?, warning? }",
         "active": true,
         "tosidebar": true,
@@ -2675,10 +2733,10 @@
         "wires": []
     },
     {
-        "id": "ac8f3fea047f2527",
+        "id": "1eb0c9f73c5d0d36",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "fa7d232a45554b46",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
         "name": "Write",
         "props": [],
         "repeat": "",
@@ -2690,15 +2748,15 @@
         "y": 1572,
         "wires": [
             [
-                "065fc18d2a0efecb"
+                "a98a0d95595e55e2"
             ]
         ]
     },
     {
-        "id": "065fc18d2a0efecb",
+        "id": "a98a0d95595e55e2",
         "type": "gofa-rapid-var-write",
-        "z": "ff1c1e5698ed95ce",
-        "g": "fa7d232a45554b46",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
         "name": "",
         "robot": "cfg1",
         "variable": "nTestVar",
@@ -2707,15 +2765,15 @@
         "y": 1577,
         "wires": [
             [
-                "498557b6d2bb8f2b"
+                "d81006a99626060d"
             ]
         ]
     },
     {
-        "id": "498557b6d2bb8f2b",
+        "id": "d81006a99626060d",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "fa7d232a45554b46",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
         "name": "{ ok, variable, value } or { ok:false }",
         "active": true,
         "tosidebar": true,
@@ -2728,10 +2786,10 @@
         "wires": []
     },
     {
-        "id": "09ba6b7b2772caf9",
+        "id": "dbf33f58110c8439",
         "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "e218bf7ee6241d9e",
+        "z": "a520b411b857ec3c",
+        "g": "0c6d1a0571c4d1c6",
         "name": "SYSTEM-INFO: RW version + ctrl identity  |  ELOG: controller event log  |  FILE-READ: download file  |  UPLOAD-MOD: deploy RAPID .mod  |  RAPID-TASKS: list RAPID tasks + modules loaded on the controller",
         "info": "",
         "x": 890,
@@ -2739,10 +2797,10 @@
         "wires": []
     },
     {
-        "id": "c250559d204cd130",
+        "id": "c37c9b869ae726c0",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "e218bf7ee6241d9e",
+        "z": "a520b411b857ec3c",
+        "g": "0c6d1a0571c4d1c6",
         "name": "System Info",
         "props": [
             {
@@ -2760,30 +2818,30 @@
         "y": 845,
         "wires": [
             [
-                "e95ff670c99eda62"
+                "eaa6b6d92727eae9"
             ]
         ]
     },
     {
-        "id": "e95ff670c99eda62",
+        "id": "eaa6b6d92727eae9",
         "type": "gofa-system-info",
-        "z": "ff1c1e5698ed95ce",
-        "g": "e218bf7ee6241d9e",
+        "z": "a520b411b857ec3c",
+        "g": "0c6d1a0571c4d1c6",
         "name": "",
         "robot": "cfg1",
         "x": 960,
         "y": 845,
         "wires": [
             [
-                "194f8c50e9177c4d"
+                "865a5a5916ad0c8f"
             ]
         ]
     },
     {
-        "id": "194f8c50e9177c4d",
+        "id": "865a5a5916ad0c8f",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "e218bf7ee6241d9e",
+        "z": "a520b411b857ec3c",
+        "g": "0c6d1a0571c4d1c6",
         "name": "{ ok, rwVersion, ctrlId, ctrlType, ctrlMac }",
         "active": true,
         "tosidebar": true,
@@ -2796,10 +2854,10 @@
         "wires": []
     },
     {
-        "id": "a50cbd99c39459e4",
+        "id": "9b205c394b861433",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "e218bf7ee6241d9e",
+        "z": "a520b411b857ec3c",
+        "g": "0c6d1a0571c4d1c6",
         "name": "Read Elog",
         "props": [
             {
@@ -2817,15 +2875,15 @@
         "y": 900,
         "wires": [
             [
-                "0f070b3e20836b56"
+                "3623f5cd5959379c"
             ]
         ]
     },
     {
-        "id": "0f070b3e20836b56",
+        "id": "3623f5cd5959379c",
         "type": "gofa-elog",
-        "z": "ff1c1e5698ed95ce",
-        "g": "e218bf7ee6241d9e",
+        "z": "a520b411b857ec3c",
+        "g": "0c6d1a0571c4d1c6",
         "name": "",
         "robot": "cfg1",
         "domain": "1",
@@ -2834,15 +2892,15 @@
         "y": 900,
         "wires": [
             [
-                "0e8990ee108ba602"
+                "cc53309b8ee4604f"
             ]
         ]
     },
     {
-        "id": "0e8990ee108ba602",
+        "id": "cc53309b8ee4604f",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "e218bf7ee6241d9e",
+        "z": "a520b411b857ec3c",
+        "g": "0c6d1a0571c4d1c6",
         "name": "{ ok, domain, entries:[{code,title,tstamp}] }",
         "active": true,
         "tosidebar": true,
@@ -2855,10 +2913,10 @@
         "wires": []
     },
     {
-        "id": "98e564bfec29f961",
+        "id": "e84f6c9ea63e8de9",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "e218bf7ee6241d9e",
+        "z": "a520b411b857ec3c",
+        "g": "0c6d1a0571c4d1c6",
         "name": "Read MainModule.mod",
         "props": [
             {
@@ -2876,15 +2934,15 @@
         "y": 955,
         "wires": [
             [
-                "1795fa33e642232a"
+                "0cfc46a7f4b61ac3"
             ]
         ]
     },
     {
-        "id": "1795fa33e642232a",
+        "id": "0cfc46a7f4b61ac3",
         "type": "gofa-file-read",
-        "z": "ff1c1e5698ed95ce",
-        "g": "e218bf7ee6241d9e",
+        "z": "a520b411b857ec3c",
+        "g": "0c6d1a0571c4d1c6",
         "name": "",
         "robot": "cfg1",
         "remotePath": "$HOME/Programs/MainModule.mod",
@@ -2893,15 +2951,15 @@
         "y": 955,
         "wires": [
             [
-                "a689e3d0992fbbe3"
+                "579c13035cdcab3b"
             ]
         ]
     },
     {
-        "id": "a689e3d0992fbbe3",
+        "id": "579c13035cdcab3b",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "e218bf7ee6241d9e",
+        "z": "a520b411b857ec3c",
+        "g": "0c6d1a0571c4d1c6",
         "name": "{ ok, remotePath, content, bytes }",
         "active": true,
         "tosidebar": true,
@@ -2914,10 +2972,10 @@
         "wires": []
     },
     {
-        "id": "3621fdb3b4eda745",
+        "id": "effe9d98cc2e5185",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "e218bf7ee6241d9e",
+        "z": "a520b411b857ec3c",
+        "g": "0c6d1a0571c4d1c6",
         "name": "Upload MainModule.mod (update path!)",
         "props": [],
         "repeat": "",
@@ -2929,15 +2987,15 @@
         "y": 1010,
         "wires": [
             [
-                "c7156110c8ed0e25"
+                "ebd2235e8af0ab09"
             ]
         ]
     },
     {
-        "id": "c7156110c8ed0e25",
+        "id": "ebd2235e8af0ab09",
         "type": "gofa-upload-mod",
-        "z": "ff1c1e5698ed95ce",
-        "g": "e218bf7ee6241d9e",
+        "z": "a520b411b857ec3c",
+        "g": "0c6d1a0571c4d1c6",
         "name": "",
         "robot": "cfg1",
         "localPath": "C:\\Users\\RD2\\nnnn\\node-red-contrib-abb-gofa\\rapid\\MainModule.mod",
@@ -2946,15 +3004,15 @@
         "y": 1010,
         "wires": [
             [
-                "3f5a037980f0168f"
+                "a87f21b85f254699"
             ]
         ]
     },
     {
-        "id": "3f5a037980f0168f",
+        "id": "a87f21b85f254699",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "e218bf7ee6241d9e",
+        "z": "a520b411b857ec3c",
+        "g": "0c6d1a0571c4d1c6",
         "name": "{ ok, remotePath, bytes }",
         "active": true,
         "tosidebar": true,
@@ -2967,10 +3025,10 @@
         "wires": []
     },
     {
-        "id": "f55c8fce36d2c520",
+        "id": "08a06617e3edef90",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "e218bf7ee6241d9e",
+        "z": "a520b411b857ec3c",
+        "g": "0c6d1a0571c4d1c6",
         "name": "List Tasks & Modules",
         "props": [
             {
@@ -2988,15 +3046,15 @@
         "y": 1065,
         "wires": [
             [
-                "64a5932b16a4bd1f"
+                "4ea80dd2a7e06eda"
             ]
         ]
     },
     {
-        "id": "64a5932b16a4bd1f",
+        "id": "4ea80dd2a7e06eda",
         "type": "gofa-rapid-tasks",
-        "z": "ff1c1e5698ed95ce",
-        "g": "e218bf7ee6241d9e",
+        "z": "a520b411b857ec3c",
+        "g": "0c6d1a0571c4d1c6",
         "name": "",
         "robot": "cfg1",
         "task": "T_ROB1",
@@ -3004,15 +3062,15 @@
         "y": 1065,
         "wires": [
             [
-                "649b54b325eb5286"
+                "27a80d5a9bd823a6"
             ]
         ]
     },
     {
-        "id": "649b54b325eb5286",
+        "id": "27a80d5a9bd823a6",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "e218bf7ee6241d9e",
+        "z": "a520b411b857ec3c",
+        "g": "0c6d1a0571c4d1c6",
         "name": "{ ok, tasks, task, modules }",
         "active": true,
         "tosidebar": true,
@@ -3025,10 +3083,10 @@
         "wires": []
     },
     {
-        "id": "84d4ceb32d5b4ece",
+        "id": "1074c9c3ad32d19c",
         "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "d3157a1d76b1578d",
+        "z": "a520b411b857ec3c",
+        "g": "1edb510d0e1876f8",
         "name": "IO-LIST: enumerate all signals  |  DI-READ: digital in  |  DO-WRITE: digital out via RWS POST .../set-value — needs an I/O board (e.g. DSQC1030) with the signal's Access Level set to All in RobotStudio, else 403",
         "info": "",
         "x": 890,
@@ -3036,10 +3094,10 @@
         "wires": []
     },
     {
-        "id": "4fdc625927197fa4",
+        "id": "dae43c1e5c2f6129",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "d3157a1d76b1578d",
+        "z": "a520b411b857ec3c",
+        "g": "1edb510d0e1876f8",
         "name": "List All Signals",
         "props": [
             {
@@ -3057,30 +3115,30 @@
         "y": 1240,
         "wires": [
             [
-                "f9a36939720f2692"
+                "978e7132586df8ef"
             ]
         ]
     },
     {
-        "id": "f9a36939720f2692",
+        "id": "978e7132586df8ef",
         "type": "gofa-io-list",
-        "z": "ff1c1e5698ed95ce",
-        "g": "d3157a1d76b1578d",
+        "z": "a520b411b857ec3c",
+        "g": "1edb510d0e1876f8",
         "name": "",
         "robot": "cfg1",
         "x": 960,
         "y": 1240,
         "wires": [
             [
-                "a0bb02a7c54d1c49"
+                "13e89fe7c62f25d5"
             ]
         ]
     },
     {
-        "id": "a0bb02a7c54d1c49",
+        "id": "13e89fe7c62f25d5",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "d3157a1d76b1578d",
+        "z": "a520b411b857ec3c",
+        "g": "1edb510d0e1876f8",
         "name": "{ ok, count, signals:[{name,type,lvalue}] }",
         "active": true,
         "tosidebar": true,
@@ -3093,10 +3151,10 @@
         "wires": []
     },
     {
-        "id": "053dd832b4cf20e9",
+        "id": "2af8e5f152d995c7",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "d3157a1d76b1578d",
+        "z": "a520b411b857ec3c",
+        "g": "1edb510d0e1876f8",
         "name": "Read Asi1Button1",
         "props": [
             {
@@ -3114,15 +3172,15 @@
         "y": 1295,
         "wires": [
             [
-                "35e2c74248d82fab"
+                "5aeec4a42d3fb34c"
             ]
         ]
     },
     {
-        "id": "35e2c74248d82fab",
+        "id": "5aeec4a42d3fb34c",
         "type": "gofa-di-read",
-        "z": "ff1c1e5698ed95ce",
-        "g": "d3157a1d76b1578d",
+        "z": "a520b411b857ec3c",
+        "g": "1edb510d0e1876f8",
         "name": "",
         "robot": "cfg1",
         "signal": "Asi1Button1",
@@ -3130,15 +3188,15 @@
         "y": 1295,
         "wires": [
             [
-                "e83ab0944443a932"
+                "0747f7e03efa639d"
             ]
         ]
     },
     {
-        "id": "e83ab0944443a932",
+        "id": "0747f7e03efa639d",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "d3157a1d76b1578d",
+        "z": "a520b411b857ec3c",
+        "g": "1edb510d0e1876f8",
         "name": "{ ok, signal, value:0|1 }",
         "active": true,
         "tosidebar": true,
@@ -3151,10 +3209,10 @@
         "wires": []
     },
     {
-        "id": "ad6c6a0123eaab1c",
+        "id": "ec557c787980d761",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "d3157a1d76b1578d",
+        "z": "a520b411b857ec3c",
+        "g": "1edb510d0e1876f8",
         "name": "ABB_Scalable_IO_0_DO1 = 1",
         "props": [
             {
@@ -3172,15 +3230,15 @@
         "y": 1405,
         "wires": [
             [
-                "3671855f9f752223"
+                "3a99ba87d8098a2b"
             ]
         ]
     },
     {
-        "id": "3671855f9f752223",
+        "id": "3a99ba87d8098a2b",
         "type": "gofa-do-write",
-        "z": "ff1c1e5698ed95ce",
-        "g": "d3157a1d76b1578d",
+        "z": "a520b411b857ec3c",
+        "g": "1edb510d0e1876f8",
         "name": "",
         "robot": "cfg1",
         "signal": "ABB_Scalable_IO_0_DO1",
@@ -3189,15 +3247,15 @@
         "y": 1405,
         "wires": [
             [
-                "21dca3d1279dfc06"
+                "9e20ad06b9525264"
             ]
         ]
     },
     {
-        "id": "21dca3d1279dfc06",
+        "id": "9e20ad06b9525264",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "d3157a1d76b1578d",
+        "z": "a520b411b857ec3c",
+        "g": "1edb510d0e1876f8",
         "name": "{ ok, signal, value } or { ok:false }",
         "active": true,
         "tosidebar": true,
@@ -3210,10 +3268,10 @@
         "wires": []
     },
     {
-        "id": "0731de01be3cc0e7",
+        "id": "f4bf030b193984d3",
         "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f35cd8980e0d81ca",
+        "z": "a520b411b857ec3c",
+        "g": "1fd0eb48da704295",
         "name": "Enable/disable robot lead-through (hand-guiding) via RWS  |  Requires manual mode + enable switch held on FlexPendant",
         "info": "",
         "x": 890,
@@ -3221,10 +3279,10 @@
         "wires": []
     },
     {
-        "id": "ac5f691096c4a671",
+        "id": "2775041ecbf3469a",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f35cd8980e0d81ca",
+        "z": "a520b411b857ec3c",
+        "g": "1fd0eb48da704295",
         "name": "Enable Lead-through",
         "props": [
             {
@@ -3242,30 +3300,30 @@
         "y": 1635,
         "wires": [
             [
-                "1ca8966876223dc0"
+                "d8eeb5ac67fe8f3d"
             ]
         ]
     },
     {
-        "id": "1ca8966876223dc0",
+        "id": "d8eeb5ac67fe8f3d",
         "type": "gofa-leadthrough-enable",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f35cd8980e0d81ca",
+        "z": "a520b411b857ec3c",
+        "g": "1fd0eb48da704295",
         "name": "",
         "robot": "cfg1",
         "x": 960,
         "y": 1635,
         "wires": [
             [
-                "020377a217e13f59"
+                "e0eded77c68b6636"
             ]
         ]
     },
     {
-        "id": "020377a217e13f59",
+        "id": "e0eded77c68b6636",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f35cd8980e0d81ca",
+        "z": "a520b411b857ec3c",
+        "g": "1fd0eb48da704295",
         "name": "{ ok:true }",
         "active": true,
         "tosidebar": true,
@@ -3278,10 +3336,10 @@
         "wires": []
     },
     {
-        "id": "eaa88840d43c9568",
+        "id": "cab52e59a6579f9d",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f35cd8980e0d81ca",
+        "z": "a520b411b857ec3c",
+        "g": "1fd0eb48da704295",
         "name": "Disable Lead-through",
         "props": [
             {
@@ -3299,30 +3357,30 @@
         "y": 1690,
         "wires": [
             [
-                "cbc7fdc67b7ad0bd"
+                "4b4fca9e323e4337"
             ]
         ]
     },
     {
-        "id": "cbc7fdc67b7ad0bd",
+        "id": "4b4fca9e323e4337",
         "type": "gofa-leadthrough-disable",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f35cd8980e0d81ca",
+        "z": "a520b411b857ec3c",
+        "g": "1fd0eb48da704295",
         "name": "",
         "robot": "cfg1",
         "x": 960,
         "y": 1690,
         "wires": [
             [
-                "e4ec8bf012423126"
+                "177a08b6dbebd6d3"
             ]
         ]
     },
     {
-        "id": "e4ec8bf012423126",
+        "id": "177a08b6dbebd6d3",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f35cd8980e0d81ca",
+        "z": "a520b411b857ec3c",
+        "g": "1fd0eb48da704295",
         "name": "{ ok:true }",
         "active": true,
         "tosidebar": true,
@@ -3335,10 +3393,10 @@
         "wires": []
     },
     {
-        "id": "c2036f0b7f7905ed",
+        "id": "f8797db9926ecdf2",
         "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "21af3f2988ad0fb6",
+        "z": "a520b411b857ec3c",
+        "g": "8cd35590d4a969bd",
         "name": "EXPORT: dump saved-points list to msg.payload  |  IMPORT: replace list from msg.payload array (connect Export output to Import input for backup/restore)",
         "info": "",
         "x": 4600,
@@ -3346,10 +3404,10 @@
         "wires": []
     },
     {
-        "id": "e39113a533b26586",
+        "id": "0b55fccd776237cd",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "21af3f2988ad0fb6",
+        "z": "a520b411b857ec3c",
+        "g": "8cd35590d4a969bd",
         "name": "Export Points",
         "props": [
             {
@@ -3367,15 +3425,15 @@
         "y": 440,
         "wires": [
             [
-                "64e609a525e0fb1d"
+                "163315dd06328736"
             ]
         ]
     },
     {
-        "id": "64e609a525e0fb1d",
+        "id": "163315dd06328736",
         "type": "gofa-points-export",
-        "z": "ff1c1e5698ed95ce",
-        "g": "21af3f2988ad0fb6",
+        "z": "a520b411b857ec3c",
+        "g": "8cd35590d4a969bd",
         "name": "",
         "robot": "cfg1",
         "savePath": "NoPoint",
@@ -3383,15 +3441,15 @@
         "y": 440,
         "wires": [
             [
-                "f895dea4e04a56b0"
+                "4dc67eca9254b849"
             ]
         ]
     },
     {
-        "id": "f895dea4e04a56b0",
+        "id": "4dc67eca9254b849",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "21af3f2988ad0fb6",
+        "z": "a520b411b857ec3c",
+        "g": "8cd35590d4a969bd",
         "name": "{ ok, count, points:[...] }",
         "active": true,
         "tosidebar": true,
@@ -3404,10 +3462,10 @@
         "wires": []
     },
     {
-        "id": "bcad9bda19496e63",
+        "id": "b81421c84a4e2094",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "21af3f2988ad0fb6",
+        "z": "a520b411b857ec3c",
+        "g": "8cd35590d4a969bd",
         "name": "Import [] (clear all)",
         "props": [
             {
@@ -3425,15 +3483,15 @@
         "y": 495,
         "wires": [
             [
-                "ea45d1f5fe2453ee"
+                "c149c842494bdf01"
             ]
         ]
     },
     {
-        "id": "ea45d1f5fe2453ee",
+        "id": "c149c842494bdf01",
         "type": "gofa-points-import",
-        "z": "ff1c1e5698ed95ce",
-        "g": "21af3f2988ad0fb6",
+        "z": "a520b411b857ec3c",
+        "g": "8cd35590d4a969bd",
         "name": "",
         "robot": "cfg1",
         "loadPath": "2Point",
@@ -3441,15 +3499,15 @@
         "y": 495,
         "wires": [
             [
-                "4798b2f0a51598b4"
+                "176dc3c277bf8ada"
             ]
         ]
     },
     {
-        "id": "4798b2f0a51598b4",
+        "id": "176dc3c277bf8ada",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "21af3f2988ad0fb6",
+        "z": "a520b411b857ec3c",
+        "g": "8cd35590d4a969bd",
         "name": "{ ok, count }",
         "active": true,
         "tosidebar": true,
@@ -3462,10 +3520,10 @@
         "wires": []
     },
     {
-        "id": "151a8679945d97f5",
+        "id": "1ca00946206eeafb",
         "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "004a32b70e94e91d",
+        "z": "a520b411b857ec3c",
+        "g": "50ac319274bc98bd",
         "name": "STATE/IO: WebSocket push from controller  |  VAR/POSE: polling (toggle on/off with any input)  |  Messages stream to debug until toggled off or redeployed",
         "info": "",
         "x": 890,
@@ -3473,10 +3531,10 @@
         "wires": []
     },
     {
-        "id": "8473475acf46b6e4",
+        "id": "83df9ed99783d985",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "004a32b70e94e91d",
+        "z": "a520b411b857ec3c",
+        "g": "50ac319274bc98bd",
         "name": "Subscribe ctrl-state",
         "props": [
             {
@@ -3494,15 +3552,15 @@
         "y": 1865,
         "wires": [
             [
-                "349d4106e090a1bb"
+                "ebb541122994653a"
             ]
         ]
     },
     {
-        "id": "349d4106e090a1bb",
+        "id": "ebb541122994653a",
         "type": "gofa-subscribe-state",
-        "z": "ff1c1e5698ed95ce",
-        "g": "004a32b70e94e91d",
+        "z": "a520b411b857ec3c",
+        "g": "50ac319274bc98bd",
         "name": "",
         "robot": "cfg1",
         "oneshot": true,
@@ -3510,15 +3568,15 @@
         "y": 1865,
         "wires": [
             [
-                "73a9ad0861be833c"
+                "398a6fed063bb10a"
             ]
         ]
     },
     {
-        "id": "73a9ad0861be833c",
+        "id": "398a6fed063bb10a",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "004a32b70e94e91d",
+        "z": "a520b411b857ec3c",
+        "g": "50ac319274bc98bd",
         "name": "{ ok, state:'motoron'|'motoroff'|... }",
         "active": true,
         "tosidebar": true,
@@ -3531,10 +3589,10 @@
         "wires": []
     },
     {
-        "id": "348b95404ef5eeb8",
+        "id": "29e343610d4f1e5a",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "004a32b70e94e91d",
+        "z": "a520b411b857ec3c",
+        "g": "50ac319274bc98bd",
         "name": "Subscribe Asi1Button1",
         "props": [
             {
@@ -3552,15 +3610,15 @@
         "y": 1920,
         "wires": [
             [
-                "c353f606a856ef77"
+                "5622d1be6dfdcb92"
             ]
         ]
     },
     {
-        "id": "c353f606a856ef77",
+        "id": "5622d1be6dfdcb92",
         "type": "gofa-subscribe-io",
-        "z": "ff1c1e5698ed95ce",
-        "g": "004a32b70e94e91d",
+        "z": "a520b411b857ec3c",
+        "g": "50ac319274bc98bd",
         "name": "",
         "robot": "cfg1",
         "signal": "Asi1Button1",
@@ -3569,15 +3627,15 @@
         "y": 1920,
         "wires": [
             [
-                "deeba66dce718a2d"
+                "8c207bb882c398a4"
             ]
         ]
     },
     {
-        "id": "deeba66dce718a2d",
+        "id": "8c207bb882c398a4",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "004a32b70e94e91d",
+        "z": "a520b411b857ec3c",
+        "g": "50ac319274bc98bd",
         "name": "{ ok, signal, value:0|1 }",
         "active": true,
         "tosidebar": true,
@@ -3590,10 +3648,10 @@
         "wires": []
     },
     {
-        "id": "5b0c0558abe32513",
+        "id": "37dc499ffa4a43a6",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "004a32b70e94e91d",
+        "z": "a520b411b857ec3c",
+        "g": "50ac319274bc98bd",
         "name": "Toggle poll zActive",
         "props": [
             {
@@ -3611,15 +3669,15 @@
         "y": 1975,
         "wires": [
             [
-                "0a9d50ae8ad6f748"
+                "8ca53a7aa3ac77f5"
             ]
         ]
     },
     {
-        "id": "0a9d50ae8ad6f748",
+        "id": "8ca53a7aa3ac77f5",
         "type": "gofa-subscribe-var",
-        "z": "ff1c1e5698ed95ce",
-        "g": "004a32b70e94e91d",
+        "z": "a520b411b857ec3c",
+        "g": "50ac319274bc98bd",
         "name": "",
         "robot": "cfg1",
         "task": "T_ROB1",
@@ -3630,15 +3688,15 @@
         "y": 1975,
         "wires": [
             [
-                "8e23a6e3dc406441"
+                "00b7eaaefef41217"
             ]
         ]
     },
     {
-        "id": "8e23a6e3dc406441",
+        "id": "00b7eaaefef41217",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "004a32b70e94e91d",
+        "z": "a520b411b857ec3c",
+        "g": "50ac319274bc98bd",
         "name": "{ ok, variable, value, source, stale?, warning? }",
         "active": true,
         "tosidebar": true,
@@ -3651,10 +3709,10 @@
         "wires": []
     },
     {
-        "id": "51a48c5d655db2d6",
+        "id": "65d5cfd837516be5",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "004a32b70e94e91d",
+        "z": "a520b411b857ec3c",
+        "g": "50ac319274bc98bd",
         "name": "Toggle poll pose",
         "props": [
             {
@@ -3672,15 +3730,15 @@
         "y": 2030,
         "wires": [
             [
-                "e3c6e501c97de3cd"
+                "e705c98c2351e234"
             ]
         ]
     },
     {
-        "id": "e3c6e501c97de3cd",
+        "id": "e705c98c2351e234",
         "type": "gofa-subscribe-pose",
-        "z": "ff1c1e5698ed95ce",
-        "g": "004a32b70e94e91d",
+        "z": "a520b411b857ec3c",
+        "g": "50ac319274bc98bd",
         "name": "",
         "robot": "cfg1",
         "interval": "500",
@@ -3688,15 +3746,15 @@
         "y": 2030,
         "wires": [
             [
-                "81309d0a6e05849b"
+                "afbcc99795890248"
             ]
         ]
     },
     {
-        "id": "81309d0a6e05849b",
+        "id": "afbcc99795890248",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "004a32b70e94e91d",
+        "z": "a520b411b857ec3c",
+        "g": "50ac319274bc98bd",
         "name": "{ ok, x, y, z, q1, q2, q3, q4 }",
         "active": true,
         "tosidebar": true,
@@ -3709,10 +3767,10 @@
         "wires": []
     },
     {
-        "id": "a375af4f9bcc239c",
+        "id": "5e6ace1c877d175c",
         "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "d3157a1d76b1578d",
+        "z": "a520b411b857ec3c",
+        "g": "1edb510d0e1876f8",
         "name": "⚠ DO Write needs an I/O board (e.g. DSQC1030 Scalable I/O) with the target signal's Access Level set to All in RobotStudio (Controller → Configuration → I/O System → Signal) — otherwise RWS rejects the write with 403. No analog I/O exists on this controller (gofa-ai-read/gofa-ao-write were removed).",
         "info": "",
         "x": 940,
@@ -3720,10 +3778,10 @@
         "wires": []
     },
     {
-        "id": "8084ba2a22fae5bb",
+        "id": "e61e7d7c6f24badc",
         "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "dead652caa5834b2",
+        "z": "a520b411b857ec3c",
+        "g": "b8c71f7a58a6d882",
         "name": "RAPID-EXEC: start / stop / resetpp / loadmod / activate the RAPID program  |  Requires Remote Start/Stop UAS grant (RobotStudio → Edit User Accounts) + Auto mode + Motors on  |  resetpp, loadmod, and activate acquire edit mastership automatically  |  loadmod/activate require RAPID to be STOPPED (confirmed live — HTTP 403 while running) — stop first, then loadmod/activate, then start again",
         "info": "",
         "x": 935,
@@ -3731,10 +3789,10 @@
         "wires": []
     },
     {
-        "id": "31dd4a39a393dbcd",
+        "id": "9d1746004d14ee01",
         "type": "gofa-rapid-exec",
-        "z": "ff1c1e5698ed95ce",
-        "g": "dead652caa5834b2",
+        "z": "a520b411b857ec3c",
+        "g": "b8c71f7a58a6d882",
         "name": "",
         "robot": "cfg1",
         "action": "resetpp",
@@ -3742,15 +3800,15 @@
         "y": 2245,
         "wires": [
             [
-                "a7b7ca436169c2c5"
+                "42bbf550e1152031"
             ]
         ]
     },
     {
-        "id": "a7b7ca436169c2c5",
+        "id": "42bbf550e1152031",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "dead652caa5834b2",
+        "z": "a520b411b857ec3c",
+        "g": "b8c71f7a58a6d882",
         "name": "{ ok, action } or { ok:false, error }",
         "active": true,
         "tosidebar": true,
@@ -3763,10 +3821,10 @@
         "wires": []
     },
     {
-        "id": "060453ce2a6ee83b",
+        "id": "91f4907292809160",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "dead652caa5834b2",
+        "z": "a520b411b857ec3c",
+        "g": "b8c71f7a58a6d882",
         "name": "Reset Program",
         "props": [
             {
@@ -3788,15 +3846,15 @@
         "y": 2245,
         "wires": [
             [
-                "31dd4a39a393dbcd"
+                "9d1746004d14ee01"
             ]
         ]
     },
     {
-        "id": "9f736dc6b71f7ec4",
+        "id": "a97108324650ea50",
         "type": "gofa-rapid-exec",
-        "z": "ff1c1e5698ed95ce",
-        "g": "dead652caa5834b2",
+        "z": "a520b411b857ec3c",
+        "g": "b8c71f7a58a6d882",
         "name": "",
         "robot": "cfg1",
         "action": "start",
@@ -3804,15 +3862,15 @@
         "y": 2305,
         "wires": [
             [
-                "df2291152c6d05ba"
+                "ce18bcbff97f011f"
             ]
         ]
     },
     {
-        "id": "df2291152c6d05ba",
+        "id": "ce18bcbff97f011f",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "dead652caa5834b2",
+        "z": "a520b411b857ec3c",
+        "g": "b8c71f7a58a6d882",
         "name": "{ ok, action } or { ok:false, error }",
         "active": true,
         "tosidebar": true,
@@ -3825,10 +3883,10 @@
         "wires": []
     },
     {
-        "id": "6f6b60b4e8c34695",
+        "id": "ab1f53237968ab7e",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "dead652caa5834b2",
+        "z": "a520b411b857ec3c",
+        "g": "b8c71f7a58a6d882",
         "name": "Start RAPID",
         "props": [
             {
@@ -3850,15 +3908,15 @@
         "y": 2305,
         "wires": [
             [
-                "9f736dc6b71f7ec4"
+                "a97108324650ea50"
             ]
         ]
     },
     {
-        "id": "4685b62fca0551d3",
+        "id": "27e08a030cc09a37",
         "type": "gofa-rapid-exec",
-        "z": "ff1c1e5698ed95ce",
-        "g": "dead652caa5834b2",
+        "z": "a520b411b857ec3c",
+        "g": "b8c71f7a58a6d882",
         "name": "",
         "robot": "cfg1",
         "action": "stop",
@@ -3866,15 +3924,15 @@
         "y": 2365,
         "wires": [
             [
-                "92dc2c03831afeb0"
+                "9f23ad4ee2dd852b"
             ]
         ]
     },
     {
-        "id": "92dc2c03831afeb0",
+        "id": "9f23ad4ee2dd852b",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "dead652caa5834b2",
+        "z": "a520b411b857ec3c",
+        "g": "b8c71f7a58a6d882",
         "name": "{ ok, action } or { ok:false, error }",
         "active": true,
         "tosidebar": true,
@@ -3889,10 +3947,10 @@
         "wires": []
     },
     {
-        "id": "c9430f9cc315fea7",
+        "id": "9f5d196254062b88",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "dead652caa5834b2",
+        "z": "a520b411b857ec3c",
+        "g": "b8c71f7a58a6d882",
         "name": "Stop RAPID",
         "props": [
             {
@@ -3914,15 +3972,15 @@
         "y": 2365,
         "wires": [
             [
-                "4685b62fca0551d3"
+                "27e08a030cc09a37"
             ]
         ]
     },
     {
-        "id": "4ed442e36f40af28",
+        "id": "7d815b2f956cc198",
         "type": "gofa-rapid-exec",
-        "z": "ff1c1e5698ed95ce",
-        "g": "dead652caa5834b2",
+        "z": "a520b411b857ec3c",
+        "g": "b8c71f7a58a6d882",
         "name": "",
         "robot": "cfg1",
         "action": "loadmod",
@@ -3934,15 +3992,15 @@
         "y": 2425,
         "wires": [
             [
-                "9dca340e6f0cc6b2"
+                "a6518f5e6f9499be"
             ]
         ]
     },
     {
-        "id": "9dca340e6f0cc6b2",
+        "id": "a6518f5e6f9499be",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "dead652caa5834b2",
+        "z": "a520b411b857ec3c",
+        "g": "b8c71f7a58a6d882",
         "name": "{ ok, action, task, modulePath, module } or { ok:false, error }",
         "active": true,
         "tosidebar": true,
@@ -3955,10 +4013,10 @@
         "wires": []
     },
     {
-        "id": "4002a686f50ddf11",
+        "id": "2fa9f8fa83791f70",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "dead652caa5834b2",
+        "z": "a520b411b857ec3c",
+        "g": "b8c71f7a58a6d882",
         "name": "Load Module",
         "props": [
             {
@@ -3980,15 +4038,15 @@
         "y": 2425,
         "wires": [
             [
-                "4ed442e36f40af28"
+                "7d815b2f956cc198"
             ]
         ]
     },
     {
-        "id": "1af73c9480d42d91",
+        "id": "3bdc296c41906f5e",
         "type": "gofa-rapid-exec",
-        "z": "ff1c1e5698ed95ce",
-        "g": "dead652caa5834b2",
+        "z": "a520b411b857ec3c",
+        "g": "b8c71f7a58a6d882",
         "name": "",
         "robot": "cfg1",
         "action": "activate",
@@ -3998,15 +4056,15 @@
         "y": 2485,
         "wires": [
             [
-                "abd8e4f2a78a8e31"
+                "285769f68e0deca0"
             ]
         ]
     },
     {
-        "id": "abd8e4f2a78a8e31",
+        "id": "285769f68e0deca0",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "dead652caa5834b2",
+        "z": "a520b411b857ec3c",
+        "g": "b8c71f7a58a6d882",
         "name": "{ ok, action, task, module } or { ok:false, error }",
         "active": true,
         "tosidebar": true,
@@ -4019,10 +4077,10 @@
         "wires": []
     },
     {
-        "id": "3dd8d82306987b6c",
+        "id": "33ae8386ac91e848",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "dead652caa5834b2",
+        "z": "a520b411b857ec3c",
+        "g": "b8c71f7a58a6d882",
         "name": "Activate Module",
         "props": [
             {
@@ -4044,15 +4102,15 @@
         "y": 2485,
         "wires": [
             [
-                "1af73c9480d42d91"
+                "3bdc296c41906f5e"
             ]
         ]
     },
     {
-        "id": "030d5d30bae29fe5",
+        "id": "c813baa42e7484f7",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "fa7d232a45554b46",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
         "name": "Read",
         "props": [
             {
@@ -4070,15 +4128,15 @@
         "y": 1512,
         "wires": [
             [
-                "17b8f0772257fe69"
+                "31e5e6e65886b54b"
             ]
         ]
     },
     {
-        "id": "17b8f0772257fe69",
+        "id": "31e5e6e65886b54b",
         "type": "gofa-rapid-var-read",
-        "z": "ff1c1e5698ed95ce",
-        "g": "fa7d232a45554b46",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
         "name": "",
         "robot": "cfg1",
         "task": "T_ROB1",
@@ -4088,15 +4146,15 @@
         "y": 1517,
         "wires": [
             [
-                "7173c220441dc1dc"
+                "05832570b4225120"
             ]
         ]
     },
     {
-        "id": "7173c220441dc1dc",
+        "id": "05832570b4225120",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "fa7d232a45554b46",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
         "name": "{ ok, variable, value, source, stale?, warning? }",
         "active": true,
         "tosidebar": true,
@@ -4109,10 +4167,10 @@
         "wires": []
     },
     {
-        "id": "7c16ad80176c4b2f",
+        "id": "128225c4a4d600c6",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "fa7d232a45554b46",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
         "name": "{ ok, variable, value } or { ok:false }",
         "active": true,
         "tosidebar": true,
@@ -4125,10 +4183,10 @@
         "wires": []
     },
     {
-        "id": "7cdaaeb0bdcff9c1",
+        "id": "688dd4814bb8bf6f",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "fa7d232a45554b46",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
         "name": "Write",
         "props": [],
         "repeat": "",
@@ -4140,15 +4198,15 @@
         "y": 1632,
         "wires": [
             [
-                "aa3d31b611ab71ef"
+                "aa2145cb4b0a7ce2"
             ]
         ]
     },
     {
-        "id": "aa3d31b611ab71ef",
+        "id": "aa2145cb4b0a7ce2",
         "type": "gofa-rapid-var-write",
-        "z": "ff1c1e5698ed95ce",
-        "g": "fa7d232a45554b46",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
         "name": "",
         "robot": "cfg1",
         "variable": "sTestMsg",
@@ -4157,15 +4215,15 @@
         "y": 1637,
         "wires": [
             [
-                "7c16ad80176c4b2f"
+                "128225c4a4d600c6"
             ]
         ]
     },
     {
-        "id": "9d8d63a16bf1aef9",
+        "id": "47770e0abd4258c6",
         "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "fa7d232a45554b46",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
         "name": "SPEED: override 1–100%  |  GETVAR/SETVAR: read/write a RAPID PERS variable by name — built-in test vars: nTestVar (num), sTestMsg (string)  |  bStopMotion below is NOT allow-listed — demonstrates the stale module-text fallback",
         "info": "",
         "x": 2640,
@@ -4173,10 +4231,10 @@
         "wires": []
     },
     {
-        "id": "7e1a0f10b7b392f9",
+        "id": "94fe4d2d0b721143",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "fa7d232a45554b46",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
         "name": "Read bStopMotion (not allow-listed)",
         "props": [
             {
@@ -4194,15 +4252,15 @@
         "y": 1692,
         "wires": [
             [
-                "0d68d871e68b2c03"
+                "5429677fabe5d3e4"
             ]
         ]
     },
     {
-        "id": "0d68d871e68b2c03",
+        "id": "5429677fabe5d3e4",
         "type": "gofa-rapid-var-read",
-        "z": "ff1c1e5698ed95ce",
-        "g": "fa7d232a45554b46",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
         "name": "bStopMotion (stale demo)",
         "robot": "cfg1",
         "task": "T_ROB1",
@@ -4212,15 +4270,15 @@
         "y": 1692,
         "wires": [
             [
-                "e4986c66c261cbf7"
+                "8c0f52ef41a5de81"
             ]
         ]
     },
     {
-        "id": "e4986c66c261cbf7",
+        "id": "8c0f52ef41a5de81",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "fa7d232a45554b46",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
         "name": "{ ok, variable, value, source:\"module-text\", stale:true, warning }",
         "active": true,
         "tosidebar": true,
@@ -4233,10 +4291,10 @@
         "wires": []
     },
     {
-        "id": "adcf1d29fcaedc7a",
+        "id": "4d1142a0b0ac9d66",
         "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "f52233ede842db89",
+        "z": "a520b411b857ec3c",
+        "g": "fafb15f93f64a3a5",
         "name": "Look up a saved point by name/id and move to it via GOTOJ/GOTOL  |  msg.payload.moveType: \"J\" (default, joint-interpolated) or \"L\" (linear)  |  Left: Storage=Local  |  Right: Storage=On-Robot",
         "info": "",
         "x": 2640,
@@ -4244,10 +4302,10 @@
         "wires": []
     },
     {
-        "id": "753c4955d182b8ce",
+        "id": "6f9a8d3643423c12",
         "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "180d9fb7454899d7",
+        "z": "a520b411b857ec3c",
+        "g": "d11bddb54bb63ffb",
         "name": "SETLED: color + optional hardware blink period  |  RESETLED: restore default solid green  |  blinkCount>0 runs a software-timed blink instead of the hardware period",
         "info": "",
         "x": 2640,
@@ -4255,10 +4313,10 @@
         "wires": []
     },
     {
-        "id": "3d01efa6bbbec47c",
+        "id": "6d68920b93c068c7",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "180d9fb7454899d7",
+        "z": "a520b411b857ec3c",
+        "g": "d11bddb54bb63ffb",
         "name": "{ ok, r, g, b, blinks }",
         "active": true,
         "tosidebar": true,
@@ -4271,10 +4329,10 @@
         "wires": []
     },
     {
-        "id": "1d4eff0915e2e36f",
+        "id": "17947859975bc08a",
         "type": "gofa-asi-led",
-        "z": "ff1c1e5698ed95ce",
-        "g": "180d9fb7454899d7",
+        "z": "a520b411b857ec3c",
+        "g": "d11bddb54bb63ffb",
         "name": "Set Yellow Blink",
         "robot": "cfg1",
         "red": 0,
@@ -4287,15 +4345,15 @@
         "y": 2327,
         "wires": [
             [
-                "3d01efa6bbbec47c"
+                "6d68920b93c068c7"
             ]
         ]
     },
     {
-        "id": "78aba927ea938cc9",
+        "id": "d8272f3afedc2e2b",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "180d9fb7454899d7",
+        "z": "a520b411b857ec3c",
+        "g": "d11bddb54bb63ffb",
         "name": "Set Yellow Blink",
         "props": [
             {
@@ -4313,15 +4371,15 @@
         "y": 2327,
         "wires": [
             [
-                "1d4eff0915e2e36f"
+                "17947859975bc08a"
             ]
         ]
     },
     {
-        "id": "437a7e27cc3d590c",
+        "id": "1bc1a2da10856fd5",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "180d9fb7454899d7",
+        "z": "a520b411b857ec3c",
+        "g": "d11bddb54bb63ffb",
         "name": "{ ok, reset:true }",
         "active": true,
         "tosidebar": true,
@@ -4334,10 +4392,10 @@
         "wires": []
     },
     {
-        "id": "ff947770a78357d2",
+        "id": "d82ffe306ec54c12",
         "type": "gofa-asi-led",
-        "z": "ff1c1e5698ed95ce",
-        "g": "180d9fb7454899d7",
+        "z": "a520b411b857ec3c",
+        "g": "d11bddb54bb63ffb",
         "name": "Reset LED",
         "robot": "cfg1",
         "red": 0,
@@ -4350,15 +4408,15 @@
         "y": 2382,
         "wires": [
             [
-                "437a7e27cc3d590c"
+                "1bc1a2da10856fd5"
             ]
         ]
     },
     {
-        "id": "7d35edac84211f62",
+        "id": "aff252b80db6b0fa",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "180d9fb7454899d7",
+        "z": "a520b411b857ec3c",
+        "g": "d11bddb54bb63ffb",
         "name": "Reset LED",
         "props": [
             {
@@ -4376,19 +4434,220 @@
         "y": 2382,
         "wires": [
             [
-                "ff947770a78357d2"
+                "d82ffe306ec54c12"
             ]
         ]
     },
     {
-        "id": "fa89ff3bf68a848e",
+        "id": "6e55bd3b02f94554",
         "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "86a22e85afb77b00",
+        "z": "a520b411b857ec3c",
+        "g": "feec6542cfd99499",
         "name": "List all saved points, or remove one by name/id  |  Left column: Storage=Local, points.json on the Node-RED host  |  Right column: Storage=On-Robot, JSON file on the robot's own disk via RWS",
         "info": "",
         "x": 4600,
         "y": 100,
+        "wires": []
+    },
+    {
+        "id": "b3e23309e9d15dcd",
+        "type": "comment",
+        "z": "a520b411b857ec3c",
+        "g": "d985d2ec6155d7fe",
+        "name": "Start/Stop EGM via the Action dropdown (bare date-payload injects, same pattern as gofa-motor's Motors ON/OFF). Sine-sweep function node feeds a live target into gofa-egm-move, which forwards it to the active session (output 1) or falls back to a normal gofa-movej TCP move (output 2) if EGM isn't running.",
+        "info": "",
+        "x": 4800,
+        "y": 870,
+        "wires": []
+    },
+    {
+        "id": "45e54e7f8b3dd7e6",
+        "type": "inject",
+        "z": "a520b411b857ec3c",
+        "g": "d985d2ec6155d7fe",
+        "name": "Start EGM",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 4480,
+        "y": 920,
+        "wires": [
+            [
+                "1cebd988d37a0389"
+            ]
+        ]
+    },
+    {
+        "id": "1cebd988d37a0389",
+        "type": "gofa-egm",
+        "z": "a520b411b857ec3c",
+        "g": "d985d2ec6155d7fe",
+        "name": "",
+        "robot": "cfg1",
+        "action": "start",
+        "udpPort": 6510,
+        "throttleMs": 100,
+        "x": 4720,
+        "y": 920,
+        "wires": [
+            [
+                "319180765be4ddd6",
+                "4f2fefb0e67c653a"
+            ]
+        ]
+    },
+    {
+        "id": "10546e9e6656422d",
+        "type": "inject",
+        "z": "a520b411b857ec3c",
+        "g": "d985d2ec6155d7fe",
+        "name": "Stop EGM",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 4480,
+        "y": 990,
+        "wires": [
+            [
+                "8035823922e247e0"
+            ]
+        ]
+    },
+    {
+        "id": "8035823922e247e0",
+        "type": "gofa-egm",
+        "z": "a520b411b857ec3c",
+        "g": "d985d2ec6155d7fe",
+        "name": "",
+        "robot": "cfg1",
+        "action": "stop",
+        "udpPort": 6510,
+        "throttleMs": 100,
+        "x": 4720,
+        "y": 990,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "319180765be4ddd6",
+        "type": "debug",
+        "z": "a520b411b857ec3c",
+        "g": "d985d2ec6155d7fe",
+        "name": "{ joints, seqno, ... }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 4970,
+        "y": 900,
+        "wires": []
+    },
+    {
+        "id": "4f2fefb0e67c653a",
+        "type": "function",
+        "z": "a520b411b857ec3c",
+        "g": "d985d2ec6155d7fe",
+        "name": "Sine sweep joint 6 (±3°, 8s) -> feeds into gofa-egm-move",
+        "func": "// Mirrors gofa-egm-python's nudge_joint.py: capture the pose on the\n// first feedback frame as baseline, then offset one joint with a smooth\n// sine so it returns to baseline on its own every 8s. Baseline/start are\n// stored in this node's own context, captured once per Node-RED restart\n// or redeploy (context is cleared then) -- re-pressing \"Start EGM\" after\n// a \"Stop EGM\" without redeploying resumes the same sweep rather than\n// re-baselining, which is fine for this demo.\nvar joints = msg.payload && msg.payload.joints;\nif (!Array.isArray(joints) || joints.length !== 6) return null;\n\nif (context.get('baseline') === undefined) {\n    context.set('baseline', joints);\n    context.set('start', Date.now());\n}\n\nvar baseline = context.get('baseline');\nvar elapsed = (Date.now() - context.get('start')) / 1000;\nvar target = baseline.slice();\ntarget[5] = target[5] + 3 * Math.sin(2 * Math.PI * elapsed / 8);\n\nmsg.payload = target;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 5090,
+        "y": 980,
+        "wires": [
+            [
+                "3f5c96968e34cc50"
+            ]
+        ]
+    },
+    {
+        "id": "3f5c96968e34cc50",
+        "type": "gofa-egm-move",
+        "z": "a520b411b857ec3c",
+        "g": "d985d2ec6155d7fe",
+        "name": "",
+        "robot": "cfg1",
+        "x": 5410,
+        "y": 980,
+        "wires": [
+            [
+                "a1cfe1a20752a8c5"
+            ],
+            [
+                "db10ff8f9f4d3923"
+            ]
+        ]
+    },
+    {
+        "id": "a1cfe1a20752a8c5",
+        "type": "debug",
+        "z": "a520b411b857ec3c",
+        "g": "d985d2ec6155d7fe",
+        "name": "target sent (EGM active)",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 5670,
+        "y": 920,
+        "wires": []
+    },
+    {
+        "id": "db10ff8f9f4d3923",
+        "type": "gofa-movej",
+        "z": "a520b411b857ec3c",
+        "g": "d985d2ec6155d7fe",
+        "name": "Fallback: MOVEJ (EGM not active)",
+        "robot": "cfg1",
+        "joints": "[0,0,85,0,0,0]",
+        "x": 5660,
+        "y": 980,
+        "wires": [
+            [
+                "8e1c1e3158ea690c"
+            ]
+        ]
+    },
+    {
+        "id": "8e1c1e3158ea690c",
+        "type": "debug",
+        "z": "a520b411b857ec3c",
+        "g": "d985d2ec6155d7fe",
+        "name": "{ ok, joints } (fallback move result)",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 5980,
+        "y": 980,
         "wires": []
     },
     {
@@ -4403,122 +4662,19 @@
         "remotePointsPath": ""
     },
     {
-        "id": "d865f447fbca8a99",
+        "id": "de08822d969e37be",
         "type": "global-config",
         "env": [],
         "modules": {
-            "node-red-contrib-abb-gofa": "1.0.1"
+            "node-red-contrib-abb-gofa": "1.2.0"
         }
     },
     {
-        "id": "egmDemoGrp1",
-        "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "name": "4 - EGM (UDP)",
-        "style": {
-            "stroke": "#aa6600",
-            "stroke-opacity": "1",
-            "fill": "#f8f0e8",
-            "fill-opacity": "0.5",
-            "label": true,
-            "label-position": "nw",
-            "color": "#aa6600"
-        },
-        "nodes": [
-            "egmGrp1",
-            "egmGrp2"
-        ],
-        "x": 5946,
-        "y": 33,
-        "w": 3000,
-        "h": 500
-    },
-    {
-        "id": "egmGrp1",
-        "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmDemoGrp1",
-        "name": "0 - Load MainModuleEGM.mod (run once, or when MainModule.mod is loaded)",
-        "style": {
-            "stroke": "#aa6600",
-            "stroke-opacity": "1",
-            "fill": "#ffffff",
-            "fill-opacity": "0.3",
-            "label": true,
-            "label-position": "nw",
-            "color": "#aa6600"
-        },
-        "nodes": [
-            "egmLoadComment",
-            "egmInjSwitch",
-            "egmStop1",
-            "egmClrPreUnload",
-            "egmUnload",
-            "egmClr1",
-            "egmUpload",
-            "egmClr2",
-            "egmLoadmod",
-            "egmClr3",
-            "egmResetpp",
-            "egmClr4",
-            "egmStart",
-            "egmLoadDebug"
-        ],
-        "x": 6006,
-        "y": 59,
-        "w": 2900,
-        "h": 190
-    },
-    {
-        "id": "egmGrp2",
-        "type": "group",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmDemoGrp1",
-        "name": "1 - EGM Session (UDP)",
-        "style": {
-            "stroke": "#aa6600",
-            "stroke-opacity": "1",
-            "fill": "#ffffff",
-            "fill-opacity": "0.3",
-            "label": true,
-            "label-position": "nw",
-            "color": "#aa6600"
-        },
-        "nodes": [
-            "egmSessionComment",
-            "egmInjStart",
-            "egmStartNode",
-            "egmInjStop",
-            "egmStopNode",
-            "egmFeedbackDebug",
-            "egmSineFn",
-            "egmMoveNode",
-            "egmMoveDebug",
-            "egmMovejFallback",
-            "egmMovejFallbackDebug"
-        ],
-        "x": 6006,
-        "y": 269,
-        "w": 1600,
-        "h": 250
-    },
-    {
-        "id": "egmLoadComment",
-        "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp1",
-        "name": "Requires MainModuleEGM.mod loaded on the controller (this pipeline loads it) + one-time UDPUC \"EGM_PC\" controller config (RobotStudio > Controller > Configuration > Communication > Transmission Protocol, Remote Port = 6510, needs a controller restart) + a firewall rule on this host allowing inbound UDP 6510. Run once, or whenever MainModule.mod is currently loaded.",
-        "info": "",
-        "x": 6420,
-        "y": 90,
-        "wires": []
-    },
-    {
-        "id": "egmInjSwitch",
+        "id": "0b3f4cc207a82ba2",
         "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp1",
-        "name": "Load MainModuleEGM.mod",
+        "z": "a520b411b857ec3c",
+        "g": "50ac319274bc98bd",
+        "name": "Subscribe Elog",
         "props": [
             {
                 "p": "payload"
@@ -4531,472 +4687,45 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 6120,
-        "y": 160,
+        "x": 725,
+        "y": 2085,
         "wires": [
             [
-                "egmStop1"
+                "b567e48ac4cbd2c6"
             ]
         ]
     },
     {
-        "id": "egmStop1",
-        "type": "gofa-rapid-exec",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp1",
-        "name": "Stop RAPID",
-        "robot": "cfg1",
-        "action": "stop",
-        "x": 6320,
-        "y": 160,
-        "wires": [
-            [
-                "egmClrPreUnload"
-            ]
-        ]
-    },
-    {
-        "id": "egmClrPreUnload",
-        "type": "change",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp1",
-        "name": "clear payload",
-        "rules": [
-            {
-                "t": "set",
-                "p": "payload",
-                "pt": "msg",
-                "to": "{}",
-                "tot": "json"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
-        "x": 6520,
-        "y": 160,
-        "wires": [
-            [
-                "egmUnload"
-            ]
-        ]
-    },
-    {
-        "id": "egmUnload",
-        "type": "gofa-rapid-exec",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp1",
-        "name": "Unload MainModule (if loaded)",
-        "robot": "cfg1",
-        "action": "unloadmod",
-        "task": "T_ROB1",
-        "module": "MainModule",
-        "x": 6740,
-        "y": 160,
-        "wires": [
-            [
-                "egmClr1"
-            ]
-        ]
-    },
-    {
-        "id": "egmClr1",
-        "type": "change",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp1",
-        "name": "clear payload",
-        "rules": [
-            {
-                "t": "set",
-                "p": "payload",
-                "pt": "msg",
-                "to": "{}",
-                "tot": "json"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
-        "x": 6960,
-        "y": 160,
-        "wires": [
-            [
-                "egmUpload"
-            ]
-        ]
-    },
-    {
-        "id": "egmUpload",
-        "type": "gofa-upload-mod",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp1",
-        "name": "Upload MainModuleEGM.mod",
-        "robot": "cfg1",
-        "localPath": "",
-        "remotePath": "$HOME/Programs/MainModuleEGM.mod",
-        "x": 7200,
-        "y": 160,
-        "wires": [
-            [
-                "egmClr2"
-            ]
-        ]
-    },
-    {
-        "id": "egmClr2",
-        "type": "change",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp1",
-        "name": "clear payload",
-        "rules": [
-            {
-                "t": "set",
-                "p": "payload",
-                "pt": "msg",
-                "to": "{}",
-                "tot": "json"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
-        "x": 7440,
-        "y": 160,
-        "wires": [
-            [
-                "egmLoadmod"
-            ]
-        ]
-    },
-    {
-        "id": "egmLoadmod",
-        "type": "gofa-rapid-exec",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp1",
-        "name": "Load Module",
-        "robot": "cfg1",
-        "action": "loadmod",
-        "task": "T_ROB1",
-        "modulePath": "$HOME/Programs/MainModuleEGM.mod",
-        "replace": true,
-        "module": "MainModuleEGM",
-        "x": 7660,
-        "y": 160,
-        "wires": [
-            [
-                "egmClr3"
-            ]
-        ]
-    },
-    {
-        "id": "egmClr3",
-        "type": "change",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp1",
-        "name": "clear payload",
-        "rules": [
-            {
-                "t": "set",
-                "p": "payload",
-                "pt": "msg",
-                "to": "{}",
-                "tot": "json"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
-        "x": 7880,
-        "y": 160,
-        "wires": [
-            [
-                "egmResetpp"
-            ]
-        ]
-    },
-    {
-        "id": "egmResetpp",
-        "type": "gofa-rapid-exec",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp1",
-        "name": "Reset PP",
-        "robot": "cfg1",
-        "action": "resetpp",
-        "x": 8100,
-        "y": 160,
-        "wires": [
-            [
-                "egmClr4"
-            ]
-        ]
-    },
-    {
-        "id": "egmClr4",
-        "type": "change",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp1",
-        "name": "clear payload",
-        "rules": [
-            {
-                "t": "set",
-                "p": "payload",
-                "pt": "msg",
-                "to": "{}",
-                "tot": "json"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
-        "x": 8320,
-        "y": 160,
-        "wires": [
-            [
-                "egmStart"
-            ]
-        ]
-    },
-    {
-        "id": "egmStart",
-        "type": "gofa-rapid-exec",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp1",
-        "name": "Start RAPID",
-        "robot": "cfg1",
-        "action": "start",
-        "x": 8540,
-        "y": 160,
-        "wires": [
-            [
-                "egmLoadDebug"
-            ]
-        ]
-    },
-    {
-        "id": "egmLoadDebug",
-        "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp1",
-        "name": "{ ok, action }",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "x": 8730,
-        "y": 160,
-        "wires": []
-    },
-    {
-        "id": "egmSessionComment",
-        "type": "comment",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp2",
-        "name": "Start/Stop EGM via the Action dropdown (bare date-payload injects, same pattern as gofa-motor's Motors ON/OFF). Sine-sweep function node feeds a live target into gofa-egm-move, which forwards it to the active session (output 1) or falls back to a normal gofa-movej TCP move (output 2) if EGM isn't running.",
-        "info": "",
-        "x": 6440,
-        "y": 300,
-        "wires": []
-    },
-    {
-        "id": "egmInjStart",
-        "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp2",
-        "name": "Start EGM",
-        "props": [
-            {
-                "p": "payload"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 6120,
-        "y": 350,
-        "wires": [
-            [
-                "egmStartNode"
-            ]
-        ]
-    },
-    {
-        "id": "egmStartNode",
-        "type": "gofa-egm",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp2",
+        "id": "b567e48ac4cbd2c6",
+        "type": "gofa-subscribe-elog",
+        "z": "a520b411b857ec3c",
+        "g": "50ac319274bc98bd",
         "name": "",
         "robot": "cfg1",
-        "action": "start",
-        "udpPort": 6510,
-        "throttleMs": 100,
-        "x": 6360,
-        "y": 350,
+        "domain": "1",
+        "minSeverity": "1",
+        "x": 960,
+        "y": 2085,
         "wires": [
             [
-                "egmFeedbackDebug",
-                "egmSineFn"
+                "32fb7047f03bd862"
             ]
         ]
     },
     {
-        "id": "egmInjStop",
-        "type": "inject",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp2",
-        "name": "Stop EGM",
-        "props": [
-            {
-                "p": "payload"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 6120,
-        "y": 420,
-        "wires": [
-            [
-                "egmStopNode"
-            ]
-        ]
-    },
-    {
-        "id": "egmStopNode",
-        "type": "gofa-egm",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp2",
-        "name": "",
-        "robot": "cfg1",
-        "action": "stop",
-        "udpPort": 6510,
-        "throttleMs": 100,
-        "x": 6360,
-        "y": 420,
-        "wires": [
-            []
-        ]
-    },
-    {
-        "id": "egmFeedbackDebug",
+        "id": "32fb7047f03bd862",
         "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp2",
-        "name": "{ joints, seqno, ... }",
+        "z": "a520b411b857ec3c",
+        "g": "50ac319274bc98bd",
+        "name": "{ ok, domain, entry:{code,title,tstamp} }",
         "active": true,
         "tosidebar": true,
         "console": false,
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 6620,
-        "y": 320,
-        "wires": []
-    },
-    {
-        "id": "egmSineFn",
-        "type": "function",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp2",
-        "name": "Sine sweep joint 6 (±3°, 8s) -> feeds into gofa-egm-move",
-        "func": "// Mirrors gofa-egm-python's nudge_joint.py: capture the pose on the\n// first feedback frame as baseline, then offset one joint with a smooth\n// sine so it returns to baseline on its own every 8s. Baseline/start are\n// stored in this node's own context, captured once per Node-RED restart\n// or redeploy (context is cleared then) -- re-pressing \"Start EGM\" after\n// a \"Stop EGM\" without redeploying resumes the same sweep rather than\n// re-baselining, which is fine for this demo.\nvar joints = msg.payload && msg.payload.joints;\nif (!Array.isArray(joints) || joints.length !== 6) return null;\n\nif (context.get('baseline') === undefined) {\n    context.set('baseline', joints);\n    context.set('start', Date.now());\n}\n\nvar baseline = context.get('baseline');\nvar elapsed = (Date.now() - context.get('start')) / 1000;\nvar target = baseline.slice();\ntarget[5] = target[5] + 3 * Math.sin(2 * Math.PI * elapsed / 8);\n\nmsg.payload = target;\nreturn msg;",
-        "outputs": 1,
-        "timeout": 0,
-        "noerr": 0,
-        "initialize": "",
-        "finalize": "",
-        "libs": [],
-        "x": 6620,
-        "y": 380,
-        "wires": [
-            [
-                "egmMoveNode"
-            ]
-        ]
-    },
-    {
-        "id": "egmMoveNode",
-        "type": "gofa-egm-move",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp2",
-        "name": "",
-        "robot": "cfg1",
-        "x": 6900,
-        "y": 380,
-        "wires": [
-            [
-                "egmMoveDebug"
-            ],
-            [
-                "egmMovejFallback"
-            ]
-        ]
-    },
-    {
-        "id": "egmMoveDebug",
-        "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp2",
-        "name": "target sent (EGM active)",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "x": 7150,
-        "y": 350,
-        "wires": []
-    },
-    {
-        "id": "egmMovejFallback",
-        "type": "gofa-movej",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp2",
-        "name": "Fallback: MOVEJ (EGM not active)",
-        "robot": "cfg1",
-        "joints": "[0,0,85,0,0,0]",
-        "x": 7180,
-        "y": 420,
-        "wires": [
-            [
-                "egmMovejFallbackDebug"
-            ]
-        ]
-    },
-    {
-        "id": "egmMovejFallbackDebug",
-        "type": "debug",
-        "z": "ff1c1e5698ed95ce",
-        "g": "egmGrp2",
-        "name": "{ ok, joints } (fallback move result)",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "x": 7430,
-        "y": 420,
+        "x": 1230,
+        "y": 2085,
         "wires": []
     }
 ]

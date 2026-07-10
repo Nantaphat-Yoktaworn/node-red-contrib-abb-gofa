@@ -4,8 +4,9 @@
         defaults: {
             name:   { value: '' },
             robot:  { value: '', type: 'gofa-robot', required: true },
-            signal: { value: 'ABB_Scalable_IO_0_DO1' },
-            value:  { value: 1, validate: RED.validators.number() }
+            signal:    { value: 'ABB_Scalable_IO_0_DO1' },
+            value:     { value: 1, validate: RED.validators.number() },
+            transport: { value: 'rws' }
         },
         inputs: 1, outputs: 1, icon: 'white-globe.svg',
         label: function() { return this.name || ('DO ' + this.signal); },
@@ -31,21 +32,32 @@
         <input type="number" id="node-input-value" min="0" max="1" placeholder="1">
     </div>
     <div class="form-row">
+        <label for="node-input-transport"><i class="fa fa-exchange"></i> Transport</label>
+        <select id="node-input-transport">
+            <option value="rws">RWS (requires Access Level: All)</option>
+            <option value="socket">Socket (requires RAPID running)</option>
+        </select>
+    </div>
+    <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name">
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-do-write">
     <p><b>⚠ Requires external I/O module.</b> Digital output signals (DO) do not exist on the base OmniCore C30 — an expansion I/O module must be fitted and configured. Without it, this node returns HTTP 404.</p>
-    <p>Writes a digital output (DO) signal on the ABB GoFa controller via RWS.</p>
+    <p>Writes a digital output (DO) signal on the ABB GoFa controller, via either of two transports:</p>
+    <ul>
+        <li><b>RWS</b> (default) — <code>POST /rw/iosystem/signals/{name}/set-value</code>. Requires the signal's <code>Access Level</code> to be set to <code>All</code> in RobotStudio (<code>Controller</code> → <code>Configuration</code> → <code>I/O System</code> → <code>Signal</code>; needs a controller restart). Left at the factory default, RWS correctly rejects the write with <code>403</code>.</li>
+        <li><b>Socket</b> — sends the write over the TCP socket instead (RAPID's <code>SetDO</code>, via an explicit per-signal allow-list in <code>MainModule.mod</code>/<code>MainModuleEGM.mod</code>: <code>ABB_Scalable_IO_0_DO1</code>–<code>DO16</code>). Bypasses the RWS Access Level restriction entirely, since RAPID always has access to its own I/O — but needs RAPID actually running, and only works for signals already on that allow-list.</li>
+    </ul>
     <h3>Input</h3>
     <p><code>msg.payload</code> can be:</p>
     <ul>
         <li>A number (<code>0</code> or <code>1</code>) — value to write to the configured signal</li>
-        <li>An object <code>{ signal: 'ABB_Scalable_IO_0_DO1', value: 1 }</code> — overrides both signal name and value</li>
+        <li>An object <code>{ signal: 'ABB_Scalable_IO_0_DO1', value: 1, transport: 'socket' }</code> — overrides signal name, value, and/or transport</li>
         <li><code>null</code> / not set — uses the configured defaults</li>
     </ul>
     <h3>Output</h3>
-    <p><code>msg.payload = { ok: true, signal: 'ABB_Scalable_IO_0_DO1', value: 1 }</code> on success.</p>
+    <p><code>msg.payload = { ok: true, signal: 'ABB_Scalable_IO_0_DO1', value: 1, transport: 'rws' }</code> on success.</p>
     <p><code>msg.payload = { ok: false, error: "..." }</code> on failure.</p>
 </script>

@@ -2,21 +2,24 @@
 module.exports = function(RED) {
     function GoFaDoWriteNode(config) {
         RED.nodes.createNode(this, config);
-        this.robot  = RED.nodes.getNode(config.robot);
-        this.signal = config.signal || 'ABB_Scalable_IO_0_DO1';
-        this.value  = parseInt(config.value) || 0;
+        this.robot     = RED.nodes.getNode(config.robot);
+        this.signal    = config.signal || 'ABB_Scalable_IO_0_DO1';
+        this.value     = parseInt(config.value) || 0;
+        this.transport = config.transport || 'rws';
         var node = this;
 
         node.on('input', function(msg, send, done) {
             if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
 
-            var signal = node.signal;
-            var value  = node.value;
+            var signal    = node.signal;
+            var value     = node.value;
+            var transport = node.transport;
 
             if (msg.payload !== null && msg.payload !== undefined) {
                 if (typeof msg.payload === 'object') {
-                    if (msg.payload.signal !== undefined) { signal = msg.payload.signal; }
-                    if (msg.payload.value  !== undefined) { value  = msg.payload.value;  }
+                    if (msg.payload.signal    !== undefined) { signal    = msg.payload.signal;    }
+                    if (msg.payload.value     !== undefined) { value     = msg.payload.value;      }
+                    if (msg.payload.transport !== undefined) { transport = msg.payload.transport;  }
                 } else {
                     value = msg.payload;
                 }
@@ -32,9 +35,19 @@ module.exports = function(RED) {
 
             node.status({ fill: 'blue', shape: 'dot', text: signal + '=' + value });
 
-            node.robot.rwsPost('/rw/iosystem/signals/' + encodeURIComponent(signal) + '/set-value', 'lvalue=' + value)
-            .then(function() {
-                msg.payload = { ok: true, signal: signal, value: value };
+            var writePromise = (transport === 'socket')
+                // RAPID's DispatchJson matches signal names case-sensitively against an
+                // ALL-CAPS allow-list (unlike the legacy text protocol, which CleanCmd
+                // uppercases automatically) — confirmed live: a mixed-case name like this
+                // node's own default, "ABB_Scalable_IO_0_DO1", gets ERR:SETDO ("unknown
+                // signal") unless upper-cased first.
+                ? node.robot.socketSend({ cmd: 'setdo', name: signal.toUpperCase(), val: value }).then(function(reply) {
+                    if (!/^OK:SETDO/.test(reply)) throw new Error('Socket write failed: ' + reply);
+                })
+                : node.robot.rwsPost('/rw/iosystem/signals/' + encodeURIComponent(signal) + '/set-value', 'lvalue=' + value);
+
+            writePromise.then(function() {
+                msg.payload = { ok: true, signal: signal, value: value, transport: transport };
                 node.status({ fill: 'green', shape: 'dot', text: signal + '=' + value });
                 send(msg); done();
             })

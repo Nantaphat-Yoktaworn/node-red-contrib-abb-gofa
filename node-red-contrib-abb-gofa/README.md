@@ -91,7 +91,8 @@ Ready-made example flows (a per-node demo, a full control dashboard, and a physi
 | `gofa-rapid-var-read` / `gofa-rapid-var-write` | Socket | Read/write RAPID PERS variables |
 | `gofa-rapid-tasks` | RWS | List RAPID tasks and modules |
 | `gofa-upload-mod` / `gofa-file-read` | RWS | Upload / download controller files |
-| `gofa-io-list` / `gofa-di-read` / `gofa-do-write` | RWS | List signals, read inputs, write outputs |
+| `gofa-io-list` / `gofa-di-read` | RWS | List signals, read inputs |
+| `gofa-do-write` | RWS or Socket | Write outputs — Transport dropdown: RWS `/set-value` (default, needs `Access: All`) or Socket `SETDO` (needs RAPID running) |
 | `gofa-leadthrough-enable` / `gofa-leadthrough-disable` | Socket + RWS | Hand-guiding (lead-through) on/off |
 | `gofa-asi-led` | Socket | Arm status-light color and blink |
 | `gofa-subscribe-state` / `gofa-subscribe-io` | RWS WebSocket | Push on controller-state / I/O-signal changes |
