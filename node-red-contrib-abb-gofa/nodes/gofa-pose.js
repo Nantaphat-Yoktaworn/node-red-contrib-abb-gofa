@@ -5,19 +5,32 @@ module.exports = function(RED) {
         this.robot = RED.nodes.getNode(config.robot);
         var node = this;
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
+            if (!node.robot) {
+                msg.payload = { ok: false, error: 'No robot configured' };
+                node.status({ fill: 'red', shape: 'ring', text: 'no robot' });
+                node.error('No robot configured', msg);
+                send(msg);
+                return done();
+            }
+            node.status({ fill: 'blue', shape: 'dot', text: 'reading...' });
             var r = node.robot;
             r.rwsGet('/rw/motionsystem/mechunits/ROB_1/robtarget?tool=tool0&wobj=wobj0&coordinate=Base')
             .then(function(body) {
                 var p = function(c) { return parseFloat(r.parseXhtml(body, c)); };
+                var xVal = p('x');
+                var yVal = p('y');
                 msg.payload = {
-                    x: p('x'), y: p('y'), z: p('z'),
+                    ok: true,
+                    x: xVal, y: yVal, z: p('z'),
                     q1: p('q1'), q2: p('q2'), q3: p('q3'), q4: p('q4'),
                     cf1: p('cf1'), cf4: p('cf4'), cf6: p('cf6'), cfx: p('cfx')
                 };
+                var text = (isNaN(xVal) || isNaN(yVal)) ? 'read' : 'x=' + xVal.toFixed(1) + ' y=' + yVal.toFixed(1);
+                node.status({ fill: 'green', shape: 'dot', text: text });
                 send(msg); done();
             }).catch(function(err) {
                 msg.payload = { ok: false, error: err.message };
+                node.status({ fill: 'red', shape: 'ring', text: 'error' });
                 node.error(err, msg);
                 send(msg); done(err);
             });

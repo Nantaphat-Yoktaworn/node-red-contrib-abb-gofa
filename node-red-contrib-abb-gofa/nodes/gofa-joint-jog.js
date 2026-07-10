@@ -11,11 +11,29 @@ module.exports = function(RED) {
             if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
             var p     = msg.payload || {};
             var joint = p.joint !== undefined ? p.joint : node.joint;
+            var jointNum = parseInt(String(joint).replace('J', ''));
+            if (isNaN(jointNum) || jointNum < 1 || jointNum > 6) {
+                msg.payload = { ok: false, error: 'Invalid joint: ' + joint };
+                node.error('Invalid joint: ' + joint, msg);
+                node.status({ fill: 'red', shape: 'ring', text: 'bad joint' });
+                send(msg); return done();
+            }
             var dir   = p.dir   !== undefined ? p.dir   : node.dir;
+            if (dir !== '+' && dir !== '-') {
+                msg.payload = { ok: false, error: 'Invalid direction: ' + dir };
+                node.error('Invalid direction: ' + dir, msg);
+                node.status({ fill: 'red', shape: 'ring', text: 'bad dir' });
+                send(msg); return done();
+            }
             var step  = p.step  !== undefined ? parseFloat(p.step) : node.step;
+            if (isNaN(step)) {
+                msg.payload = { ok: false, error: 'Invalid step value: ' + p.step };
+                node.error('Invalid step value: ' + p.step, msg);
+                node.status({ fill: 'red', shape: 'ring', text: 'bad step' });
+                send(msg); return done();
+            }
             step = Math.max(1, Math.min(30, step));
-            var token = joint + dir + step;
-            var jointNum = parseInt(String(joint).replace('J', '')) || 1;
+            var token = 'J' + jointNum + dir + step;
             node.status({ fill: 'blue', shape: 'dot', text: token });
             node.robot.socketSend({ cmd: 'jointjog', joint: jointNum, sgn: dir, val: step }).then(function(ack) {
                 var ok = ack.startsWith('OK:');

@@ -97,8 +97,11 @@ function verifyIsABB(ip, port) {
         }, function(res) {
             var authHeader = res.headers['www-authenticate'] || '';
             var isABB = authHeader.toLowerCase().indexOf('abb') >= 0 || authHeader.toLowerCase().indexOf('robot') >= 0;
-            var isRWS = isABB || res.statusCode === 401 || res.statusCode === 200;
-            resolve(isRWS);
+            // Deliberately NOT falling back to "any bare 200/401 counts" — that
+            // false-positives on ordinary LAN devices (SPA-routed admin UIs return
+            // 200 for any path; anything behind Basic/Digest auth returns 401 for
+            // any path). Require the ABB-specific WWW-Authenticate realm instead.
+            resolve(isABB);
         });
         req.on('error', function() { resolve(false); });
         req.on('timeout', function() { req.destroy(); resolve(false); });
@@ -259,42 +262,54 @@ function createRobotClient(opts) {
     // rwsGet/rwsPost/rwsPut don't expose: a response header (RWS subscription's
     // Location), or a binary-safe body (gofa-file-read downloading non-UTF8
     // files) — resolves the raw {statusCode, headers, body: Buffer} instead of
-    // just a decoded string. No 401 auto-retry (unlike request()); callers so
-    // far only use this right after another call has already established a
-    // session. Exists so node files stop hand-rolling their own https/http
-    // request against private fields (ip/cookie/etc) — that duplication is
-    // exactly what broke gofa-upload-mod when session state moved into this
-    // closure: three more node files (subscribe-io, subscribe-state, file-read)
-    // had the same private-field reach-in and the same latent bug.
+    // just a decoded string. Exists so node files stop hand-rolling their own
+    // https/http request against private fields (ip/cookie/etc) — that
+    // duplication is exactly what broke gofa-upload-mod when session state
+    // moved into this closure: three more node files (subscribe-io,
+    // subscribe-state, file-read) had the same private-field reach-in and the
+    // same latent bug.
+    //
+    // Retries once with forced Basic-auth on a 401, same policy as request()
+    // above — a stale in-memory cookie (e.g. a subscribe node's first call in a
+    // while, after the RWS session expired server-side) used to hard-fail here
+    // instead of transparently re-authenticating like every rwsGet/rwsPost-based
+    // node already does.
+    function requestRawOnce(method, urlPath, body, opts, forceAuth) {
+        return new Promise(function(resolve, reject) {
+            var headers = { 'Accept': opts.accept || 'application/xhtml+xml;v=2.0' };
+            if (forceAuth || !cookie) headers['Authorization'] = 'Basic ' + Buffer.from(username + ':' + password).toString('base64');
+            else headers['Cookie'] = cookie;
+            if (opts.contentType) headers['Content-Type'] = opts.contentType;
+            if (body) headers['Content-Length'] = Buffer.byteLength(body);
+            var proto = rwsPort === 443 ? https : http;
+            var req = proto.request({
+                hostname: ip, port: rwsPort, path: urlPath, method: method,
+                headers: headers, rejectUnauthorized: false
+            }, function(res) {
+                if (res.headers['set-cookie']) {
+                    cookie = res.headers['set-cookie'].map(function(c) { return c.split(';')[0]; }).join('; ');
+                }
+                var chunks = [];
+                res.on('data', function(c) { chunks.push(c); });
+                res.on('end', function() {
+                    if (res.statusCode === 401 && !forceAuth) {
+                        cookie = null;
+                        requestRawOnce(method, urlPath, body, opts, true).then(resolve).catch(reject);
+                        return;
+                    }
+                    resolve({ statusCode: res.statusCode, headers: res.headers, body: Buffer.concat(chunks) });
+                });
+            });
+            req.on('error', reject);
+            req.setTimeout(opts.timeout || 8000, function() { req.destroy(new Error('RWS request timeout: ' + urlPath)); });
+            if (body) req.write(body);
+            req.end();
+        });
+    }
     function requestRaw(method, urlPath, body, opts) {
         opts = opts || {};
         return getSession().then(function() {
-            return new Promise(function(resolve, reject) {
-                var headers = { 'Accept': opts.accept || 'application/xhtml+xml;v=2.0' };
-                if (cookie) headers['Cookie'] = cookie;
-                else headers['Authorization'] = 'Basic ' + Buffer.from(username + ':' + password).toString('base64');
-                if (opts.contentType) headers['Content-Type'] = opts.contentType;
-                if (body) headers['Content-Length'] = Buffer.byteLength(body);
-                var proto = rwsPort === 443 ? https : http;
-                var req = proto.request({
-                    hostname: ip, port: rwsPort, path: urlPath, method: method,
-                    headers: headers, rejectUnauthorized: false
-                }, function(res) {
-                    if (res.headers['set-cookie']) {
-                        cookie = res.headers['set-cookie'].map(function(c) { return c.split(';')[0]; }).join('; ');
-                    }
-                    var chunks = [];
-                    res.on('data', function(c) { chunks.push(c); });
-                    res.on('end', function() {
-                        if (res.statusCode === 401) { cookie = null; return reject(new Error('HTTP 401 Unauthorized')); }
-                        resolve({ statusCode: res.statusCode, headers: res.headers, body: Buffer.concat(chunks) });
-                    });
-                });
-                req.on('error', reject);
-                req.setTimeout(opts.timeout || 8000, function() { req.destroy(new Error('RWS request timeout: ' + urlPath)); });
-                if (body) req.write(body);
-                req.end();
-            });
+            return requestRawOnce(method, urlPath, body, opts, false);
         });
     }
     function getCookie() { return getSession().then(function() { return cookie; }); }
@@ -554,6 +569,45 @@ module.exports = function(RED) {
         }) || null;
     };
 
+    GoFaRobotNode.prototype.replacePoints = function(arr) {
+        if (!Array.isArray(arr)) {
+            return { error: 'Input must be an array' };
+        }
+        for (var i = 0; i < arr.length; i++) {
+            var item = arr[i];
+            if (!item || typeof item !== 'object') {
+                return { error: 'Element is not an object', invalidAt: i };
+            }
+            if (typeof item.name !== 'string' || !item.name.trim()) {
+                return { error: 'Element missing a non-empty name string', invalidAt: i };
+            }
+            if (!item.target || typeof item.target !== 'object') {
+                return { error: 'Element missing target object', invalidAt: i };
+            }
+            var t = item.target;
+            var vals = [t.x, t.y, t.z, t.q1, t.q2, t.q3, t.q4, t.cf1, t.cf4, t.cf6, t.cfx];
+            if (vals.some(function(v) { return typeof v !== 'number' || !isFinite(v); })) {
+                return { error: 'Element target has non-numeric fields', invalidAt: i };
+            }
+        }
+
+        var baseTime = Date.now();
+        var result = [];
+        for (var i = 0; i < arr.length; i++) {
+            var item = arr[i];
+            var pt = {
+                id: item.id || ('p' + baseTime + '-' + i),
+                name: item.name.trim(),
+                target: item.target
+            };
+            result.push(pt);
+        }
+
+        this._points = result;
+        this._savePoints();
+        return result;
+    };
+
     // On-robot point storage — same shape/behavior as the local methods above,
     // but backed by a JSON file on the robot's own disk (RWS fileservice
     // GET/PUT) instead of points.json on the Node-RED host. Confirmed live:
@@ -579,14 +633,33 @@ module.exports = function(RED) {
         return this.rwsPut('/fileservice/' + this.remotePointsPath, JSON.stringify(points, null, 2), 'text/plain;v=2.0');
     };
 
+    // Re-fetches the remote points file right before an overwrite and warns if it
+    // changed since `originalPoints` was read — same best-effort drift detection as
+    // local _savePoints()'s mtime check above, adapted for the on-robot file (which
+    // has no filesystem mtime to compare against, just the file's own content).
+    // Doesn't fully close the race (a write could still land in the gap between this
+    // check and the PUT below), but turns a previously-silent overwrite into at least
+    // a visible warning, matching what the local path already does.
+    function warnIfRemoteChanged(node, originalPoints) {
+        var before = JSON.stringify(originalPoints);
+        return node.remoteGetPoints().then(function(current) {
+            if (JSON.stringify(current) !== before) {
+                node.warn('Remote points file (' + node.remotePointsPath + ') changed since it was ' +
+                          'last read (another flow or write in progress?) — this save will overwrite those changes');
+            }
+        });
+    }
+
     GoFaRobotNode.prototype.remoteAddPoint = function(name, target) {
         var node = this;
         return node.remoteGetPoints().then(function(points) {
             var resolved = resolvePointName(name, points);
             if (resolved.error) return resolved;
             var pt = { id: 'p' + Date.now(), name: resolved.name, target: target };
-            points.push(pt);
-            return node.remoteSavePoints(points).then(function() { return pt; });
+            var updated = points.concat([pt]);
+            return warnIfRemoteChanged(node, points).then(function() {
+                return node.remoteSavePoints(updated).then(function() { return pt; });
+            });
         });
     };
 
@@ -596,7 +669,9 @@ module.exports = function(RED) {
             var pt = points.find(function(p) { return p.id === idOrName || p.name === idOrName; }) || null;
             if (!pt) return null;
             var remaining = points.filter(function(p) { return p.id !== pt.id; });
-            return node.remoteSavePoints(remaining).then(function() { return pt; });
+            return warnIfRemoteChanged(node, points).then(function() {
+                return node.remoteSavePoints(remaining).then(function() { return pt; });
+            });
         });
     };
 

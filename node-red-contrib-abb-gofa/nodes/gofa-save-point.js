@@ -8,8 +8,24 @@ module.exports = function(RED) {
         var node = this;
         node.on('input', function(msg, send, done) {
             if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
-            var name    = (msg.payload && msg.payload.name)    || node.pointName || '';
-            var storage = (msg.payload && msg.payload.storage) || node.storage;
+            var name = '';
+            if (msg.payload) {
+                if (typeof msg.payload === 'string') {
+                    name = msg.payload;
+                } else if (typeof msg.payload === 'object') {
+                    name = msg.payload.name || '';
+                }
+            }
+            if (!name) {
+                name = node.pointName || '';
+            }
+            name = String(name).trim();
+            if (!name) {
+                msg.payload = { ok: false, error: 'Empty point name' };
+                node.status({ fill: 'red', shape: 'ring', text: 'Empty point name' });
+                send(msg); return done();
+            }
+            var storage = (msg.payload && typeof msg.payload === 'object' && msg.payload.storage) || node.storage;
             var r = node.robot;
             node.status({ fill: 'blue', shape: 'dot', text: 'reading pose...' });
             r.rwsGet('/rw/motionsystem/mechunits/ROB_1/robtarget?tool=tool0&wobj=wobj0&coordinate=Base')

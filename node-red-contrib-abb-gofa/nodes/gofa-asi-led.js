@@ -70,8 +70,35 @@ module.exports = function(RED) {
         this.blinkMs    = parseInt(config.blinkMs)    || 250;
         var node = this;
 
+        node.on('close', function(removed, done) {
+            if (typeof removed === 'function') {
+                done = removed;
+                removed = false;
+            }
+            if (node._blinkTimer) {
+                clearTimeout(node._blinkTimer);
+                node._blinkTimer = null;
+            }
+            if (node._activeBlinkDone) {
+                node._activeBlinkDone();
+                node._activeBlinkDone = null;
+            }
+            if (done) done();
+        });
+
         node.on('input', function(msg, send, done) {
             if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
+
+            // Cancel any active blink sequence
+            if (node._blinkTimer) {
+                clearTimeout(node._blinkTimer);
+                node._blinkTimer = null;
+            }
+            node._blinkSession = (node._blinkSession || 0) + 1;
+            if (node._activeBlinkDone) {
+                node._activeBlinkDone();
+                node._activeBlinkDone = null;
+            }
 
             // 'reset' restores the LED to the normal RAPID-running state (static green)
             if (msg.payload === 'reset' || (msg.payload && msg.payload.action === 'reset')) {
@@ -111,14 +138,21 @@ module.exports = function(RED) {
                 // Software-controlled counted blink: N on/off cycles from Node-RED
                 var remaining = blinkCount;
                 node.status({ fill: 'yellow', shape: 'dot', text: 'blink 0/' + blinkCount });
+                node._activeBlinkDone = done;
+                var currentSession = node._blinkSession;
 
                 function doBlink() {
+                    if (node._blinkSession !== currentSession) return;
                     if (remaining <= 0) {
                         node.robot.socketSend({ cmd: 'setled', val: [0, 0, 0, 0] }).then(function() {
+                            if (node._blinkSession !== currentSession) return;
+                            node._activeBlinkDone = null;
                             msg.payload = { ok: true, r: rv, g: gv, b: bv, blinks: blinkCount };
                             node.status({ fill: 'grey', shape: 'dot', text: 'done ' + blinkCount + '\xd7' });
                             send(msg); done();
                         }).catch(function(err) {
+                            if (node._blinkSession !== currentSession) return;
+                            node._activeBlinkDone = null;
                             msg.payload = { ok: false, error: err.message };
                             node.status({ fill: 'red', shape: 'ring', text: 'error' });
                             node.error(err, msg);
@@ -130,14 +164,37 @@ module.exports = function(RED) {
                     remaining--;
                     node.robot.socketSend({ cmd: 'setled', val: [rv, gv, bv, 0] })
                         .then(function() {
+                            if (node._blinkSession !== currentSession) return;
                             node.status({ fill: 'yellow', shape: 'dot', text: 'blink ' + current + '/' + blinkCount });
-                            setTimeout(function() {
+                            node._blinkTimer = setTimeout(function() {
+                                node._blinkTimer = null;
+                                if (node._blinkSession !== currentSession) return;
                                 node.robot.socketSend({ cmd: 'setled', val: [0, 0, 0, 0] })
-                                    .then(function() { setTimeout(doBlink, blinkMs); })
-                                    .catch(function(err) { msg.payload = { ok: false, error: err.message }; node.status({ fill: 'red', shape: 'ring', text: 'error' }); node.error(err, msg); send(msg); done(err); });
+                                    .then(function() {
+                                        if (node._blinkSession !== currentSession) return;
+                                        node._blinkTimer = setTimeout(function() {
+                                            node._blinkTimer = null;
+                                            doBlink();
+                                        }, blinkMs);
+                                    })
+                                    .catch(function(err) {
+                                        if (node._blinkSession !== currentSession) return;
+                                        node._activeBlinkDone = null;
+                                        msg.payload = { ok: false, error: err.message };
+                                        node.status({ fill: 'red', shape: 'ring', text: 'error' });
+                                        node.error(err, msg);
+                                        send(msg); done(err);
+                                    });
                             }, blinkMs);
                         })
-                        .catch(function(err) { msg.payload = { ok: false, error: err.message }; node.status({ fill: 'red', shape: 'ring', text: 'error' }); node.error(err, msg); send(msg); done(err); });
+                        .catch(function(err) {
+                            if (node._blinkSession !== currentSession) return;
+                            node._activeBlinkDone = null;
+                            msg.payload = { ok: false, error: err.message };
+                            node.status({ fill: 'red', shape: 'ring', text: 'error' });
+                            node.error(err, msg);
+                            send(msg); done(err);
+                        });
                 }
                 doBlink();
                 return;

@@ -5,7 +5,14 @@ module.exports = function(RED) {
         this.robot = RED.nodes.getNode(config.robot);
         var node = this;
         node.on('input', function(msg, send, done) {
-            if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
+            if (!node.robot) {
+                msg.payload = { ok: false, error: 'No robot configured' };
+                node.status({ fill: 'red', shape: 'ring', text: 'no robot' });
+                node.error('No robot configured', msg);
+                send(msg);
+                return done();
+            }
+            node.status({ fill: 'blue', shape: 'dot', text: 'reading...' });
             var r = node.robot;
             Promise.all([
                 r.rwsGet('/rw/panel/ctrl-state'),
@@ -14,6 +21,7 @@ module.exports = function(RED) {
                 r.rwsGet('/rw/rapid/execution')
             ]).then(function(b) {
                 msg.payload = {
+                    ok: true,
                     ctrlstate: r.parseXhtml(b[0], 'ctrlstate'),
                     opmode:    r.parseXhtml(b[1], 'opmode'),
                     speed:     parseInt(r.parseXhtml(b[2], 'speedratio')) || 0,

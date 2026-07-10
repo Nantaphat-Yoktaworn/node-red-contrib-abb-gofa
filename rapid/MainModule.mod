@@ -186,6 +186,35 @@ MODULE MainModule
         RETURN StrToVal(valstr, val);
     ENDFUNC
 
+    ! Finds the boolean value associated with a key in a flat JSON string
+    FUNC bool GetJsonBoolVal(string json, string key, INOUT bool val)
+        VAR num keyPos;
+        VAR num colonPos;
+        VAR num endVal;
+        VAR string quotedKey;
+        VAR string valstr;
+        quotedKey := """" + key + """";
+        keyPos := StrMatch(json, 1, quotedKey);
+        IF keyPos > StrLen(json) RETURN FALSE;
+        colonPos := StrMatch(json, keyPos + StrLen(quotedKey), ":");
+        IF colonPos > StrLen(json) RETURN FALSE;
+        endVal := StrMatch(json, colonPos + 1, ",");
+        IF endVal > StrLen(json) THEN
+            endVal := StrMatch(json, colonPos + 1, "}");
+        ENDIF
+        IF endVal > StrLen(json) RETURN FALSE;
+        valstr := StrPart(json, colonPos + 1, endVal - colonPos - 1);
+        valstr := CleanCmd(valstr);
+        IF valstr = "TRUE" THEN
+            val := TRUE;
+            RETURN TRUE;
+        ELSEIF valstr = "FALSE" THEN
+            val := FALSE;
+            RETURN TRUE;
+        ENDIF
+        RETURN FALSE;
+    ENDFUNC
+
     ! Parses a numeric array associated with a key in a flat JSON string (e.g. "val":[1,2,3])
     FUNC bool GetJsonNumArray(string json, string key, INOUT num arr{*})
         VAR num keyPos;
@@ -330,7 +359,9 @@ MODULE MainModule
             SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""movej"",""msg"":""invalid joints""}" + ByteToStr(10\Char));
         CASE "jog":
             IF GetJsonStringVal(json, "axis", axis) AND GetJsonStringVal(json, "sgn", sgn) AND GetJsonNumVal(json, "val", val) THEN
-                rot := (StrMatch(json, 1, """rot"":true") <= StrLen(json));
+                IF NOT GetJsonBoolVal(json, "rot", rot) THEN
+                    rot := FALSE;
+                ENDIF
                 IF val > 0 AND (axis = "X" OR axis = "Y" OR axis = "Z") THEN
                     IF (rot AND val <= JOG_MAX_DEG) OR (NOT rot AND val <= JOG_MAX_MM) THEN
                         IF sgn = "+" OR sgn = "-" THEN

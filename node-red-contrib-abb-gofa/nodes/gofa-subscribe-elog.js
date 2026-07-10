@@ -34,6 +34,7 @@ module.exports = function(RED) {
         function fetchAndEmit(href) {
             if (!/\?/.test(href)) href += '?lang=en'; else href += '&lang=en';
             node.robot.rwsGet(href).then(function(body) {
+                if (node._stopped) return;
                 var entry = parseEntry(body);
                 if (meetsSeverity(entry, node.minSeverity)) {
                     node.send({ payload: { ok: true, domain: parseInt(node.domain), entry: entry } });
@@ -59,6 +60,14 @@ module.exports = function(RED) {
                     return { location: res.headers.location, cookie: cookie };
                 });
             }).then(function(sub) {
+                if (node._stopped) {
+                    // Node was closed while the subscribe POST was still in flight — close() already
+                    // ran and couldn't clean this up (node._pollkey was still null at that time).
+                    // Best-effort delete the now-orphaned subscription ourselves.
+                    var pk = sub.location.split('/poll/').pop();
+                    node.robot.requestRaw('DELETE', '/subscription/' + pk, null, {}).catch(function(){});
+                    return;
+                }
                 node._pollkey = sub.location.split('/poll/').pop();
                 var ws = new WS(sub.location, ['rws_subscription'], {
                     rejectUnauthorized: false,

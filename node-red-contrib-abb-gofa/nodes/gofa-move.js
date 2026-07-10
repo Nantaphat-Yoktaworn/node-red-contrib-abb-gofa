@@ -11,6 +11,13 @@ module.exports = function(RED) {
             var cmd = (typeof raw === 'string' && raw) ? raw
                     : (raw && raw.command)             ? raw.command
                     : node.command;
+            var upperCmd = String(cmd).toUpperCase();
+            if (upperCmd !== 'HOME' && upperCmd !== 'SETHOME') {
+                msg.payload = { ok: false, error: 'Invalid command: ' + cmd };
+                node.error('Invalid command: ' + cmd, msg);
+                node.status({ fill: 'red', shape: 'ring', text: 'bad command' });
+                send(msg); return done();
+            }
             node.status({ fill:'blue', shape:'dot', text: cmd });
             node.robot.socketSend({ cmd: cmd.toLowerCase() }).then(function(ack) {
                 var ok = ack.startsWith('OK:');

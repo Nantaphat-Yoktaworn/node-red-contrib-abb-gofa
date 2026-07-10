@@ -20,13 +20,21 @@ Custom Node-RED palette (`node-red-contrib-abb-gofa`) for controlling an ABB GoF
 
 ## Architecture — two communication layers
 
-**TCP Socket (port 1025)** — motion commands. The RAPID program (`rapid/MainModule.mod`) runs a socket server on the controller. Each Node-RED node opens a fresh TCP connection, sends one newline-terminated command, reads one `OK:<CMD>` or `ERR:<CMD>` reply, and closes.
+**TCP Socket (port 1025)** — motion commands. The RAPID program (`rapid/MainModule.mod`) runs a socket server on the controller. Each Node-RED node opens a fresh TCP connection, sends one newline-terminated request, reads one newline-terminated reply, and closes.
 
 **RWS HTTPS (port 443)** — telemetry and motor control. REST API built into OmniCore. Auth is Basic on first request → cookie thereafter (auto-refresh on 401). All RWS calls go through `rwsGet()`/`rwsPost()` helpers in `gofa-robot.js`. Responses are XHTML; values extracted with `parseXhtml(body, className)`.
 
 Rule: **motion always goes through the socket; read-only data and motor control go through RWS.**
 
+**The socket's wire format is JSON, not plain text.** A request looks like `{"cmd":"ping"}\n`; a reply looks like `{"status":"ok","cmd":"ping"}\n` on success or `{"status":"err","cmd":"...","msg":"..."}\n` on failure. `ServeClient` in `MainModule.mod`/`MainModuleEGM.mod` picks the dispatcher by the first byte of each line: `{` → `DispatchJson` (the real, current protocol), anything else → the original `Dispatch`/`CleanCmd` plain-text parser — kept for backward compatibility, so raw telnet/curl commands like a bare `PING` (see `MANUAL_CONTROL.md`) still work unchanged.
+
+**No Node-RED node file had to change for this.** Every node still calls `gofa-robot.js`'s `socketSend()` with the same legacy string tokens as before (`'PING'`, `'GOTOJ1;2;3;...'`, `'SETVAR:nTestVar:5'`, …); `socketSend()` runs each one through `translateToJSON()` first, which converts it to the real JSON request, sends it, and converts the JSON reply back into the same `OK:<CMD>` / `ERR:<CMD>` / `VAL:<value>` string shape every node already expected — the JSON layer is invisible to node code unless a node deliberately opts into it. A node *can* instead call `socketSend()` with a plain object (`{cmd:'setdo', name:'ABB_SCALABLE_IO_0_DO5', val:1}`) to skip the string-token round-trip — `translateToJSON` passes objects straight through (`JSON.stringify`, no parsing). `gofa-rapid-var-read`/`gofa-rapid-var-write` and `gofa-do-write`'s Socket transport use this object form directly.
+
+**Case-sensitivity gotcha — not universal, but real for one command.** The legacy text protocol is fully case-insensitive (`CleanCmd` upper-cases the *entire* incoming line before dispatch). `DispatchJson` gets the raw JSON string instead, with no blanket uppercasing (that would corrupt string-valued fields like RAPID variable string values) — each JSON command handler normalizes case itself, if at all. `getvar`/`setvar` **do** normalize (`StrMap` upper-cases the `name` field before comparing), so `gofa-rapid-var-read`/`write` work regardless of the variable's declared case (`nTestVar`, `sTestMsg`). `setdo` originally **didn't** — confirmed live that this palette's own mixed-case default signal name failed until `gofa-do-write.js` was fixed to upper-case the name before sending (see the SETDO note below). Moral: don't assume every `DispatchJson` case handles case the same way — check the specific `CASE` block in `MainModule.mod` before assuming a JSON command is case-insensitive.
+
 ## RAPID socket protocol
+
+The table below is the **logical command surface** most Node-RED nodes actually send (as a string to `socketSend()`) — `translateToJSON()` converts every one of these to the real JSON wire request before it goes out; see the JSON wire-format note above for what a packet capture would actually show.
 
 | Command | What it does |
 |---------|-------------|
@@ -118,7 +126,7 @@ error, same fix.)
 `Dispatch` returns — they close the client and server sockets and return, `main()` sees the
 flag and runs `RunEgmJoint` (transplanted from `gofa-egm-python/rapid/EGMJointModule.mod`:
 `EGMSetupUC ... "EGM_PC" \Joint \CommTimeout:=5` → `EGMActJoint` with the
-`egm_minmax1 := [-10.0, 10.0]` hard clamp → `EGMRunJoint ... \CondTime:=300`). While in EGM
+`egm_minmax1 := [-10.0, 10.0]` hard clamp → `EGMRunJoint ... \CondTime:=60`). While in EGM
 mode the closed server socket makes every other socket-based node fail fast with "connection
 refused" instead of hanging.
 
@@ -148,7 +156,7 @@ worked, but skipped `RunEgmJoint`'s own cleanup entirely (an external kill isn't
 so no ERROR handler runs), which is **why `bEgmRequested` is cleared before calling
 `RunEgmJoint`, not after** — that ordering fix is still correct and still needed today, since a
 genuinely external stop (FlexPendant, e-stop, etc.) can still interrupt an EGM session the same
-way. `\CommTimeout` is still not relied on for anything; `\CondTime:=300` remains a
+way. `\CommTimeout` is still not relied on for anything; `\CondTime:=60` remains a
 documentation placeholder / hard backstop only.
 
 **RESOLVED (2026-07-09): the external-stop design leaked one controller-side EGM instance per
@@ -362,7 +370,7 @@ Full design history and the reasoning behind the two-module decision: see the
 | `gofa-subscribe-state` | RWS WS | Push on every controller state change; one-shot mode polls once per inject |
 | `gofa-subscribe-io` | RWS WS | Push on every I/O signal change (real WebSocket push, confirmed live down to a single button tap); falls back to 500 ms polling only if the subscribe request itself fails; one-shot mode available |
 | `gofa-subscribe-var` | RWS poll | Poll a RAPID variable on an interval; toggles on/off per inject |
-| `gofa-subscribe-pose` | RWS poll | Poll TCP position on an interval; stops if inject has no payload |
+| `gofa-subscribe-pose` | RWS poll | Poll TCP position on an interval; toggles on/off per inject |
 | `gofa-subscribe-elog` | RWS WS | Push new controller event log entries in real time (bare `/rw/elog/<domain>` subscription — no `;suffix`, unlike other subscribe nodes; the push only carries a `seqnum` reference, so the node fetches the full entry before emitting); same Domain + Min Severity filters as `gofa-elog` |
 | `gofa-egm` | Socket + UDP (EGM) | Session control + telemetry — Action dropdown (start/stop) sends `EGMJOINT`/graceful-stop signal, holds pose, emits throttled feedback. Requires `MainModuleEGM.mod` loaded, not the default `MainModule.mod` — see EGM section above |
 | `gofa-egm-move` | In-memory (shared robot state) | Sets the live EGM joint target if a `gofa-egm` session is active (output 1); otherwise routes unchanged to a fallback output (output 2), e.g. into `gofa-movej` |

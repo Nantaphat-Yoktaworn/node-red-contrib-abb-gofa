@@ -37,11 +37,17 @@ module.exports = function(RED) {
                     : (msg.payload && Array.isArray(msg.payload.points)) ? msg.payload.points
                     : [];
             }
+            var result = node.robot.replacePoints(arr);
+            if (result.error) {
+                var err = new Error(result.error);
+                msg.payload = { ok: false, error: result.error };
+                node.status({ fill: 'red', shape: 'ring', text: 'import error' });
+                node.error(err, msg);
+                send(msg); return done(err);
+            }
 
-            node.robot._points = arr;
-            node.robot._savePoints();
-            msg.payload = { ok: true, count: arr.length, loadedFrom: loadPath || null };
-            node.status({ fill: 'green', shape: 'dot', text: arr.length + ' points imported' });
+            msg.payload = { ok: true, count: result.length, loadedFrom: loadPath || null };
+            node.status({ fill: 'green', shape: 'dot', text: result.length + ' points imported' });
             send(msg); done();
         });
     }

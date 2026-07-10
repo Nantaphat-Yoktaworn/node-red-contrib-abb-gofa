@@ -47,12 +47,14 @@ module.exports = function(RED) {
                     node.status({ fill: 'green', shape: 'dot', text: variable + '=' + value });
                     send(msg); done();
                 } else {
-                    var hint = '';
-                    if (reply === 'ERR:UNKNOWN_VAR') {
-                        hint = ' — add "' + variable.toUpperCase() + '" to TryGetVar/TrySetVar in MainModule.mod';
-                    } else if (reply === 'ERR:PARSE') {
-                        hint = ' — value "' + value + '" cannot be parsed as the variable\'s RAPID type';
-                    }
+                    // socketSend()'s JSON reply translator collapses every RAPID-side error
+                    // reason into a generic 'ERR:SETVAR' (the specific "unknown var" vs.
+                    // "can't parse" distinction the old text protocol gave is lost over the
+                    // JSON wire path this node uses) — so a single combined hint covering
+                    // both possibilities is honest; checking for 'ERR:UNKNOWN_VAR'/'ERR:PARSE'
+                    // here was dead code that could never actually match.
+                    var hint = ' — check that "' + variable.toUpperCase() + '" is listed in ' +
+                        'TryGetVar/TrySetVar in MainModule.mod, and that "' + value + '" is a valid value for its RAPID type';
                     var fullMsg = reply + hint;
                     msg.payload = { ok: false, error: fullMsg };
                     node.status({ fill: 'red', shape: 'ring', text: reply });

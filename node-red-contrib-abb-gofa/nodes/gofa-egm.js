@@ -269,7 +269,7 @@ module.exports = function(RED) {
                 node.robot._egmSocket = sock;
 
                 var noFrameTimer = setTimeout(function() {
-                    if (settled) return;
+                    if (settled || node._stopped) return;
                     settled = true;
                     stopAll();
                     reject(new Error('No EGM frames received within 2s on UDP :' + node.udpPort +

@@ -37,6 +37,8 @@ module.exports = function(RED) {
 
             if (!steps || !steps.length) { node.warn('No steps configured'); return done(); }
 
+            r._seqRunning = true;
+
             // Fetch the whole points array once up front (one RWS round trip for
             // remote storage, not one per step), then resolve steps against it
             // synchronously exactly like before — only the source of the array
@@ -57,7 +59,11 @@ module.exports = function(RED) {
                     if (!obj) { node.warn('Point has invalid data (NaN): ' + pt.name); continue; }
                     cmds.push({ name: pt.name, obj: obj, moveType: stepMoveType, dwell: steps[i].dwell != null ? steps[i].dwell : null });
                 }
-                if (!cmds.length) { node.error('No valid points in sequence', msg); return done(); }
+                if (!cmds.length) {
+                    node.error('No valid points in sequence', msg);
+                    r._seqRunning = false;
+                    return done();
+                }
 
                 if (pingpong) {
                     cmds = cmds.concat(cmds.slice(0, cmds.length - 1).reverse());
@@ -67,7 +73,6 @@ module.exports = function(RED) {
                 var startIdx = Math.min(startStep - 1, cmds.length - 1);
 
                 r._seqStop = false;
-                r._seqRunning = true;
                 var total = cmds.length;
                 var loopCount = 0;
                 node.status({ fill: 'blue', shape: 'dot', text: 'running...' });
@@ -117,6 +122,7 @@ module.exports = function(RED) {
                 runStep(startIdx);
             }).catch(function(err) {
                 node.error(err, msg);
+                r._seqRunning = false;
                 done(err);
             });
         });

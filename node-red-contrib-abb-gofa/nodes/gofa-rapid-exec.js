@@ -23,6 +23,18 @@ module.exports = function(RED) {
             var moduleName = (raw && raw.module)                      ? raw.module     : node.module;
             node.status({ fill: 'blue', shape: 'dot', text: action });
 
+            // Chaining hazard: this node's own success output is {ok:true, action:<...>},
+            // exactly the shape msg.payload.action override reads from — wiring one
+            // gofa-rapid-exec node straight into another silently repeats the first
+            // node's action instead of running the second node's configured one. Warn
+            // (don't block — the override itself is a deliberate, useful feature) when
+            // the incoming payload looks like it came from another gofa-rapid-exec node.
+            if (raw && typeof raw === 'object' && raw.ok !== undefined && raw.action !== undefined) {
+                node.warn('msg.payload looks like another gofa-rapid-exec node\'s own output ({ok, action}) — ' +
+                    'if unintentional, insert a change node to clear msg.payload between chained ' +
+                    'gofa-rapid-exec nodes; action "' + raw.action + '" is currently overriding this node\'s configured action');
+            }
+
             var bodies = {
                 start:   'regain=continue&execmode=continue&cycle=forever&condition=none&stopatbp=disabled&alltaskbytsp=false',
                 stop:    'stopmode=stop&usetsp=normal',
@@ -101,32 +113,46 @@ module.exports = function(RED) {
                 doAction = node.robot.withMastership(function() {
                     return node.robot.rwsPost('/rw/rapid/execution/resetpp', '');
                 });
-            } else if (action === 'loadmod') {
-                // loadmod requires edit mastership, same domain as resetpp. Unlike every
-                // other RWS call in this palette it responds application/hal+json, not
-                // xhtml+xml — confirmed live; the xhtml Accept header errors on this resource.
-                var body = 'modulepath=' + encodeURIComponent(modulePath) + '&replace=' + (replace ? 'true' : 'false');
-                doAction = node.robot.withMastership(function() {
-                    return node.robot.rwsPostHal('/rw/rapid/tasks/' + task + '/loadmod', body);
-                });
-            } else if (action === 'unloadmod') {
-                // unloadmod requires edit mastership and hal+json, same as loadmod/activate —
-                // removes the named module from this task ONLY (the .mod file stays on the
-                // controller's disk untouched). Needed before loadmod-ing a differently-named
-                // module: replace=true only replaces a module with the SAME name, so loading
-                // e.g. MainModuleEGM while MainModule is still loaded leaves both loaded and
-                // RAPID rejects resetpp/start with "Global routine name main ambiguous" (both
-                // declare PROC main()) — confirmed live. unloadmod first avoids that.
-                var unloadBody = 'module=' + encodeURIComponent(moduleName);
-                doAction = node.robot.withMastership(function() {
-                    return node.robot.rwsPostHal('/rw/rapid/tasks/' + task + '/unloadmod', unloadBody);
-                });
-            } else if (action === 'activate') {
-                // activate requires edit mastership and hal+json, same as loadmod — makes
-                // the named module the task's active/bound one. 204 No Content on success.
-                var activateBody = 'module=' + encodeURIComponent(moduleName);
-                doAction = node.robot.withMastership(function() {
-                    return node.robot.rwsPostHal('/rw/rapid/tasks/' + task + '/activate', activateBody);
+            } else if (action === 'loadmod' || action === 'unloadmod' || action === 'activate') {
+                // All three require edit mastership and hal+json (not xhtml+xml — confirmed
+                // live, the xhtml Accept header errors on these resources), and all three
+                // require RAPID to be stopped first — confirmed live: HTTP 403 with "PGM
+                // state" in the error text while running. Previously that 403 was the only
+                // signal (reactive, via string-matching in the .catch below); check
+                // proactively first instead, same pattern 'start' already uses for its own
+                // precondition (motors on) — a clear, fast error instead of a round trip
+                // that was always going to fail.
+                doAction = readExecState().then(function(execstate) {
+                    if (execstate !== 'stopped') {
+                        var err = new Error('Cannot ' + action + ': RAPID is ' + execstate + ' — stop it first (e.g. gofa-rapid-exec action "stop")');
+                        err.execstate = execstate;
+                        throw err;
+                    }
+                    if (action === 'loadmod') {
+                        var body = 'modulepath=' + encodeURIComponent(modulePath) + '&replace=' + (replace ? 'true' : 'false');
+                        return node.robot.withMastership(function() {
+                            return node.robot.rwsPostHal('/rw/rapid/tasks/' + task + '/loadmod', body);
+                        });
+                    } else if (action === 'unloadmod') {
+                        // Removes the named module from this task ONLY (the .mod file stays on
+                        // the controller's disk untouched). Needed before loadmod-ing a
+                        // differently-named module: replace=true only replaces a module with
+                        // the SAME name, so loading e.g. MainModuleEGM while MainModule is
+                        // still loaded leaves both loaded and RAPID rejects resetpp/start with
+                        // "Global routine name main ambiguous" (both declare PROC main()) —
+                        // confirmed live. unloadmod first avoids that.
+                        var unloadBody = 'module=' + encodeURIComponent(moduleName);
+                        return node.robot.withMastership(function() {
+                            return node.robot.rwsPostHal('/rw/rapid/tasks/' + task + '/unloadmod', unloadBody);
+                        });
+                    } else {
+                        // activate makes the named module the task's active/bound one. 204 No
+                        // Content on success.
+                        var activateBody = 'module=' + encodeURIComponent(moduleName);
+                        return node.robot.withMastership(function() {
+                            return node.robot.rwsPostHal('/rw/rapid/tasks/' + task + '/activate', activateBody);
+                        });
+                    }
                 });
             } else {
                 // stop works without mastership given Remote Start/Stop UAS grant.

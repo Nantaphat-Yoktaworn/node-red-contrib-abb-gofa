@@ -11,6 +11,15 @@ module.exports = function(RED) {
             var action = (typeof raw === 'string' && raw) ? raw
                        : (raw && raw.action)              ? raw.action
                        : node.action;
+            if (typeof action === 'string') {
+                action = action.toLowerCase();
+            }
+            if (action !== 'motoron' && action !== 'motoroff') {
+                msg.payload = { ok: false, error: 'Invalid action: ' + action };
+                node.error('Invalid action: ' + action, msg);
+                node.status({ fill: 'red', shape: 'ring', text: 'bad action' });
+                send(msg); return done();
+            }
             node.status({ fill:'blue', shape:'dot', text: action });
             node.robot.rwsPost('/rw/panel/ctrl-state', 'ctrl-state=' + action)
             .then(function() {

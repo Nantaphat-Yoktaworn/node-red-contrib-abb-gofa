@@ -10,7 +10,21 @@ module.exports = function(RED) {
             // Clear any queued \Conc moves before activating lead-through, otherwise
             // in-flight moves keep executing autonomously while hand-guiding is active.
             node.robot.socketSend({ cmd: 'stop' })
-            .catch(function() { /* ignore — socket may not be running */ })
+            .then(function(ack) {
+                if (!ack.startsWith('OK:')) {
+                    throw new Error('Stop motion failed: ' + ack);
+                }
+            })
+            .catch(function(err) {
+                var isSocketError = err.message && (
+                    err.message.indexOf('socket') >= 0 ||
+                    err.message.indexOf('connect') >= 0 ||
+                    err.message.indexOf('ECONNREFUSED') >= 0
+                );
+                if (!isSocketError) {
+                    throw err;
+                }
+            })
             .then(function() {
                 node.status({ fill: 'blue', shape: 'dot', text: 'enabling...' });
                 return node.robot.rwsPost('/rw/motionsystem/mechunits/ROB_1/lead-through', 'status=active');

@@ -481,7 +481,7 @@ check('decodeEgmRobot: empty buffer decodes to empty/default fields, does not th
 
 // gofa-points-import ─────────────────────────────────────────────────────────
 await checkAsync('gofa-points-import: array payload replaces points', async function() {
-    var mockRobot = { _points: [{ id: 'old', name: 'old' }], _savePoints: function() { this._saved = true; } };
+    var mockRobot = { _points: [{ id: 'old', name: 'old' }], _savePoints: function() { this._saved = true; }, replacePoints: function(arr) { this._points = arr; this._savePoints(); return arr; } };
     var node = new (loadNodeType('./nodes/gofa-points-import', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
     var msg = { payload: [{ id: 'p1', name: 'p1', target: {} }] };
     await runInput(node, msg);
@@ -491,7 +491,7 @@ await checkAsync('gofa-points-import: array payload replaces points', async func
     assert.deepStrictEqual(msg.payload, { ok: true, count: 1, loadedFrom: null });
 });
 await checkAsync('gofa-points-import: {points:[...]} wrapper is unwrapped', async function() {
-    var mockRobot = { _points: [], _savePoints: function() {} };
+    var mockRobot = { _points: [], _savePoints: function() {}, replacePoints: function(arr) { this._points = arr; this._savePoints(); return arr; } };
     var node = new (loadNodeType('./nodes/gofa-points-import', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
     await runInput(node, { payload: { points: [{ id: 'p1', name: 'p1' }] } });
     assert.strictEqual(mockRobot._points.length, 1);
@@ -499,7 +499,7 @@ await checkAsync('gofa-points-import: {points:[...]} wrapper is unwrapped', asyn
 await checkAsync('gofa-points-import: loads from a file path in msg.payload', async function() {
     var f = path.join(tmpDir, 'import-1.json');
     fs.writeFileSync(f, JSON.stringify([{ id: 'p1', name: 'p1' }]));
-    var mockRobot = { _points: [], _savePoints: function() {} };
+    var mockRobot = { _points: [], _savePoints: function() {}, replacePoints: function(arr) { this._points = arr; this._savePoints(); return arr; } };
     var node = new (loadNodeType('./nodes/gofa-points-import', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
     var msg = { payload: f };
     await runInput(node, msg);
@@ -507,7 +507,7 @@ await checkAsync('gofa-points-import: loads from a file path in msg.payload', as
     assert.strictEqual(msg.payload.loadedFrom, f);
 });
 await checkAsync('gofa-points-import: missing file reports an error', async function() {
-    var mockRobot = { _points: [], _savePoints: function() {} };
+    var mockRobot = { _points: [], _savePoints: function() {}, replacePoints: function(arr) { this._points = arr; this._savePoints(); return arr; } };
     var node = new (loadNodeType('./nodes/gofa-points-import', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
     var err = await runInput(node, { payload: path.join(tmpDir, 'missing.json') });
     assert.ok(err);
@@ -517,6 +517,56 @@ await checkAsync('gofa-points-import: missing robot config reports an error', as
     var node = new (loadNodeType('./nodes/gofa-points-import', { nodesById: {} }))({ robot: 'nope' });
     await runInput(node, { payload: [] });
     assert.ok(node.errors.length > 0);
+});
+await checkAsync('gofa-points-import: importing missing target is rejected', async function() {
+    var pointsFile = path.join(tmpDir, 'points-import-invalid.json');
+    fs.writeFileSync(pointsFile, JSON.stringify([{ id: 'old', name: 'old', target: sample }]));
+    var robotNode = makeRobotNode(pointsFile);
+    var node = new (loadNodeType('./nodes/gofa-points-import', { nodesById: { r1: robotNode } }))({ robot: 'r1' });
+    var err = await runInput(node, { payload: [{ name: 'p1' }] });
+    assert.ok(err);
+    assert.ok(node.errors.length > 0);
+    assert.strictEqual(robotNode.getPoints().length, 1);
+    assert.strictEqual(robotNode.getPoints()[0].name, 'old');
+});
+await checkAsync('gofa-points-import: importing non-numeric target field is rejected', async function() {
+    var pointsFile = path.join(tmpDir, 'points-import-nonnum.json');
+    fs.writeFileSync(pointsFile, JSON.stringify([{ id: 'old', name: 'old', target: sample }]));
+    var robotNode = makeRobotNode(pointsFile);
+    var node = new (loadNodeType('./nodes/gofa-points-import', { nodesById: { r1: robotNode } }))({ robot: 'r1' });
+    var invalidPoints = [{ name: 'p1', target: { x: 'abc', y: 0, z: 0, q1: 0, q2: 0, q3: 0, q4: 0, cf1: 0, cf4: 0, cf6: 0, cfx: 0 } }];
+    var err = await runInput(node, { payload: invalidPoints });
+    assert.ok(err);
+    assert.ok(node.errors.length > 0);
+    assert.strictEqual(robotNode.getPoints().length, 1);
+    assert.strictEqual(robotNode.getPoints()[0].name, 'old');
+});
+await checkAsync('gofa-points-import: importing fully valid array succeeds', async function() {
+    var pointsFile = path.join(tmpDir, 'points-import-valid.json');
+    fs.writeFileSync(pointsFile, JSON.stringify([]));
+    var robotNode = makeRobotNode(pointsFile);
+    var node = new (loadNodeType('./nodes/gofa-points-import', { nodesById: { r1: robotNode } }))({ robot: 'r1' });
+    var validPoints = [{ id: 'p1', name: 'p1', target: sample }];
+    var msg = { payload: validPoints };
+    await runInput(node, msg);
+    assert.strictEqual(robotNode.getPoints().length, 1);
+    assert.strictEqual(robotNode.getPoints()[0].name, 'p1');
+    assert.deepStrictEqual(msg.payload, { ok: true, count: 1, loadedFrom: null });
+});
+await checkAsync('gofa-points-import: importing valid element missing id auto-assigns id', async function() {
+    var pointsFile = path.join(tmpDir, 'points-import-missingid.json');
+    fs.writeFileSync(pointsFile, JSON.stringify([]));
+    var robotNode = makeRobotNode(pointsFile);
+    var node = new (loadNodeType('./nodes/gofa-points-import', { nodesById: { r1: robotNode } }))({ robot: 'r1' });
+    var validPoints = [{ name: 'p1', target: sample }, { name: 'p2', target: sample }];
+    await runInput(node, { payload: validPoints });
+    var pts = robotNode.getPoints();
+    assert.strictEqual(pts.length, 2);
+    assert.strictEqual(pts[0].name, 'p1');
+    assert.ok(pts[0].id.startsWith('p'));
+    assert.strictEqual(pts[1].name, 'p2');
+    assert.ok(pts[1].id.startsWith('p'));
+    assert.notStrictEqual(pts[0].id, pts[1].id, 'auto-assigned IDs should not collide');
 });
 
 // gofa-points-export ─────────────────────────────────────────────────────────
@@ -589,6 +639,32 @@ await checkAsync('gofa-robot: remoteDeletePoint removes by name and persists', a
 await checkAsync('gofa-robot: remoteDeletePoint returns null when not found', async function() {
     var node = makeRemoteRobotNode({ exists: true, points: [] });
     assert.strictEqual(await node.remoteDeletePoint('missing'), null);
+});
+await checkAsync('gofa-robot: remoteAddPoint warns (but still saves) if the remote file changed between the initial read and the pre-save check', async function() {
+    var node = makeRemoteRobotNode({ exists: true, points: [{ id: 'p1', name: 'existing', target: {} }] });
+    var getCount = 0;
+    var realRequestRaw = node.requestRaw;
+    node.requestRaw = function(method) {
+        getCount++;
+        if (getCount === 2) {
+            // Simulate a concurrent write landing between remoteAddPoint's initial
+            // read and its pre-save drift check.
+            return Promise.resolve({ statusCode: 200, headers: {}, body: Buffer.from(JSON.stringify([
+                { id: 'p1', name: 'existing', target: {} }, { id: 'p2', name: 'concurrent', target: {} }
+            ])) });
+        }
+        return realRequestRaw(method);
+    };
+    var pt = await node.remoteAddPoint('new-point', { x: 1 });
+    assert.strictEqual(pt.name, 'new-point');
+    assert.ok(node.warnings.some(function(w) { return /changed since it was last read/.test(w); }),
+        'must warn that the remote file changed since it was last read');
+});
+await checkAsync('gofa-robot: remoteAddPoint does NOT warn about drift when nothing changed between reads', async function() {
+    var node = makeRemoteRobotNode({ exists: true, points: [{ id: 'p1', name: 'existing', target: {} }] });
+    await node.remoteAddPoint('new-point', { x: 1 });
+    assert.ok(!node.warnings.some(function(w) { return /changed since it was last read/.test(w); }),
+        'must not warn when the remote file is unchanged between the two reads');
 });
 await checkAsync('gofa-robot: remoteFindPoint matches by name or id, else null', async function() {
     var node = makeRemoteRobotNode({ exists: true, points: [{ id: 'p1', name: 'pick1', target: { x: 1 } }] });
@@ -839,6 +915,38 @@ await checkAsync('gofa-sequencer: storage "remote" fetches the point list once v
     assert.strictEqual(stepMsgs(node).length, 2);
     assert.deepStrictEqual(endMsg(node).payload, { done: true, loops: 1 });
 });
+await checkAsync('gofa-sequencer: race condition guard prevents concurrent sequences', async function() {
+    var remoteGetPointsCalls = 0;
+    var socketSendCalls = [];
+    var resolvePoints;
+    var pointsPromise = new Promise(function(resolve) {
+        resolvePoints = resolve;
+    });
+    var mockRobot = {
+        _seqStop: false, _seqRunning: false,
+        getPoints: function() { return []; },
+        remoteGetPoints: function() {
+            remoteGetPointsCalls++;
+            return pointsPromise;
+        },
+        gotoObj: function() { return { cmd: 'gotoj', val: [] }; },
+        socketSend: function(obj) {
+            socketSendCalls.push(obj);
+            return Promise.resolve('OK:GOTO');
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote', dwell: 0 });
+
+    var run1 = runInput(node, { payload: { steps: [{ name: 'a' }] } });
+    var run2 = runInput(node, { payload: { steps: [{ name: 'a' }] } });
+
+    resolvePoints([{ name: 'a', target: {} }]);
+    await run1;
+    await run2;
+
+    assert.strictEqual(remoteGetPointsCalls, 1, 'should only fetch points once');
+    assert.strictEqual(node.warnings.some(function(w) { return w.includes('Sequence already running'); }), true);
+});
 await checkAsync('gofa-stop-seq: sets the stop flag and sends STOP', async function() {
     var sentCmds = [];
     var mockRobot = { _seqStop: false, socketSend: function(cmd) { sentCmds.push(cmd); return Promise.resolve('OK:STOP'); } };
@@ -958,8 +1066,17 @@ await checkAsync('gofa-rapid-exec: resetpp acquires mastership and does not chec
     await runInput(node, msg);
     assert.deepStrictEqual(msg.payload, { ok: true, action: 'resetpp' });
 });
+await checkAsync('gofa-rapid-exec: loadmod refuses up front when RAPID is running (no mastership request sent)', async function() {
+    var mockRobot = makeRapidExecRobot({ execstateSeq: ['running'] });
+    var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'loadmod' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(msg.payload.error.indexOf('RAPID is running') >= 0, msg.payload.error);
+    assert.ok(!mockRobot.calls.some(function(c) { return c[0] === 'POST-HAL'; }), 'must not attempt loadmod when RAPID is running');
+});
 await checkAsync('gofa-rapid-exec: loadmod acquires mastership, uses hal+json, and parses the loaded module name', async function() {
-    var mockRobot = makeRapidExecRobot({ ctrlstate: 'motoroff' });
+    var mockRobot = makeRapidExecRobot({ ctrlstate: 'motoroff', execstateSeq: ['stopped'] });
     var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({
         robot: 'r1', action: 'loadmod', task: 'T_ROB1', modulePath: '$HOME/Programs/MainModule.mod', replace: true
     });
@@ -972,10 +1089,10 @@ await checkAsync('gofa-rapid-exec: loadmod acquires mastership, uses hal+json, a
     assert.ok(call, 'must call rwsPostHal, not rwsPost, for loadmod');
     assert.strictEqual(call[1], '/rw/rapid/tasks/T_ROB1/loadmod');
     assert.ok(call[2].indexOf('modulepath=') >= 0 && call[2].indexOf('replace=true') >= 0, call[2]);
-    assert.ok(!mockRobot.calls.some(function(c) { return c[1] === '/rw/panel/ctrl-state'; }), 'must not check ctrl-state for loadmod');
+    assert.ok(!mockRobot.calls.some(function(c) { return c[1] === '/rw/panel/ctrl-state'; }), 'must not check ctrl-state for loadmod (it checks exec-state instead)');
 });
 await checkAsync('gofa-rapid-exec: msg.payload can override task/modulePath/replace for loadmod', async function() {
-    var mockRobot = makeRapidExecRobot();
+    var mockRobot = makeRapidExecRobot({ execstateSeq: ['stopped'] });
     var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'loadmod' });
     var msg = { payload: { action: 'loadmod', task: 'T_ROB2', modulePath: '$HOME/Programs/Other.mod', replace: false } };
     await runInput(node, msg);
@@ -986,7 +1103,7 @@ await checkAsync('gofa-rapid-exec: msg.payload can override task/modulePath/repl
     assert.ok(call[2].indexOf('Other.mod') >= 0 && call[2].indexOf('replace=false') >= 0, call[2]);
 });
 await checkAsync('gofa-rapid-exec: unloadmod acquires mastership, uses hal+json, and reports task/module', async function() {
-    var mockRobot = makeRapidExecRobot({ ctrlstate: 'motoroff' });
+    var mockRobot = makeRapidExecRobot({ ctrlstate: 'motoroff', execstateSeq: ['stopped'] });
     var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({
         robot: 'r1', action: 'unloadmod', task: 'T_ROB1', module: 'MainModule'
     });
@@ -998,10 +1115,13 @@ await checkAsync('gofa-rapid-exec: unloadmod acquires mastership, uses hal+json,
     assert.strictEqual(call[1], '/rw/rapid/tasks/T_ROB1/unloadmod');
     assert.strictEqual(call[2], 'module=MainModule');
 });
-await checkAsync('gofa-rapid-exec: unloadmod PGM-state 403 gets the "stop RAPID first" hint', async function() {
+await checkAsync('gofa-rapid-exec: unloadmod PGM-state 403 gets the "stop RAPID first" hint (reactive fallback if the proactive check ever misses it)', async function() {
     // Confirmed live: RWS rejects unloadmod with this exact message while RAPID is running.
+    // execstateSeq is 'stopped' here specifically so this test exercises the reactive
+    // .catch hint independent of the newer proactive check above (which has its own
+    // dedicated test) — not because the proactive check is expected to fail in practice.
     var pgmStateError = new Error('HTTP 403 /rw/rapid/tasks/T_ROB1/unloadmod — Operation not allowed for current PGM state (Started/Stopped/Ready)');
-    var mockRobot = makeRapidExecRobot({ postError: pgmStateError });
+    var mockRobot = makeRapidExecRobot({ postError: pgmStateError, execstateSeq: ['stopped'] });
     var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({
         robot: 'r1', action: 'unloadmod', task: 'T_ROB1', module: 'MainModule'
     });
@@ -1011,7 +1131,7 @@ await checkAsync('gofa-rapid-exec: unloadmod PGM-state 403 gets the "stop RAPID 
     assert.ok(msg.payload.error.indexOf('RAPID must be stopped for unloadmod') >= 0, msg.payload.error);
 });
 await checkAsync('gofa-rapid-exec: activate acquires mastership, uses hal+json, and reports task/module', async function() {
-    var mockRobot = makeRapidExecRobot({ ctrlstate: 'motoroff' });
+    var mockRobot = makeRapidExecRobot({ ctrlstate: 'motoroff', execstateSeq: ['stopped'] });
     var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({
         robot: 'r1', action: 'activate', task: 'T_ROB1', module: 'MainModule'
     });
@@ -1022,10 +1142,10 @@ await checkAsync('gofa-rapid-exec: activate acquires mastership, uses hal+json, 
     assert.ok(call, 'must call rwsPostHal, not rwsPost, for activate');
     assert.strictEqual(call[1], '/rw/rapid/tasks/T_ROB1/activate');
     assert.strictEqual(call[2], 'module=MainModule');
-    assert.ok(!mockRobot.calls.some(function(c) { return c[1] === '/rw/panel/ctrl-state'; }), 'must not check ctrl-state for activate');
+    assert.ok(!mockRobot.calls.some(function(c) { return c[1] === '/rw/panel/ctrl-state'; }), 'must not check ctrl-state for activate (it checks exec-state instead)');
 });
 await checkAsync('gofa-rapid-exec: msg.payload can override task/module for activate', async function() {
-    var mockRobot = makeRapidExecRobot();
+    var mockRobot = makeRapidExecRobot({ execstateSeq: ['stopped'] });
     var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'activate' });
     var msg = { payload: { action: 'activate', task: 'T_ROB2', module: 'OtherModule' } };
     await runInput(node, msg);
@@ -1036,15 +1156,30 @@ await checkAsync('gofa-rapid-exec: msg.payload can override task/module for acti
     assert.strictEqual(call[1], '/rw/rapid/tasks/T_ROB2/activate');
     assert.strictEqual(call[2], 'module=OtherModule');
 });
-await checkAsync('gofa-rapid-exec: activate/loadmod give a clear hint on the "RAPID must be stopped" 403', async function() {
+await checkAsync('gofa-rapid-exec: activate/loadmod give a clear hint on the "RAPID must be stopped" 403 (reactive fallback)', async function() {
     // Confirmed live: RWS rejects activate/loadmod with this exact message while RAPID is running.
     var pgmStateError = new Error('HTTP 403 /rw/rapid/tasks/T_ROB1/activate — Operation not allowed for current PGM state (Started/Stopped/Ready)');
-    var mockRobot = makeRapidExecRobot({ postError: pgmStateError });
+    var mockRobot = makeRapidExecRobot({ postError: pgmStateError, execstateSeq: ['stopped'] });
     var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'activate' });
     var msg = {};
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, false);
     assert.ok(msg.payload.error.indexOf('RAPID must be stopped for activate') >= 0, msg.payload.error);
+});
+await checkAsync('gofa-rapid-exec: warns when msg.payload looks like another gofa-rapid-exec node\'s own output ({ok, action}), but still honors the override', async function() {
+    var mockRobot = makeRapidExecRobot();
+    var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'start' });
+    var msg = { payload: { ok: true, action: 'resetpp' } };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.action, 'resetpp', 'the chained action still overrides, same as before — this only adds a warning');
+    assert.ok(node.warnings.some(function(w) { return w.indexOf('another gofa-rapid-exec node') >= 0; }));
+});
+await checkAsync('gofa-rapid-exec: a plain object payload without both ok+action does not trigger the chaining warning', async function() {
+    var mockRobot = makeRapidExecRobot();
+    var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'stop' });
+    var msg = { payload: { task: 'T_ROB1' } };
+    await runInput(node, msg);
+    assert.strictEqual(node.warnings.length, 0);
 });
 
 // gofa-rapid-tasks ───────────────────────────────────────────────────────────
@@ -1143,6 +1278,61 @@ await checkAsync('gofa-subscribe-io: subscribes via robot.requestRaw (not privat
     assert.ok(node._pollTimer, 'must fall back to polling when the subscribe request itself fails with HTTP 400');
     clearInterval(node._pollTimer);
 });
+await checkAsync('gofa-subscribe-io: subscribe POST resolves after close() does not create WS and deletes orphaned subscription', async function() {
+    var deleteCalls = [];
+    var resolvePost;
+    var postPromise = new Promise(function(resolve) { resolvePost = resolve; });
+    var mockRobot = {
+        requestRaw: function(method, p, body, opts) {
+            if (method === 'POST' && p === '/subscription') {
+                return postPromise;
+            }
+            if (method === 'DELETE' && p.startsWith('/subscription/')) {
+                deleteCalls.push(p);
+                return Promise.resolve({ statusCode: 200, headers: {}, body: Buffer.from('') });
+            }
+            return Promise.reject(new Error('unexpected requestRaw ' + method + ' ' + p));
+        },
+        getCookie: function() { return Promise.resolve('cookie=abc'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-subscribe-io', { nodesById: { r1: mockRobot } }))({ robot: 'r1', signal: 'Asi1Button1' });
+    
+    runInput(node, {});
+    node._handlers['close'](function() {});
+    resolvePost({ statusCode: 201, headers: { location: 'http://localhost/poll/abc' } });
+    await flush();
+    
+    assert.strictEqual(node._ws, null, 'WS should not have been created');
+    assert.strictEqual(deleteCalls.length, 1, 'orphaned subscription should be deleted');
+    assert.strictEqual(deleteCalls[0], '/subscription/abc');
+});
+await checkAsync('gofa-subscribe-io: subscribe POST resolving 400 after close() does not start polling interval', async function() {
+    var resolvePost;
+    var postPromise = new Promise(function(resolve) { resolvePost = resolve; });
+    var mockRobot = {
+        requestRaw: function(method, p, body, opts) {
+            if (method === 'POST' && p === '/subscription') {
+                return postPromise;
+            }
+            return Promise.reject(new Error('unexpected requestRaw ' + method + ' ' + p));
+        },
+        getCookie: function() { return Promise.resolve('cookie=abc'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-subscribe-io', { nodesById: { r1: mockRobot } }))({ robot: 'r1', signal: 'Asi1Button1' });
+    
+    runInput(node, {});
+    node._handlers['close'](function() {});
+    resolvePost({ statusCode: 400 });
+    
+    try {
+        await flush();
+        assert.strictEqual(node._pollTimer, null, 'polling interval should not be created');
+    } finally {
+        if (node._pollTimer) {
+            clearInterval(node._pollTimer);
+        }
+    }
+});
 await checkAsync('gofa-subscribe-state: subscribes via robot.requestRaw (not private robot internals), reports error on HTTP 400', async function() {
     var calls = [];
     var mockRobot = {
@@ -1158,6 +1348,34 @@ await checkAsync('gofa-subscribe-state: subscribes via robot.requestRaw (not pri
     await flush();
     assert.ok(calls.some(function(c) { return c.method === 'POST' && c.path === '/subscription'; }));
     assert.ok(node.errors.length > 0, 'must report the subscribe failure');
+});
+await checkAsync('gofa-subscribe-state: subscribe POST resolves after close() does not create WS and deletes orphaned subscription', async function() {
+    var deleteCalls = [];
+    var resolvePost;
+    var postPromise = new Promise(function(resolve) { resolvePost = resolve; });
+    var mockRobot = {
+        requestRaw: function(method, p, body, opts) {
+            if (method === 'POST' && p === '/subscription') {
+                return postPromise;
+            }
+            if (method === 'DELETE' && p.startsWith('/subscription/')) {
+                deleteCalls.push(p);
+                return Promise.resolve({ statusCode: 200, headers: {}, body: Buffer.from('') });
+            }
+            return Promise.reject(new Error('unexpected requestRaw ' + method + ' ' + p));
+        },
+        getCookie: function() { return Promise.resolve('cookie=abc'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-subscribe-state', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    
+    runInput(node, {});
+    node._handlers['close'](function() {});
+    resolvePost({ statusCode: 201, headers: { location: 'http://localhost/poll/abc' } });
+    await flush();
+    
+    assert.strictEqual(node._ws, null, 'WS should not have been created');
+    assert.strictEqual(deleteCalls.length, 1, 'orphaned subscription should be deleted');
+    assert.strictEqual(deleteCalls[0], '/subscription/abc');
 });
 
 // gofa-subscribe-elog ────────────────────────────────────────────────────────
@@ -1198,6 +1416,82 @@ await checkAsync('gofa-subscribe-elog: reports error on subscribe failure (HTTP 
     await runInput(node, {});
     await flush();
     assert.ok(node.errors.length > 0, 'must report the subscribe failure');
+});
+await checkAsync('gofa-subscribe-elog: subscribe POST resolves after close() does not create WS and deletes orphaned subscription', async function() {
+    var deleteCalls = [];
+    var resolvePost;
+    var postPromise = new Promise(function(resolve) { resolvePost = resolve; });
+    var mockRobot = {
+        requestRaw: function(method, p, body, opts) {
+            if (method === 'POST' && p === '/subscription') {
+                return postPromise;
+            }
+            if (method === 'DELETE' && p.startsWith('/subscription/')) {
+                deleteCalls.push(p);
+                return Promise.resolve({ statusCode: 200, headers: {}, body: Buffer.from('') });
+            }
+            return Promise.reject(new Error('unexpected requestRaw ' + method + ' ' + p));
+        },
+        getCookie: function() { return Promise.resolve('cookie=abc'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-subscribe-elog', { nodesById: { r1: mockRobot } }))({ robot: 'r1', domain: '1' });
+    
+    runInput(node, {});
+    node._handlers['close'](function() {});
+    resolvePost({ statusCode: 201, headers: { location: 'http://localhost/poll/abc' } });
+    await flush();
+    
+    assert.strictEqual(node._ws, null, 'WS should not have been created');
+    assert.strictEqual(deleteCalls.length, 1, 'orphaned subscription should be deleted');
+    assert.strictEqual(deleteCalls[0], '/subscription/abc');
+});
+await checkAsync('gofa-subscribe-elog: fetchAndEmit resolves after close() does not send message', async function() {
+    var origWs = require.cache[require.resolve('ws')];
+    var EventEmitter = require('events');
+    function MockWS(url, protocols, options) {
+        EventEmitter.call(this);
+        MockWS.lastInstance = this;
+    }
+    require('util').inherits(MockWS, EventEmitter);
+    MockWS.prototype.terminate = function() {};
+    require.cache[require.resolve('ws')] = { exports: MockWS };
+    delete require.cache[require.resolve('./nodes/gofa-subscribe-elog')];
+
+    var resolveGet;
+    var getPromise = new Promise(function(resolve) { resolveGet = resolve; });
+    var mockRobot = {
+        requestRaw: function(method, p, body, opts) {
+            return Promise.resolve({ statusCode: 201, headers: { location: '/poll/abc' } });
+        },
+        getCookie: function() { return Promise.resolve('cookie=abc'); },
+        rwsGet: function(href) {
+            return getPromise;
+        }
+    };
+    var GoFaSubscribeElog = loadNodeType('./nodes/gofa-subscribe-elog', { nodesById: { r1: mockRobot } });
+
+    var node = new GoFaSubscribeElog({ robot: 'r1', domain: '1', minSeverity: 1 });
+
+    runInput(node, {});
+    await flush();
+
+    var wsInstance = MockWS.lastInstance;
+    assert.ok(wsInstance);
+    wsInstance.emit('open');
+
+    var msgBody = '<li class="elog-message-ev"><a href="/rw/elog/1/123" rel="self"></a></li>';
+    wsInstance.emit('message', Buffer.from(msgBody));
+
+    node._handlers['close'](function() {});
+
+    var elogXhtml = '<li class="elog-message"><span class="seqnum">123</span><span class="msgtype">1</span><span class="code">1001</span><span class="title">Test</span><span class="tstamp">time</span></li>';
+    resolveGet(elogXhtml);
+    await flush();
+
+    assert.strictEqual(node.sent.length, 0, 'no message should be sent from closed node');
+
+    require.cache[require.resolve('ws')] = origWs;
+    delete require.cache[require.resolve('./nodes/gofa-subscribe-elog')];
 });
 check('gofa-subscribe-elog: parseEntry reads fields from both the list-item and single-entry XHTML shapes', function() {
     var parseEntry = require('./nodes/gofa-subscribe-elog').parseEntry;
@@ -1352,6 +1646,29 @@ await checkAsync('gofa-subscribe-var: reports an error status when the variable 
     assert.ok(node.errors.some(function(e) { return e.indexOf('not found') >= 0; }));
 });
 
+// gofa-rapid-var-write ───────────────────────────────────────────────────────
+await checkAsync('gofa-rapid-var-write: succeeds on OK:SETVAR', async function() {
+    var mockRobot = { socketSend: function(cmd) { return Promise.resolve('OK:SETVAR'); } };
+    var node = new (loadNodeType('./nodes/gofa-rapid-var-write', { nodesById: { r1: mockRobot } }))({ robot: 'r1', variable: 'nTestVar', value: '5' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.deepStrictEqual(msg.payload, { ok: true, variable: 'nTestVar', value: '5' });
+});
+await checkAsync('gofa-rapid-var-write: a generic ERR:SETVAR reply gets one combined hint, not a dead unreachable-branch check', async function() {
+    // socketSend()'s JSON reply translator collapses every RAPID-side reason into
+    // a bare 'ERR:SETVAR' — the old checks for 'ERR:UNKNOWN_VAR'/'ERR:PARSE' could
+    // never match that and were dead code. This just confirms a single honest
+    // combined hint is produced instead, regardless of what actually went wrong.
+    var mockRobot = { socketSend: function() { return Promise.resolve('ERR:SETVAR'); } };
+    var node = new (loadNodeType('./nodes/gofa-rapid-var-write', { nodesById: { r1: mockRobot } }))({ robot: 'r1', variable: 'nTestVar', value: '5' });
+    var msg = {};
+    var err = await runInput(node, msg);
+    assert.ok(err);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(/TryGetVar\/TrySetVar/.test(msg.payload.error));
+    assert.ok(/valid value for its RAPID type/.test(msg.payload.error));
+});
+
 // gofa-rapid-var-read ────────────────────────────────────────────────────────
 await checkAsync('gofa-rapid-var-read: uses the live socket value when the variable is known to GETVAR', async function() {
     var mockRobot = { socketSend: function(cmd) { return Promise.resolve('VAL:9.000000'); } };
@@ -1426,6 +1743,32 @@ await checkAsync('createRobotClient: logout releases the session and the next ca
         assert.strictEqual(mock.loginCount(), 2, 'the next call after logout must re-authenticate');
         assert.notStrictEqual(secondCookie, firstCookie, 'a fresh session should replace the released one');
     } finally { mock.server.close(); }
+});
+await checkAsync('createRobotClient: requestRaw retries once with forced Basic-auth on a stale 401 instead of hard-failing', async function() {
+    // Simulates a session that expired server-side since it was last used: any
+    // Cookie-based request gets 401, but Basic-auth still works. Before this fix,
+    // requestRaw had no retry at all (unlike rwsGet/rwsPost) and would hard-fail
+    // with a bare "HTTP 401 Unauthorized" here instead of transparently
+    // re-authenticating the way every other RWS call in this palette does.
+    var basicAuthHits = 0;
+    var server = http.createServer(function(req, res) {
+        if (req.headers.authorization && req.headers.authorization.indexOf('Basic') === 0) {
+            basicAuthHits++;
+            res.writeHead(200, { 'Set-Cookie': 'ABBCX=fresh' });
+            res.end('ok');
+        } else {
+            res.writeHead(401);
+            res.end();
+        }
+    });
+    var port = await new Promise(function(resolve) { server.listen(0, function() { resolve(server.address().port); }); });
+    try {
+        var client = createRobotClient({ ip: '127.0.0.1', rwsPort: port, socketPort: 1025, username: 'u', password: 'p' });
+        await client.getCookie(); // establishes a (soon-to-be-stale) cookie via Basic auth
+        var res = await client.requestRaw('GET', '/rw/some/resource', null, {});
+        assert.strictEqual(res.statusCode, 200, 'must recover via forced Basic-auth retry, not hard-fail on the stale-cookie 401');
+        assert.ok(basicAuthHits >= 2, 'expected the initial login plus at least one forced-auth retry');
+    } finally { server.close(); }
 });
 await checkAsync('createRobotClient: logout is a no-op when no session was ever established', async function() {
     var hit = false;
@@ -1690,6 +2033,62 @@ await checkAsync('gofa-egm: straggler UDP frame arriving after stop() does not r
         dgram.createSocket = originalCreateSocket;
     }
 });
+await checkAsync('gofa-egm: bindSocket no-frame timer firing after close() does not error or call stopAll again', async function() {
+    var dgram = require('dgram');
+    var originalCreateSocket = dgram.createSocket;
+    var originalSetTimeout = global.setTimeout;
+    
+    var timerCallback = null;
+    global.setTimeout = function(cb, delay) {
+        if (delay === 2000) {
+            timerCallback = cb;
+            return 123;
+        }
+        return originalSetTimeout(cb, delay);
+    };
+    
+    var mockSocket = {
+        bind: function(port, cb) { if (cb) cb(); },
+        close: function() { this.closed = true; },
+        on: function() {}
+    };
+    dgram.createSocket = function() { return mockSocket; };
+    
+    var mockRobot = {
+        _egmActive: false,
+        _egmSocket: null,
+        socketSend: function(cmd) {
+            if (cmd.cmd === 'egmjoint') return Promise.resolve('OK:EGMJOINT');
+            if (cmd.cmd === 'ping') return Promise.resolve('OK:PING');
+            return Promise.reject(new Error('unknown cmd'));
+        },
+        rwsPost: function() {
+            return Promise.resolve('');
+        }
+    };
+    
+    try {
+        var node = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({
+            robot: 'r1', action: 'start', udpPort: 12345, throttleMs: 100
+        });
+        
+        var startPromise = runInput(node, { payload: 'start' });
+        await new Promise(function(resolve) { setImmediate(resolve); });
+        
+        assert.ok(timerCallback, '2s timer should be registered');
+        node._handlers['close'](function() {});
+        
+        timerCallback();
+        await new Promise(function(resolve) { setImmediate(resolve); });
+        
+        assert.strictEqual(node.errors.length, 0, 'should not log any errors');
+        var hasErrorStatus = node.statuses.some(function(s) { return s.text === 'error'; });
+        assert.strictEqual(hasErrorStatus, false, 'should not flip status to error');
+    } finally {
+        dgram.createSocket = originalCreateSocket;
+        global.setTimeout = originalSetTimeout;
+    }
+});
 
 // gofa-egm-move ──────────────────────────────────────────────────────────────
 await checkAsync('gofa-egm-move: no robot configured reports an error and sends nothing', async function() {
@@ -1778,6 +2177,32 @@ await checkAsync('discover: filters out non-ABB servers', async function() {
         server.close();
     }
 });
+await checkAsync('discover: does NOT false-positive on an ordinary device returning a bare 200 (e.g. a router/NAS admin UI)', async function() {
+    var server = http.createServer(function(req, res) {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end('<html>some unrelated admin login page</html>');
+    });
+    var port = await new Promise(function(resolve) { server.listen(0, '127.0.0.1', function() { resolve(server.address().port); }); });
+    try {
+        var ips = await robot.discover({ includeInternal: true, rwsPort: port, timeout: 50 });
+        assert.deepStrictEqual(ips, [], 'a bare 200 with no ABB WWW-Authenticate realm must not be mistaken for the robot');
+    } finally {
+        server.close();
+    }
+});
+await checkAsync('discover: does NOT false-positive on an ordinary device returning a bare 401 (e.g. anything behind Basic/Digest auth)', async function() {
+    var server = http.createServer(function(req, res) {
+        res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Router Admin"' });
+        res.end();
+    });
+    var port = await new Promise(function(resolve) { server.listen(0, '127.0.0.1', function() { resolve(server.address().port); }); });
+    try {
+        var ips = await robot.discover({ includeInternal: true, rwsPort: port, timeout: 50 });
+        assert.deepStrictEqual(ips, [], 'a bare 401 with a non-ABB realm must not be mistaken for the robot');
+    } finally {
+        server.close();
+    }
+});
 
 // gofa-robot: JSON socket protocol ──────────────────────────────────────────
 await checkAsync('socketSend: translates legacy commands to JSON and parses JSON response', async function() {
@@ -1840,6 +2265,460 @@ await checkAsync('socketSend: legacy fallback works when server replies with str
     } finally {
         server.close();
     }
+});
+
+// ── gofa-grip ───────────────────────────────────────────────────────────────
+await checkAsync('gofa-grip: accepts valid on/off inputs', async function() {
+    var posted = [];
+    var mockRobot = {
+        rwsPost: function(path, body) {
+            posted.push({ path: path, body: body });
+            return Promise.resolve();
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-grip', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'on', signal: 'DO1' });
+    var msg1 = { payload: 'on' };
+    await runInput(node, msg1);
+    assert.deepStrictEqual(msg1.payload, { ok: true, action: 'on', signal: 'DO1' });
+    assert.deepStrictEqual(posted[0], { path: '/rw/iosystem/signals/DO1/set-value', body: 'lvalue=1' });
+
+    var msg2 = { payload: 'off' };
+    await runInput(node, msg2);
+    assert.deepStrictEqual(msg2.payload, { ok: true, action: 'off', signal: 'DO1' });
+    assert.deepStrictEqual(posted[1], { path: '/rw/iosystem/signals/DO1/set-value', body: 'lvalue=0' });
+});
+
+await checkAsync('gofa-grip: rejects invalid numeric payload >1', async function() {
+    var mockRobot = { rwsPost: function() { return Promise.resolve(); } };
+    var node = new (loadNodeType('./nodes/gofa-grip', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = { payload: 5 };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(/Invalid grip action/.test(msg.payload.error));
+});
+
+// ── gofa-leadthrough-enable ─────────────────────────────────────────────────
+await checkAsync('gofa-leadthrough-enable: safety STOP success triggers lead-through enable', async function() {
+    var sent = [];
+    var posted = [];
+    var mockRobot = {
+        socketSend: function(cmd) { sent.push(cmd); return Promise.resolve('OK:STOP'); },
+        rwsPost: function(path, body) { posted.push({ path: path, body: body }); return Promise.resolve(); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-leadthrough-enable', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = { payload: {} };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.deepStrictEqual(sent, [{ cmd: 'stop' }]);
+    assert.deepStrictEqual(posted, [{ path: '/rw/motionsystem/mechunits/ROB_1/lead-through', body: 'status=active' }]);
+});
+
+await checkAsync('gofa-leadthrough-enable: safety STOP RWS error blocks lead-through enable', async function() {
+    var sent = [];
+    var posted = [];
+    var mockRobot = {
+        socketSend: function(cmd) { sent.push(cmd); return Promise.resolve('ERR:STOP'); },
+        rwsPost: function(path, body) { posted.push({ path: path, body: body }); return Promise.resolve(); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-leadthrough-enable', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var err = await runInput(node, { payload: {} });
+    assert.ok(err);
+    assert.strictEqual(posted.length, 0);
+});
+
+await checkAsync('gofa-leadthrough-enable: safety STOP socket connection failure is swallowed and proceeds', async function() {
+    var posted = [];
+    var mockRobot = {
+        socketSend: function() { return Promise.reject(new Error('socket closed')); },
+        rwsPost: function(path, body) { posted.push({ path: path, body: body }); return Promise.resolve(); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-leadthrough-enable', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = { payload: {} };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(posted.length, 1);
+});
+
+// ── gofa-move ───────────────────────────────────────────────────────────────
+await checkAsync('gofa-move: allows HOME and SETHOME', async function() {
+    var sent = [];
+    var mockRobot = { socketSend: function(cmd) { sent.push(cmd); return Promise.resolve('OK:HOME'); } };
+    var node = new (loadNodeType('./nodes/gofa-move', { nodesById: { r1: mockRobot } }))({ robot: 'r1', command: 'HOME' });
+    var msg = { payload: 'SETHOME' };
+    await runInput(node, msg);
+    assert.deepStrictEqual(sent, [{ cmd: 'sethome' }]);
+    assert.strictEqual(msg.payload.ok, true);
+});
+
+await checkAsync('gofa-move: rejects non-HOME/SETHOME commands', async function() {
+    var mockRobot = { socketSend: function() { return Promise.resolve('OK:BOGUS'); } };
+    var node = new (loadNodeType('./nodes/gofa-move', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = { payload: 'BOGUS' };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(/Invalid command/.test(msg.payload.error));
+});
+
+// ── gofa-jog ────────────────────────────────────────────────────────────────
+await checkAsync('gofa-jog: accepts valid axis, dir, step', async function() {
+    var sent = [];
+    var mockRobot = { socketSend: function(cmd) { sent.push(cmd); return Promise.resolve('OK:JOG'); } };
+    var node = new (loadNodeType('./nodes/gofa-jog', { nodesById: { r1: mockRobot } }))({ robot: 'r1', axis: 'X', dir: '+', step: 10 });
+    var msg = { payload: { axis: 'RY', dir: '-', step: 15 } };
+    await runInput(node, msg);
+    assert.deepStrictEqual(sent, [{ cmd: 'jog', axis: 'Y', sgn: '-', val: 15, rot: true }]);
+    assert.strictEqual(msg.payload.ok, true);
+});
+
+await checkAsync('gofa-jog: rejects non-string and invalid axis', async function() {
+    var mockRobot = { socketSend: function() { return Promise.resolve('OK:JOG'); } };
+    var node = new (loadNodeType('./nodes/gofa-jog', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg1 = { payload: { axis: null } };
+    await runInput(node, msg1);
+    assert.strictEqual(msg1.payload.ok, false);
+    assert.ok(/Invalid or missing axis/.test(msg1.payload.error));
+
+    var msg2 = { payload: { axis: 'BOGUS' } };
+    await runInput(node, msg2);
+    assert.strictEqual(msg2.payload.ok, false);
+    assert.ok(/Invalid axis/.test(msg2.payload.error));
+});
+
+await checkAsync('gofa-jog: rejects invalid dir and non-numeric step', async function() {
+    var mockRobot = { socketSend: function() { return Promise.resolve('OK:JOG'); } };
+    var node = new (loadNodeType('./nodes/gofa-jog', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg1 = { payload: { dir: '=' } };
+    await runInput(node, msg1);
+    assert.strictEqual(msg1.payload.ok, false);
+    assert.ok(/Invalid direction/.test(msg1.payload.error));
+
+    var msg2 = { payload: { step: 'NaN' } };
+    await runInput(node, msg2);
+    assert.strictEqual(msg2.payload.ok, false);
+    assert.ok(/Invalid step value/.test(msg2.payload.error));
+});
+
+// ── gofa-joint-jog ──────────────────────────────────────────────────────────
+await checkAsync('gofa-joint-jog: accepts valid joint, dir, step', async function() {
+    var sent = [];
+    var mockRobot = { socketSend: function(cmd) { sent.push(cmd); return Promise.resolve('OK:JOINTJOG'); } };
+    var node = new (loadNodeType('./nodes/gofa-joint-jog', { nodesById: { r1: mockRobot } }))({ robot: 'r1', joint: 'J1', dir: '+', step: 5 });
+    var msg = { payload: { joint: 'J3', dir: '-', step: 10 } };
+    await runInput(node, msg);
+    assert.deepStrictEqual(sent, [{ cmd: 'jointjog', joint: 3, sgn: '-', val: 10 }]);
+    assert.strictEqual(msg.payload.ok, true);
+});
+
+await checkAsync('gofa-joint-jog: rejects invalid joint numbers', async function() {
+    var mockRobot = { socketSend: function() { return Promise.resolve('OK:JOINTJOG'); } };
+    var node = new (loadNodeType('./nodes/gofa-joint-jog', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg1 = { payload: { joint: 'J7' } };
+    await runInput(node, msg1);
+    assert.strictEqual(msg1.payload.ok, false);
+    assert.ok(/Invalid joint/.test(msg1.payload.error));
+
+    var msg2 = { payload: { joint: 0 } };
+    await runInput(node, msg2);
+    assert.strictEqual(msg2.payload.ok, false);
+    assert.ok(/Invalid joint/.test(msg2.payload.error));
+});
+
+// ── gofa-motor ──────────────────────────────────────────────────────────────
+await checkAsync('gofa-motor: accepts valid motor actions', async function() {
+    var posted = [];
+    var mockRobot = { rwsPost: function(path, body) { posted.push({ path: path, body: body }); return Promise.resolve(); } };
+    var node = new (loadNodeType('./nodes/gofa-motor', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'motoron' });
+    var msg = { payload: 'MOTOROFF' };
+    await runInput(node, msg);
+    assert.deepStrictEqual(posted, [{ path: '/rw/panel/ctrl-state', body: 'ctrl-state=motoroff' }]);
+    assert.strictEqual(msg.payload.ok, true);
+});
+
+await checkAsync('gofa-motor: rejects invalid motor actions', async function() {
+    var mockRobot = { rwsPost: function() { return Promise.resolve(); } };
+    var node = new (loadNodeType('./nodes/gofa-motor', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = { payload: 'BOGUS' };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(/Invalid action/.test(msg.payload.error));
+});
+
+// gofa-asi-led / gofa-pose / gofa-joints / gofa-status / gofa-rapid-var-read /
+// gofa-save-point / gofa-upload-mod — Tier 6 fixes (agy, parallel batch D1-D6) ──
+
+await checkAsync('gofa-asi-led: counted blink sequence completes', async function() {
+    var calls = [];
+    var mockRobot = {
+        socketSend: function(cmd) {
+            calls.push(cmd);
+            return Promise.resolve('OK:SETLED');
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-asi-led', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', red: 255, grn: 0, blu: 0, blinkCount: 2, blinkMs: 10
+    });
+    var msg = { payload: {} };
+    var inputPromise = runInput(node, msg);
+    await inputPromise;
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.blinks, 2);
+    assert.strictEqual(calls.length, 5);
+    assert.deepStrictEqual(calls[0].val, [255, 0, 0, 0]);
+    assert.deepStrictEqual(calls[1].val, [0, 0, 0, 0]);
+    assert.deepStrictEqual(calls[2].val, [255, 0, 0, 0]);
+    assert.deepStrictEqual(calls[3].val, [0, 0, 0, 0]);
+    assert.deepStrictEqual(calls[4].val, [0, 0, 0, 0]);
+});
+
+await checkAsync('gofa-asi-led: counted blink sequence is interrupted by new input', async function() {
+    var calls = [];
+    var mockRobot = {
+        socketSend: function(cmd) {
+            calls.push(cmd);
+            return Promise.resolve('OK:SETLED');
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-asi-led', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', red: 255, grn: 0, blu: 0, blinkCount: 5, blinkMs: 50
+    });
+    var msg1 = {};
+    var run1 = runInput(node, msg1);
+
+    await new Promise(function(resolve) { setTimeout(resolve, 10); });
+
+    var msg2 = { payload: 'reset' };
+    mockRobot.socketSend = function(cmd) {
+        calls.push(cmd);
+        return Promise.resolve('OK:RESETLED');
+    };
+    var run2 = runInput(node, msg2);
+
+    await run1;
+    await run2;
+
+    assert.strictEqual(calls[calls.length - 1].cmd, 'resetled');
+});
+
+await checkAsync('gofa-asi-led: reset restores static green', async function() {
+    var calls = [];
+    var mockRobot = {
+        socketSend: function(cmd) {
+            calls.push(cmd);
+            return Promise.resolve('OK:RESETLED');
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-asi-led', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = { payload: 'reset' };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.reset, true);
+    assert.deepStrictEqual(calls[0], { cmd: 'resetled' });
+});
+
+await checkAsync('gofa-asi-led: sets static led color', async function() {
+    var calls = [];
+    var mockRobot = {
+        socketSend: function(cmd) {
+            calls.push(cmd);
+            return Promise.resolve('OK:SETLED');
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-asi-led', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', red: 255, grn: 0, blu: 0, period: 0
+    });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.r, 255);
+    assert.deepStrictEqual(calls[0], { cmd: 'setled', val: [255, 0, 0, 0] });
+});
+
+await checkAsync('gofa-joints: error during joints fetch sets red status and propagates error', async function() {
+    var mockRobot = {
+        rwsGet: function() {
+            return Promise.reject(new Error('RWS connection error'));
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-joints', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    var err = await runInput(node, msg);
+    assert.ok(err);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.strictEqual(node.errors.length, 1);
+    assert.ok(node.statuses.some(function(s) { return s.fill === 'red' && s.text === 'error'; }));
+});
+
+await checkAsync('gofa-joints: missing robot config reports an error and sets red status', async function() {
+    var node = new (loadNodeType('./nodes/gofa-joints', { nodesById: {} }))({ robot: 'nope' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.strictEqual(node.errors.length, 1);
+    assert.ok(node.statuses.some(function(s) { return s.fill === 'red' && s.text === 'no robot'; }));
+});
+
+await checkAsync('gofa-joints: successful joints fetch sets green status and returns ok:true', async function() {
+    var sampleJointsBody = '<span class="rax_1">10</span><span class="rax_2">20</span><span class="rax_3">30</span>' +
+        '<span class="rax_4">40</span><span class="rax_5">50</span><span class="rax_6">60</span>';
+    var mockRobot = {
+        rwsGet: function(path) {
+            assert.ok(path.indexOf('/rw/motionsystem/mechunits/ROB_1/jointtarget') >= 0);
+            return Promise.resolve(sampleJointsBody);
+        },
+        parseXhtml: parseXhtml
+    };
+    var node = new (loadNodeType('./nodes/gofa-joints', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.j1, 10);
+    assert.strictEqual(msg.payload.j6, 60);
+    assert.ok(node.statuses.some(function(s) { return s.fill === 'blue' && s.text === 'reading...'; }), 'should set blue reading status first');
+    assert.ok(node.statuses.some(function(s) { return s.fill === 'green' && s.text === 'read'; }));
+});
+
+await checkAsync('gofa-pose: error during pose fetch sets red status and propagates error', async function() {
+    var mockRobot = {
+        rwsGet: function() {
+            return Promise.reject(new Error('RWS connection error'));
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-pose', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    var err = await runInput(node, msg);
+    assert.ok(err);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.strictEqual(node.errors.length, 1);
+    assert.ok(node.statuses.some(function(s) { return s.fill === 'red' && s.text === 'error'; }));
+});
+
+await checkAsync('gofa-pose: missing robot config reports an error and sets red status', async function() {
+    var node = new (loadNodeType('./nodes/gofa-pose', { nodesById: {} }))({ robot: 'nope' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.strictEqual(node.errors.length, 1);
+    assert.ok(node.statuses.some(function(s) { return s.fill === 'red' && s.text === 'no robot'; }));
+});
+
+await checkAsync('gofa-pose: successful pose fetch sets green status with coordinates and returns ok:true', async function() {
+    var samplePoseBody = '<span class="x">1.23</span><span class="y">4.56</span><span class="z">7.89</span>' +
+        '<span class="q1">0.1</span><span class="q2">0.2</span><span class="q3">0.3</span><span class="q4">0.4</span>' +
+        '<span class="cf1">1</span><span class="cf4">2</span><span class="cf6">3</span><span class="cfx">4</span>';
+    var mockRobot = {
+        rwsGet: function(path) {
+            assert.ok(path.indexOf('/rw/motionsystem/mechunits/ROB_1/robtarget') >= 0);
+            return Promise.resolve(samplePoseBody);
+        },
+        parseXhtml: parseXhtml
+    };
+    var node = new (loadNodeType('./nodes/gofa-pose', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.x, 1.23);
+    assert.strictEqual(msg.payload.y, 4.56);
+    assert.strictEqual(msg.payload.cf1, 1);
+    assert.ok(node.statuses.some(function(s) { return s.fill === 'blue' && s.text === 'reading...'; }), 'should set blue reading status first');
+    assert.ok(node.statuses.some(function(s) { return s.fill === 'green' && s.text === 'x=1.2 y=4.6'; }), 'should set green status with coordinates');
+});
+
+await checkAsync('gofa-rapid-var-read: propagates socket connectivity errors without falling back to module-text', async function() {
+    var rwsGetCalled = false;
+    var mockRobot = {
+        socketSend: function() { return Promise.reject(new Error('socket timeout')); },
+        rwsGet: function() {
+            rwsGetCalled = true;
+            return Promise.resolve('PERS num nOther := 42;');
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-rapid-var-read', { nodesById: { r1: mockRobot } }))({ robot: 'r1', variable: 'nOther' });
+    var msg = {};
+    var err = await runInput(node, msg);
+    assert.ok(err, 'should pass the socket error to done()');
+    assert.strictEqual(err.message, 'socket timeout');
+    assert.strictEqual(msg.payload.ok, false);
+    assert.strictEqual(msg.payload.error, 'socket timeout');
+    assert.strictEqual(rwsGetCalled, false, 'should not call rwsGet or fall back to module-text on connection error');
+});
+
+await checkAsync('gofa-save-point: empty name is rejected', async function() {
+    var mockRobot = {
+        rwsGet: function() { throw new Error('must not be called'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-save-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', pointName: '' });
+    var msg = { payload: { name: '  ' } };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.strictEqual(msg.payload.error, 'Empty point name');
+});
+
+await checkAsync('gofa-status: error during status fetch sets red status and propagates error', async function() {
+    var mockRobot = {
+        rwsGet: function() {
+            return Promise.reject(new Error('RWS connection error'));
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-status', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    var err = await runInput(node, msg);
+    assert.ok(err);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.strictEqual(node.errors.length, 1);
+    assert.ok(node.statuses.some(function(s) { return s.fill === 'red' && s.text === 'error'; }));
+});
+
+await checkAsync('gofa-status: missing robot config reports an error and sets red status', async function() {
+    var node = new (loadNodeType('./nodes/gofa-status', { nodesById: {} }))({ robot: 'nope' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.strictEqual(node.errors.length, 1);
+    assert.ok(node.statuses.some(function(s) { return s.fill === 'red' && s.text === 'no robot'; }));
+});
+
+await checkAsync('gofa-status: successful status fetch sets green status and returns ok:true', async function() {
+    var mockRobot = {
+        rwsGet: function(path) {
+            if (path.indexOf('ctrl-state') >= 0) return Promise.resolve('<span class="ctrlstate">motoron</span>');
+            if (path.indexOf('opmode') >= 0) return Promise.resolve('<span class="opmode">auto</span>');
+            if (path.indexOf('speedratio') >= 0) return Promise.resolve('<span class="speedratio">75</span>');
+            if (path.indexOf('execution') >= 0) return Promise.resolve('<span class="ctrlexecstate">running</span>');
+            return Promise.reject(new Error('unexpected path: ' + path));
+        },
+        parseXhtml: parseXhtml
+    };
+    var node = new (loadNodeType('./nodes/gofa-status', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.ctrlstate, 'motoron');
+    assert.strictEqual(msg.payload.opmode, 'auto');
+    assert.strictEqual(msg.payload.speed, 75);
+    assert.strictEqual(msg.payload.rapid, 'running');
+    assert.ok(node.statuses.some(function(s) { return s.fill === 'blue' && s.text === 'reading...'; }), 'should set blue reading status first');
+    assert.ok(node.statuses.some(function(s) { return s.fill === 'green' && s.text === 'motoron'; }));
+});
+
+await checkAsync('gofa-upload-mod: skips patching for binary buffers and preserves bytes exactly', async function() {
+    var calls = [];
+    var mockRobot = {
+        ip: '10.0.0.9',
+        rwsPut: function(p, b, contentType) {
+            calls.push({ path: p, body: b, contentType: contentType });
+            return Promise.resolve('');
+        }
+    };
+    var binaryData = Buffer.from([0x00, 0x80, 0xC0, 0xFF, 0x01, 0x02]);
+    var node = new (loadNodeType('./nodes/gofa-upload-mod', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', remotePath: '$HOME/Programs/binary.bin'
+    });
+    var msg = { payload: binaryData };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.serverIpInjected, false);
+    assert.strictEqual(calls.length, 1);
+    assert.ok(Buffer.compare(calls[0].body, binaryData) === 0, 'binary bytes must be preserved exactly');
 });
 
 fs.rmSync(tmpDir, { recursive: true, force: true });
