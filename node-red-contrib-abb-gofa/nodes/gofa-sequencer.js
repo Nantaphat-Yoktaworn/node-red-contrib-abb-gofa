@@ -16,7 +16,13 @@ module.exports = function(RED) {
         node.on('input', function(msg, send, done) {
             if (!node.robot) { node.error('No robot configured', msg); return done(); }
             var r = node.robot;
-            if (r._seqRunning) { node.warn('Sequence already running'); return done(); }
+            if (r._seqRunning) {
+                node.warn('Sequence already running. Stopping current sequence.');
+                r._seqStop = true;
+                node.status({ fill: 'yellow', shape: 'ring', text: 'stopping' });
+                r.socketSend({ cmd: 'stop' }).catch(function() {});
+                return done();
+            }
 
             var p = msg.payload || {};
             var steps     = (p.steps     != null) ? p.steps     : node.steps;
