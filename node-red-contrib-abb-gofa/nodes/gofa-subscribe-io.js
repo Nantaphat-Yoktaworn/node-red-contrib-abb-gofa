@@ -12,10 +12,12 @@ module.exports = function(RED) {
         node._pollkey   = null;
         node._signal    = null;
         node._pollTimer = null;
+        node._wsTimer   = null;
         node._lastValue = null;
         node._stopped   = false;
 
         function stopAll(callback) {
+            if (node._wsTimer) { clearTimeout(node._wsTimer); node._wsTimer = null; }
             if (node._pollTimer) { clearInterval(node._pollTimer); node._pollTimer = null; }
             var ws = node._ws;
             node._ws = null;
@@ -88,35 +90,41 @@ module.exports = function(RED) {
                     return;
                 }
                 node._pollkey = sub.location.split('/poll/').pop();
-                var ws = new WS(sub.location, ['rws_subscription'], {
-                    rejectUnauthorized: false,
-                    headers: { Cookie: sub.cookie || '' }
-                });
-                node._ws = ws;
-                ws.on('open', function() {
-                    node.status({ fill: 'green', shape: 'dot', text: signal + ' connected' });
-                });
-                ws.on('message', function(data) {
-                    var str = data.toString();
-                    var m = str.match(/class="lvalue">([^<]+)</);
-                    if (m) {
-                        var value = parseInt(m[1].trim());
-                        node.status({ fill: 'green', shape: 'dot', text: signal + '=' + value });
-                        node.send({ payload: { ok: true, signal: signal, value: value, source: 'ws' } });
-                    }
-                });
-                ws.on('error', function(err) { node.error(err); });
-                ws.on('close', function() {
-                    if (node._ws) {
-                        node._ws = null;
-                        if (!node._stopped) {
-                            node.status({ fill: 'yellow', shape: 'ring', text: signal + ' reconnecting...' });
-                            setTimeout(function() { if (!node._stopped) startSubscription(signal); }, 3000);
-                        } else {
-                            node.status({ fill: 'grey', shape: 'ring', text: signal + ' disconnected' });
+                node._wsTimer = setTimeout(function() {
+                    node._wsTimer = null;
+                    if (node._stopped) return;
+                    var ws = new WS(sub.location, ['rws_subscription'], {
+                        rejectUnauthorized: false,
+                        headers: { Cookie: sub.cookie || '' }
+                    });
+                    node._ws = ws;
+                    ws.on('open', function() {
+                        node.status({ fill: 'green', shape: 'dot', text: signal + ' connected' });
+                    });
+                    ws.on('message', function(data) {
+                        var str = data.toString();
+                        var m = str.match(/class="lvalue">([^<]+)</);
+                        if (m) {
+                            var value = parseInt(m[1].trim());
+                            node.status({ fill: 'green', shape: 'dot', text: signal + '=' + value });
+                            node.send({ payload: { ok: true, signal: signal, value: value, source: 'ws' } });
                         }
-                    }
-                });
+                    });
+                    ws.on('error', function(err) {
+                        node.warn('GoFa WebSocket subscription error: ' + err.message);
+                    });
+                    ws.on('close', function() {
+                        if (node._ws) {
+                            node._ws = null;
+                            if (!node._stopped) {
+                                node.status({ fill: 'yellow', shape: 'ring', text: signal + ' reconnecting...' });
+                                setTimeout(function() { if (!node._stopped) startSubscription(signal); }, 3000);
+                            } else {
+                                node.status({ fill: 'grey', shape: 'ring', text: signal + ' disconnected' });
+                            }
+                        }
+                    });
+                }, 100);
             }).catch(function(err) {
                 if (/HTTP 400/.test(err.message)) {
                     startPolling(signal);

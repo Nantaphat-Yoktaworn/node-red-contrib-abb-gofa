@@ -1473,6 +1473,7 @@ await checkAsync('gofa-subscribe-elog: fetchAndEmit resolves after close() does 
     var node = new GoFaSubscribeElog({ robot: 'r1', domain: '1', minSeverity: 1 });
 
     runInput(node, {});
+    await new Promise(function(resolve) { setTimeout(resolve, 150); });
     await flush();
 
     var wsInstance = MockWS.lastInstance;

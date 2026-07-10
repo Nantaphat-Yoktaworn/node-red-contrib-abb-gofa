@@ -9,6 +9,7 @@ module.exports = function(RED) {
         var node = this;
         node._ws      = null;
         node._pollkey = null;
+        node._wsTimer = null;
         node._stopped = false;
 
         function startSubscription() {
@@ -38,43 +39,49 @@ module.exports = function(RED) {
                     return;
                 }
                 node._pollkey = sub.location.split('/poll/').pop();
-                var ws = new WS(sub.location, ['rws_subscription'], {
-                    rejectUnauthorized: false,
-                    headers: { Cookie: sub.cookie || '' }
-                });
-                node._ws = ws;
-                ws.on('open', function() {
-                    node.status({ fill: 'green', shape: 'dot', text: 'connected' });
-                    robot.rwsGet('/rw/panel/ctrl-state').then(function(body) {
-                        var m = body.match(/class="ctrlstate">([^<]+)</);
+                node._wsTimer = setTimeout(function() {
+                    node._wsTimer = null;
+                    if (node._stopped) return;
+                    var ws = new WS(sub.location, ['rws_subscription'], {
+                        rejectUnauthorized: false,
+                        headers: { Cookie: sub.cookie || '' }
+                    });
+                    node._ws = ws;
+                    ws.on('open', function() {
+                        node.status({ fill: 'green', shape: 'dot', text: 'connected' });
+                        robot.rwsGet('/rw/panel/ctrl-state').then(function(body) {
+                            var m = body.match(/class="ctrlstate">([^<]+)</);
+                            if (m) {
+                                var state = m[1].trim();
+                                node.status({ fill: 'green', shape: 'dot', text: state });
+                                node.send({ payload: { ok: true, state: state } });
+                            }
+                        }).catch(function() {});
+                    });
+                    ws.on('message', function(data) {
+                        var str = data.toString();
+                        var m = str.match(/class="ctrlstate">([^<]+)</);
                         if (m) {
                             var state = m[1].trim();
                             node.status({ fill: 'green', shape: 'dot', text: state });
                             node.send({ payload: { ok: true, state: state } });
                         }
-                    }).catch(function() {});
-                });
-                ws.on('message', function(data) {
-                    var str = data.toString();
-                    var m = str.match(/class="ctrlstate">([^<]+)</);
-                    if (m) {
-                        var state = m[1].trim();
-                        node.status({ fill: 'green', shape: 'dot', text: state });
-                        node.send({ payload: { ok: true, state: state } });
-                    }
-                });
-                ws.on('error', function(err) { node.error(err); });
-                ws.on('close', function() {
-                    if (node._ws) {
-                        node._ws = null;
-                        if (!node._stopped) {
-                            node.status({ fill: 'yellow', shape: 'ring', text: 'reconnecting...' });
-                            setTimeout(function() { if (!node._stopped) startSubscription(); }, 3000);
-                        } else {
-                            node.status({ fill: 'grey', shape: 'ring', text: 'disconnected' });
+                    });
+                    ws.on('error', function(err) {
+                        node.warn('GoFa WebSocket subscription error: ' + err.message);
+                    });
+                    ws.on('close', function() {
+                        if (node._ws) {
+                            node._ws = null;
+                            if (!node._stopped) {
+                                node.status({ fill: 'yellow', shape: 'ring', text: 'reconnecting...' });
+                                setTimeout(function() { if (!node._stopped) startSubscription(); }, 3000);
+                            } else {
+                                node.status({ fill: 'grey', shape: 'ring', text: 'disconnected' });
+                            }
                         }
-                    }
-                });
+                    });
+                }, 100);
             }).catch(function(err) {
                 node.status({ fill: 'red', shape: 'ring', text: 'error' });
                 node.error(err);
@@ -113,6 +120,7 @@ module.exports = function(RED) {
 
         node.on('close', function(done) {
             node._stopped = true;
+            if (node._wsTimer) { clearTimeout(node._wsTimer); node._wsTimer = null; }
             var ws = node._ws;
             node._ws = null;
             if (ws) { ws.terminate(); }
