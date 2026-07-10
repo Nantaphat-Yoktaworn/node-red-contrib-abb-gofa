@@ -84,7 +84,7 @@ MODULE MainModule
     PROC AddConcMove()
         concCount := concCount + 1;
         IF concCount >= 5 THEN
-            WaitRob;
+            WaitRob \InPos;
             concCount := 0;
         ENDIF
     ENDPROC
