@@ -11,7 +11,7 @@ module.exports = function(RED) {
             node.status({ fill: 'blue', shape: 'dot', text: 'pinging...' });
             var t0 = Date.now();
 
-            node.robot.socketSend('PING').then(function(resp) {
+            node.robot.socketSend({ cmd: 'ping' }).then(function(resp) {
                 if (!resp.startsWith('OK:')) throw new Error('Robot error: ' + resp);
                 var rtt = Date.now() - t0;
                 msg.payload = { ok: true, rtt: rtt };

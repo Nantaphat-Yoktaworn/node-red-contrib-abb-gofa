@@ -10,7 +10,7 @@ module.exports = function(RED) {
 
             node.status({ fill: 'blue', shape: 'dot', text: 'stopping...' });
 
-            node.robot.socketSend('STOP').then(function(resp) {
+            node.robot.socketSend({ cmd: 'stop' }).then(function(resp) {
                 if (!resp.startsWith('OK:')) throw new Error('Robot error: ' + resp);
                 msg.payload = { ok: true };
                 node.status({ fill: 'green', shape: 'dot', text: 'stopped' });

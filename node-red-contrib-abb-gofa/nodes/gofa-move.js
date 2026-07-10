@@ -12,7 +12,7 @@ module.exports = function(RED) {
                     : (raw && raw.command)             ? raw.command
                     : node.command;
             node.status({ fill:'blue', shape:'dot', text: cmd });
-            node.robot.socketSend(cmd).then(function(ack) {
+            node.robot.socketSend({ cmd: cmd.toLowerCase() }).then(function(ack) {
                 var ok = ack.startsWith('OK:');
                 msg.payload = { ok: ok, ack: ack };
                 node.status({ fill: ok?'green':'red', shape:'dot', text: ack });

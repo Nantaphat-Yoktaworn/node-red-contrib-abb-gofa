@@ -53,10 +53,9 @@ module.exports = function(RED) {
                 send(msg); return done();
             }
 
-            var cmd = 'MOVEJ' + nums.map(function(v) { return v.toFixed(2); }).join(';');
-            node.status({ fill: 'blue', shape: 'dot', text: cmd });
+            node.status({ fill: 'blue', shape: 'dot', text: 'movej: [' + nums.map(function(v) { return v.toFixed(1); }).join(',') + ']' });
 
-            node.robot.socketSend(cmd).then(function(resp) {
+            node.robot.socketSend({ cmd: 'movej', val: nums.map(function(v) { return parseFloat(v.toFixed(2)); }) }).then(function(resp) {
                 if (!resp.startsWith('OK:')) throw new Error('Robot error: ' + resp);
                 msg.payload = { ok: true, joints: nums };
                 node.status({ fill: 'green', shape: 'dot', text: '[' + nums.map(function(v) { return v.toFixed(1); }).join(',') + ']' });

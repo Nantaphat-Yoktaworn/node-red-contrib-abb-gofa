@@ -58,6 +58,21 @@ function gotoToken(t, moveType) {
     ].join(';');
 }
 
+function gotoObj(t, moveType) {
+    var vals = [t.x, t.y, t.z, t.q1, t.q2, t.q3, t.q4, t.cf1, t.cf4, t.cf6, t.cfx];
+    if (vals.some(function(v) { return !isFinite(v); })) return null;
+    function r(v, d) { return Number(Number(v).toFixed(d)); }
+    var linear = (resolveMoveType(moveType, 'J') === 'L');
+    return {
+        cmd: linear ? 'gotol' : 'gotoj',
+        val: [
+            r(t.x,1), r(t.y,1), r(t.z,1),
+            r(t.q1,4), r(t.q2,4), r(t.q3,4), r(t.q4,4),
+            Math.round(t.cf1), Math.round(t.cf4), Math.round(t.cf6), Math.round(t.cfx)
+        ]
+    };
+}
+
 function scanIp(ip, port, timeout) {
     return new Promise(function(resolve) {
         var socket = new net.Socket();
@@ -307,6 +322,7 @@ function createRobotClient(opts) {
         });
     }
 function translateToJSON(cmd) {
+        if (typeof cmd === 'object' && cmd !== null) return JSON.stringify(cmd);
         if (typeof cmd !== 'string') return cmd;
         var trimmed = cmd.trim();
         if (trimmed.indexOf('{') === 0) return trimmed; // already JSON
@@ -602,6 +618,7 @@ module.exports = function(RED) {
 
     GoFaRobotNode.prototype.parseXhtml = parseXhtml;
     GoFaRobotNode.prototype.gotoToken  = gotoToken;
+    GoFaRobotNode.prototype.gotoObj    = gotoObj;
 
     RED.httpAdmin.get('/gofa-robot/:id/points', RED.auth.needsPermission('gofa-robot.read'), function(req, res) {
         var node = RED.nodes.getNode(req.params.id);
@@ -628,6 +645,7 @@ module.exports = function(RED) {
 
 module.exports.parseXhtml          = parseXhtml;
 module.exports.gotoToken           = gotoToken;
+module.exports.gotoObj             = gotoObj;
 module.exports.resolveMoveType     = resolveMoveType;
 module.exports.atomicWriteFileSync = atomicWriteFileSync;
 module.exports.fileMtimeMs         = fileMtimeMs;

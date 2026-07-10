@@ -30,7 +30,7 @@ module.exports = function(RED) {
 
             node.status({ fill: 'blue', shape: 'dot', text: speed + '%' });
 
-            node.robot.socketSend('SPEED' + speed).then(function(resp) {
+            node.robot.socketSend({ cmd: 'speed', val: speed }).then(function(resp) {
                 if (!resp.startsWith('OK:')) throw new Error('Robot error: ' + resp);
                 msg.payload = { ok: true, speed: speed };
                 node.status({ fill: 'green', shape: 'dot', text: speed + '%' });

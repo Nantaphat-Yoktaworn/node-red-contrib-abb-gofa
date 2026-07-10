@@ -25,10 +25,9 @@ module.exports = function(RED) {
                 send(msg); return done();
             }
 
-            var cmd = 'ZONE' + zone.toUpperCase();
             node.status({ fill: 'blue', shape: 'dot', text: zone });
 
-            node.robot.socketSend(cmd).then(function(resp) {
+            node.robot.socketSend({ cmd: 'zone', val: zone.toUpperCase() }).then(function(resp) {
                 if (!resp.startsWith('OK:')) throw new Error('Robot error: ' + resp);
                 msg.payload = { ok: true, zone: zone };
                 node.status({ fill: 'green', shape: 'dot', text: zone });

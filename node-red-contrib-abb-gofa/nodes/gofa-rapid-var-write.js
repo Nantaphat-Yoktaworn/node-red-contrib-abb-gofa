@@ -32,7 +32,7 @@ module.exports = function(RED) {
             node.status({ fill: 'blue', shape: 'dot', text: variable + '=' + value });
 
             // SETVAR:<name>:<value> — handled by TrySetVar in MainModule.mod
-            node.robot.socketSend('SETVAR:' + variable + ':' + value)
+            node.robot.socketSend({ cmd: 'setvar', name: variable, val: value })
             .then(function(reply) {
                 if (reply.startsWith('OK:SETVAR')) {
                     msg.payload = { ok: true, variable: variable, value: String(value) };

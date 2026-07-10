@@ -9,7 +9,7 @@ module.exports = function(RED) {
             node.status({ fill: 'blue', shape: 'dot', text: 'stopping motion...' });
             // Clear any queued \Conc moves before activating lead-through, otherwise
             // in-flight moves keep executing autonomously while hand-guiding is active.
-            node.robot.socketSend('STOP')
+            node.robot.socketSend({ cmd: 'stop' })
             .catch(function() { /* ignore — socket may not be running */ })
             .then(function() {
                 node.status({ fill: 'blue', shape: 'dot', text: 'enabling...' });

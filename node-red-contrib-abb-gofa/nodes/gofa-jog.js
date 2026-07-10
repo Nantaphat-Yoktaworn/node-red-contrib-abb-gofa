@@ -16,8 +16,9 @@ module.exports = function(RED) {
             var rot  = axis.charAt(0) === 'R';
             step = Math.max(1, Math.min(rot ? 30 : 50, step));
             var token = axis + dir + step;
+            var axisLetter = rot ? axis.substring(1) : axis;
             node.status({ fill: 'blue', shape: 'dot', text: token });
-            node.robot.socketSend(token).then(function(ack) {
+            node.robot.socketSend({ cmd: 'jog', axis: axisLetter, sgn: dir, val: step, rot: rot }).then(function(ack) {
                 var ok = ack.startsWith('OK:');
                 msg.payload = { ok: ok, ack: ack, token: token };
                 node.status({ fill: ok ? 'green' : 'red', shape: 'dot', text: ack });

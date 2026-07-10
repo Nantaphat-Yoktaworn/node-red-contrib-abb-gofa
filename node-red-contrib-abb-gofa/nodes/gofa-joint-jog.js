@@ -15,8 +15,9 @@ module.exports = function(RED) {
             var step  = p.step  !== undefined ? parseFloat(p.step) : node.step;
             step = Math.max(1, Math.min(30, step));
             var token = joint + dir + step;
+            var jointNum = parseInt(String(joint).replace('J', '')) || 1;
             node.status({ fill: 'blue', shape: 'dot', text: token });
-            node.robot.socketSend(token).then(function(ack) {
+            node.robot.socketSend({ cmd: 'jointjog', joint: jointNum, sgn: dir, val: step }).then(function(ack) {
                 var ok = ack.startsWith('OK:');
                 msg.payload = { ok: ok, ack: ack, token: token };
                 node.status({ fill: ok ? 'green' : 'red', shape: 'dot', text: ack });

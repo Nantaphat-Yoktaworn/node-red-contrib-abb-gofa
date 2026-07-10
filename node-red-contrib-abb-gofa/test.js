@@ -6,6 +6,7 @@ var path   = require('path');
 var http   = require('http');
 var robot  = require('./nodes/gofa-robot');
 var gotoToken           = robot.gotoToken;
+var gotoObj             = robot.gotoObj;
 var parseXhtml          = robot.parseXhtml;
 var atomicWriteFileSync = robot.atomicWriteFileSync;
 var fileMtimeMs         = robot.fileMtimeMs;
@@ -129,6 +130,28 @@ check('gotoToken: returns null when any value is NaN', function() {
 check('gotoToken: returns null when any value is Infinity', function() {
     var bad = Object.assign({}, sample, { z: Infinity });
     assert.strictEqual(gotoToken(bad), null);
+});
+
+check('gotoObj: valid target produces gotoj object by default', function() {
+    var obj = gotoObj(sample);
+    assert.strictEqual(obj.cmd, 'gotoj');
+    assert.strictEqual(obj.val.length, 11);
+    assert.strictEqual(obj.val[0], 323.2);
+});
+
+check('gotoObj: moveType "L" produces gotol object', function() {
+    var obj = gotoObj(sample, 'L');
+    assert.strictEqual(obj.cmd, 'gotol');
+});
+
+check('gotoObj: unrecognized moveType falls back to gotoj', function() {
+    var obj = gotoObj(sample, 'bogus');
+    assert.strictEqual(obj.cmd, 'gotoj');
+});
+
+check('gotoObj: returns null when any value is NaN', function() {
+    var bad = Object.assign({}, sample, { q1: NaN });
+    assert.strictEqual(gotoObj(bad), null);
 });
 
 check('parseXhtml: extracts value for matching class', function() {
@@ -579,8 +602,8 @@ function makeGoPointRobot(pt) {
     var calls = [];
     return {
         findPoint: function() { return pt; },
-        gotoToken: function(target, moveType) { calls.push(moveType); return 'GOTOJ' + JSON.stringify(target); },
-        socketSend: function(token) { return Promise.resolve('OK:' + token); },
+        gotoObj: function(target, moveType) { calls.push(moveType); return { cmd: 'goto' + (moveType || 'j').toLowerCase(), val: [] }; },
+        socketSend: function(obj) { return Promise.resolve('OK:GOTO'); },
         _calls: calls
     };
 }
@@ -611,8 +634,8 @@ await checkAsync('gofa-go-point: storage "remote" looks the point up via remoteF
     var mockRobot = {
         findPoint: function() { throw new Error('must not use local findPoint in remote mode'); },
         remoteFindPoint: function(name) { calls.push(name); return Promise.resolve({ name: 'pick1', target: {} }); },
-        gotoToken: function() { return 'GOTOJ{}'; },
-        socketSend: function(token) { return Promise.resolve('OK:' + token); }
+        gotoObj: function() { return { cmd: 'gotoj', val: [] }; },
+        socketSend: function(obj) { return Promise.resolve('OK:GOTO'); }
     };
     var node = new (loadNodeType('./nodes/gofa-go-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote', pointName: 'pick1' });
     var msg = {};
@@ -737,8 +760,8 @@ function makeSeqRobot(pointMap) {
         _seqStop: false, _seqRunning: false, _calls: calls,
         findPoint: function(name) { return pointMap[name] || null; },
         getPoints: function() { return Object.keys(pointMap).map(function(k) { return pointMap[k]; }); },
-        gotoToken: function(target, moveType) { calls.push(moveType); return 'GOTO' + moveType + JSON.stringify(target); },
-        socketSend: function(token) { return Promise.resolve('OK:' + token); }
+        gotoObj: function(target, moveType) { calls.push(moveType); return { cmd: 'goto' + (moveType || 'j').toLowerCase(), val: [] }; },
+        socketSend: function(obj) { return Promise.resolve('OK:GOTO'); }
     };
 }
 function stepMsgs(node) { return node.sent.filter(function(m) { return m[0]; }).map(function(m) { return m[0]; }); }
@@ -806,8 +829,8 @@ await checkAsync('gofa-sequencer: storage "remote" fetches the point list once v
         _seqStop: false, _seqRunning: false,
         getPoints: function() { getPointsCalls++; return []; },
         remoteGetPoints: function() { remoteGetPointsCalls++; return Promise.resolve([{ name: 'a', target: {} }, { name: 'b', target: {} }]); },
-        gotoToken: function(target) { return 'GOTOJ' + JSON.stringify(target); },
-        socketSend: function(token) { return Promise.resolve('OK:' + token); }
+        gotoObj: function() { return { cmd: 'gotoj', val: [] }; },
+        socketSend: function(obj) { return Promise.resolve('OK:GOTO'); }
     };
     var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote', dwell: 0 });
     await runInput(node, { payload: { steps: [{ name: 'a' }, { name: 'b' }] } });
@@ -822,7 +845,7 @@ await checkAsync('gofa-stop-seq: sets the stop flag and sends STOP', async funct
     var node = new (loadNodeType('./nodes/gofa-stop-seq', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
     await runInput(node, {});
     assert.strictEqual(mockRobot._seqStop, true);
-    assert.deepStrictEqual(sentCmds, ['STOP']);
+    assert.deepStrictEqual(sentCmds, [{ cmd: 'stop' }]);
 });
 
 // gofa-upload-mod: node-level tests go through r.rwsPut() (the public API),
@@ -1320,7 +1343,7 @@ await checkAsync('gofa-egm: no robot configured reports an error and does not ha
     assert.ok(node.errors.some(function(e) { return /no robot configured/i.test(e); }));
 });
 await checkAsync('gofa-egm: "start" gets ERR:EGMJOINT -> friendly wrong-module error, no UDP bind attempted', async function() {
-    var mockRobot = { _egmActive: false, socketSend: function(cmd) { assert.strictEqual(cmd, 'EGMJOINT'); return Promise.resolve('ERR:EGMJOINT'); } };
+    var mockRobot = { _egmActive: false, socketSend: function(cmd) { assert.deepStrictEqual(cmd, { cmd: 'egmjoint' }); return Promise.resolve('ERR:EGMJOINT'); } };
     var node = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', udpPort: 0, throttleMs: 100 });
     var err = await runInput(node, { payload: 'start' });
     assert.ok(err);
@@ -1372,7 +1395,7 @@ await checkAsync('gofa-egm: "stop" sets the graceful-stop signal via RWS and wai
     assert.strictEqual(err, undefined);
     assert.strictEqual(node.statuses[node.statuses.length - 1].text, 'stopped');
     assert.deepStrictEqual(calls[0], ['/rw/iosystem/signals/ABB_Scalable_IO_0_DO16/set-value', 'lvalue=1']);
-    assert.deepStrictEqual(calls[1], ['socketSend', 'PING']);
+    assert.deepStrictEqual(calls[1], ['socketSend', { cmd: 'ping' }]);
     assert.strictEqual(mockRobot._egmActive, false);
     assert.strictEqual(mockRobot._egmTarget, null);
 });
@@ -1581,6 +1604,10 @@ await checkAsync('socketSend: translates legacy commands to JSON and parses JSON
         assert.strictEqual(resp3, 'VAL:42');
         assert.strictEqual(received[2], '{"cmd":"getvar","name":"nTest"}');
         
+        var respObj = await client.socketSend({ cmd: 'ping' });
+        assert.strictEqual(respObj, 'OK:PING');
+        assert.strictEqual(received[3], '{"cmd":"ping"}');
+
         var resp4 = await client.socketSend('BOGUS');
         assert.strictEqual(resp4, 'ERR:UNKNOWN');
     } finally {

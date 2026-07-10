@@ -47,9 +47,9 @@ module.exports = function(RED) {
                     var pt = findPt(steps[i].name);
                     if (!pt) { node.warn('Point not found: ' + steps[i].name); continue; }
                     var stepMoveType = resolveMoveType(steps[i].moveType, moveType);
-                    var tok = r.gotoToken(pt.target, stepMoveType);
-                    if (!tok) { node.warn('Point has invalid data (NaN): ' + pt.name); continue; }
-                    cmds.push({ name: pt.name, token: tok, moveType: stepMoveType, dwell: steps[i].dwell != null ? steps[i].dwell : null });
+                    var obj = r.gotoObj(pt.target, stepMoveType);
+                    if (!obj) { node.warn('Point has invalid data (NaN): ' + pt.name); continue; }
+                    cmds.push({ name: pt.name, obj: obj, moveType: stepMoveType, dwell: steps[i].dwell != null ? steps[i].dwell : null });
                 }
                 if (!cmds.length) { node.error('No valid points in sequence', msg); return done(); }
 
@@ -91,7 +91,7 @@ module.exports = function(RED) {
                     var stepDwell = (c.dwell != null) ? c.dwell : dwell;
                     var loopLabel = (loop && count > 0) ? ' [' + (loopCount + 1) + '/' + count + ']' : '';
                     node.status({ fill: 'blue', shape: 'dot', text: (idx + 1) + '/' + total + ' ' + c.name + loopLabel });
-                    r.socketSend(c.token).then(function(ack) {
+                    r.socketSend(c.obj).then(function(ack) {
                         if (!ack.startsWith('OK:')) {
                             node.warn('Step ' + (idx + 1) + ' (' + c.name + ') got: ' + ack);
                         }

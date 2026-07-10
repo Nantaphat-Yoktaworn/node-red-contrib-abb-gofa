@@ -307,7 +307,7 @@ module.exports = function(RED) {
             node.status({ fill: 'blue', shape: 'dot', text: 'switching to EGM...' });
 
             var egmjointAcked = false;
-            return node.robot.socketSend('EGMJOINT').then(function(reply) {
+            return node.robot.socketSend({ cmd: 'egmjoint' }).then(function(reply) {
                 if (reply === 'ERR:EGMJOINT') {
                     var err = new Error('Controller is running MainModule.mod (no EGM support) — ' +
                         'load MainModuleEGM.mod via gofa-upload-mod + gofa-rapid-exec ' +
@@ -342,7 +342,7 @@ module.exports = function(RED) {
         function waitForTcpBack(timeoutMs) {
             var deadline = Date.now() + timeoutMs;
             function attempt() {
-                return node.robot.socketSend('PING').then(function(reply) {
+                return node.robot.socketSend({ cmd: 'ping' }).then(function(reply) {
                     if (reply !== 'OK:PING') throw new Error('unexpected reply: ' + reply);
                 }).catch(function(err) {
                     if (Date.now() >= deadline) throw err;

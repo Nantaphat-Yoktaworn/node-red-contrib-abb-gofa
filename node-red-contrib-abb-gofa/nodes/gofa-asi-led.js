@@ -76,7 +76,7 @@ module.exports = function(RED) {
             // 'reset' restores the LED to the normal RAPID-running state (static green)
             if (msg.payload === 'reset' || (msg.payload && msg.payload.action === 'reset')) {
                 node.status({ fill: 'blue', shape: 'dot', text: 'resetting...' });
-                node.robot.socketSend('RESETLED').then(function(ack) {
+                node.robot.socketSend({ cmd: 'resetled' }).then(function(ack) {
                     if (!ack.startsWith('OK:')) throw new Error('Unexpected reply: ' + ack);
                     msg.payload = { ok: true, reset: true };
                     node.status({ fill: 'green', shape: 'dot', text: 'reset (green)' });
@@ -114,7 +114,7 @@ module.exports = function(RED) {
 
                 function doBlink() {
                     if (remaining <= 0) {
-                        node.robot.socketSend('SETLED:0;0;0;0').then(function() {
+                        node.robot.socketSend({ cmd: 'setled', val: [0, 0, 0, 0] }).then(function() {
                             msg.payload = { ok: true, r: rv, g: gv, b: bv, blinks: blinkCount };
                             node.status({ fill: 'grey', shape: 'dot', text: 'done ' + blinkCount + '\xd7' });
                             send(msg); done();
@@ -128,11 +128,11 @@ module.exports = function(RED) {
                     }
                     var current = blinkCount - remaining + 1;
                     remaining--;
-                    node.robot.socketSend('SETLED:' + rv + ';' + gv + ';' + bv + ';0')
+                    node.robot.socketSend({ cmd: 'setled', val: [rv, gv, bv, 0] })
                         .then(function() {
                             node.status({ fill: 'yellow', shape: 'dot', text: 'blink ' + current + '/' + blinkCount });
                             setTimeout(function() {
-                                node.robot.socketSend('SETLED:0;0;0;0')
+                                node.robot.socketSend({ cmd: 'setled', val: [0, 0, 0, 0] })
                                     .then(function() { setTimeout(doBlink, blinkMs); })
                                     .catch(function(err) { msg.payload = { ok: false, error: err.message }; node.status({ fill: 'red', shape: 'ring', text: 'error' }); node.error(err, msg); send(msg); done(err); });
                             }, blinkMs);
@@ -148,8 +148,7 @@ module.exports = function(RED) {
             var label = 'R' + rv + ' G' + gv + ' B' + bv + (period ? ' ~' + period : '');
             node.status({ fill: 'blue', shape: 'dot', text: label });
 
-            var token = 'SETLED:' + rv + ';' + gv + ';' + bv + ';' + period;
-            node.robot.socketSend(token).then(function(ack) {
+            node.robot.socketSend({ cmd: 'setled', val: [rv, gv, bv, period] }).then(function(ack) {
                 if (!ack.startsWith('OK:')) throw new Error('Unexpected reply: ' + ack);
                 msg.payload = { ok: true, r: rv, g: gv, b: bv, period: period };
                 node.status({ fill: (rv || gv || bv) ? 'green' : 'grey', shape: 'dot', text: label });

@@ -22,13 +22,13 @@ module.exports = function(RED) {
                     return send(msg), done();
                 }
                 var moveType = resolveMoveType(p.moveType, node.moveType);
-                var token = node.robot.gotoToken(pt.target, moveType);
-                if (!token) {
+                var obj = node.robot.gotoObj(pt.target, moveType);
+                if (!obj) {
                     msg.payload = { ok: false, error: 'Point has invalid data (NaN): ' + pt.name };
                     return send(msg), done();
                 }
                 node.status({ fill: 'blue', shape: 'dot', text: pt.name + ' (' + moveType + ')' });
-                return node.robot.socketSend(token).then(function(ack) {
+                return node.robot.socketSend(obj).then(function(ack) {
                     var ok = ack.startsWith('OK:');
                     msg.payload = { ok: ok, ack: ack, point: pt, moveType: moveType };
                     node.status({ fill: ok ? 'green' : 'red', shape: 'dot', text: ack });

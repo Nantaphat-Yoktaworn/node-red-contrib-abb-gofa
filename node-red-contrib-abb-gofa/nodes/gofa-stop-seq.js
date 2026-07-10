@@ -9,7 +9,7 @@ module.exports = function(RED) {
             node.robot._seqStop = true;
             // Abort the in-progress \Conc move immediately so the robot doesn't
             // finish the current move + full dwell before the flag is checked.
-            node.robot.socketSend('STOP').catch(function() {});
+            node.robot.socketSend({ cmd: 'stop' }).catch(function() {});
             msg.payload = { ok: true, message: 'stop requested' };
             node.status({ fill: 'yellow', shape: 'ring', text: 'stop sent' });
             send(msg); done();
