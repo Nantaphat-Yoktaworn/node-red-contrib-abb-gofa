@@ -436,7 +436,7 @@ function translateToJSON(cmd) {
                                 } else if (json.cmd === 'movej') {
                                     finish(null, 'OK:MOVEJ');
                                 } else if (json.cmd === 'zone') {
-                                    finish(null, 'OK:ZONE' + json.val);
+                                    finish(null, 'OK:ZONE' + (json.val !== undefined ? json.val : ''));
                                 } else if (json.cmd === 'setvar') {
                                     finish(null, 'OK:SETVAR');
                                 } else if (json.cmd === 'setdo') {
