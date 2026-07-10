@@ -24,7 +24,8 @@ module.exports = function(RED) {
             node.status({ fill: 'blue', shape: 'dot', text: 'reading…' });
 
             var robot = node.robot;
-            robot.requestRaw('GET', '/fileservice/' + remotePath, null, { accept: '*/*' })
+            var escapedPath = remotePath.split('/').map(encodeURIComponent).join('/').replace(/%24/g, '$');
+            robot.requestRaw('GET', '/fileservice/' + escapedPath, null, { accept: '*/*' })
             .then(function(res) {
                 if (res.statusCode < 200 || res.statusCode >= 300) {
                     throw new Error('HTTP ' + res.statusCode + ' ' + remotePath);

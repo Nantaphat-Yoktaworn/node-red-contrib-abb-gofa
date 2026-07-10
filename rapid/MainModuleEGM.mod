@@ -301,6 +301,8 @@ MODULE MainModuleEGM
     ERROR
         IDelete egmStopIntNo;
         EGMReset egmID1;
+        CONNECT egmStopIntNo WITH TrapEgmStop;
+        ISignalDO ABB_Scalable_IO_0_DO16, 1, egmStopIntNo;
         RETRY;
     ENDPROC
 
