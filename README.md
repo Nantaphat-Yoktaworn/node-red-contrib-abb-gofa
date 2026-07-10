@@ -259,7 +259,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | **gofa-pose** | RWS | TCP position (x, y, z mm + quaternion + config flags) |
 | **gofa-joints** | RWS | All 6 joint angles in degrees |
 | **gofa-system-info** | RWS | RobotWare version, controller name/ID/MAC |
-| **gofa-elog** | RWS | Controller event log |
+| **gofa-elog** | RWS | Controller event log — Domain (category, e.g. Safety/Motion/RAPID) and Min Severity (info/warning+/error-only) filters |
 
 ### Motion
 
@@ -345,8 +345,13 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | **gofa-subscribe-io** | WS / poll | Push on every I/O signal change (real WebSocket push); falls back to 500 ms polling only if the subscription request itself fails (e.g. `400`); one-shot mode polls once per inject |
 | **gofa-subscribe-var** | RWS poll | Poll a RAPID variable on an interval |
 | **gofa-subscribe-pose** | RWS poll | Poll TCP position on an interval |
+| **gofa-subscribe-elog** | WS | Push new controller event log entries in real time; same Domain + Min Severity filters as `gofa-elog` |
 
 > **One-shot checkbox** — both `gofa-subscribe-state` and `gofa-subscribe-io` have a **One-shot** option in their properties. When checked, each inject triggers a single poll and returns the current value immediately without opening a persistent subscription.
+>
+> **Domain filters by category, not severity.** `gofa-elog`/`gofa-subscribe-elog`'s **Domain** dropdown picks an ABB log category (Common, Operational, Safety, Motion, RAPID, …) — it has nothing to do with how severe an entry is. Every entry also has a severity (`msgtype`: info/warning/error) completely independent of its domain; use **Min Severity** to filter on that instead. Want "just the real problems"? Set Min Severity to Warning+ or Error only — picking a domain alone won't filter out info-level noise like "Motors On state."
+>
+> **`gofa-subscribe-elog`'s WebSocket push only carries a reference**, not the entry itself — the node does one extra RWS `GET` per new entry to fetch its fields before emitting. This is different from `gofa-subscribe-state`/`gofa-subscribe-io`, whose pushes already carry the changed value.
 
 ### EGM (Externally Guided Motion)
 
@@ -513,7 +518,7 @@ msg.payload  →  node property (editor)  →  built-in default
 | **gofa-upload-mod** | `Buffer` · file path (string) · `{ localPath, remotePath }` | (property) |
 | **gofa-points-export** | file path (string) · `{ savePath }` | (property / no file) |
 | **gofa-points-import** | file path (string) · `{ loadPath }` · array · `{ points: [...] }` | (property / clear) |
-| **gofa-elog** | `{ domain, count }` | domain: 1, count: 10 |
+| **gofa-elog** | `{ domain, count, minSeverity }` | domain: 1, count: 10, minSeverity: 1 (all) |
 | **gofa-asi-led** | `'red'`/`'green'`/`'yellow'`/`'off'`/etc. · `false`/`0` (off) · `{ color, r, g, b, period, blinkCount, blinkMs }` · `'reset'` (restore default) | node defaults |
 | **gofa-sequencer** | `{ steps, dwell, moveType, loop, pingpong, count, startStep, storage? }` — `steps[i].moveType` overrides per-step, `storage`: `"local"`/`"remote"` | (property) |
 | **gofa-point-list** | `{ storage }` — `"local"`/`"remote"` | (property) |

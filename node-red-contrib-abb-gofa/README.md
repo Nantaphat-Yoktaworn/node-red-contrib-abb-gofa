@@ -38,7 +38,7 @@ npm install node-red-contrib-abb-gofa
 
 (or **Menu → Manage palette → Install** inside the Node-RED editor.)
 
-Restart Node-RED — a `gofa-robot` config node and 40 `gofa-*` nodes appear under the **GoFa** category.
+Restart Node-RED — a `gofa-robot` config node and 42 `gofa-*` nodes appear under the **GoFa** category.
 
 ## Controller setup (once)
 
@@ -73,7 +73,7 @@ Ready-made example flows (a per-node demo, a full control dashboard, and a physi
 | `gofa-pose` | RWS | Current TCP pose (position + quaternion + config flags) |
 | `gofa-joints` | RWS | All 6 joint angles |
 | `gofa-system-info` | RWS | RobotWare version, controller identity |
-| `gofa-elog` | RWS | Controller event log |
+| `gofa-elog` | RWS | Controller event log — Domain (category) + Min Severity (info/warning+/error-only) filters |
 | `gofa-motor` | RWS | Motors on/off |
 | `gofa-move` | Socket | Go home / set home |
 | `gofa-movej` | Socket | Absolute joint move |
@@ -96,6 +96,7 @@ Ready-made example flows (a per-node demo, a full control dashboard, and a physi
 | `gofa-asi-led` | Socket | Arm status-light color and blink |
 | `gofa-subscribe-state` / `gofa-subscribe-io` | RWS WebSocket | Push on controller-state / I/O-signal changes |
 | `gofa-subscribe-var` / `gofa-subscribe-pose` | RWS poll | Poll a RAPID variable / TCP pose on an interval |
+| `gofa-subscribe-elog` | RWS WebSocket | Push new event log entries in real time; same Domain/Min Severity filters as `gofa-elog` |
 | `gofa-egm` / `gofa-egm-move` | UDP (EGM) | Sub-10ms joint-position streaming — see [EGM (optional)](#egm-optional) below, requires `MainModuleEGM.mod` |
 
 The full RAPID socket protocol reference, RWS endpoint notes, and troubleshooting guide are in the [GitHub README](https://github.com/Nantaphat-Yoktaworn/node-red-contrib-abb-gofa#readme).

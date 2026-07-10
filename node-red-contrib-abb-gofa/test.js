@@ -1160,6 +1160,91 @@ await checkAsync('gofa-subscribe-state: subscribes via robot.requestRaw (not pri
     assert.ok(node.errors.length > 0, 'must report the subscribe failure');
 });
 
+// gofa-subscribe-elog ────────────────────────────────────────────────────────
+// The subscribable resource is confirmed live to be the BARE path
+// "/rw/elog/<domain>" — no ";suffix" at all, unlike ctrl-state (";ctrlstate")
+// or I/O signals (";state"). Every ";elog"/";state"/";lvalue"/";log" guess
+// returned 400 "Invalid resource URI" live; only the bare path returned 201.
+// This test locks that in so a future "helpful" refactor doesn't reintroduce
+// a guessed suffix.
+
+await checkAsync('gofa-subscribe-elog: subscribes to the bare /rw/elog/<domain> resource (no ;suffix)', async function() {
+    // Uses a 400 response (never reaching the real `new WS(...)` call) to match
+    // how gofa-subscribe-io/gofa-subscribe-state tests avoid opening a real
+    // WebSocket to a fake, unreachable subscription location.
+    var calls = [];
+    var mockRobot = {
+        requestRaw: function(method, p, body, opts) {
+            calls.push({ method: method, path: p, body: body });
+            return Promise.resolve({ statusCode: 400, headers: {}, body: Buffer.from('') });
+        },
+        getCookie: function() { return Promise.resolve('cookie=abc'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-subscribe-elog', { nodesById: { r1: mockRobot } }))({ robot: 'r1', domain: '1' });
+    var msg = {};
+    await runInput(node, msg);
+    await flush();
+    var sub = calls.filter(function(c) { return c.method === 'POST' && c.path === '/subscription'; })[0];
+    assert.ok(sub, 'must POST /subscription');
+    assert.ok(sub.body.indexOf(encodeURIComponent('/rw/elog/1')) >= 0, 'must subscribe to bare /rw/elog/1');
+    assert.ok(sub.body.indexOf(';') < 0, 'must not use a guessed ;suffix on the resource path');
+});
+await checkAsync('gofa-subscribe-elog: reports error on subscribe failure (HTTP 400)', async function() {
+    var mockRobot = {
+        requestRaw: function() { return Promise.resolve({ statusCode: 400, headers: {}, body: Buffer.from('') }); },
+        getCookie: function() { return Promise.resolve('cookie=abc'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-subscribe-elog', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    await runInput(node, {});
+    await flush();
+    assert.ok(node.errors.length > 0, 'must report the subscribe failure');
+});
+check('gofa-subscribe-elog: parseEntry reads fields from both the list-item and single-entry XHTML shapes', function() {
+    var parseEntry = require('./nodes/gofa-subscribe-elog').parseEntry;
+    var listShape = '<li class="elog-message-li" title="/rw/elog/1/17352"><span class="seqnum">17352</span><span class="msgtype">1</span><span class="code">10400</span><span class="title">User logged on</span><span class="tstamp">2026-07-10 T 10:54:46</span></li>';
+    var singleShape = '<li class="elog-message" title="/rw/elog/1/17352"><span class="seqnum">17352</span><span class="msgtype">1</span><span class="code">10400</span><span class="title">User logged on</span><span class="tstamp">2026-07-10 T 10:54:46</span></li>';
+    [listShape, singleShape].forEach(function(shape) {
+        var entry = parseEntry(shape);
+        assert.strictEqual(entry.seqnum, '17352');
+        assert.strictEqual(entry.code, '10400');
+        assert.strictEqual(entry.title, 'User logged on');
+    });
+});
+check('gofa-subscribe-elog: meetsSeverity gates on msgtype vs. the configured threshold (the actual logic fetchAndEmit uses before emitting)', function() {
+    var mod = require('./nodes/gofa-subscribe-elog');
+    var info  = mod.parseEntry('<li class="elog-message"><span class="msgtype">1</span></li>');
+    var warn  = mod.parseEntry('<li class="elog-message"><span class="msgtype">2</span></li>');
+    var error = mod.parseEntry('<li class="elog-message"><span class="msgtype">3</span></li>');
+    assert.strictEqual(mod.meetsSeverity(info, 3), false, '"error only" must drop an info entry');
+    assert.strictEqual(mod.meetsSeverity(warn, 3), false, '"error only" must drop a warning entry');
+    assert.strictEqual(mod.meetsSeverity(error, 3), true, '"error only" must keep an error entry');
+    assert.strictEqual(mod.meetsSeverity(info, 1), true, 'default threshold (1) must keep everything');
+    assert.strictEqual(mod.meetsSeverity(null, 1), false, 'a failed parseEntry (null) must never be emitted');
+});
+
+// gofa-elog ──────────────────────────────────────────────────────────────────
+
+await checkAsync('gofa-elog: minSeverity filters out entries below the threshold', async function() {
+    var body = '<li class="elog-message-li"><span class="seqnum">1</span><span class="msgtype">1</span><span class="code">10010</span><span class="title">Motors Off state</span><span class="tstamp">t</span></li>' +
+               '<li class="elog-message-li"><span class="seqnum">2</span><span class="msgtype">2</span><span class="code">20000</span><span class="title">Some warning</span><span class="tstamp">t</span></li>' +
+               '<li class="elog-message-li"><span class="seqnum">3</span><span class="msgtype">3</span><span class="code">99999</span><span class="title">Some error</span><span class="tstamp">t</span></li>';
+    var mockRobot = { rwsGet: function() { return Promise.resolve(body); } };
+    var node = new (loadNodeType('./nodes/gofa-elog', { nodesById: { r1: mockRobot } }))({ robot: 'r1', domain: '1', count: 10, minSeverity: '2' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.entries.length, 2, 'must drop the msgtype=1 entry, keep warning+error');
+    assert.ok(msg.payload.entries.every(function(e) { return parseInt(e.msgtype) >= 2; }));
+});
+await checkAsync('gofa-elog: default minSeverity (1) keeps every entry', async function() {
+    var body = '<li class="elog-message-li"><span class="seqnum">1</span><span class="msgtype">1</span><span class="code">10010</span><span class="title">Motors Off state</span><span class="tstamp">t</span></li>';
+    var mockRobot = { rwsGet: function() { return Promise.resolve(body); } };
+    var node = new (loadNodeType('./nodes/gofa-elog', { nodesById: { r1: mockRobot } }))({ robot: 'r1', domain: '1', count: 10 });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.entries.length, 1);
+});
+
 // gofa-subscribe-var ─────────────────────────────────────────────────────────
 
 await checkAsync('gofa-subscribe-var: reads via module-text only, never attempts the dead RWS symbol path', async function() {

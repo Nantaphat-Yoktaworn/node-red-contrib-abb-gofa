@@ -305,12 +305,15 @@
             "00b7eaaefef41217",
             "65d5cfd837516be5",
             "e705c98c2351e234",
-            "afbcc99795890248"
+            "afbcc99795890248",
+            "0b3f4cc207a82ba2",
+            "b567e48ac4cbd2c6",
+            "32fb7047f03bd862"
         ],
         "x": 364,
         "y": 1769,
         "w": 1057,
-        "h": 302
+        "h": 360
     },
     {
         "id": "b8c71f7a58a6d882",
@@ -695,49 +698,12 @@
             "color": "#aa6600"
         },
         "nodes": [
-            "56e228ef66390d1c",
             "d985d2ec6155d7fe"
         ],
-        "x": 3928,
-        "y": 593,
-        "w": 3304,
-        "h": 464
-    },
-    {
-        "id": "56e228ef66390d1c",
-        "type": "group",
-        "z": "a520b411b857ec3c",
-        "g": "9da1c40682401e26",
-        "name": "0 - Load MainModuleEGM.mod (run once, or when MainModule.mod is loaded)",
-        "style": {
-            "stroke": "#aa6600",
-            "stroke-opacity": "1",
-            "fill": "#ffffff",
-            "fill-opacity": "0.3",
-            "label": true,
-            "label-position": "nw",
-            "color": "#aa6600"
-        },
-        "nodes": [
-            "26cb26edebce4bb0",
-            "071c8360a51fad9c",
-            "08f9c7e03064b5eb",
-            "c25a6ee2350e2b57",
-            "7eeeb5f418c72ccd",
-            "c19a2b406726837f",
-            "d36780f1bc627e36",
-            "3292c90a2c179058",
-            "785db7e7f3516aa9",
-            "6529a5f52b47ddef",
-            "385096dbdeb6b24f",
-            "394088d3e45e7785",
-            "470873786d0f6cca",
-            "a96e4c20cbefd456"
-        ],
-        "x": 3954,
-        "y": 619,
-        "w": 3252,
-        "h": 152
+        "x": 3948,
+        "y": 803,
+        "w": 2244,
+        "h": 254
     },
     {
         "id": "d985d2ec6155d7fe",
@@ -4484,302 +4450,6 @@
         "wires": []
     },
     {
-        "id": "26cb26edebce4bb0",
-        "type": "comment",
-        "z": "a520b411b857ec3c",
-        "g": "56e228ef66390d1c",
-        "name": "Requires MainModuleEGM.mod loaded on the controller (this pipeline loads it) + one-time UDPUC \"EGM_PC\" controller config (RobotStudio > Controller > Configuration > Communication > Transmission Protocol, Remote Port = 6510, needs a controller restart) + a firewall rule on this host allowing inbound UDP 6510. Run once, or whenever MainModule.mod is currently loaded.",
-        "info": "",
-        "x": 4780,
-        "y": 660,
-        "wires": []
-    },
-    {
-        "id": "071c8360a51fad9c",
-        "type": "inject",
-        "z": "a520b411b857ec3c",
-        "g": "56e228ef66390d1c",
-        "name": "Load MainModuleEGM.mod",
-        "props": [
-            {
-                "p": "payload"
-            }
-        ],
-        "repeat": "",
-        "crontab": "",
-        "once": false,
-        "onceDelay": 0.1,
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 4480,
-        "y": 730,
-        "wires": [
-            [
-                "08f9c7e03064b5eb"
-            ]
-        ]
-    },
-    {
-        "id": "08f9c7e03064b5eb",
-        "type": "gofa-rapid-exec",
-        "z": "a520b411b857ec3c",
-        "g": "56e228ef66390d1c",
-        "name": "Stop RAPID",
-        "robot": "cfg1",
-        "action": "stop",
-        "x": 4680,
-        "y": 730,
-        "wires": [
-            [
-                "c25a6ee2350e2b57"
-            ]
-        ]
-    },
-    {
-        "id": "c25a6ee2350e2b57",
-        "type": "change",
-        "z": "a520b411b857ec3c",
-        "g": "56e228ef66390d1c",
-        "name": "clear payload",
-        "rules": [
-            {
-                "t": "set",
-                "p": "payload",
-                "pt": "msg",
-                "to": "{}",
-                "tot": "json"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
-        "x": 4880,
-        "y": 730,
-        "wires": [
-            [
-                "7eeeb5f418c72ccd"
-            ]
-        ]
-    },
-    {
-        "id": "7eeeb5f418c72ccd",
-        "type": "gofa-rapid-exec",
-        "z": "a520b411b857ec3c",
-        "g": "56e228ef66390d1c",
-        "name": "Unload MainModule (if loaded)",
-        "robot": "cfg1",
-        "action": "unloadmod",
-        "task": "T_ROB1",
-        "module": "MainModule",
-        "x": 5100,
-        "y": 730,
-        "wires": [
-            [
-                "c19a2b406726837f"
-            ]
-        ]
-    },
-    {
-        "id": "c19a2b406726837f",
-        "type": "change",
-        "z": "a520b411b857ec3c",
-        "g": "56e228ef66390d1c",
-        "name": "clear payload",
-        "rules": [
-            {
-                "t": "set",
-                "p": "payload",
-                "pt": "msg",
-                "to": "{}",
-                "tot": "json"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
-        "x": 5320,
-        "y": 730,
-        "wires": [
-            [
-                "d36780f1bc627e36"
-            ]
-        ]
-    },
-    {
-        "id": "d36780f1bc627e36",
-        "type": "gofa-upload-mod",
-        "z": "a520b411b857ec3c",
-        "g": "56e228ef66390d1c",
-        "name": "Upload MainModuleEGM.mod",
-        "robot": "cfg1",
-        "localPath": "",
-        "remotePath": "$HOME/Programs/MainModuleEGM.mod",
-        "x": 5560,
-        "y": 730,
-        "wires": [
-            [
-                "3292c90a2c179058"
-            ]
-        ]
-    },
-    {
-        "id": "3292c90a2c179058",
-        "type": "change",
-        "z": "a520b411b857ec3c",
-        "g": "56e228ef66390d1c",
-        "name": "clear payload",
-        "rules": [
-            {
-                "t": "set",
-                "p": "payload",
-                "pt": "msg",
-                "to": "{}",
-                "tot": "json"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
-        "x": 5800,
-        "y": 730,
-        "wires": [
-            [
-                "785db7e7f3516aa9"
-            ]
-        ]
-    },
-    {
-        "id": "785db7e7f3516aa9",
-        "type": "gofa-rapid-exec",
-        "z": "a520b411b857ec3c",
-        "g": "56e228ef66390d1c",
-        "name": "Load Module",
-        "robot": "cfg1",
-        "action": "loadmod",
-        "task": "T_ROB1",
-        "modulePath": "$HOME/Programs/MainModuleEGM.mod",
-        "replace": true,
-        "module": "MainModuleEGM",
-        "x": 6020,
-        "y": 730,
-        "wires": [
-            [
-                "6529a5f52b47ddef"
-            ]
-        ]
-    },
-    {
-        "id": "6529a5f52b47ddef",
-        "type": "change",
-        "z": "a520b411b857ec3c",
-        "g": "56e228ef66390d1c",
-        "name": "clear payload",
-        "rules": [
-            {
-                "t": "set",
-                "p": "payload",
-                "pt": "msg",
-                "to": "{}",
-                "tot": "json"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
-        "x": 6240,
-        "y": 730,
-        "wires": [
-            [
-                "385096dbdeb6b24f"
-            ]
-        ]
-    },
-    {
-        "id": "385096dbdeb6b24f",
-        "type": "gofa-rapid-exec",
-        "z": "a520b411b857ec3c",
-        "g": "56e228ef66390d1c",
-        "name": "Reset PP",
-        "robot": "cfg1",
-        "action": "resetpp",
-        "x": 6460,
-        "y": 730,
-        "wires": [
-            [
-                "394088d3e45e7785"
-            ]
-        ]
-    },
-    {
-        "id": "394088d3e45e7785",
-        "type": "change",
-        "z": "a520b411b857ec3c",
-        "g": "56e228ef66390d1c",
-        "name": "clear payload",
-        "rules": [
-            {
-                "t": "set",
-                "p": "payload",
-                "pt": "msg",
-                "to": "{}",
-                "tot": "json"
-            }
-        ],
-        "action": "",
-        "property": "",
-        "from": "",
-        "to": "",
-        "reg": false,
-        "x": 6680,
-        "y": 730,
-        "wires": [
-            [
-                "470873786d0f6cca"
-            ]
-        ]
-    },
-    {
-        "id": "470873786d0f6cca",
-        "type": "gofa-rapid-exec",
-        "z": "a520b411b857ec3c",
-        "g": "56e228ef66390d1c",
-        "name": "Start RAPID",
-        "robot": "cfg1",
-        "action": "start",
-        "x": 6900,
-        "y": 730,
-        "wires": [
-            [
-                "a96e4c20cbefd456"
-            ]
-        ]
-    },
-    {
-        "id": "a96e4c20cbefd456",
-        "type": "debug",
-        "z": "a520b411b857ec3c",
-        "g": "56e228ef66390d1c",
-        "name": "{ ok, action }",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "x": 7090,
-        "y": 730,
-        "wires": []
-    },
-    {
         "id": "b3e23309e9d15dcd",
         "type": "comment",
         "z": "a520b411b857ec3c",
@@ -4998,5 +4668,64 @@
         "modules": {
             "node-red-contrib-abb-gofa": "1.2.0"
         }
+    },
+    {
+        "id": "0b3f4cc207a82ba2",
+        "type": "inject",
+        "z": "a520b411b857ec3c",
+        "g": "50ac319274bc98bd",
+        "name": "Subscribe Elog",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 725,
+        "y": 2085,
+        "wires": [
+            [
+                "b567e48ac4cbd2c6"
+            ]
+        ]
+    },
+    {
+        "id": "b567e48ac4cbd2c6",
+        "type": "gofa-subscribe-elog",
+        "z": "a520b411b857ec3c",
+        "g": "50ac319274bc98bd",
+        "name": "",
+        "robot": "cfg1",
+        "domain": "1",
+        "minSeverity": "1",
+        "x": 960,
+        "y": 2085,
+        "wires": [
+            [
+                "32fb7047f03bd862"
+            ]
+        ]
+    },
+    {
+        "id": "32fb7047f03bd862",
+        "type": "debug",
+        "z": "a520b411b857ec3c",
+        "g": "50ac319274bc98bd",
+        "name": "{ ok, domain, entry:{code,title,tstamp} }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 1230,
+        "y": 2085,
+        "wires": []
     }
 ]

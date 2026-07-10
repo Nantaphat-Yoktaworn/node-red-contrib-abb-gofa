@@ -1,19 +1,18 @@
 <script type="text/javascript">
-    RED.nodes.registerType('gofa-elog', {
+    RED.nodes.registerType('gofa-subscribe-elog', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
-            name:   { value: '' },
-            robot:  { value: '', type: 'gofa-robot', required: true },
+            name:        { value: '' },
+            robot:       { value: '', type: 'gofa-robot', required: true },
             domain:      { value: '1' },
-            count:       { value: 10, validate: RED.validators.number() },
             minSeverity: { value: '1' }
         },
         inputs: 1, outputs: 1, icon: 'white-globe.svg',
-        label: function() { return this.name || 'Event Log'; },
-        paletteLabel: 'Event Log'
+        label: function() { return this.name || 'Subscribe Event Log'; },
+        paletteLabel: 'Subscribe Event Log'
     });
 </script>
-<script type="text/html" data-template-name="gofa-elog">
+<script type="text/html" data-template-name="gofa-subscribe-elog">
     <div class="form-row">
         <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
         <input type="text" id="node-input-robot">
@@ -47,32 +46,21 @@
         </select>
     </div>
     <div class="form-row">
-        <label for="node-input-count"><i class="fa fa-hashtag"></i> Entries</label>
-        <input type="number" id="node-input-count" min="1" max="100" placeholder="10">
-    </div>
-    <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
-        <input type="text" id="node-input-name" placeholder="Event Log">
+        <input type="text" id="node-input-name" placeholder="Subscribe Event Log">
     </div>
 </script>
-<script type="text/html" data-help-name="gofa-elog">
-    <p>Reads recent entries from the robot controller event log via RWS.</p>
-    <p><b>Domain is a category, not a severity filter</b> — each entry belongs to exactly one domain (e.g. Safety, Motion, RAPID) regardless of whether it's info/warning/error. Use <b>Min Severity</b> to filter by severity instead; combine both if you want e.g. "errors only, from the Safety domain." The domain list above was confirmed live against this project's controller (<code>GET /rw/elog</code>) — a different controller/RobotWare configuration could expose a different set.</p>
+<script type="text/html" data-help-name="gofa-subscribe-elog">
+    <p>Pushes new controller event log entries in real time over an RWS WebSocket subscription — a live feed, unlike <code>gofa-elog</code>'s poll-on-demand read.</p>
+    <p><b>Domain is a category, not a severity filter</b> — each entry belongs to exactly one domain (e.g. Safety, Motion, RAPID) regardless of whether it's info/warning/error. Use <b>Min Severity</b> to filter by severity instead; combine both if you want e.g. "errors only, from the Safety domain." The domain list above was confirmed live against this project's controller (<code>GET /rw/elog</code>) — a different controller/RobotWare configuration could expose a different set. Entries below the Min Severity threshold are silently dropped (not emitted), not treated as an error.</p>
     <h3>Input</h3>
-    <p><code>msg.payload</code> can be an object to override config at runtime:</p>
-    <ul>
-        <li><code>domain</code> — domain number (see dropdown)</li>
-        <li><code>count</code> — number of entries to return (max 100)</li>
-        <li><code>minSeverity</code> — <code>1</code>=all, <code>2</code>=warning+, <code>3</code>=error only</li>
-    </ul>
-    <h3>Output</h3>
+    <p>Send any message to (re)start the subscription. Further injects while already connected are a no-op — the node keeps streaming.</p>
+    <h3>Output <code>msg.payload</code></h3>
     <pre>msg.payload = {
   ok: true,
   domain: 1,
-  entries: [
-    { seqnum, msgtype, code, title, tstamp },
-    ...
-  ]
+  entry: { seqnum, msgtype, code, title, tstamp }
 }</pre>
     <p><code>msgtype</code>: <code>1</code>=info, <code>2</code>=warning, <code>3</code>=error.</p>
+    <p>One message is emitted per new event log entry that meets Min Severity (the subscription push only carries a reference; this node fetches the full entry before emitting).</p>
 </script>
