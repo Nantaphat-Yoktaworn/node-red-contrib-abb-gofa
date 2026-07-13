@@ -357,7 +357,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 
 | Node | Protocol | What it does |
 |------|:--------:|-------------|
-| **gofa-egm** | UDP (EGM) | Session control + telemetry — Action dropdown (`start`/`stop`) |
+| **gofa-egm** | Socket + UDP (EGM) | Session control + telemetry — Action dropdown (`start`/`stop`); `start` sends `EGMJOINT` over the TCP socket before switching to UDP, `stop` sets a signal via RWS |
 | **gofa-egm-move** | In-memory | Sets the live target if a `gofa-egm` session is active; otherwise routes to a fallback output |
 
 `gofa-egm` streams joint positions over EGM — a UDP/protobuf channel built into RobotWare
@@ -504,7 +504,7 @@ msg.payload  →  node property (editor)  →  built-in default
 | **gofa-joint-jog** | `{ joint, dir, step }` | J1, +, 5 |
 | **gofa-movej** | `[j1,j2,j3,j4,j5,j6]` or `{ j1, j2, j3, j4, j5, j6 }` | `[0,0,85,0,0,0]` |
 | **gofa-go-point** | `{ name, moveType?, storage? }` or `{ id, moveType?, storage? }` — `moveType`: `"J"` or `"L"`, `storage`: `"local"`/`"remote"` | (property) |
-| **gofa-save-point** | `{ name, storage? }` | (property) |
+| **gofa-save-point** | string (name) · `{ name, storage? }` | (property) |
 | **gofa-delete-point** | `{ name, storage? }` or `{ id, storage? }` | (property) |
 | **gofa-rapid-var-read** | `{ task, module, variable }` | T_ROB1 / MainModule / (property) |
 | **gofa-rapid-var-write** | bare value · `{ variable, value }` | (property) |
@@ -513,7 +513,7 @@ msg.payload  →  node property (editor)  →  built-in default
 | **gofa-di-read** | signal name (string) | `ABB_Scalable_IO_0_DI1` |
 | **gofa-subscribe-io** | `{ signal }` | `ABB_Scalable_IO_0_DI1` |
 | **gofa-subscribe-var** | `{ task, module, variable }` (toggles polling) | T_ROB1 / MainModule / (property) |
-| **gofa-subscribe-pose** | `{ interval }` ms on start · absent = stops if running | 500 ms |
+| **gofa-subscribe-pose** | Toggles on/off each input regardless of payload — starting reads `{ interval }` ms if present; already running always stops, even if a new `interval` is sent | 500 ms |
 | **gofa-file-read** | file path (string) · `{ remotePath, encoding }` | `$HOME/Programs/MainModule.mod` |
 | **gofa-upload-mod** | `Buffer` · file path (string) · `{ localPath, remotePath }` | (property) |
 | **gofa-points-export** | file path (string) · `{ savePath }` | (property / no file) |
@@ -522,6 +522,7 @@ msg.payload  →  node property (editor)  →  built-in default
 | **gofa-asi-led** | `'red'`/`'green'`/`'yellow'`/`'off'`/etc. · `false`/`0` (off) · `{ color, r, g, b, period, blinkCount, blinkMs }` · `'reset'` (restore default) | node defaults |
 | **gofa-sequencer** | `{ steps, dwell, moveType, loop, pingpong, count, startStep, storage? }` — `steps[i].moveType` overrides per-step, `storage`: `"local"`/`"remote"` | (property) |
 | **gofa-point-list** | `{ storage }` — `"local"`/`"remote"` | (property) |
+| **gofa-io-list** | `{ type }` — optional filter, e.g. `'DI'`/`'DO'`/`'GO'` | (property / all types) |
 
 ### Trigger-only nodes (no payload needed)
 
@@ -529,7 +530,8 @@ These nodes fire on any input message and ignore `msg.payload`:
 
 `gofa-status` · `gofa-pose` · `gofa-joints` · `gofa-system-info` · `gofa-ping` ·
 `gofa-stop-motion` · `gofa-stop-seq` ·
-`gofa-leadthrough-enable` · `gofa-leadthrough-disable`
+`gofa-leadthrough-enable` · `gofa-leadthrough-disable` ·
+`gofa-subscribe-state` · `gofa-subscribe-elog`
 
 > **gofa-asi-led** — `msg.payload` is required. Use a color string (`'yellow'`), a preset object (`{ color: 'green', blinkCount: 3, blinkMs: 250 }`), or `'reset'` to restore the controller's default green LED. Omit `blinkCount` (or set to `0`) to use the hardware `period` signal for continuous blinking instead.
 

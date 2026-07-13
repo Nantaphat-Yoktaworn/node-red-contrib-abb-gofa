@@ -86,7 +86,8 @@ curl -sk $AUTH -H "Accept: */*" "https://$IP/fileservice/\$HOME/Programs/MainMod
 # — a 404 here just means no points have been saved on-robot yet
 curl -sk $AUTH -H "Accept: */*" "https://$IP/fileservice/\$HOME/Programs/gofa_points.json"
 
-# Check who (if anyone) currently holds edit mastership
+# Check who (if anyone) currently holds edit mastership -- not sent automatically by
+# any node, just a useful manual read while debugging a stuck lock
 curl -sk $AUTH -H "Accept: application/xhtml+xml;v=2.0" "https://$IP/rw/mastership/edit"
 ```
 
@@ -102,7 +103,9 @@ curl -sk $AUTH -H "Content-Type: $CT" -X POST --data "ctrl-state=motoron"  "http
 curl -sk $AUTH -H "Content-Type: $CT" -X POST --data "ctrl-state=motoroff" "https://$IP/rw/panel/ctrl-state"
 
 # Write a digital or analog output (0/1 for digital, a float for analog)
-curl -sk $AUTH -H "Content-Type: $CT" -X POST --data "lvalue=1" "https://$IP/rw/iosystem/signals/<SIGNAL_NAME>/set"
+# Needs the signal's Access Level set to All (RobotStudio, restart required) — the
+# IRC5-era `/set` path 405s unconditionally on this OmniCore/RWS 2.0 controller.
+curl -sk $AUTH -H "Content-Type: $CT" -X POST --data "lvalue=1" "https://$IP/rw/iosystem/signals/<SIGNAL_NAME>/set-value"
 
 # Start RAPID — requires Remote Start UAS grant, AUTO mode, motors on
 curl -sk $AUTH -H "Content-Type: $CT" -X POST \
@@ -229,11 +232,13 @@ Send-GofaCmd "PING"
 | `MOVEJ<j1;j2;j3;j4;j5;j6>` | Absolute joint move in degrees |
 | `ZONE<name>` | Set path blend zone (`FINE`/`Z1`/`Z5`/`Z10`/`Z20`/`Z50`/`Z100`) |
 | `STOP` | Halt motion immediately |
-| `GRIPON` / `GRIPOFF` | Gripper control via digital output |
+| `GRIPON` / `GRIPOFF` | Stub only — acks `OK:` but performs no actual I/O; kept for manual/raw-socket testing. `gofa-grip` itself uses RWS `/set-value` instead. |
 | `GETVAR:<name>` | Read a `PERS` variable — replies `VAL:<value>` or `ERR:UNKNOWN_VAR` |
 | `SETVAR:<name>:<value>` | Write a `PERS` variable — replies `OK:SETVAR`, `ERR:UNKNOWN_VAR`, or `ERR:PARSE` |
+| `SETDO:<name>:<value>` | Set a digital output by RWS signal name (0/1) against an explicit allow-list (`ABB_Scalable_IO_0_DO1`–`DO16`) — replies `OK:SETDO`, `ERR:UNKNOWN_SIGNAL`, or `ERR:PARSE` |
 | `SETLED:<r>;<g>;<b>;<period>` | Set ASI status light color (0–255 each) + hardware blink period |
 | `RESETLED` | Restore ASI LED to default (solid green) |
+| `P1` / `P2` / `P3` | Legacy hardcoded pick/place positions (`rPickPos1`/`rPickPos2`/`rPlacePos`) baked into `MainModule.mod` — no Node-RED node sends these; kept for backward compatibility only. Use the `points.json`-based nodes (`gofa-save-point`/`gofa-go-point`) for anything new. |
 
 Only `nTestVar` (num) and `sTestMsg` (string) are allow-listed for `GETVAR`/`SETVAR`
 out of the box — see "Adding RAPID variables" in `README.md` to add more (that edit
@@ -242,6 +247,11 @@ is itself a Part A workflow: `gofa-upload-mod` → `loadmod`, RAPID stopped, the
 
 Bare `GOTO<11 nums>` (no `J`/`L`) is also accepted as a `GOTOJ` alias for backward
 compatibility.
+
+This table covers `rapid/MainModule.mod` (the default). The optional
+`rapid/MainModuleEGM.mod` adds one more command, `EGMJOINT`, which switches the
+controller into a blocking EGM streaming session instead of serving the commands
+above — see the EGM section in `README.md` for that protocol and setup.
 
 ---
 

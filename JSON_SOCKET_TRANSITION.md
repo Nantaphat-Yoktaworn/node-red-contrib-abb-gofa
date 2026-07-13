@@ -63,9 +63,12 @@ Refactor the following files in `nodes/` that invoke `node.robot.socketSend(toke
 9. **`gofa-joint-jog.js`**
    * *Current*: `socketSend(token)` (where `token` is `J[1-6][+-]val`)
    * *Target*: `socketSend({ cmd: 'jointjog', joint: joint, sgn: sgn, val: val })`
-10. **`gofa-move.js`**
-    * *Current*: `socketSend(cmd)` (where `cmd` is `GOTOL...` or `GOTOJ...`)
-    * *Target*: `socketSend({ cmd: linear ? 'gotol' : 'gotoj', val: poseArray })`
+10. ~~**`gofa-move.js`**~~ — **Already done.** This file only ever handles `HOME`/`SETHOME`
+    (not `GOTOL`/`GOTOJ` — that logic lives in `gofa-go-point.js`/`gofa-robot.js`, see item
+    12) and already sends `socketSend({ cmd: cmd.toLowerCase() })` directly, matching
+    `MainModule.mod`'s existing `"home"`/`"sethome"` JSON cases. `gofa-do-write.js`'s
+    `setdo` transport is likewise already fully JSON (`{ cmd: 'setdo', name, val }`,
+    matching the `"setdo"` JSON case) and needs no work either.
 11. **`gofa-movej.js`**
     * *Current*: `socketSend(cmd)` (where `cmd` is `MOVEJ...`)
     * *Target*: `socketSend({ cmd: 'movej', val: jointsArray })`
