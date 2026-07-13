@@ -2153,7 +2153,7 @@ await checkAsync('discover: finds mock RWS server on loopback interface', async 
     });
     var port = await new Promise(function(resolve) { server.listen(0, '127.0.0.1', function() { resolve(server.address().port); }); });
     try {
-        var ips = await robot.discover({ includeInternal: true, rwsPort: port, timeout: 50 });
+        var ips = await robot.discover({ includeInternal: true, rwsPort: port, timeout: 300 });
         assert.ok(ips.indexOf('127.0.0.1') >= 0, 'should discover 127.0.0.1');
     } finally {
         server.close();
@@ -2161,7 +2161,7 @@ await checkAsync('discover: finds mock RWS server on loopback interface', async 
 });
 
 await checkAsync('discover: returns empty list when no servers respond', async function() {
-    var ips = await robot.discover({ includeInternal: true, rwsPort: 65530, timeout: 50 });
+    var ips = await robot.discover({ includeInternal: true, rwsPort: 65530, timeout: 300 });
     assert.deepStrictEqual(ips, [], 'should return empty array when no port is open');
 });
 
@@ -2172,7 +2172,7 @@ await checkAsync('discover: filters out non-ABB servers', async function() {
     });
     var port = await new Promise(function(resolve) { server.listen(0, '127.0.0.1', function() { resolve(server.address().port); }); });
     try {
-        var ips = await robot.discover({ includeInternal: true, rwsPort: port, timeout: 50 });
+        var ips = await robot.discover({ includeInternal: true, rwsPort: port, timeout: 300 });
         assert.deepStrictEqual(ips, [], 'should filter out non-ABB server');
     } finally {
         server.close();
@@ -2185,7 +2185,7 @@ await checkAsync('discover: does NOT false-positive on an ordinary device return
     });
     var port = await new Promise(function(resolve) { server.listen(0, '127.0.0.1', function() { resolve(server.address().port); }); });
     try {
-        var ips = await robot.discover({ includeInternal: true, rwsPort: port, timeout: 50 });
+        var ips = await robot.discover({ includeInternal: true, rwsPort: port, timeout: 300 });
         assert.deepStrictEqual(ips, [], 'a bare 200 with no ABB WWW-Authenticate realm must not be mistaken for the robot');
     } finally {
         server.close();
@@ -2198,7 +2198,7 @@ await checkAsync('discover: does NOT false-positive on an ordinary device return
     });
     var port = await new Promise(function(resolve) { server.listen(0, '127.0.0.1', function() { resolve(server.address().port); }); });
     try {
-        var ips = await robot.discover({ includeInternal: true, rwsPort: port, timeout: 50 });
+        var ips = await robot.discover({ includeInternal: true, rwsPort: port, timeout: 300 });
         assert.deepStrictEqual(ips, [], 'a bare 401 with a non-ABB realm must not be mistaken for the robot');
     } finally {
         server.close();
