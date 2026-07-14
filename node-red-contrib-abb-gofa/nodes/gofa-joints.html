@@ -1,7 +1,11 @@
 <script type="text/javascript">
     RED.nodes.registerType('gofa-joints', {
         category: 'ABB-GoFa-12', color: '#D3740C',
-        defaults: { name: { value:'' }, robot: { value:'', type:'gofa-robot', required:true } },
+        defaults: {
+            name: { value:'' },
+            robot: { value:'', type:'gofa-robot', required:true },
+            dataSource: { value:'jointtarget' }
+        },
         inputs: 1, outputs: 1, icon: 'white-globe.svg',
         label: function() { return this.name || 'Read Joints'; },
         paletteLabel: 'Read Joints'
@@ -13,6 +17,13 @@
         <input type="text" id="node-input-robot">
     </div>
     <div class="form-row">
+        <label for="node-input-dataSource"><i class="fa fa-database"></i> Source</label>
+        <select id="node-input-dataSource">
+            <option value="jointtarget">Joint Target (needs RAPID running)</option>
+            <option value="servojoints">Servo Joints (always readable)</option>
+        </select>
+    </div>
+    <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Read Joints">
     </div>
@@ -20,6 +31,11 @@
 <script type="text/html" data-help-name="gofa-joints">
     <p>Reads the current joint angles. Any incoming message triggers a read; <code>msg.payload</code>
     itself is ignored on input.</p>
+    <p><strong>Source Options:</strong></p>
+    <ul>
+        <li><strong>Joint Target:</strong> Queries <code>/rw/motionsystem/mechunits/ROB_1/jointtarget</code>. This only works when RAPID task execution is running or is in a state capable of reading targets.</li>
+        <li><strong>Servo Joints:</strong> Queries <code>/rw/panel/servojoints</code>. This reads live angles directly from the servo board and works even when RAPID is stopped or during lead-through teaching.</li>
+    </ul>
     <h3>Output <code>msg.payload</code></h3>
     <p>Success:</p>
     <dl class="message-properties">

@@ -1,0 +1,49 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-backup', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            name: { value:'' },
+            robot: { value:'', type:'gofa-robot', required:true },
+            backupPath: { value:'/fileservice/$syspar/tempfolder/gofa_backup', required:true }
+        },
+        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        label: function() { return this.name || 'Backup Controller'; },
+        paletteLabel: 'Backup Controller'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-backup">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-backupPath"><i class="fa fa-folder-open"></i> Backup Path</label>
+        <input type="text" id="node-input-backupPath" placeholder="/fileservice/$syspar/tempfolder/gofa_backup">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Backup Controller">
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-backup">
+    <p>Triggers a controller backup via RWS and monitors its progress asynchronously.</p>
+    
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt class="optional">payload <span class="property-type">string | object</span></dt>
+        <dd>If string, overrides the configured backup path. If object, the <code>msg.payload.backupPath</code> property overrides the backup path.</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>Output shape on completion:
+            <pre><code>{
+  ok: true,
+  state: "completed" | "failed",
+  progress: 100,
+  path: "/fileservice/$syspar/tempfolder/gofa_backup"
+}</code></pre>
+        </dd>
+    </dl>
+</script>

@@ -327,15 +327,17 @@ accurate) before relying on EGM with real tooling mounted.
 Full design history and the reasoning behind the two-module decision: see the
 `project_egm_node_red_integration_plan` memory and its linked plan file.
 
-## Nodes (43 total)
+## Nodes (45 total)
 
 | Node | Transport | Description |
 |------|-----------|-------------|
 | `gofa-robot` | config | Shared config: IP, RWS port 443, socket port 1025, creds, local points file, remote (on-robot) points path |
 | `gofa-status` | RWS | Reads ctrlstate, opmode, speedratio, RAPID execstate |
 | `gofa-pose` | RWS | Current TCP pose (x,y,z + quaternion + config flags) |
-| `gofa-joints` | RWS | All 6 joint angles in degrees |
+| `gofa-joints` | RWS | All 6 joint angles in degrees; DataSource dropdown — Joint Target (needs RAPID) or Servo Joints (always readable) |
 | `gofa-system-info` | RWS | RobotWare version, controller name/ID/type/MAC |
+| `gofa-restart` | RWS | Restarts controller via `POST /ctrl` (modes: restart, pstart, istart, xstart, bstart, shutdown) |
+| `gofa-backup` | RWS | Triggers controller backup via `POST /ctrl/backup?action=backup` and polls `/progress/{id}` |
 | `gofa-elog` | RWS | Controller event log entries; Domain (category, not severity) + Min Severity (info/warning+/error-only) filters |
 | `gofa-motor` | RWS | Motor on/off via `POST /rw/panel/ctrl-state` |
 | `gofa-move` | Socket | HOME or SETHOME |
