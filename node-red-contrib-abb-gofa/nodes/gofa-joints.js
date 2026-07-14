@@ -3,7 +3,6 @@ module.exports = function(RED) {
     function GoFaJointsNode(config) {
         RED.nodes.createNode(this, config);
         this.robot = RED.nodes.getNode(config.robot);
-        this.dataSource = config.dataSource || 'jointtarget';
         var node = this;
         node.on('input', function(msg, send, done) {
             if (!node.robot) {
@@ -15,10 +14,7 @@ module.exports = function(RED) {
             }
             node.status({ fill: 'blue', shape: 'dot', text: 'reading...' });
             var r = node.robot;
-            var path = (node.dataSource === 'servojoints')
-                ? '/rw/panel/servojoints'
-                : '/rw/motionsystem/mechunits/ROB_1/jointtarget';
-            r.rwsGet(path)
+            r.rwsGet('/rw/motionsystem/mechunits/ROB_1/jointtarget')
             .then(function(body) {
                 var p = function(c) { return parseFloat(r.parseXhtml(body, c)); };
                 msg.payload = {

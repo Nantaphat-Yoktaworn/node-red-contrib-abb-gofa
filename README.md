@@ -261,6 +261,16 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | **gofa-system-info** | RWS | RobotWare version, controller name/ID/MAC |
 | **gofa-elog** | RWS | Controller event log — Domain (category, e.g. Safety/Motion/RAPID) and Min Severity (info/warning+/error-only) filters |
 
+### Controller administration
+
+| Node | Protocol | What it does |
+|------|:--------:|-------------|
+| **gofa-restart** | RWS | Restart or shut down the controller (`restart` / `pstart` / `istart` / `xstart` / `bstart` / `shutdown`) |
+
+> **This affects the whole controller, not just RAPID or motion.** `gofa-restart` reboots or powers down the OmniCore controller itself — a bare inject with the default `restart` mode does a "warm start" (saves state, applies changed system parameters), while `pstart`/`istart` discard RAPID programs/data or the whole configuration respectively. Wire this carefully; there's no confirmation step in the node itself.
+>
+> A `gofa-backup` node (trigger a controller backup via RWS) was tried and dropped — ABB's documented `POST /ctrl/backup?action=backup` call returns a hard `405` on this controller regardless of query string, Accept header, or HTTP verb. See the "`gofa-backup` removed" note in `CLAUDE.md` for the full live-test writeup.
+
 ### Motion
 
 | Node | Protocol | What it does |
@@ -523,6 +533,7 @@ msg.payload  →  node property (editor)  →  built-in default
 | **gofa-sequencer** | `{ steps, dwell, moveType, loop, pingpong, count, startStep, storage? }` — `steps[i].moveType` overrides per-step, `storage`: `"local"`/`"remote"` | (property) |
 | **gofa-point-list** | `{ storage }` — `"local"`/`"remote"` | (property) |
 | **gofa-io-list** | `{ type }` — optional filter, e.g. `'DI'`/`'DO'`/`'GO'` | (property / all types) |
+| **gofa-restart** | `'restart'`/`'pstart'`/`'istart'`/`'xstart'`/`'bstart'`/`'shutdown'` (string) · `{ mode: 'restart' }` | `restart` |
 
 ### Trigger-only nodes (no payload needed)
 

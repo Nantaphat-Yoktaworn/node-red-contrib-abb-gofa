@@ -79,8 +79,7 @@
       "gofa-asi-led": "nodes/gofa-asi-led.js",
       "gofa-egm": "nodes/gofa-egm.js",
       "gofa-egm-move": "nodes/gofa-egm-move.js",
-      "gofa-restart": "nodes/gofa-restart.js",
-      "gofa-backup": "nodes/gofa-backup.js"
+      "gofa-restart": "nodes/gofa-restart.js"
     }
   }
 }

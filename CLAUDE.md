@@ -72,6 +72,8 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 
 **Analog nodes removed (2026-07-07)**: `gofa-ai-read`/`gofa-ao-write` were deleted — confirmed live that this controller has zero `AI`/`AO` signals anywhere (only `DI`/`DO`/`GO` exist; the DSQC1030 is digital-only, and the C30 has no native analog port). Analog I/O would need ABB's `DSQC1032` Analog Add-On module, which attaches to the existing DSQC1030 digital base device rather than replacing it (see the `dsqc1030-scalable-io-addressing` memory). Re-add these nodes (same `/set-value`/plain-GET pattern as `gofa-do-write`/`gofa-di-read`) if that module is ever installed.
 
+**`gofa-backup` removed (2026-07-14)**: a `gofa-backup` node was added, then dropped after live testing. ABB's own documented backup-trigger call, `POST /ctrl/backup?action=backup` (verified against ABB's current Developer Center docs), returns a hard `405 Method Not Allowed` on this controller (RobotWare 7.21.0+229) — `OPTIONS /ctrl/backup` reports `Allow: GET,OPTIONS` only, no POST, regardless of the `?action=backup` query string, `Accept` header (tried `hal+json` too, same 405 pattern as `loadmod`), or HTTP verb (`PUT` also 405s). `/ctrl/backup/state` itself reads fine (`Backup Ready`), so the feature exists on this controller — only the documented create-call doesn't work as written. Same shape as the `/rw/rapid/symbols` finding above: ABB's own current docs failing verbatim against live, current firmware, not a guess gone wrong. Not investigated further (no working alternate path found); re-add only if a working trigger call is confirmed live first.
+
 **SERVER_IP note**: `MainModule.mod` binds its socket server with `CONST string SERVER_IP := "..."`, which RAPID's `SocketBind` requires to be a real configured interface address (no wildcard bind). If this drifts from the controller's actual IP, `SocketBind` silently fails and every socket command times out with no error on the controller side. `gofa-upload-mod` mitigates this by always rewriting `SERVER_IP` to the `gofa-robot` config node's IP on every upload (`patchServerIp` no-ops on any file that doesn't contain the constant, so this is safe for uploading other files too); the constant in the repo copy is just the fallback for a first upload or manual FlexPendant/SD-card load.
 
 **Module reload (`loadmod`) note**: reloading a module file already on disk into a running task (the FlexPendant's **Load Module** step) *is* possible over RWS, but not via the documented RWS 1.0/IRC5 query-action form — `POST /rw/rapid/tasks/{task}?action=loadmod` is `405` on this controller (same red-herring `Allow: GET,POST,OPTIONS` header as the `/rw/rapid/symbols` case below; that resource's real POST use is `/subscription`). The working call is **path-based**: `POST /rw/rapid/tasks/{task}/loadmod`, body `modulepath=<path>&replace=true`, and — the one exception in this whole palette — it requires `Accept: application/hal+json;v=2.0`, not the `xhtml+xml` every other endpoint uses (xhtml Accept errors on this resource). Gated on edit mastership, same as `resetpp`. Confirmed live against `T_ROB1`/`MainModule` (RobotWare 7.21.0+229): `200` with JSON body `{"state":[{"name":"MainModule", ...}]}`, no side effects. `gofa-rapid-exec`'s `loadmod` action wraps this (`rwsPostHal` in `gofa-robot.js` sends the hal+json Accept header). A companion `activate` action (`POST /rw/rapid/tasks/{task}/activate`, body `module=<name>`) works the same way and is now also wired into `gofa-rapid-exec`, as does `unloadmod` (`POST /rw/rapid/tasks/{task}/unloadmod`, body `module=<name>` — same hal+json/mastership requirements; removes the named module from the task only, the file stays on the controller's disk). `unloadmod` was needed once it was confirmed live that `loadmod`'s `replace` only replaces a *same-named* module — loading `MainModuleEGM` while `MainModule` is still loaded leaves both loaded, both declaring `PROC main()`, and RAPID rejects `resetpp`/`start` with `(87,5): Global routine name main ambiguous` (see the EGM section below). **All three require RAPID to be stopped** — confirmed live in both directions: succeeds (`204`) with `ctrlexecstate: stopped`, fails `403` (`rws_resource_rapid_task.cpp: Operation not allowed for current PGM state`) with `ctrlexecstate: running`, on the identical call. `gofa-rapid-exec` surfaces the RWS error's own reason text (previously discarded — `gofa-robot.js`'s `request()` only threw `HTTP <code> <path>` with no body detail) and adds a specific hint for this rejection. Full test log: see the `abb-rws` skill and the `project_robot_live_test_log` memory.
@@ -327,17 +329,16 @@ accurate) before relying on EGM with real tooling mounted.
 Full design history and the reasoning behind the two-module decision: see the
 `project_egm_node_red_integration_plan` memory and its linked plan file.
 
-## Nodes (45 total)
+## Nodes (44 total)
 
 | Node | Transport | Description |
 |------|-----------|-------------|
 | `gofa-robot` | config | Shared config: IP, RWS port 443, socket port 1025, creds, local points file, remote (on-robot) points path |
 | `gofa-status` | RWS | Reads ctrlstate, opmode, speedratio, RAPID execstate |
 | `gofa-pose` | RWS | Current TCP pose (x,y,z + quaternion + config flags) |
-| `gofa-joints` | RWS | All 6 joint angles in degrees; DataSource dropdown — Joint Target (needs RAPID) or Servo Joints (always readable) |
+| `gofa-joints` | RWS | All 6 joint angles in degrees |
 | `gofa-system-info` | RWS | RobotWare version, controller name/ID/type/MAC |
 | `gofa-restart` | RWS | Restarts controller via `POST /ctrl` (modes: restart, pstart, istart, xstart, bstart, shutdown) |
-| `gofa-backup` | RWS | Triggers controller backup via `POST /ctrl/backup?action=backup` and polls `/progress/{id}` |
 | `gofa-elog` | RWS | Controller event log entries; Domain (category, not severity) + Min Severity (info/warning+/error-only) filters |
 | `gofa-motor` | RWS | Motor on/off via `POST /rw/panel/ctrl-state` |
 | `gofa-move` | Socket | HOME or SETHOME |
@@ -404,6 +405,7 @@ Originally considered storing the list *inside* RAPID (new socket commands readi
 | `PUT /fileservice/$HOME/Programs/<file>` | PUT | Upload file to controller |
 | `GET /rw/rapid/tasks` | GET | List of RAPID tasks: name, type, taskstate, excstate, active, motiontask |
 | `GET /rw/rapid/tasks/{task}/modules` | GET | Modules loaded in a task: name, type (ProgMod/SysMod) |
+| `POST /ctrl` | POST | body: `restart-mode=restart\|pstart\|istart\|xstart\|bstart\|shutdown` — restarts/shuts down the controller itself, `200` on success (confirmed against ABB's own Developer Center docs, not yet live-tested — this reboots the controller) |
 
 ## Default connection settings (this lab's robot)
 
