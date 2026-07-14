@@ -2732,6 +2732,190 @@ await checkAsync('gofa-upload-mod: skips patching for binary buffers and preserv
     assert.ok(Buffer.compare(calls[0].body, binaryData) === 0, 'binary bytes must be preserved exactly');
 });
 
+await checkAsync('gofa-movej: moves to configured joints on input', async function() {
+    var calls = [];
+    var mockRobot = {
+        socketSend: function(cmd) {
+            calls.push(cmd);
+            return Promise.resolve('OK:MOVEJ');
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-movej', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', joints: '[10,20,30,40,50,60]'
+    });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.deepStrictEqual(msg.payload.joints, [10,20,30,40,50,60]);
+    assert.strictEqual(calls.length, 1);
+    assert.deepStrictEqual(calls[0], { cmd: 'movej', val: [10,20,30,40,50,60] });
+});
+
+await checkAsync('gofa-zone-set: sets zone and propagates config', async function() {
+    var calls = [];
+    var mockRobot = {
+        socketSend: function(cmd) {
+            calls.push(cmd);
+            return Promise.resolve('OK:ZONE');
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-zone-set', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', zone: 'z20'
+    });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.zone, 'z20');
+    assert.strictEqual(calls.length, 1);
+    assert.deepStrictEqual(calls[0], { cmd: 'zone', val: 'Z20' });
+});
+
+await checkAsync('gofa-speed-set: sets speed and respects clamping', async function() {
+    var calls = [];
+    var mockRobot = {
+        socketSend: function(cmd) {
+            calls.push(cmd);
+            return Promise.resolve('OK:SPEED');
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-speed-set', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', speed: 150
+    });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.speed, 100); // clamped
+    assert.strictEqual(calls.length, 1);
+    assert.deepStrictEqual(calls[0], { cmd: 'speed', val: 100 });
+});
+
+await checkAsync('gofa-stop-motion: halts robot motion', async function() {
+    var calls = [];
+    var mockRobot = {
+        socketSend: function(cmd) {
+            calls.push(cmd);
+            return Promise.resolve('OK:STOP');
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-stop-motion', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(calls.length, 1);
+    assert.deepStrictEqual(calls[0], { cmd: 'stop' });
+});
+
+await checkAsync('gofa-ping: calculates latency rtt', async function() {
+    var calls = [];
+    var mockRobot = {
+        socketSend: function(cmd) {
+            calls.push(cmd);
+            return Promise.resolve('OK:PING');
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-ping', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.ok(typeof msg.payload.rtt === 'number');
+    assert.strictEqual(calls.length, 1);
+    assert.deepStrictEqual(calls[0], { cmd: 'ping' });
+});
+
+await checkAsync('gofa-system-info: fetches details via RWS', async function() {
+    var mockRobot = {
+        rwsGet: function(path) {
+            if (path === '/rw/system') return Promise.resolve('<span class="rwversion">7.21</span>');
+            if (path === '/ctrl/identity') return Promise.resolve('<span class="ctrl-name">my_gofa</span>');
+            return Promise.reject(new Error('unexpected path'));
+        },
+        parseXhtml: parseXhtml
+    };
+    var node = new (loadNodeType('./nodes/gofa-system-info', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.rwVersion, '7.21');
+    assert.strictEqual(msg.payload.ctrlName, 'my_gofa');
+});
+
+await checkAsync('gofa-io-list: lists and filters signals', async function() {
+    var mockRobot = {
+        rwsGet: function(path) {
+            return Promise.resolve(
+                '<li class="ios-signal-li"><span class="name">SIG1</span><span class="type">DO</span><span class="lvalue">0</span></li>' +
+                '<li class="ios-signal-li"><span class="name">SIG2</span><span class="type">DI</span><span class="lvalue">1</span></li>'
+            );
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-io-list', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = { payload: { type: 'DO' } };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.count, 1);
+    assert.strictEqual(msg.payload.signals[0].name, 'SIG1');
+});
+
+await checkAsync('gofa-di-read: reads value of digital input', async function() {
+    var mockRobot = {
+        rwsGet: function(path) {
+            assert.ok(path.indexOf('MySignal') >= 0);
+            return Promise.resolve('<span class="lvalue">1</span>');
+        },
+        parseXhtml: parseXhtml
+    };
+    var node = new (loadNodeType('./nodes/gofa-di-read', { nodesById: { r1: mockRobot } }))({ robot: 'r1', signal: 'MySignal' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.signal, 'MySignal');
+    assert.strictEqual(msg.payload.value, 1);
+});
+
+await checkAsync('gofa-leadthrough-disable: disables manual guidance', async function() {
+    var calls = [];
+    var mockRobot = {
+        rwsPost: function(path, body) {
+            calls.push({ path: path, body: body });
+            return Promise.resolve('');
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-leadthrough-disable', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0].path, '/rw/motionsystem/mechunits/ROB_1/lead-through');
+    assert.strictEqual(calls[0].body, 'status=inactive');
+});
+
+await checkAsync('gofa-subscribe-pose: polls pose and triggers timeout loop', async function() {
+    var calls = [];
+    var mockRobot = {
+        rwsGet: function(path) {
+            calls.push(path);
+            return Promise.resolve('<span class="x">1.2</span><span class="y">3.4</span><span class="z">5.6</span><span class="q1">1</span><span class="q2">0</span><span class="q3">0</span><span class="q4">0</span>');
+        },
+        parseXhtml: parseXhtml
+    };
+    var node = new (loadNodeType('./nodes/gofa-subscribe-pose', { nodesById: { r1: mockRobot } }))({ robot: 'r1', interval: 100 });
+    var msg = {};
+    
+    // Start polling
+    await runInput(node, msg);
+    assert.strictEqual(node.statuses[0].text, 'polling');
+    
+    // Give it a moment to run at least one poll loop
+    await new Promise(resolve => setTimeout(resolve, 50));
+    assert.ok(node.sent.length >= 1);
+    assert.strictEqual(node.sent[0].payload.ok, true);
+    assert.strictEqual(node.sent[0].payload.x, 1.2);
+    
+    // Stop polling
+    await runInput(node, msg);
+    assert.strictEqual(node.statuses[node.statuses.length - 1].text, 'stopped');
+});
+
 fs.rmSync(tmpDir, { recursive: true, force: true });
 console.log('\n' + passed + ' passed, ' + failed + ' failed.');
 if (failed) process.exit(1);

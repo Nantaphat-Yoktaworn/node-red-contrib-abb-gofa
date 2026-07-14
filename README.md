@@ -557,6 +557,10 @@ Saved points are stored in `points.json` on the Node-RED host — not on the rob
 
 ## Troubleshooting
 
+### No controller restart/backup nodes
+
+`gofa-restart` and `gofa-backup` nodes were both built and dropped after live testing. ABB documents `POST /ctrl` (body `restart-mode=...`) and `POST /ctrl/backup?action=backup` for these — both reproduced verbatim from ABB's own current docs, and both return a hard `405 Method Not Allowed` on this controller (RobotWare 7.21.0+229), despite `OPTIONS` on each resource listing `Allow: GET,POST,OPTIONS` / `Allow: GET,OPTIONS` respectively. See the `gofa-backup`/`gofa-restart` removed note in `CLAUDE.md` for the full live-test writeup. No working alternative found; a manual restart/backup via the FlexPendant or RobotStudio still works fine.
+
 ### Socket commands time out (jog, HOME, ping …)
 
 1. Confirm RAPID is running on the FlexPendant (green play indicator)
