@@ -35,16 +35,22 @@
 </script>
 <script type="text/html" data-help-name="gofa-save-point">
     <p>Reads the current TCP pose and saves it as a named point.</p>
-    <p><code>msg.payload.name</code> overrides the Point Name property; <code>msg.payload.storage</code>
-    (<code>"local"</code>/<code>"remote"</code>) overrides the <em>Storage</em> setting.</p>
+    <h3>Input</h3>
+    <p><code>msg.payload</code> as a plain string is used directly as the point name;
+    <code>msg.payload.name</code> overrides the Point Name property if <code>msg.payload</code> is
+    an object; <code>msg.payload.storage</code> (<code>"local"</code>/<code>"remote"</code>)
+    overrides the <em>Storage</em> setting. A blank name (default) auto-generates
+    <code>"Point N"</code>.</p>
     <h3>Storage</h3>
     <p><b>Local</b> — the config node's Points File on the Node-RED host (default). <b>On-Robot</b> —
     a JSON file on the robot controller's own disk (the config node's Remote Points Path), managed
     via RWS <code>fileservice</code> — no local file needed on the Node-RED host.</p>
     <h3>Output <code>msg.payload</code></h3>
+    <p>Success:</p>
     <dl class="message-properties">
-        <dt>ok</dt><dd>true on success</dd>
+        <dt>ok</dt><dd>true</dd>
         <dt>point</dt><dd>{ id, name, target }</dd>
         <dt>points</dt><dd>Full updated points list</dd>
     </dl>
+    <p>Failure: <code>msg.payload = { ok: false, error: "..." }</code></p>
 </script>

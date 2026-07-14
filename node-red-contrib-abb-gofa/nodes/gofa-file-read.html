@@ -42,8 +42,9 @@
         <li>An object <code>{ remotePath, encoding }</code> — overrides config</li>
     </ul>
     <h3>Output</h3>
-    <p><code>msg.payload</code> — <code>{ ok, remotePath, content, bytes }</code></p>
+    <p>Success: <code>msg.payload = { ok: true, remotePath, content, bytes }</code></p>
     <p><code>content</code> is a UTF-8 string or Base64 string depending on encoding.</p>
+    <p>Failure (e.g. file not found): <code>msg.payload = { ok: false, error: "..." }</code></p>
     <h3>Common paths</h3>
     <ul>
         <li><code>$HOME/Programs/MainModule.mod</code> — main RAPID module</li>

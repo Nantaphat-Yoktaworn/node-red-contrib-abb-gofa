@@ -18,11 +18,15 @@
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-pose">
-    <p>Reads the current TCP pose.</p>
+    <p>Reads the current TCP pose. Any incoming message triggers a read; <code>msg.payload</code>
+    itself is ignored on input.</p>
     <h3>Output <code>msg.payload</code></h3>
+    <p>Success:</p>
     <dl class="message-properties">
+        <dt>ok</dt><dd>true</dd>
         <dt>x, y, z</dt><dd>Position in mm (base frame)</dd>
         <dt>q1, q2, q3, q4</dt><dd>Quaternion orientation</dd>
         <dt>cf1, cf4, cf6, cfx</dt><dd>Robot configuration</dd>
     </dl>
+    <p>Failure: <code>msg.payload = { ok: false, error: "..." }</code></p>
 </script>

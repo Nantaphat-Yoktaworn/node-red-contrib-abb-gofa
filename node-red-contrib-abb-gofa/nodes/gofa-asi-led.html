@@ -123,5 +123,10 @@
         <li><code>null</code> / not set — uses node editor values</li>
     </ul>
     <h3>Output</h3>
-    <p><code>msg.payload = { ok: true, r, g, b, blinks }</code> on success.</p>
+    <ul>
+        <li>Single/continuous <code>SETLED</code>: <code>msg.payload = { ok: true, r, g, b, period }</code></li>
+        <li>Counted blink (<em>Blink count</em> &gt; 0): <code>msg.payload = { ok: true, r, g, b, blinks }</code>, sent once the full sequence finishes</li>
+        <li><code>'reset'</code>: <code>msg.payload = { ok: true, reset: true }</code></li>
+        <li>Failure (any case): <code>msg.payload = { ok: false, error: "..." }</code></li>
+    </ul>
 </script>

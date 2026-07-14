@@ -48,11 +48,21 @@
 </script>
 <script type="text/html" data-help-name="gofa-jog">
     <p>Moves the robot TCP by a relative amount (Cartesian jog).</p>
-    <p><code>msg.payload.axis</code>, <code>msg.payload.dir</code>, <code>msg.payload.step</code> override properties.</p>
+    <h3>Input</h3>
+    <p><code>msg.payload.axis</code>, <code>msg.payload.dir</code>, <code>msg.payload.step</code>
+    override the configured values. Each is validated and the message is rejected (no socket
+    command sent) if invalid:</p>
+    <ul>
+        <li><code>axis</code> — must be (case-insensitive) one of <code>X</code>/<code>Y</code>/<code>Z</code>/<code>RX</code>/<code>RY</code>/<code>RZ</code></li>
+        <li><code>dir</code> — must be exactly <code>"+"</code> or <code>"-"</code></li>
+        <li><code>step</code> — a number; clamped to 1–50 mm for <code>X</code>/<code>Y</code>/<code>Z</code>, or 1–30° for <code>RX</code>/<code>RY</code>/<code>RZ</code></li>
+    </ul>
     <h3>Output <code>msg.payload</code></h3>
+    <p>Success:</p>
     <dl class="message-properties">
         <dt>ok</dt><dd>true if robot replied OK</dd>
         <dt>ack</dt><dd>Raw ack string</dd>
         <dt>token</dt><dd>Command sent (e.g. X+10)</dd>
     </dl>
+    <p>Failure (invalid input or socket error): <code>msg.payload = { ok: false, error: "..." }</code></p>
 </script>

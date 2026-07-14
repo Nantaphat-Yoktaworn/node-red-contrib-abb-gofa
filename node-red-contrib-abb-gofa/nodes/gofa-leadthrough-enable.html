@@ -21,8 +21,13 @@
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-leadthrough-enable">
-    <p>Enables robot hand-guiding (leadthrough) mode via RWS.</p>
-    <p>Sends <code>POST /rw/motionsystem/mechunits/ROB_1/handguiding?action=start</code> to the controller.</p>
+    <p>Enables robot hand-guiding (leadthrough) mode via RWS. First sends a <code>stop</code>
+    over the TCP socket to clear any queued/in-flight moves (so a move already underway doesn't
+    keep executing autonomously while hand-guiding is active), then sends
+    <code>POST /rw/motionsystem/mechunits/ROB_1/lead-through</code>, body
+    <code>status=active</code>. A socket-connection failure during the stop step (e.g. RAPID
+    not running) is tolerated and does not block enabling leadthrough; any other stop failure
+    does.</p>
     <h3>Input</h3>
     <p>Any message triggers the action. <code>msg.payload</code> is ignored.</p>
     <h3>Output</h3>
@@ -30,9 +35,7 @@
         <dt>payload.ok <span class="property-type">boolean</span></dt>
         <dd><code>true</code> on success.</dd>
         <dt>payload.error <span class="property-type">string</span></dt>
-        <dd>Present on failure — the error message from RWS.</dd>
-        <dt>payload.hint <span class="property-type">string</span></dt>
-        <dd>Present on failure — a hint about the cause (e.g. missing SafeMove2 Pro option on 404).</dd>
+        <dd>Present on failure — the error message from RWS or the stop step.</dd>
     </dl>
     <h3>Notes</h3>
     <p>Hand-guiding requires the SafeMove2 Pro option on the OmniCore C30 controller. A 404 response typically indicates this option is not licensed.</p>

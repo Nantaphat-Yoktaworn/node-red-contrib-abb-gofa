@@ -18,12 +18,16 @@
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-status">
-    <p>Reads controller status on each input message.</p>
+    <p>Reads controller status on each input message. <code>msg.payload</code> itself is
+    ignored on input.</p>
     <h3>Output <code>msg.payload</code></h3>
+    <p>Success:</p>
     <dl class="message-properties">
+        <dt>ok</dt><dd>true</dd>
         <dt>ctrlstate</dt><dd>motoron | guardstop | emergencystop | sysfail</dd>
         <dt>opmode</dt><dd>AUTO | MANR</dd>
         <dt>speed</dt><dd>Speed override 0-100</dd>
         <dt>rapid</dt><dd>running | stopped</dd>
     </dl>
+    <p>Failure: <code>msg.payload = { ok: false, error: "..." }</code></p>
 </script>

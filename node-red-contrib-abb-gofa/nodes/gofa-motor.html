@@ -46,6 +46,7 @@
     <h3>Output</h3>
     <dl class="message-properties">
         <dt>payload <span class="property-type">object</span></dt>
-        <dd><code>{ ok: true|false, action: '...' }</code></dd>
+        <dd>Success: <code>{ ok: true, action: '...' }</code>. Failure (invalid action or RWS
+        error): <code>{ ok: false, error: '...' }</code> — no <code>action</code> property.</dd>
     </dl>
 </script>

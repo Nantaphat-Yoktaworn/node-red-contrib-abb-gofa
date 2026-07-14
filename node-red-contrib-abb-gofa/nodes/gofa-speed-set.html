@@ -26,13 +26,13 @@
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-speed-set">
-    <p>Sets the robot speed override percentage (1–100) via RWS.</p>
+    <p>Sets the robot speed override percentage (1–100) via the RAPID socket server (TCP port
+    1025, RAPID's <code>SpeedRefresh</code> instruction — no mastership needed).</p>
     <h3>Input</h3>
     <p><code>msg.payload</code> can be:</p>
     <ul>
-        <li>A number — used directly as the speed percentage</li>
-        <li>An object <code>{ speed: 75 }</code> — overrides the configured value</li>
-        <li><code>null</code> / not set — uses the configured default</li>
+        <li>A number, or a non-empty string parseable as a number — used directly as the speed percentage</li>
+        <li><code>null</code> / not set / any other type (including an object) — uses the configured default</li>
     </ul>
     <p>Values outside 1–100 are clamped with a warning.</p>
     <h3>Output</h3>
@@ -40,6 +40,5 @@
     <p><code>msg.payload = { ok: false, error: "..." }</code> on failure.</p>
     <h3>Notes</h3>
     <p>This sets the global speed override on the controller, the same as the
-    speed slider on the FlexPendant. The existing TCP <code>SPEED{n}</code> command
-    in the RAPID socket server does the same thing but goes through RAPID.</p>
+    speed slider on the FlexPendant — RAPID must be running for this node to work.</p>
 </script>

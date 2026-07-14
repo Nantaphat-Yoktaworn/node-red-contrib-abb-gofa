@@ -64,9 +64,16 @@
 </script>
 <script type="text/html" data-help-name="gofa-go-point">
     <p>Moves the robot to a saved point by name or ID.</p>
-    <p><code>msg.payload.name</code> or <code>msg.payload.id</code> overrides the property;
-    <code>msg.payload.storage</code> (<code>"local"</code>/<code>"remote"</code>) overrides
-    <em>Storage</em>.</p>
+    <h3>Input</h3>
+    <p><code>msg.payload.name</code> or <code>msg.payload.id</code> overrides the configured
+    point; <code>msg.payload.storage</code> (<code>"local"</code>/<code>"remote"</code>)
+    overrides <em>Storage</em>; <code>msg.payload.moveType</code> (<code>"J"</code>/<code>"L"</code>)
+    overrides <em>Move type</em> — see below.</p>
+    <h3>Output</h3>
+    <ul>
+        <li>Success: <code>msg.payload = { ok: true, ack: "OK:...", point: {...}, moveType: "J"|"L" }</code></li>
+        <li>Point not found, invalid point data, or any other failure: <code>msg.payload = { ok: false, error: "..." }</code></li>
+    </ul>
     <h3>Storage</h3>
     <p><b>Local</b> — looks the point up in the config node's Points File (default). <b>On-Robot</b> —
     fetches the point from a JSON file on the robot controller's own disk via RWS

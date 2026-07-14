@@ -18,9 +18,13 @@
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-joints">
-    <p>Reads the current joint angles.</p>
+    <p>Reads the current joint angles. Any incoming message triggers a read; <code>msg.payload</code>
+    itself is ignored on input.</p>
     <h3>Output <code>msg.payload</code></h3>
+    <p>Success:</p>
     <dl class="message-properties">
+        <dt>ok</dt><dd>true</dd>
         <dt>j1 – j6</dt><dd>Joint angles in degrees</dd>
     </dl>
+    <p>Failure: <code>msg.payload = { ok: false, error: "..." }</code></p>
 </script>

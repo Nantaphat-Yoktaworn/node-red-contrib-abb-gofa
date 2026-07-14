@@ -44,5 +44,16 @@
 </script>
 <script type="text/html" data-help-name="gofa-joint-jog">
     <p>Moves a single robot joint by a relative angle.</p>
-    <p><code>msg.payload.joint</code>, <code>msg.payload.dir</code>, <code>msg.payload.step</code> override properties.</p>
+    <h3>Input</h3>
+    <p><code>msg.payload.joint</code>, <code>msg.payload.dir</code>, <code>msg.payload.step</code>
+    override the configured values. Each is validated and the message is rejected (no socket
+    command sent) if invalid:</p>
+    <ul>
+        <li><code>joint</code> — <code>"J1"</code>–<code>"J6"</code> (or a bare <code>1</code>–<code>6</code>)</li>
+        <li><code>dir</code> — must be exactly <code>"+"</code> or <code>"-"</code></li>
+        <li><code>step</code> — a number in degrees; clamped to 1–30</li>
+    </ul>
+    <h3>Output</h3>
+    <p>Success: <code>msg.payload = { ok: true, ack: "OK:...", token: "J1+5" }</code></p>
+    <p>Failure (invalid input or socket error): <code>msg.payload = { ok: false, error: "..." }</code></p>
 </script>

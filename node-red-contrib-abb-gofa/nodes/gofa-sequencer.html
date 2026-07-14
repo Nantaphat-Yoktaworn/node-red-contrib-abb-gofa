@@ -180,8 +180,13 @@
         <li><code>startStep</code> — 1-based step index to start from</li>
     </ul>
     <h3>Outputs</h3>
+    <p>Every output message is a clone of the triggering input <code>msg</code> with
+    <code>payload</code> replaced — other properties you set on the input (e.g.
+    <code>msg.topic</code>) are preserved on every output.</p>
     <ol>
-        <li>After each step: <code>{ step, total, name, ack, loop, moveType }</code></li>
-        <li>When done or stopped: <code>{ done, loops }</code> or <code>{ done: false, stopped: true, loops }</code></li>
+        <li>After each step: <code>msg.payload = { step, total, name, ack, loop, moveType }</code></li>
+        <li>When done or stopped (output 2): <code>{ done: true, loops }</code>,
+        <code>{ done: false, stopped: true, loops }</code>, or on a step error:
+        <code>{ ok: false, error, step, name }</code></li>
     </ol>
 </script>

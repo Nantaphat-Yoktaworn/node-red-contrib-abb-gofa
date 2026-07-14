@@ -18,6 +18,13 @@
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-stop-seq">
-    <p>Signals the sequencer to stop after the current step completes.</p>
+    <p>Immediately halts the running <b>gofa-sequencer</b>: sets a stop flag (checked before the
+    next step) <em>and</em> sends an immediate <code>stop</code> over the TCP socket to abort
+    any in-progress move right away, rather than waiting for the current move + dwell to finish.</p>
     <p>Must reference the same Robot config node as the running Sequencer.</p>
+    <h3>Input</h3>
+    <p>Any message triggers the action. <code>msg.payload</code> is ignored.</p>
+    <h3>Output</h3>
+    <p><code>msg.payload = { ok: true, message: 'stop requested' }</code> on success,
+    <code>{ ok: false, error: "..." }</code> if no Robot is configured.</p>
 </script>

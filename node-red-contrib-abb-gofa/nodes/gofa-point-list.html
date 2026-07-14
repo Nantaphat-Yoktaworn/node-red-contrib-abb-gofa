@@ -29,7 +29,13 @@
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-point-list">
-    <p>Outputs the current list of all saved points as an array of <code>{ id, name, target }</code>.</p>
-    <p><code>msg.payload.storage</code> (<code>"local"</code>/<code>"remote"</code>) overrides
-    <em>Storage</em>.</p>
+    <p>Outputs the current list of all saved points.</p>
+    <h3>Input</h3>
+    <p>Any message triggers a read. <code>msg.payload.storage</code>
+    (<code>"local"</code>/<code>"remote"</code>) overrides <em>Storage</em>.</p>
+    <h3>Output</h3>
+    <ul>
+        <li>Success: <code>msg.payload</code> = array of <code>{ id, name, target }</code> (the full saved-point list, may be empty)</li>
+        <li>Failure: <code>msg.payload = { ok: false, error: "..." }</code></li>
+    </ul>
 </script>

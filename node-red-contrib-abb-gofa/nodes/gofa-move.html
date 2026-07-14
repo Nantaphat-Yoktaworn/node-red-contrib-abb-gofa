@@ -46,7 +46,9 @@
     <h3>Output</h3>
     <dl class="message-properties">
         <dt>payload <span class="property-type">object</span></dt>
-        <dd><code>{ ok: true|false, ack: 'OK:HOME' }</code></dd>
+        <dd>Success: <code>{ ok: true, ack: 'OK:HOME' }</code> (<code>ok</code> reflects whether
+        the socket ack itself started with <code>OK:</code>). Failure (invalid command or
+        socket error): <code>{ ok: false, error: '...' }</code> — no <code>ack</code> property.</dd>
     </dl>
 
     <h3>Notes</h3>

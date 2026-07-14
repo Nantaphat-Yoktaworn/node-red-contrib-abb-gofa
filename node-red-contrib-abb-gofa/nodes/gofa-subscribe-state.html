@@ -29,6 +29,10 @@
 </script>
 <script type="text/html" data-help-name="gofa-subscribe-state">
     <p>Reads or subscribes to controller state via RWS.</p>
+    <h3>Input</h3>
+    <p>Any message triggers the node (open the subscription / poll once, depending on mode and
+    whether a subscription is already open — see Modes below). <code>msg.payload</code> is
+    ignored.</p>
     <h3>Output <code>msg.payload</code></h3>
     <dl class="message-properties">
         <dt>ok <span class="property-type">boolean</span></dt><dd><code>true</code></dd>
