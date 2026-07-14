@@ -38,7 +38,7 @@ npm install node-red-contrib-abb-gofa
 
 (or **Menu → Manage palette → Install** inside the Node-RED editor.)
 
-Restart Node-RED — a `gofa-robot` config node and 43 `gofa-*` nodes appear under the **GoFa** category.
+Restart Node-RED — a `gofa-robot` config node and 42 `gofa-*` nodes appear under the **GoFa** category.
 
 ## Controller setup (once)
 
@@ -74,7 +74,6 @@ Ready-made example flows (a per-node demo, a full control dashboard, and a physi
 | `gofa-joints` | RWS | All 6 joint angles |
 | `gofa-system-info` | RWS | RobotWare version, controller identity |
 | `gofa-elog` | RWS | Controller event log — Domain (category) + Min Severity (info/warning+/error-only) filters |
-| `gofa-restart` | RWS | Restart or shut down the controller (`restart`/`pstart`/`istart`/`xstart`/`bstart`/`shutdown`) |
 | `gofa-motor` | RWS | Motors on/off |
 | `gofa-move` | Socket | Go home / set home |
 | `gofa-movej` | Socket | Absolute joint move |

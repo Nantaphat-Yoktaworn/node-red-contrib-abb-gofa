@@ -116,11 +116,6 @@ curl -sk $AUTH -H "Content-Type: $CT" -X POST \
 curl -sk $AUTH -H "Content-Type: $CT" -X POST --data "stopmode=stop&usetsp=normal" \
   "https://$IP/rw/rapid/execution/stop"
 
-# Restart or shut down the controller itself (not just RAPID) — mode is one of
-# restart/pstart/istart/xstart/bstart/shutdown. Returns 200 with no body on success;
-# the controller drops off the network for real once this runs, so this is disruptive.
-curl -sk $AUTH -H "Content-Type: $CT" -X POST --data "restart-mode=restart" "https://$IP/ctrl"
-
 # Enable / disable hand-guiding (lead-through) — the palette's gofa-leadthrough-enable
 # node also sends a socket STOP first to clear queued moves; do that yourself too if
 # you're driving this manually and anything might still be moving.

@@ -2732,60 +2732,6 @@ await checkAsync('gofa-upload-mod: skips patching for binary buffers and preserv
     assert.ok(Buffer.compare(calls[0].body, binaryData) === 0, 'binary bytes must be preserved exactly');
 });
 
-await checkAsync('gofa-restart: missing robot config reports an error and sets red status', async function() {
-    var node = new (loadNodeType('./nodes/gofa-restart', { nodesById: {} }))({ robot: 'nope' });
-    var msg = {};
-    await runInput(node, msg);
-    assert.strictEqual(msg.payload.ok, false);
-    assert.strictEqual(node.errors.length, 1);
-    assert.ok(node.statuses.some(function(s) { return s.fill === 'red' && s.text === 'no robot'; }));
-});
-
-await checkAsync('gofa-restart: invalid mode reports an error and sets red status', async function() {
-    var mockRobot = {};
-    var node = new (loadNodeType('./nodes/gofa-restart', { nodesById: { r1: mockRobot } }))({ robot: 'r1', mode: 'invalid' });
-    var msg = {};
-    await runInput(node, msg);
-    assert.strictEqual(msg.payload.ok, false);
-    assert.strictEqual(node.errors.length, 1);
-    assert.ok(node.statuses.some(function(s) { return s.fill === 'red' && s.text === 'invalid mode'; }));
-});
-
-await checkAsync('gofa-restart: successful restart post calls RWS and returns ok:true', async function() {
-    var calls = [];
-    var mockRobot = {
-        rwsPost: function(path, body) {
-            calls.push({ path: path, body: body });
-            return Promise.resolve('<span class="ctrl">ok</span>');
-        }
-    };
-    var node = new (loadNodeType('./nodes/gofa-restart', { nodesById: { r1: mockRobot } }))({ robot: 'r1', mode: 'pstart' });
-    var msg = {};
-    await runInput(node, msg);
-    assert.strictEqual(msg.payload.ok, true);
-    assert.strictEqual(msg.payload.mode, 'pstart');
-    assert.strictEqual(calls.length, 1);
-    assert.strictEqual(calls[0].path, '/ctrl');
-    assert.strictEqual(calls[0].body, 'restart-mode=pstart');
-    assert.ok(node.statuses.some(function(s) { return s.fill === 'green' && s.text === 'restart command sent'; }));
-});
-
-await checkAsync('gofa-restart: payload overrides mode', async function() {
-    var calls = [];
-    var mockRobot = {
-        rwsPost: function(path, body) {
-            calls.push({ path: path, body: body });
-            return Promise.resolve('');
-        }
-    };
-    var node = new (loadNodeType('./nodes/gofa-restart', { nodesById: { r1: mockRobot } }))({ robot: 'r1', mode: 'restart' });
-    var msg = { payload: 'shutdown' };
-    await runInput(node, msg);
-    assert.strictEqual(msg.payload.ok, true);
-    assert.strictEqual(msg.payload.mode, 'shutdown');
-    assert.strictEqual(calls[0].body, 'restart-mode=shutdown');
-});
-
 await checkAsync('gofa-movej: moves to configured joints on input', async function() {
     var calls = [];
     var mockRobot = {

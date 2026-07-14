@@ -72,7 +72,7 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 
 **Analog nodes removed (2026-07-07)**: `gofa-ai-read`/`gofa-ao-write` were deleted — confirmed live that this controller has zero `AI`/`AO` signals anywhere (only `DI`/`DO`/`GO` exist; the DSQC1030 is digital-only, and the C30 has no native analog port). Analog I/O would need ABB's `DSQC1032` Analog Add-On module, which attaches to the existing DSQC1030 digital base device rather than replacing it (see the `dsqc1030-scalable-io-addressing` memory). Re-add these nodes (same `/set-value`/plain-GET pattern as `gofa-do-write`/`gofa-di-read`) if that module is ever installed.
 
-**`gofa-backup` removed (2026-07-14)**: a `gofa-backup` node was added, then dropped after live testing. ABB's own documented backup-trigger call, `POST /ctrl/backup?action=backup` (verified against ABB's current Developer Center docs), returns a hard `405 Method Not Allowed` on this controller (RobotWare 7.21.0+229) — `OPTIONS /ctrl/backup` reports `Allow: GET,OPTIONS` only, no POST, regardless of the `?action=backup` query string, `Accept` header (tried `hal+json` too, same 405 pattern as `loadmod`), or HTTP verb (`PUT` also 405s). `/ctrl/backup/state` itself reads fine (`Backup Ready`), so the feature exists on this controller — only the documented create-call doesn't work as written. Same shape as the `/rw/rapid/symbols` finding above: ABB's own current docs failing verbatim against live, current firmware, not a guess gone wrong. Not investigated further (no working alternate path found); re-add only if a working trigger call is confirmed live first.
+**`gofa-backup` and `gofa-restart` removed (2026-07-14)**: both nodes were added, then dropped after live testing showed the same failure. ABB's own documented backup-trigger call, `POST /ctrl/backup?action=backup` (verified against ABB's current Developer Center docs), returns a hard `405 Method Not Allowed` on this controller (RobotWare 7.21.0+229) — `OPTIONS /ctrl/backup` reports `Allow: GET,OPTIONS` only, no POST, regardless of the `?action=backup` query string, `Accept` header (tried `hal+json` too, same 405 pattern as `loadmod`), or HTTP verb (`PUT` also 405s). `/ctrl/backup/state` itself reads fine (`Backup Ready`), so the feature exists on this controller — only the documented create-call doesn't work as written. `gofa-restart`'s `POST /ctrl` (body `restart-mode=<mode>`) looked more solid on paper — code review reproduced ABB's own sample curl call verbatim and it matched exactly — but it **also** 405s live, despite `OPTIONS /ctrl` reporting `Allow: GET,POST,OPTIONS` (POST supposedly valid). Confirmed via the actual dashboard flow's `/robot/restart` HTTP endpoint, not just a raw curl guess. Same shape as the `/rw/rapid/symbols` finding above: ABB's own current docs failing verbatim against live, current firmware, and this time the "Allow header lies" pattern hit twice in one session on two different `/ctrl*` resources. Not investigated further (no working alternate path found for either); re-add only if a working trigger call is confirmed live first.
 
 **SERVER_IP note**: `MainModule.mod` binds its socket server with `CONST string SERVER_IP := "..."`, which RAPID's `SocketBind` requires to be a real configured interface address (no wildcard bind). If this drifts from the controller's actual IP, `SocketBind` silently fails and every socket command times out with no error on the controller side. `gofa-upload-mod` mitigates this by always rewriting `SERVER_IP` to the `gofa-robot` config node's IP on every upload (`patchServerIp` no-ops on any file that doesn't contain the constant, so this is safe for uploading other files too); the constant in the repo copy is just the fallback for a first upload or manual FlexPendant/SD-card load.
 
@@ -329,7 +329,7 @@ accurate) before relying on EGM with real tooling mounted.
 Full design history and the reasoning behind the two-module decision: see the
 `project_egm_node_red_integration_plan` memory and its linked plan file.
 
-## Nodes (44 total)
+## Nodes (43 total)
 
 | Node | Transport | Description |
 |------|-----------|-------------|
@@ -338,7 +338,6 @@ Full design history and the reasoning behind the two-module decision: see the
 | `gofa-pose` | RWS | Current TCP pose (x,y,z + quaternion + config flags) |
 | `gofa-joints` | RWS | All 6 joint angles in degrees |
 | `gofa-system-info` | RWS | RobotWare version, controller name/ID/type/MAC |
-| `gofa-restart` | RWS | Restarts controller via `POST /ctrl` (modes: restart, pstart, istart, xstart, bstart, shutdown) |
 | `gofa-elog` | RWS | Controller event log entries; Domain (category, not severity) + Min Severity (info/warning+/error-only) filters |
 | `gofa-motor` | RWS | Motor on/off via `POST /rw/panel/ctrl-state` |
 | `gofa-move` | Socket | HOME or SETHOME |
@@ -405,7 +404,6 @@ Originally considered storing the list *inside* RAPID (new socket commands readi
 | `PUT /fileservice/$HOME/Programs/<file>` | PUT | Upload file to controller |
 | `GET /rw/rapid/tasks` | GET | List of RAPID tasks: name, type, taskstate, excstate, active, motiontask |
 | `GET /rw/rapid/tasks/{task}/modules` | GET | Modules loaded in a task: name, type (ProgMod/SysMod) |
-| `POST /ctrl` | POST | body: `restart-mode=restart\|pstart\|istart\|xstart\|bstart\|shutdown` — restarts/shuts down the controller itself, `200` on success (confirmed against ABB's own Developer Center docs, not yet live-tested — this reboots the controller) |
 
 ## Default connection settings (this lab's robot)
 
