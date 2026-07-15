@@ -1,0 +1,201 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-mod-edit', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            outputPayload: { value: false },
+            name:       { value: '' },
+            robot:      { value: '', type: 'gofa-robot', required: true },
+            remotePath: { value: '$HOME/Programs/MainModule.mod', required: true },
+            content:    { value: '' }
+        },
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
+        label: function() {
+            if (this.name) return this.name;
+            var p = this.remotePath || '';
+            return p ? ('Edit ' + p.split('/').pop()) : 'Mod Edit';
+        },
+        paletteLabel: 'Mod Edit',
+        oneditprepare: function() {
+            var node = this;
+            var DIR = '$HOME/Programs';
+
+            node.editor = RED.editor.createEditor({
+                id: 'node-mod-edit-editor',
+                mode: 'ace/mode/text',
+                value: node.content || ''
+            });
+
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function currentPath() {
+                var sel = $('#gofa-mod-edit-select').val();
+                if (sel === '__new__') {
+                    var n = ($('#gofa-mod-edit-newname').val() || '').trim();
+                    return n ? (DIR + '/' + n) : null;
+                }
+                return sel || null;
+            }
+            function syncPath() {
+                $('#gofa-mod-edit-newrow').toggle($('#gofa-mod-edit-select').val() === '__new__');
+                var p = currentPath();
+                if (p) $('#node-input-remotePath').val(p);
+            }
+            function setOptions(files) {
+                var sel = $('#gofa-mod-edit-select');
+                var cur = $('#node-input-remotePath').val();
+                sel.empty();
+                var seenCur = false;
+                (files || []).forEach(function(f) {
+                    var full = DIR + '/' + f;
+                    if (full === cur) seenCur = true;
+                    sel.append($('<option>').val(full).text(f));
+                });
+                if (cur && !seenCur) {
+                    sel.append($('<option>').val(cur).text(cur.split('/').pop() + ' (not listed)'));
+                }
+                sel.append($('<option>').val('__new__').text('New file…'));
+                if (cur) sel.val(cur);
+                syncPath();
+            }
+            function notifyErr(xhr, fallback) {
+                var m = (xhr.responseJSON && xhr.responseJSON.error) || fallback;
+                RED.notify(m, 'error');
+            }
+
+            // Offline-friendly initial state: just the stored path + "New file…".
+            setOptions([]);
+            $('#gofa-mod-edit-select').on('change', syncPath);
+            $('#gofa-mod-edit-newname').on('input', syncPath);
+
+            $('#gofa-mod-edit-refresh').on('click', function(e) {
+                e.preventDefault();
+                var id = robotId();
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+                var btn = $(this).prop('disabled', true);
+                $.getJSON('gofa-mod-edit/' + id + '/files', { dir: DIR })
+                    .done(function(data) { setOptions(data.files); RED.notify((data.files || []).length + ' files in ' + DIR, 'success'); })
+                    .fail(function(xhr) { notifyErr(xhr, 'File listing failed — is the robot config deployed and reachable?'); })
+                    .always(function() { btn.prop('disabled', false); });
+            });
+
+            $('#gofa-mod-edit-load').on('click', function(e) {
+                e.preventDefault();
+                var id = robotId();
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+                var p = currentPath();
+                if (!p) return RED.notify('Pick a file (or name a new one) first', 'warning');
+                var btn = $(this).prop('disabled', true);
+                $.getJSON('gofa-mod-edit/' + id + '/file', { path: p })
+                    .done(function(data) { node.editor.setValue(data.content, -1); RED.notify('Loaded ' + p, 'success'); })
+                    .fail(function(xhr) { notifyErr(xhr, 'Load failed'); })
+                    .always(function() { btn.prop('disabled', false); });
+            });
+
+            $('#gofa-mod-edit-save').on('click', function(e) {
+                e.preventDefault();
+                var id = robotId();
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+                var p = currentPath();
+                if (!p) return RED.notify('Pick a file (or name a new one) first', 'warning');
+                var btn = $(this).prop('disabled', true);
+                $.ajax({
+                    url: 'gofa-mod-edit/' + id + '/file',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ path: p, content: node.editor.getValue() })
+                })
+                    .done(function(data) { RED.notify('Saved ' + p + ' (' + data.bytes + 'B)' + (data.serverIpInjected ? ', SERVER_IP synced' : ''), 'success'); })
+                    .fail(function(xhr) { notifyErr(xhr, 'Save failed'); })
+                    .always(function() { btn.prop('disabled', false); });
+            });
+        },
+        oneditsave: function() {
+            var sel = $('#gofa-mod-edit-select').val();
+            if (sel === '__new__') {
+                var n = ($('#gofa-mod-edit-newname').val() || '').trim();
+                if (n) $('#node-input-remotePath').val('$HOME/Programs/' + n);
+            } else if (sel) {
+                $('#node-input-remotePath').val(sel);
+            }
+            this.content = this.editor.getValue();
+            this.editor.destroy();
+            delete this.editor;
+        },
+        oneditcancel: function() {
+            this.editor.destroy();
+            delete this.editor;
+        }
+    });
+</script>
+<script type="text/html" data-template-name="gofa-mod-edit">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row" style="display: flex; align-items: center;">
+        <label style="margin-bottom: 0;"><i class="fa fa-file-code-o"></i> File</label>
+        <div style="flex-grow: 1; display: flex;">
+            <select id="gofa-mod-edit-select" style="flex-grow: 1; width: auto; margin-right: 5px;"></select>
+            <button id="gofa-mod-edit-refresh" class="editor-button" style="width: auto; white-space: nowrap;" title="List files in $HOME/Programs on the controller"><i class="fa fa-refresh"></i></button>
+        </div>
+    </div>
+    <div class="form-row" id="gofa-mod-edit-newrow" style="display: none;">
+        <label for="gofa-mod-edit-newname"><i class="fa fa-plus"></i> New name</label>
+        <input type="text" id="gofa-mod-edit-newname" placeholder="MyModule.mod">
+    </div>
+    <input type="hidden" id="node-input-remotePath">
+    <div class="form-row">
+        <button id="gofa-mod-edit-load" class="editor-button" style="width: auto;"><i class="fa fa-download"></i> Load from robot</button>
+        <button id="gofa-mod-edit-save" class="editor-button" style="width: auto;"><i class="fa fa-upload"></i> Save to robot</button>
+    </div>
+    <div class="form-row node-text-editor-row">
+        <div style="height: 250px; min-height: 150px;" class="node-text-editor" id="node-mod-edit-editor"></div>
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Mod Edit">
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-mod-edit">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
+    <p>Edit a RAPID <code>.mod</code> (or any text) file on the robot controller's disk, right in
+    this node's edit dialog — no local file needed.</p>
+
+    <h3>Editing (in the dialog)</h3>
+    <ul>
+        <li><b>File</b> — pick an existing file in <code>$HOME/Programs</code> on the controller
+        (click <i class="fa fa-refresh"></i> to list them — requires the robot config node to be
+        <em>deployed</em> first), or choose <b>New file…</b> and type a name.</li>
+        <li><b>Load from robot</b> — fetch the selected file's current content into the editor.</li>
+        <li><b>Save to robot</b> — write the editor's content to the selected path immediately
+        (RWS <code>fileservice</code> PUT, same mechanism as <b>gofa-upload-mod</b>). No deploy
+        needed to save.</li>
+    </ul>
+
+    <h3>Input</h3>
+    <p>Any message re-uploads the content stored in this node's config to the selected path —
+    useful for re-provisioning a controller from the flow. The content is also saved into the
+    flow when you click <b>Done</b> and deploy.</p>
+
+    <h3>Output</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd><code>{ ok: true, remotePath, bytes, serverIpInjected }</code> on success;
+        <code>{ ok: false, error }</code> on failure.</dd>
+    </dl>
+
+    <h3>Notes</h3>
+    <p>If the content contains a <code>CONST string SERVER_IP := "..."</code> declaration
+    (i.e. it's this palette's RAPID socket-server module), the IP is automatically rewritten to
+    the robot config node's IP on every save/upload, same as <b>gofa-upload-mod</b> — it no-ops
+    on any other file.</p>
+    <p>Saving a file does <b>not</b> make a running RAPID task pick it up — follow with
+    <b>gofa-rapid-exec</b> (<code>stop</code> → <code>loadmod</code> → <code>resetpp</code> →
+    <code>start</code>) to (re)load it into the task.</p>
+</script>

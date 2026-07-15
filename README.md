@@ -40,6 +40,19 @@ No extra RobotWare options required. RWS (Robot Web Services) is built into ever
 
 ## Quick start
 
+> **One-click setup (recommended).** Steps 1 and 3 below can be fully automated:
+>
+> 1. [Create an RWS user with Remote Start/Stop permission](#2-create-an-rws-user-robotstudio) (RobotStudio — one time)
+> 2. [Install the Node-RED palette](#4-install-the-node-red-palette)
+> 3. Import `flows/setup_flow.json`, open the robot config node, enter the username/password from step 1, and click **Discover** to find the robot's IP on your LAN (or type it in)
+> 4. Put the controller in **Auto** mode on the FlexPendant, then hit the flow's inject
+>
+> The **gofa-setup** node does the rest: uploads the bundled RAPID module (with its
+> `SERVER_IP` auto-synced to the config node's IP), loads it into `T_ROB1`, resets the
+> program pointer, turns motors on, starts RAPID, and confirms the socket server answers —
+> with a per-step report so a failure tells you exactly what to fix. The manual steps below
+> remain as the reference for doing any of it by hand.
+
 1. [Set your robot's IP address](#1-set-your-robot-ip) (if different from `192.168.20.33`)
 2. [Create an RWS user with Remote Start/Stop permission](#2-create-an-rws-user-robotstudio)
 3. [Upload and run the RAPID program](#3-upload-and-run-the-rapid-program)
@@ -302,6 +315,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 
 | Node | Protocol | What it does |
 |------|:--------:|-------------|
+| **gofa-setup** | RWS + TCP | One-click first-run initialization: upload the bundled `.mod` (SERVER_IP auto-synced) → load → reset PP → motors on → start → socket PING, with a per-step report. See [Quick start](#quick-start) |
 | **gofa-rapid-exec** | RWS | `start` / `stop` / `resetpp` / `loadmod` / `unloadmod` / `activate` the RAPID program |
 | **gofa-rapid-var-read** | TCP + RWS | Read a RAPID PERS variable via `GETVAR:<name>` socket command; falls back to a stale RWS module-text read if the variable isn't allow-listed |
 | **gofa-rapid-var-write** | TCP | Write a RAPID PERS variable via `SETVAR:<name>:<value>` socket command — no RWS fallback exists (see below) |
@@ -329,6 +343,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 |------|:--------:|-------------|
 | **gofa-file-read** | RWS | Download a file from the controller filesystem |
 | **gofa-upload-mod** | RWS | Upload a `.mod` file — local path set in node properties or via `msg.payload` |
+| **gofa-mod-edit** | RWS | Edit a `.mod` (or any text) file on the controller's disk in the node's edit dialog — dropdown of files in `$HOME/Programs` (or a new filename), **Load from robot** / **Save to robot** buttons, `SERVER_IP` auto-synced on save; an input message re-uploads the stored content |
 | **gofa-io-list** | RWS | List all I/O signals |
 | **gofa-di-read** | RWS | Read a digital input (0 or 1) |
 | **gofa-do-write** | RWS or TCP | Write a digital output (0 or 1) — **Transport** dropdown: RWS `/set-value` (default) or Socket `SETDO` |

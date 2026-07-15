@@ -51,7 +51,7 @@ function loadNodeType(modulePath, opts) {
         },
         settings: { userDir: opts.userDir || os.tmpdir() },
         util:     { cloneMessage: function(m) { return JSON.parse(JSON.stringify(m)); } },
-        httpAdmin: { get: function() {} },
+        httpAdmin: { get: function() {}, post: function() {} },
         auth:      { needsPermission: function() { return function() {}; } }
     };
     require(modulePath)(fakeRED);
@@ -3027,6 +3027,217 @@ check('gate: array form (2-output send) gates each non-null element independentl
     var gated = gate({}, function(m) { sent = m; });
     gated([{ payload: 'x', _msgid: 'm1' }, null]);
     assert.deepStrictEqual(sent, [{ _msgid: 'm1' }, null]);
+});
+
+// ── gofa-mod-edit ────────────────────────────────────────────────────────────
+
+check('gofa-mod-edit: parseFileList parses fs-file li entries, skips fs-dir', function() {
+    var parseFileList = require('./nodes/gofa-mod-edit').parseFileList;
+    var body =
+        '<ul>' +
+        '<li class="fs-dir" title="SubDir"><a href="/fileservice/$HOME/Programs/SubDir/">SubDir</a></li>' +
+        '<li class="fs-file" title="MainModule.mod"><a href="/fileservice/$HOME/Programs/MainModule.mod">MainModule.mod</a></li>' +
+        '<li class="fs-file"><span class="fs-name">gofa_points.json</span></li>' +
+        '<li class="fs-file"><a href="/fileservice/%24HOME/Programs/Other.mod">Other.mod</a></li>' +
+        '</ul>';
+    var files = parseFileList(body);
+    assert.deepStrictEqual(files, ['MainModule.mod', 'gofa_points.json', 'Other.mod']);
+});
+
+check('gofa-mod-edit: parseFileList falls back to bare anchors when no fs-file classes exist', function() {
+    var parseFileList = require('./nodes/gofa-mod-edit').parseFileList;
+    var body = '<div><a href="/fileservice/$HOME/Programs/A.mod">A.mod</a>' +
+               '<a href="/fileservice/$HOME/Programs/B.json"></a>' +
+               '<a href="x">..</a></div>';
+    var files = parseFileList(body);
+    assert.deepStrictEqual(files, ['A.mod', 'B.json']);
+});
+
+await checkAsync('gofa-mod-edit: no robot configured error', async function() {
+    var node = new (loadNodeType('./nodes/gofa-mod-edit'))({ outputPayload: true, remotePath: '$HOME/Programs/X.mod', content: 'x' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.strictEqual(node.errors.length, 1);
+});
+
+await checkAsync('gofa-mod-edit: uploads stored content with SERVER_IP patched and right content-type', async function() {
+    var call = null;
+    var mockRobot = {
+        ip: '10.0.0.5',
+        rwsPut: function(path, body, contentType) {
+            call = { path: path, body: body, contentType: contentType };
+            return Promise.resolve('');
+        }
+    };
+    var content = 'MODULE M\n    CONST string SERVER_IP := "1.2.3.4";\nENDMODULE\n';
+    var node = new (loadNodeType('./nodes/gofa-mod-edit', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', outputPayload: true,
+        remotePath: '$HOME/Programs/M.mod', content: content
+    });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.serverIpInjected, true);
+    assert.strictEqual(call.path, '/fileservice/$HOME/Programs/M.mod');
+    assert.strictEqual(call.contentType, 'text/plain;v=2.0');
+    assert.ok(call.body.toString('utf8').indexOf('SERVER_IP := "10.0.0.5"') >= 0);
+    assert.strictEqual(msg.payload.bytes, call.body.length);
+});
+
+await checkAsync('gofa-mod-edit: empty content is rejected, nothing uploaded', async function() {
+    var called = false;
+    var mockRobot = { ip: '10.0.0.5', rwsPut: function() { called = true; return Promise.resolve(''); } };
+    var node = new (loadNodeType('./nodes/gofa-mod-edit', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', outputPayload: true, remotePath: '$HOME/Programs/M.mod', content: ''
+    });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.strictEqual(called, false);
+    assert.strictEqual(node.errors.length, 1);
+});
+
+// Project rule: rapid/*.mod at the repo root is the source of truth, but the
+// package copy here is what ships on npm AND what gofa-setup uploads at
+// runtime — every edit must land in both, same commit. prepack.js only syncs
+// at publish time, so this check catches dev-time drift.
+check('rapid modules: package copies are in sync with the repo-root source of truth', function() {
+    ['MainModule.mod', 'MainModuleEGM.mod'].forEach(function(f) {
+        var root = fs.readFileSync(path.join(__dirname, '..', 'rapid', f));
+        var pkg  = fs.readFileSync(path.join(__dirname, 'rapid', f));
+        assert.ok(root.equals(pkg), f + ' drifted — copy rapid/' + f + ' into node-red-contrib-abb-gofa/rapid/ (or run node prepack.js)');
+    });
+});
+
+// ── gofa-setup ───────────────────────────────────────────────────────────────
+// Stateful fake robot: POSTs actually flip the state the next GET reports,
+// so the node's verify-by-polling logic runs for real.
+function makeSetupRobot(opts) {
+    opts = opts || {};
+    var st = {
+        opmode:  opts.opmode || 'AUTO', // live controller reports opmode UPPERCASE
+        ctrl:    opts.ctrl   || 'motoroff',
+        exec:    opts.exec   || 'stopped',
+        modules: opts.modules || [{ name: 'MainModuleEGM', type: 'ProgMod' }],
+        pingOk:  opts.pingOk !== false,
+        calls:   [],
+        putBody: null
+    };
+    return {
+        ip: '10.0.0.9',
+        _st: st,
+        rwsGet: function(p) {
+            if (p === '/rw/panel/opmode')     return Promise.resolve('<span class="opmode">' + st.opmode + '</span>');
+            if (p === '/rw/panel/ctrl-state') return Promise.resolve('<span class="ctrlstate">' + st.ctrl + '</span>');
+            if (p === '/rw/rapid/execution')  return Promise.resolve('<span class="ctrlexecstate">' + st.exec + '</span>');
+            if (p.indexOf('/modules') >= 0) {
+                return Promise.resolve(st.modules.map(function(m) {
+                    return '<li class="rap-module-info-li"><span class="name">' + m.name + '</span><span class="type">' + m.type + '</span></li>';
+                }).join(''));
+            }
+            return Promise.resolve('');
+        },
+        rwsPost: function(p, b) {
+            st.calls.push('POST ' + p);
+            if (p === '/rw/rapid/execution/stop')  st.exec = 'stopped';
+            if (p === '/rw/rapid/execution/start' && !opts.startFails) st.exec = 'running';
+            if (p === '/rw/panel/ctrl-state')      st.ctrl = 'motoron';
+            return Promise.resolve('');
+        },
+        rwsPostHal: function(p, b) { st.calls.push('HAL ' + p + ' ' + b); return Promise.resolve(''); },
+        rwsPut: function(p, b, ct) { st.calls.push('PUT ' + p + ' ' + ct); st.putBody = b.toString(); return Promise.resolve(''); },
+        withMastership: function(fn) { return fn(); },
+        socketSend: function(cmd) {
+            st.calls.push('SOCK ' + cmd);
+            return st.pingOk ? Promise.resolve('OK:PING') : Promise.reject(new Error('connection refused'));
+        }
+    };
+}
+function makeSetupNode(robot, config) {
+    var node = new (loadNodeType('./nodes/gofa-setup', { nodesById: { r1: robot } }))(
+        Object.assign({ robot: 'r1', outputPayload: true }, config || {}));
+    node._t = { poll: 5, stop: 200, motoron: 200, start: 200, ping: 100 };
+    return node;
+}
+
+await checkAsync('gofa-setup: full happy path runs all 9 steps in order', async function() {
+    var robot = makeSetupRobot({ exec: 'running' }); // running → stop step has real work
+    var node = makeSetupNode(robot);
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true, JSON.stringify(msg.payload));
+    assert.deepStrictEqual(msg.payload.steps.map(function(s) { return s.name; }), [
+        'preflight', 'stop RAPID', 'unload conflicting module', 'upload MainModule.mod',
+        'load module', 'reset program pointer', 'motors on', 'start RAPID', 'socket PING'
+    ]);
+    assert.ok(msg.payload.steps.every(function(s) { return s.ok; }));
+    // sibling MainModuleEGM was loaded → unloaded before loadmod
+    assert.ok(robot._st.calls.some(function(c) { return c.indexOf('unloadmod') >= 0 && c.indexOf('MainModuleEGM') >= 0; }));
+    // uploaded content got SERVER_IP synced to the config node's IP
+    assert.ok(robot._st.putBody.indexOf('"10.0.0.9"') >= 0);
+    assert.ok(robot._st.calls.some(function(c) { return c.indexOf('loadmod') >= 0 && c.indexOf('replace%3Dtrue') >= 0 || c.indexOf('replace=true') >= 0; }));
+    assert.ok(robot._st.calls.indexOf('POST /rw/rapid/execution/stop') >= 0);
+    assert.ok(robot._st.calls.indexOf('POST /rw/panel/ctrl-state') >= 0);
+    assert.ok(robot._st.calls.indexOf('POST /rw/rapid/execution/start') >= 0);
+    assert.strictEqual(robot._st.calls[robot._st.calls.length - 1], 'SOCK PING');
+});
+
+await checkAsync('gofa-setup: not in Auto mode fails at preflight with no side effects', async function() {
+    var robot = makeSetupRobot({ opmode: 'manualreduced' });
+    var node = makeSetupNode(robot);
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.strictEqual(msg.payload.steps.length, 1);
+    assert.strictEqual(msg.payload.steps[0].name, 'preflight');
+    assert.ok(msg.payload.error.indexOf('Auto') >= 0);
+    assert.strictEqual(robot._st.calls.filter(function(c) { return c.indexOf('POST') === 0 || c.indexOf('PUT') === 0; }).length, 0);
+});
+
+await checkAsync('gofa-setup: skips stop and unload when nothing to do', async function() {
+    var robot = makeSetupRobot({ exec: 'stopped', modules: [{ name: 'MainModule', type: 'ProgMod' }] });
+    var node = makeSetupNode(robot);
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.steps[1].detail, 'already stopped');
+    assert.ok(msg.payload.steps[2].detail.indexOf('nothing to unload') === 0);
+    assert.strictEqual(robot._st.calls.indexOf('POST /rw/rapid/execution/stop'), -1);
+    assert.ok(!robot._st.calls.some(function(c) { return c.indexOf('unloadmod') >= 0; }));
+});
+
+await checkAsync('gofa-setup: dead socket fails the last step, earlier steps stay in report', async function() {
+    var robot = makeSetupRobot({ pingOk: false });
+    var node = makeSetupNode(robot);
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    var last = msg.payload.steps[msg.payload.steps.length - 1];
+    assert.strictEqual(last.name, 'socket PING');
+    assert.strictEqual(last.ok, false);
+    assert.ok(last.detail.indexOf('SERVER_IP') >= 0);
+    assert.strictEqual(msg.payload.steps.length, 9);
+    assert.ok(msg.payload.steps.slice(0, 8).every(function(s) { return s.ok; }));
+});
+
+await checkAsync('gofa-setup: MainModuleEGM selection uploads/loads EGM module and unloads MainModule', async function() {
+    var robot = makeSetupRobot({ modules: [{ name: 'MainModule', type: 'ProgMod' }] });
+    var node = makeSetupNode(robot, { module: 'MainModuleEGM' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true, JSON.stringify(msg.payload));
+    assert.ok(robot._st.calls.some(function(c) { return c.indexOf('unloadmod') >= 0 && c.indexOf('module=MainModule') >= 0; }));
+    assert.ok(robot._st.calls.some(function(c) { return c.indexOf('PUT /fileservice/$HOME/Programs/MainModuleEGM.mod') === 0; }));
+    assert.ok(robot._st.putBody.indexOf('"10.0.0.9"') >= 0);
+});
+
+await checkAsync('gofa-setup: no robot configured errors cleanly', async function() {
+    var node = new (loadNodeType('./nodes/gofa-setup', { nodesById: {} }))({ robot: 'missing', outputPayload: true });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.strictEqual(node.errors.length, 1);
 });
 
 fs.rmSync(tmpDir, { recursive: true, force: true });

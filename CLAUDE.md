@@ -329,11 +329,12 @@ accurate) before relying on EGM with real tooling mounted.
 Full design history and the reasoning behind the two-module decision: see the
 `project_egm_node_red_integration_plan` memory and its linked plan file.
 
-## Nodes (44 total)
+## Nodes (46 total)
 
 | Node | Transport | Description |
 |------|-----------|-------------|
-| `gofa-robot` | config | Shared config: IP, RWS port 443, socket port 1025, creds, local points file, remote (on-robot) points path |
+| `gofa-robot` | config | Shared config: IP, RWS port 443, socket port 1025, creds, local points file, remote (on-robot) points path. Config dialog has a **Discover** button (admin endpoint `/gofa-robot/discover` → `discover()` LAN scan, verifies ABB via WWW-Authenticate realm) |
+| `gofa-setup` | RWS + Socket | One-click first-run init: preflight (must be Auto mode — RWS can't change opmode) → stop RAPID → unload conflicting MainModule/MainModuleEGM sibling → upload bundled `.mod` (SERVER_IP auto-synced) → loadmod → resetpp → motors on → start (verified by polling, HTTP 200 lies) → socket PING. Per-step `{name, ok, detail}` report; `outputPayload` defaults **true** (the report is the point). Module files read from the package's own `rapid/` dir (synced by prepack.js) |
 | `gofa-status` | RWS | Reads ctrlstate, opmode, speedratio, RAPID execstate |
 | `gofa-connection-status` | RWS + Socket | Checks RWS (4 calls) and the TCP socket ping independently — each failure is caught and reported per-layer instead of the whole node throwing on the first one down. Unlike `gofa-status`, a degraded/unreachable result is still a successful run (no Node-RED error raised), so it's safe to poll on a timer. |
 | `gofa-pose` | RWS | Current TCP pose (x,y,z + quaternion + config flags) |
@@ -364,6 +365,7 @@ Full design history and the reasoning behind the two-module decision: see the
 | `gofa-rapid-tasks` | RWS | List RAPID tasks and the modules loaded in one of them |
 | `gofa-file-read` | RWS | Download a file from controller filesystem |
 | `gofa-upload-mod` | RWS | Upload a `.mod` file to controller filesystem; auto-syncs `SERVER_IP` to the config node's IP unless disabled |
+| `gofa-mod-edit` | RWS | Edit a controller-disk file in the node's edit dialog: file dropdown ($HOME/Programs, admin endpoint `/gofa-mod-edit/:id/files`) or new filename, ace editor, Load/Save-to-robot buttons (SERVER_IP auto-synced on save); runtime input re-uploads stored content. Directory-listing parse (`parseFileList`) **confirmed live 2026-07-15**: entries are `<li class="fs-file" title="<name>">` (name in the `title` attr — the parser's first-choice path; the anchors carry the name only in `href`, with empty text), plus `fs-cdate`/`fs-mdate`/`fs-size`/`fs-readonly` spans. `fs-dir` shape still unobserved (no subdirs existed). Also confirmed live: fileservice `DELETE /fileservice/<path>` works (`204`, then `404` on GET) — first confirmed RWS file-delete in this project |
 | `gofa-io-list` | RWS | List all I/O signals |
 | `gofa-di-read` | RWS | Read digital input |
 | `gofa-do-write` | RWS or Socket | Write digital output; Transport dropdown — RWS `/set-value` (needs `Access: All`) or Socket `SETDO` (needs RAPID running, no Access Level restriction) |
@@ -395,7 +397,7 @@ Originally considered storing the list *inside* RAPID (new socket commands readi
 | Endpoint | Method | Returns |
 |----------|--------|---------|
 | `GET /rw/panel/ctrl-state` | GET | `ctrlstate`: motoron/motoroff/guardstop/emergencystop |
-| `GET /rw/panel/opmode` | GET | `opmode`: auto/manualreduced/manualfull |
+| `GET /rw/panel/opmode` | GET | `opmode`: **UPPERCASE live** (`AUTO`, …) — unlike lowercase `ctrlstate`/`ctrlexecstate`; compare case-insensitively (bit `gofa-setup`'s preflight, confirmed live 2026-07-15) |
 | `GET /rw/panel/speedratio` | GET | `speedratio`: 0–100 |
 | `GET /rw/rapid/execution` | GET | `ctrlexecstate`: running/stopped |
 | `GET /rw/motionsystem/mechunits/ROB_1/robtarget?tool=tool0&wobj=wobj0&coordinate=Base` | GET | x,y,z mm + q1..q4 + cf1,cf4,cf6,cfx |
@@ -451,6 +453,14 @@ MANUAL_CONTROL.md                  ← curl/raw-TCP command reference for contro
 .claude/memory/                    ← portable snapshot of Claude Code's project memory - read MEMORY.md first, see its README
 .claude/plans/                     ← portable snapshot of past feature plans (design history, not active todos)
 ```
+
+**Rule — every `.mod` edit must be synced into the npm package copy, same commit.**
+`rapid/*.mod` (repo root) is the source of truth; `node-red-contrib-abb-gofa/rapid/*.mod` is
+the copy that ships on npm **and the one `gofa-setup` reads at runtime** — a stale package copy
+means one-click setup installs outdated RAPID code on a dev/git install (prepack.js only
+re-syncs at `npm pack`/publish time, not on commit). After editing any root `rapid/*.mod`, copy
+it to `node-red-contrib-abb-gofa/rapid/` (or run `node prepack.js` from the package dir).
+Enforced: `test.js` has a byte-for-byte drift check that fails the suite if the copies differ.
 
 **On continuity across machines**: this project's Claude Code memory (hard-won lessons, decisions,
 live-test history) normally lives outside the repo, keyed to the local clone's working-directory

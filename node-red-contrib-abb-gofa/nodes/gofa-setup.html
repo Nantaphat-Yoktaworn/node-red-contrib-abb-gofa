@@ -1,0 +1,82 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-setup', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            outputPayload: { value: true },
+            name:   { value: '' },
+            robot:  { value: '', type: 'gofa-robot', required: true },
+            module: { value: 'MainModule' },
+            task:   { value: 'T_ROB1' }
+        },
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
+        label: function() { return this.name || 'One-Click Setup'; },
+        paletteLabel: 'Setup'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-setup">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-module"><i class="fa fa-cube"></i> Module</label>
+        <select id="node-input-module">
+            <option value="MainModule">MainModule (default, no EGM)</option>
+            <option value="MainModuleEGM">MainModuleEGM (adds EGM streaming)</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-task"><i class="fa fa-cogs"></i> Task</label>
+        <input type="text" id="node-input-task" placeholder="T_ROB1">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="One-Click Setup">
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-setup">
+    <p>One-click first-run initialization. Send any message to run the whole
+    bring-up sequence; when it finishes the robot is running the bundled RAPID
+    socket-server module and every other node in this palette is ready to use.</p>
+
+    <h3>Steps (in order, stops at the first failure)</h3>
+    <ol>
+        <li><b>preflight</b> — controller must be in <b>Auto</b> mode (RWS cannot
+        change the operating mode; switch it on the FlexPendant if this fails)</li>
+        <li><b>stop RAPID</b> — if currently running (module load requires stopped)</li>
+        <li><b>unload conflicting module</b> — if the <em>other</em> module of the
+        MainModule/MainModuleEGM pair is loaded (both declare <code>PROC main()</code>;
+        leaving both loaded breaks start with "main ambiguous")</li>
+        <li><b>upload</b> — the bundled <code>.mod</code> file is written to
+        <code>$HOME/Programs/</code> with its <code>SERVER_IP</code> constant
+        auto-synced to the config node's IP</li>
+        <li><b>load module</b>, <b>reset program pointer</b> (Edit mastership,
+        granted automatically)</li>
+        <li><b>motors on</b>, <b>start RAPID</b> (verified — RWS reports 200 even
+        for a rejected start)</li>
+        <li><b>socket PING</b> — confirms the RAPID socket server is answering</li>
+    </ol>
+
+    <h3>Output</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd><code>{ ok, module, task, steps: [{name, ok, detail}, …] }</code> — every
+        step already run is in the report, including the failed one (with the reason
+        in <code>detail</code>). On failure also <code>error</code>.</dd>
+    </dl>
+
+    <h3>Prerequisites (one-time, in RobotStudio — cannot be automated)</h3>
+    <ul>
+        <li>User account with <b>Remote Start/Stop</b> UAS grants</li>
+        <li>Controller reachable on the LAN (use the <b>Discover</b> button in the
+        robot config dialog to find its IP)</li>
+        <li>For <code>MainModuleEGM</code>: the <code>EGM_PC</code> UDPUC transmission
+        protocol configured (see the EGM docs)</li>
+    </ul>
+    <p><b>Output payload</b> is checked by default for this node — the per-step
+    report is its main value. Uncheck to fire a bare signal instead.</p>
+</script>

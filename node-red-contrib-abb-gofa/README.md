@@ -93,10 +93,12 @@ needed just to silence output. Check it to get the full `msg.payload` described 
 | `gofa-save-point` / `gofa-go-point` / `gofa-point-list` / `gofa-delete-point` | mixed | Teach & replay named points, stored locally or on the robot's own disk |
 | `gofa-points-export` / `gofa-points-import` | disk | Bulk export/import of the point list |
 | `gofa-sequencer` / `gofa-stop-seq` | Socket | Visit saved points in order (dwell, loops, ping-pong) / stop the sequence |
+| `gofa-setup` | RWS + Socket | One-click first-run init: upload the bundled RAPID module (SERVER_IP auto-synced), load, reset PP, motors on, start, verify socket — with a per-step report |
 | `gofa-rapid-exec` | RWS | Start / stop / reset-PP / load / unload / activate RAPID program |
 | `gofa-rapid-var-read` / `gofa-rapid-var-write` | Socket | Read/write RAPID PERS variables |
 | `gofa-rapid-tasks` | RWS | List RAPID tasks and modules |
 | `gofa-upload-mod` / `gofa-file-read` | RWS | Upload / download controller files |
+| `gofa-mod-edit` | RWS | Edit a `.mod` (or any text) file on the controller's disk right in the node's edit dialog — pick a file in `$HOME/Programs` (or name a new one), Load/Save to robot, `SERVER_IP` auto-synced |
 | `gofa-io-list` / `gofa-di-read` | RWS | List signals, read inputs |
 | `gofa-do-write` | RWS or Socket | Write outputs — Transport dropdown: RWS `/set-value` (default, needs `Access: All`) or Socket `SETDO` (needs RAPID running) |
 | `gofa-leadthrough-enable` / `gofa-leadthrough-disable` | Socket + RWS | Hand-guiding (lead-through) on/off |
