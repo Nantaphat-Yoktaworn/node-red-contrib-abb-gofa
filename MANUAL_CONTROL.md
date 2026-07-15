@@ -238,7 +238,7 @@ Send-GofaCmd "PING"
 | `SETDO:<name>:<value>` | Set a digital output by RWS signal name (0/1) against an explicit allow-list (`ABB_Scalable_IO_0_DO1`–`DO16`) — replies `OK:SETDO`, `ERR:UNKNOWN_SIGNAL`, or `ERR:PARSE` |
 | `SETLED:<r>;<g>;<b>;<period>` | Set ASI status light color (0–255 each) + hardware blink period |
 | `RESETLED` | Restore ASI LED to default (solid green) |
-| `P1` / `P2` / `P3` | Legacy hardcoded pick/place positions (`rPickPos1`/`rPickPos2`/`rPlacePos`) baked into `MainModule.mod` — no Node-RED node sends these; kept for backward compatibility only. Use the `points.json`-based nodes (`gofa-save-point`/`gofa-go-point`) for anything new. |
+| `P1` / `P2` / `P3` | **Removed in 2.0.0** — were legacy hardcoded pick/place positions from before the palette existed; no Node-RED node ever sent them. Use the points-based nodes (`gofa-save-point`/`gofa-go-point`) instead. |
 
 Only `nTestVar` (num) and `sTestMsg` (string) are allow-listed for `GETVAR`/`SETVAR`
 out of the box — see "Adding RAPID variables" in `README.md` to add more (that edit

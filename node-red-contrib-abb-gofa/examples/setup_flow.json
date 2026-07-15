@@ -1,0 +1,65 @@
+[
+    {
+        "id": "setuptab1",
+        "type": "tab",
+        "label": "ABB-GoFa-12 One-Click Setup",
+        "disabled": false,
+        "info": "Open the gofa-robot config node first: enter username/password and click Discover (or type the robot's IP). Deploy, then hit the inject. The setup node uploads the bundled RAPID module, loads it, resets the program pointer, turns motors on, starts RAPID, and confirms the socket server answers — the full per-step report lands in the debug sidebar. Requires the controller to be in Auto mode (FlexPendant)."
+    },
+    {
+        "id": "setupcfg1",
+        "type": "gofa-robot",
+        "name": "ABB-GoFa-12",
+        "ip": "192.168.20.33",
+        "rwsPort": "443",
+        "socketPort": "1025",
+        "username": "Default User",
+        "pointsFile": "points.json",
+        "remotePointsPath": ""
+    },
+    {
+        "id": "setupinj1",
+        "type": "inject",
+        "z": "setuptab1",
+        "name": "Run One-Click Setup",
+        "props": [{ "p": "payload" }],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 160,
+        "y": 120,
+        "wires": [["setupnode1"]]
+    },
+    {
+        "id": "setupnode1",
+        "type": "gofa-setup",
+        "z": "setuptab1",
+        "outputPayload": true,
+        "name": "",
+        "robot": "setupcfg1",
+        "module": "MainModule",
+        "task": "T_ROB1",
+        "x": 400,
+        "y": 120,
+        "wires": [["setupdbg1"]]
+    },
+    {
+        "id": "setupdbg1",
+        "type": "debug",
+        "z": "setuptab1",
+        "name": "Setup Report",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 620,
+        "y": 120,
+        "wires": []
+    }
+]

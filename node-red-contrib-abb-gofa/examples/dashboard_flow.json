@@ -1016,7 +1016,7 @@
     },
     {
         "id": "f97032f6ced2f5f8",
-        "type": "gofa-leadthrough-enable",
+        "type": "gofa-leadthrough",
         "z": "4c1e771ad9964524",
         "name": "LT Enable",
         "robot": "cfg_robot",
@@ -1026,11 +1026,12 @@
             [
                 "6adade34fb27ec03"
             ]
-        ]
+        ],
+        "action": "enable"
     },
     {
         "id": "07d08ffa36f27eed",
-        "type": "gofa-leadthrough-disable",
+        "type": "gofa-leadthrough",
         "z": "4c1e771ad9964524",
         "name": "LT Disable",
         "robot": "cfg_robot",
@@ -1040,7 +1041,8 @@
             [
                 "6adade34fb27ec03"
             ]
-        ]
+        ],
+        "action": "disable"
     },
     {
         "id": "6adade34fb27ec03",
@@ -1507,7 +1509,7 @@
     },
     {
         "id": "21f360dd73633718",
-        "type": "gofa-file-read",
+        "type": "gofa-file",
         "z": "4c1e771ad9964524",
         "name": "File Read",
         "robot": "cfg_robot",
@@ -1518,7 +1520,9 @@
             [
                 "cab04c54dc7aa70d"
             ]
-        ]
+        ],
+        "action": "download",
+        "encoding": "utf8"
     },
     {
         "id": "cab04c54dc7aa70d",
@@ -1576,7 +1580,7 @@
     },
     {
         "id": "6b90a91c451075fd",
-        "type": "gofa-upload-mod",
+        "type": "gofa-file",
         "z": "4c1e771ad9964524",
         "name": "Upload Mod",
         "robot": "cfg_robot",
@@ -1587,7 +1591,8 @@
             [
                 "e93ed93a9ee91756"
             ]
-        ]
+        ],
+        "action": "upload"
     },
     {
         "id": "e93ed93a9ee91756",
@@ -1630,7 +1635,7 @@
     },
     {
         "id": "44fa35fef834c911",
-        "type": "gofa-points-export",
+        "type": "gofa-points",
         "z": "4c1e771ad9964524",
         "name": "Points Export",
         "robot": "cfg_robot",
@@ -1640,7 +1645,8 @@
             [
                 "893f5d1ff06f3644"
             ]
-        ]
+        ],
+        "action": "export"
     },
     {
         "id": "893f5d1ff06f3644",
@@ -1683,7 +1689,7 @@
     },
     {
         "id": "557017bfd991eee1",
-        "type": "gofa-points-import",
+        "type": "gofa-points",
         "z": "4c1e771ad9964524",
         "name": "Points Import",
         "robot": "cfg_robot",
@@ -1693,7 +1699,8 @@
             [
                 "767b7d3451f654fb"
             ]
-        ]
+        ],
+        "action": "import"
     },
     {
         "id": "767b7d3451f654fb",

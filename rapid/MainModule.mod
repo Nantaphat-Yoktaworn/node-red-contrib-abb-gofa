@@ -1,31 +1,33 @@
 MODULE MainModule
 
     ! -------------------------------------------------------
-    ! ABB GoFa CRB 15000 - Socket command server
-    ! main() runs a TCP server on :1025 forever. Node-RED
-    ! connects and sends a one-line command; this program
-    ! dispatches to the matching routine and replies "OK:<cmd>".
+    ! ABB GoFa CRB 15000 - socket command server for the
+    ! node-red-contrib-abb-gofa palette.
     !
-    ! Protocol (newline-terminated, case-insensitive):
-    !   HOME -> rGoHome      P1 -> rPickPos1
-    !   P2   -> rPickPos2    P3 -> rPlacePos
-    ! Reply: "OK:<CMD>\n" (or "ERR:<CMD>\n" for unknown command)
+    ! main() serves a TCP socket on SERVER_IP:1025 forever.
+    ! One newline-terminated request in, one newline-terminated
+    ! reply out. Two request formats, picked by the first byte:
+    !   '{'  -> JSON, the real protocol the palette speaks:
+    !           {"cmd":"ping"} -> {"status":"ok","cmd":"ping"}
+    !           (command set: see DispatchJson below)
+    !   else -> legacy plain text, kept for manual telnet/curl
+    !           testing: PING -> OK:PING
+    !           (see Dispatch below and MANUAL_CONTROL.md)
+    ! The text protocol is fully case-insensitive (CleanCmd
+    ! uppercases the whole line); JSON handlers normalize case
+    ! per-field only where noted (getvar/setvar yes, setdo no).
     !
-    ! No RWS mastership / no program-pointer handling needed:
-    ! launch once in AUTO + Motors On, then the website drives
-    ! it indefinitely. Add a point = one CASE + one routine.
+    ! Safety: the jog clamps JOG_MAX_MM / JOG_MAX_DEG /
+    ! JOINT_MAX_DEG below are the safety knobs - keep them.
     !
-    ! pHome     = robot's position at time of setup
-    ! pPickPos1 = pHome +200mm in X  (right)
-    ! pPickPos2 = pHome -200mm in X  (left)
-    ! pPlacePos = pHome +200mm in Y  (forward)
-    ! All points within 200mm of home (safe 300mm limit)
+    ! SERVER_IP must be a real configured interface address
+    ! (RAPID cannot bind a wildcard). The palette's upload
+    ! paths rewrite it to the robot's IP automatically.
     ! -------------------------------------------------------
 
     PERS tooldata tGripper := [TRUE, [[0,0,0],[1,0,0,0]], [1,[0,0,100],[1,0,0,0],0,0,0]];
     PERS wobjdata wobj1    := [FALSE, TRUE, "", [[0,0,0],[1,0,0,0]], [[0,0,0],[1,0,0,0]]];
     PERS zonedata zActive  := [FALSE, 10, 15, 15, 1.5, 15, 1.5];
-    PERS bool bStopMotion  := FALSE;
 
     ! Test variables for RAPID Var Read / Write nodes
     ! Task: T_ROB1  Module: MainModule
@@ -34,24 +36,6 @@ MODULE MainModule
 
     ! Home = position robot was at during setup
     PERS robtarget pHome     := [[323.21,-81.81,807.00],
-                                  [0.2671,0.1290,0.9536,-0.0528],
-                                  [-1,-1,0,0],
-                                  [9E9,9E9,9E9,9E9,9E9,9E9]];
-
-    ! Pick Pos 1: +200mm in X from home (reach right)
-    PERS robtarget pPickPos1 := [[523.21,-81.81,807.00],
-                                  [0.2671,0.1290,0.9536,-0.0528],
-                                  [-1,-1,0,0],
-                                  [9E9,9E9,9E9,9E9,9E9,9E9]];
-
-    ! Pick Pos 2: -200mm in X from home (reach left)
-    PERS robtarget pPickPos2 := [[123.21,-81.81,807.00],
-                                  [0.2671,0.1290,0.9536,-0.0528],
-                                  [-1,-1,0,0],
-                                  [9E9,9E9,9E9,9E9,9E9,9E9]];
-
-    ! Place Pos: +200mm in Y from home (reach forward)
-    PERS robtarget pPlacePos := [[323.21,118.19,807.00],
                                   [0.2671,0.1290,0.9536,-0.0528],
                                   [-1,-1,0,0],
                                   [9E9,9E9,9E9,9E9,9E9,9E9]];
@@ -292,7 +276,6 @@ MODULE MainModule
             ClearPath;
             concCount := 0;
             StartMove;
-            bStopMotion := FALSE;
             SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""stop""}" + ByteToStr(10\Char));
         CASE "resetled":
             SetGO Asi1LedRed,    0;
@@ -495,15 +478,6 @@ MODULE MainModule
             pHome := CRobT(\Tool:=tGripper \WObj:=wobj1);
             SaveHome;
             SocketSend clientSocket \Str:=("OK:" + cmd + ByteToStr(10\Char));
-        CASE "P1":
-            SocketSend clientSocket \Str:=("OK:" + cmd + ByteToStr(10\Char));
-            rPickPos1;
-        CASE "P2":
-            SocketSend clientSocket \Str:=("OK:" + cmd + ByteToStr(10\Char));
-            rPickPos2;
-        CASE "P3":
-            SocketSend clientSocket \Str:=("OK:" + cmd + ByteToStr(10\Char));
-            rPlacePos;
         CASE "PING":
             SocketSend clientSocket \Str:=("OK:PING" + ByteToStr(10\Char));
         CASE "STOP":
@@ -511,7 +485,6 @@ MODULE MainModule
             ClearPath;
             concCount := 0;
             StartMove;
-            bStopMotion := FALSE;
             SocketSend clientSocket \Str:=("OK:STOP" + ByteToStr(10\Char));
         CASE "GRIPON":
             SocketSend clientSocket \Str:=("OK:GRIPON" + ByteToStr(10\Char));
@@ -814,35 +787,15 @@ MODULE MainModule
     ENDFUNC
 
     ! -------------------------------------------------------
-    ! MOTION ROUTINES (unchanged)
+    ! MOTION ROUTINES
     ! -------------------------------------------------------
 
     PROC rGoHome()
         MoveJ \Conc, pHome, v200, z50, tGripper \WObj:=wobj1;
     ENDPROC
 
-    PROC rPickPos1()
-        MoveJ \Conc, pPickPos1, v200, z10, tGripper \WObj:=wobj1;
-    ENDPROC
-
-    PROC rPickPos2()
-        MoveJ \Conc, pPickPos2, v200, z10, tGripper \WObj:=wobj1;
-    ENDPROC
-
-    PROC rPlacePos()
-        MoveJ \Conc, pPlacePos, v200, z10, tGripper \WObj:=wobj1;
-    ENDPROC
-
-    PROC rPickAndPlace()
-        ! Full sequence: pick from pos1, go to place, return home
-        rPickPos1;
-        rPlacePos;
-        rGoHome;
-    ENDPROC
-
     ! Absolute joint move. Token: MOVEJ<j1;j2;j3;j4;j5;j6> (degrees).
-    ! Checks and clears bStopMotion before executing. Returns FALSE if
-    ! not a MOVEJ token or parse fails.
+    ! Returns FALSE if not a MOVEJ token or parse fails.
     FUNC bool TryMoveJ(string cmd)
         VAR num n;
         VAR num vals{6};
@@ -966,11 +919,10 @@ MODULE MainModule
 
     ! Set a DSQC1030 (Scalable I/O) digital output by name. Token: SETDO:<name>:<value>
     ! e.g. SETDO:ABB_SCALABLE_IO_0_DO1:1  (value must be 0 or 1).
-    ! Goes through RAPID's SetDO instead of RWS — this signal's write-access
-    ! (Rapid|LocalManual, even with Access Level "All") only covers writes from
-    ! RAPID/local sources; RWS POST to /rw/iosystem/signals/{name}/set 405s
-    ! regardless (confirmed: this controller's iosystem resource only allows
-    ! GET/OPTIONS, same as every other signal tested, not just this device).
+    ! Goes through RAPID's SetDO. RWS can ALSO write signals (POST
+    ! /rw/iosystem/signals/{name}/set-value - gofa-do-write's RWS transport),
+    ! but only on signals whose Access Level is "All"; this socket path works
+    ! regardless of Access Level, since RAPID always has Rapid access.
     ! Allow-listed per signal (same pattern as TryGetVar/TrySetVar) since RAPID
     ! has no way to resolve an arbitrary runtime string into a signal reference.
     FUNC bool TrySetDo(string cmd)

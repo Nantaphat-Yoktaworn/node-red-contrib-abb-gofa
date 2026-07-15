@@ -2940,7 +2940,7 @@
     },
     {
         "id": "0cfc46a7f4b61ac3",
-        "type": "gofa-file-read",
+        "type": "gofa-file",
         "z": "a520b411b857ec3c",
         "g": "0c6d1a0571c4d1c6",
         "name": "",
@@ -2953,7 +2953,8 @@
             [
                 "579c13035cdcab3b"
             ]
-        ]
+        ],
+        "action": "download"
     },
     {
         "id": "579c13035cdcab3b",
@@ -2993,7 +2994,7 @@
     },
     {
         "id": "ebd2235e8af0ab09",
-        "type": "gofa-upload-mod",
+        "type": "gofa-file",
         "z": "a520b411b857ec3c",
         "g": "0c6d1a0571c4d1c6",
         "name": "",
@@ -3006,7 +3007,8 @@
             [
                 "a87f21b85f254699"
             ]
-        ]
+        ],
+        "action": "upload"
     },
     {
         "id": "a87f21b85f254699",
@@ -3306,7 +3308,7 @@
     },
     {
         "id": "d8eeb5ac67fe8f3d",
-        "type": "gofa-leadthrough-enable",
+        "type": "gofa-leadthrough",
         "z": "a520b411b857ec3c",
         "g": "1fd0eb48da704295",
         "name": "",
@@ -3317,7 +3319,8 @@
             [
                 "e0eded77c68b6636"
             ]
-        ]
+        ],
+        "action": "enable"
     },
     {
         "id": "e0eded77c68b6636",
@@ -3363,7 +3366,7 @@
     },
     {
         "id": "4b4fca9e323e4337",
-        "type": "gofa-leadthrough-disable",
+        "type": "gofa-leadthrough",
         "z": "a520b411b857ec3c",
         "g": "1fd0eb48da704295",
         "name": "",
@@ -3374,7 +3377,8 @@
             [
                 "177a08b6dbebd6d3"
             ]
-        ]
+        ],
+        "action": "disable"
     },
     {
         "id": "177a08b6dbebd6d3",
@@ -3431,19 +3435,20 @@
     },
     {
         "id": "163315dd06328736",
-        "type": "gofa-points-export",
+        "type": "gofa-points",
         "z": "a520b411b857ec3c",
         "g": "8cd35590d4a969bd",
         "name": "",
         "robot": "cfg1",
-        "savePath": "NoPoint",
         "x": 4670,
         "y": 440,
         "wires": [
             [
                 "4dc67eca9254b849"
             ]
-        ]
+        ],
+        "action": "export",
+        "path": "NoPoint"
     },
     {
         "id": "4dc67eca9254b849",
@@ -3489,19 +3494,20 @@
     },
     {
         "id": "c149c842494bdf01",
-        "type": "gofa-points-import",
+        "type": "gofa-points",
         "z": "a520b411b857ec3c",
         "g": "8cd35590d4a969bd",
         "name": "",
         "robot": "cfg1",
-        "loadPath": "2Point",
         "x": 4670,
         "y": 495,
         "wires": [
             [
                 "176dc3c277bf8ada"
             ]
-        ]
+        ],
+        "action": "import",
+        "path": "2Point"
     },
     {
         "id": "176dc3c277bf8ada",
@@ -4726,6 +4732,214 @@
         "targetType": "msg",
         "x": 1230,
         "y": 2085,
+        "wires": []
+    },
+    {
+        "id": "setupadmgrp01",
+        "type": "group",
+        "z": "a520b411b857ec3c",
+        "name": "4 - Setup & Admin",
+        "style": {
+            "stroke": "#0099cc",
+            "stroke-opacity": "1",
+            "fill": "#e8f4f8",
+            "fill-opacity": "0.5",
+            "label": true,
+            "label-position": "nw",
+            "color": "#0099cc"
+        },
+        "nodes": [
+            "setupinj01",
+            "setupnod01",
+            "setupdbg01",
+            "connsinj01",
+            "connsnod01",
+            "connsdbg01",
+            "modedinj01",
+            "modednod01",
+            "modeddbg01"
+        ],
+        "x": 663,
+        "y": 2570,
+        "w": 760,
+        "h": 200
+    },
+    {
+        "id": "setupinj01",
+        "type": "inject",
+        "z": "a520b411b857ec3c",
+        "g": "setupadmgrp01",
+        "name": "Run One-Click Setup",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 725,
+        "y": 2600,
+        "wires": [
+            [
+                "setupnod01"
+            ]
+        ]
+    },
+    {
+        "id": "setupnod01",
+        "type": "gofa-setup",
+        "z": "a520b411b857ec3c",
+        "g": "setupadmgrp01",
+        "outputPayload": true,
+        "name": "",
+        "robot": "cfg1",
+        "module": "MainModule",
+        "task": "T_ROB1",
+        "x": 960,
+        "y": 2600,
+        "wires": [
+            [
+                "setupdbg01"
+            ]
+        ]
+    },
+    {
+        "id": "setupdbg01",
+        "type": "debug",
+        "z": "a520b411b857ec3c",
+        "g": "setupadmgrp01",
+        "name": "{ ok, steps: [{name, ok, detail}] }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 1195,
+        "y": 2600,
+        "wires": []
+    },
+    {
+        "id": "connsinj01",
+        "type": "inject",
+        "z": "a520b411b857ec3c",
+        "g": "setupadmgrp01",
+        "name": "Check Connection",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 725,
+        "y": 2660,
+        "wires": [
+            [
+                "connsnod01"
+            ]
+        ]
+    },
+    {
+        "id": "connsnod01",
+        "type": "gofa-connection-status",
+        "z": "a520b411b857ec3c",
+        "g": "setupadmgrp01",
+        "outputPayload": true,
+        "name": "",
+        "robot": "cfg1",
+        "x": 960,
+        "y": 2660,
+        "wires": [
+            [
+                "connsdbg01"
+            ]
+        ]
+    },
+    {
+        "id": "connsdbg01",
+        "type": "debug",
+        "z": "a520b411b857ec3c",
+        "g": "setupadmgrp01",
+        "name": "{ overall, rws, socket }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 1195,
+        "y": 2660,
+        "wires": []
+    },
+    {
+        "id": "modedinj01",
+        "type": "inject",
+        "z": "a520b411b857ec3c",
+        "g": "setupadmgrp01",
+        "name": "Re-upload Edited File",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 725,
+        "y": 2720,
+        "wires": [
+            [
+                "modednod01"
+            ]
+        ]
+    },
+    {
+        "id": "modednod01",
+        "type": "gofa-mod-edit",
+        "z": "a520b411b857ec3c",
+        "g": "setupadmgrp01",
+        "outputPayload": true,
+        "name": "",
+        "robot": "cfg1",
+        "remotePath": "$HOME/Programs/gofa_demo_note.mod",
+        "content": "MODULE GofaDemoNote\n    ! Written by the gofa-mod-edit demo node.\n    ! Open this node to browse/edit files on the controller.\nENDMODULE\n",
+        "x": 960,
+        "y": 2720,
+        "wires": [
+            [
+                "modeddbg01"
+            ]
+        ]
+    },
+    {
+        "id": "modeddbg01",
+        "type": "debug",
+        "z": "a520b411b857ec3c",
+        "g": "setupadmgrp01",
+        "name": "{ ok, remotePath, bytes }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 1195,
+        "y": 2720,
         "wires": []
     }
 ]

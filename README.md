@@ -287,6 +287,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | Node | Protocol | What it does |
 |------|:--------:|-------------|
 | **gofa-status** | RWS | Controller state, op-mode, speed %, RAPID exec state |
+| **gofa-connection-status** | RWS + TCP | Per-layer health check (RWS calls + socket ping reported independently) — never raises a Node-RED error on failure, so it's safe to poll on a timer |
 | **gofa-pose** | RWS | TCP position (x, y, z mm + quaternion + config flags) |
 | **gofa-joints** | RWS | All 6 joint angles in degrees |
 | **gofa-system-info** | RWS | RobotWare version, controller name/ID/MAC |
