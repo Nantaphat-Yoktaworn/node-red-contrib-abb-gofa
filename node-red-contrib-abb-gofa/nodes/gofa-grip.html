@@ -2,12 +2,13 @@
     RED.nodes.registerType('gofa-grip', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
+            outputPayload: { value: false },
             name:   { value: '' },
             robot:  { value: '', type: 'gofa-robot', required: true },
             action: { value: 'on' },
             signal: { value: 'ABB_Scalable_IO_0_DO1' }
         },
-        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || ('Grip ' + (this.action || 'on').toUpperCase()); },
         paletteLabel: 'Grip'
     });
@@ -32,8 +33,13 @@
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Grip">
     </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-grip">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Controls a digital output signal for a gripper via RWS (<code>POST /rw/iosystem/signals/{signal}/set-value</code>). The signal's <code>Access Level</code> must be set to <code>All</code> in the controller's I/O configuration for this to work.</p>
     <h3>Input</h3>
     <p><code>msg.payload</code> can be:</p>

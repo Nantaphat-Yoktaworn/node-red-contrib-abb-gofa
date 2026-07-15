@@ -1,4 +1,5 @@
 'use strict';
+var gate = require('./lib/gate');
 var WS = require('ws');
 
 module.exports = function(RED) {
@@ -7,6 +8,8 @@ module.exports = function(RED) {
         this.robot   = RED.nodes.getNode(config.robot);
         this.oneshot = !!config.oneshot;
         var node = this;
+        var _rawSend = node.send.bind(node);
+        node.send = gate(config, _rawSend);
         node._ws      = null;
         node._pollkey = null;
         node._wsTimer = null;
@@ -89,6 +92,7 @@ module.exports = function(RED) {
         }
 
         node.on('input', function(msg, send, done) {
+            send = gate(config, send);
             if (!node.robot) { node.error('No robot configured'); return done(); }
             if (node.oneshot) {
                 node.status({ fill: 'yellow', shape: 'ring', text: 'reading' });

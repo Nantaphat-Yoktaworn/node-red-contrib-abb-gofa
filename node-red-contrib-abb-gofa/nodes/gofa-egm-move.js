@@ -1,4 +1,5 @@
 'use strict';
+var gate = require('./lib/gate');
 module.exports = function(RED) {
     function GoFaEgmMoveNode(config) {
         RED.nodes.createNode(this, config);
@@ -6,6 +7,7 @@ module.exports = function(RED) {
         var node = this;
 
         node.on('input', function(msg, send, done) {
+            send = gate(config, send);
             if (!node.robot) {
                 node.error('gofa-egm-move: No robot configured', msg);
                 node.status({ fill: 'red', shape: 'ring', text: 'no robot' });

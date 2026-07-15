@@ -2,11 +2,12 @@
     RED.nodes.registerType('gofa-subscribe-state', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
+            outputPayload: { value: false },
             name:    { value: '' },
             robot:   { value: '', type: 'gofa-robot', required: true },
             oneshot: { value: false }
         },
-        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'Subscribe State'; },
         paletteLabel: 'Subscribe State'
     });
@@ -26,8 +27,13 @@
             One-shot (poll once per inject, no subscription)
         </label>
     </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-subscribe-state">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Reads or subscribes to controller state via RWS.</p>
     <h3>Input</h3>
     <p>Any message triggers the node (open the subscription / poll once, depending on mode and

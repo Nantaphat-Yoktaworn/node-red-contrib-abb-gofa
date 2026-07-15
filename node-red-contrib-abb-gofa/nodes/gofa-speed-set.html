@@ -2,11 +2,12 @@
     RED.nodes.registerType('gofa-speed-set', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
+            outputPayload: { value: false },
             name:  { value: '' },
             robot: { value: '', type: 'gofa-robot', required: true },
             speed: { value: 50, validate: RED.validators.number() }
         },
-        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || ('Speed ' + this.speed + '%'); },
         paletteLabel: 'Speed Set'
     });
@@ -24,8 +25,13 @@
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Speed 50%">
     </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-speed-set">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Sets the robot speed override percentage (1–100) via the RAPID socket server (TCP port
     1025, RAPID's <code>SpeedRefresh</code> instruction — no mastership needed).</p>
     <h3>Input</h3>

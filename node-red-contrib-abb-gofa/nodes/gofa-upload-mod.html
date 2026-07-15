@@ -2,12 +2,13 @@
     RED.nodes.registerType('gofa-upload-mod', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
+            outputPayload: { value: false },
             name:       { value: '' },
             robot:      { value: '', type: 'gofa-robot', required: true },
             localPath:  { value: '' },
             remotePath: { value: '$HOME/Programs/MainModule.mod' }
         },
-        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'Upload .mod'; },
         paletteLabel: 'Upload .mod'
     });
@@ -29,8 +30,13 @@
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Upload .mod">
     </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-upload-mod">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Uploads a RAPID <code>.mod</code> file to the robot controller via RWS fileservice (HTTP PUT).</p>
     <h3>Input</h3>
     <p>Send any message to trigger the upload. The <b>Local path (PC)</b> and <b>Remote path</b> configured in the node are used by default.</p>

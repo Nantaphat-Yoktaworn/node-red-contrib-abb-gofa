@@ -1,10 +1,12 @@
 'use strict';
+var gate = require('./lib/gate');
 module.exports = function(RED) {
     function GoFaJointsNode(config) {
         RED.nodes.createNode(this, config);
         this.robot = RED.nodes.getNode(config.robot);
         var node = this;
         node.on('input', function(msg, send, done) {
+            send = gate(config, send);
             if (!node.robot) {
                 msg.payload = { ok: false, error: 'No robot configured' };
                 node.status({ fill: 'red', shape: 'ring', text: 'no robot' });

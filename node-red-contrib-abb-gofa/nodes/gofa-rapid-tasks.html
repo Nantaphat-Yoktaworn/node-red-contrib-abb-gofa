@@ -2,11 +2,12 @@
     RED.nodes.registerType('gofa-rapid-tasks', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
+            outputPayload: { value: false },
             name:  { value: '' },
             robot: { value: '', type: 'gofa-robot', required: true },
             task:  { value: 'T_ROB1' }
         },
-        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'RAPID Tasks'; },
         paletteLabel: 'RAPID Tasks'
     });
@@ -24,8 +25,13 @@
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="RAPID Tasks">
     </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-rapid-tasks">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Reads the controller's RAPID tasks and the modules loaded in one of them, via RWS.
     Useful for confirming what's actually loaded/running on the controller — e.g. after an
     upload, or when diagnosing why a socket command isn't responding.</p>

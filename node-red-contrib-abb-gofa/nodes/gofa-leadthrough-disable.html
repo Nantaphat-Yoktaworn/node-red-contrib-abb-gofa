@@ -2,10 +2,11 @@
     RED.nodes.registerType('gofa-leadthrough-disable', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
+            outputPayload: { value: false },
             name:  { value: '' },
             robot: { value: '', type: 'gofa-robot', required: true }
         },
-        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'Leadthrough Disable'; },
         paletteLabel: 'Leadthrough Disable'
     });
@@ -19,8 +20,13 @@
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Leadthrough Disable">
     </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-leadthrough-disable">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Disables robot hand-guiding (leadthrough) mode via RWS.</p>
     <p>Sends <code>POST /rw/motionsystem/mechunits/ROB_1/lead-through</code>, body
     <code>status=inactive</code>, to the controller.</p>

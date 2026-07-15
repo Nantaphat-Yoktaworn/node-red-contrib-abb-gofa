@@ -2,12 +2,13 @@
     RED.nodes.registerType('gofa-rapid-var-write', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
+            outputPayload: { value: false },
             name:     { value: '' },
             robot:    { value: '', type: 'gofa-robot', required: true },
             variable: { value: '' },
             value:    { value: '' }
         },
-        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || this.variable || 'RAPID Var Write'; },
         paletteLabel: 'RAPID Var Write'
     });
@@ -29,8 +30,13 @@
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="RAPID Var Write">
     </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-rapid-var-write">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Writes a value to a RAPID PERS variable via the TCP socket server (<code>SETVAR:&lt;name&gt;:&lt;value&gt;</code>).</p>
     <p>The variable must be listed in <code>TrySetVar</code> inside <code>MainModule.mod</code>. Built-in variables: <code>nTestVar</code> (num) and <code>sTestMsg</code> (string).</p>
     <h3>Configuration</h3>

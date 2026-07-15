@@ -2,12 +2,13 @@
     RED.nodes.registerType('gofa-subscribe-io', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
+            outputPayload: { value: false },
             name:    { value: '' },
             robot:   { value: '', type: 'gofa-robot', required: true },
             signal:  { value: 'ABB_Scalable_IO_0_DI1' },
             oneshot: { value: false }
         },
-        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || this.signal || 'Subscribe IO'; },
         paletteLabel: 'Subscribe IO'
     });
@@ -31,8 +32,13 @@
             One-shot (poll once per inject, no continuous monitoring)
         </label>
     </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-subscribe-io">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Reads or monitors an I/O signal via RWS.</p>
     <h3>Input</h3>
     <p>Send any message to trigger. Pass <code>msg.payload.signal</code> to override the configured signal name at runtime.</p>

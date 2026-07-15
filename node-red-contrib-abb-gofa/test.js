@@ -14,6 +14,7 @@ var resolveMoveType     = robot.resolveMoveType;
 var createRobotClient   = robot.createRobotClient;
 var patchServerIp       = require('./nodes/gofa-upload-mod').patchServerIp;
 var parseLiSpans        = require('./nodes/gofa-rapid-tasks').parseLiSpans;
+var gate                = require('./nodes/lib/gate');
 
 var passed = 0, failed = 0;
 function check(label, fn) {
@@ -845,7 +846,7 @@ function endMsg(node)   { var m = node.sent.filter(function(m) { return m[1]; })
 
 await checkAsync('gofa-sequencer: runs steps in order and reports done', async function() {
     var points = { pick1: { name: 'pick1', target: { x: 1 } }, pick2: { name: 'pick2', target: { x: 2 } } };
-    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: makeSeqRobot(points) } }))({ robot: 'r1', dwell: 0 });
+    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: makeSeqRobot(points) } }))({ robot: 'r1', dwell: 0, outputPayload: true });
     var err = await runInput(node, { payload: { steps: [{ name: 'pick1' }, { name: 'pick2' }] } });
     assert.strictEqual(err, undefined);
     var steps = stepMsgs(node);
@@ -862,13 +863,13 @@ await checkAsync('gofa-sequencer: errors when no valid points are found', async 
 });
 await checkAsync('gofa-sequencer: pingpong mirrors the sequence', async function() {
     var points = { a: { name: 'a', target: {} }, b: { name: 'b', target: {} }, c: { name: 'c', target: {} } };
-    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: makeSeqRobot(points) } }))({ robot: 'r1', dwell: 0, pingpong: true });
+    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: makeSeqRobot(points) } }))({ robot: 'r1', dwell: 0, pingpong: true, outputPayload: true });
     await runInput(node, { payload: { steps: [{ name: 'a' }, { name: 'b' }, { name: 'c' }] } });
     assert.deepStrictEqual(stepMsgs(node).map(function(m) { return m.payload.name; }), ['a', 'b', 'c', 'b', 'a']);
 });
 await checkAsync('gofa-sequencer: loop respects count', async function() {
     var points = { a: { name: 'a', target: {} } };
-    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: makeSeqRobot(points) } }))({ robot: 'r1', dwell: 0, loop: true, count: 2 });
+    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: makeSeqRobot(points) } }))({ robot: 'r1', dwell: 0, loop: true, count: 2, outputPayload: true });
     await runInput(node, { payload: { steps: [{ name: 'a' }] } });
     assert.strictEqual(stepMsgs(node).length, 2);
     assert.deepStrictEqual(endMsg(node).payload, { done: true, loops: 2 });
@@ -876,7 +877,7 @@ await checkAsync('gofa-sequencer: loop respects count', async function() {
 await checkAsync('gofa-sequencer: uses the node-level default move type', async function() {
     var points = { a: { name: 'a', target: {} }, b: { name: 'b', target: {} } };
     var mockRobot = makeSeqRobot(points);
-    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: mockRobot } }))({ robot: 'r1', dwell: 0, moveType: 'L' });
+    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: mockRobot } }))({ robot: 'r1', dwell: 0, moveType: 'L', outputPayload: true });
     await runInput(node, { payload: { steps: [{ name: 'a' }, { name: 'b' }] } });
     assert.deepStrictEqual(mockRobot._calls, ['L', 'L']);
     assert.strictEqual(stepMsgs(node)[0].payload.moveType, 'L');
@@ -891,7 +892,7 @@ await checkAsync('gofa-sequencer: a per-step move type overrides the default', a
 await checkAsync('gofa-sequencer: stops early once _seqStop is set', async function() {
     var points = { a: { name: 'a', target: {} }, b: { name: 'b', target: {} }, c: { name: 'c', target: {} } };
     var mockRobot = makeSeqRobot(points);
-    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: mockRobot } }))({ robot: 'r1', dwell: 5 });
+    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: mockRobot } }))({ robot: 'r1', dwell: 5, outputPayload: true });
     var runPromise = runInput(node, { payload: { steps: [{ name: 'a' }, { name: 'b' }, { name: 'c' }] } });
     await Promise.resolve(); await Promise.resolve(); // let step 1's socketSend().then() fire
     mockRobot._seqStop = true;                          // before the dwell timer for step 2 elapses
@@ -908,7 +909,7 @@ await checkAsync('gofa-sequencer: storage "remote" fetches the point list once v
         gotoObj: function() { return { cmd: 'gotoj', val: [] }; },
         socketSend: function(obj) { return Promise.resolve('OK:GOTO'); }
     };
-    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote', dwell: 0 });
+    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote', dwell: 0, outputPayload: true });
     await runInput(node, { payload: { steps: [{ name: 'a' }, { name: 'b' }] } });
     assert.strictEqual(remoteGetPointsCalls, 1, 'must fetch the remote list exactly once for the whole sequence');
     assert.strictEqual(getPointsCalls, 0, 'must not touch local getPoints in remote mode');
@@ -1601,7 +1602,7 @@ await checkAsync('gofa-subscribe-var: reads via module-text only, never attempts
         parseXhtml: parseXhtml
     };
     var node = new (loadNodeType('./nodes/gofa-subscribe-var', { nodesById: { r1: mockRobot } }))(
-        { robot: 'r1', task: 'T_ROB1', module: 'MainModule', variable: 'nTestVar', interval: '100000' });
+        { robot: 'r1', task: 'T_ROB1', module: 'MainModule', variable: 'nTestVar', interval: '100000', outputPayload: true });
     await runInput(node, {}); // toggle on -> first poll fires immediately
     await flush();
     node._polling = false; if (node._timer) clearTimeout(node._timer); // stop before the next tick fires
@@ -2114,7 +2115,7 @@ await checkAsync('gofa-egm-move: an unrecognized payload shape is rejected with 
 });
 await checkAsync('gofa-egm-move: EGM active -> target forwarded on output 1, robot._egmTarget updated', async function() {
     var mockRobot = { _egmActive: true, _egmTarget: null };
-    var node = new (loadNodeType('./nodes/gofa-egm-move', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var node = new (loadNodeType('./nodes/gofa-egm-move', { nodesById: { r1: mockRobot } }))({ robot: 'r1', outputPayload: true });
     var err = await runInput(node, { payload: [1, 2, 3, 4, 5, 6] });
     assert.strictEqual(err, undefined);
     assert.strictEqual(node.sent.length, 1);
@@ -2124,7 +2125,7 @@ await checkAsync('gofa-egm-move: EGM active -> target forwarded on output 1, rob
 });
 await checkAsync('gofa-egm-move: EGM not active -> routed to output 2 (fallback), not an error, robot._egmTarget untouched', async function() {
     var mockRobot = { _egmActive: false, _egmTarget: null };
-    var node = new (loadNodeType('./nodes/gofa-egm-move', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var node = new (loadNodeType('./nodes/gofa-egm-move', { nodesById: { r1: mockRobot } }))({ robot: 'r1', outputPayload: true });
     var err = await runInput(node, { payload: [1, 2, 3, 4, 5, 6] });
     assert.strictEqual(err, undefined);
     assert.strictEqual(node.errors.length, 0, 'fallback is not an error condition');
@@ -2135,7 +2136,7 @@ await checkAsync('gofa-egm-move: EGM not active -> routed to output 2 (fallback)
 });
 await checkAsync('gofa-egm-move: {joints:[...]} input is accepted and normalized to a bare array on output (gofa-movej compatible)', async function() {
     var mockRobot = { _egmActive: false, _egmTarget: null };
-    var node = new (loadNodeType('./nodes/gofa-egm-move', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var node = new (loadNodeType('./nodes/gofa-egm-move', { nodesById: { r1: mockRobot } }))({ robot: 'r1', outputPayload: true });
     await runInput(node, { payload: { joints: [10, 20, 30, 40, 50, 60] } });
     assert.deepStrictEqual(node.sent[0][1].payload, [10, 20, 30, 40, 50, 60]);
 });
@@ -2898,7 +2899,7 @@ await checkAsync('gofa-subscribe-pose: polls pose and triggers timeout loop', as
         },
         parseXhtml: parseXhtml
     };
-    var node = new (loadNodeType('./nodes/gofa-subscribe-pose', { nodesById: { r1: mockRobot } }))({ robot: 'r1', interval: 100 });
+    var node = new (loadNodeType('./nodes/gofa-subscribe-pose', { nodesById: { r1: mockRobot } }))({ robot: 'r1', interval: 100, outputPayload: true });
     var msg = {};
     
     // Start polling
@@ -2914,6 +2915,28 @@ await checkAsync('gofa-subscribe-pose: polls pose and triggers timeout loop', as
     // Stop polling
     await runInput(node, msg);
     assert.strictEqual(node.statuses[node.statuses.length - 1].text, 'stopped');
+});
+
+check('gate: default (outputPayload falsy) strips payload, keeps _msgid', function() {
+    var sent = null;
+    var gated = gate({}, function(m) { sent = m; });
+    gated({ payload: { ok: true, secret: 42 }, _msgid: 'abc' });
+    assert.deepStrictEqual(sent, { _msgid: 'abc' });
+});
+
+check('gate: outputPayload true passes msg through unchanged', function() {
+    var sent = null;
+    var gated = gate({ outputPayload: true }, function(m) { sent = m; });
+    var msg = { payload: { ok: true, secret: 42 }, _msgid: 'abc' };
+    gated(msg);
+    assert.strictEqual(sent, msg);
+});
+
+check('gate: array form (2-output send) gates each non-null element independently', function() {
+    var sent = null;
+    var gated = gate({}, function(m) { sent = m; });
+    gated([{ payload: 'x', _msgid: 'm1' }, null]);
+    assert.deepStrictEqual(sent, [{ _msgid: 'm1' }, null]);
 });
 
 fs.rmSync(tmpDir, { recursive: true, force: true });

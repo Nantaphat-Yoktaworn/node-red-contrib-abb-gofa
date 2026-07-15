@@ -2,11 +2,12 @@
     RED.nodes.registerType('gofa-zone-set', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
+            outputPayload: { value: false },
             name:  { value: '' },
             robot: { value: '', type: 'gofa-robot', required: true },
             zone:  { value: 'z10' }
         },
-        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || ('Zone ' + this.zone); },
         paletteLabel: 'Zone Set'
     });
@@ -32,8 +33,13 @@
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Zone Set">
     </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-zone-set">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Sets the active motion zone (fly-by radius) on the robot via the RAPID socket server (<code>ZONE</code> command).</p>
     <h3>Input</h3>
     <p><code>msg.payload</code> can be a string zone name (fine/z1/z5/z10/z20/z50/z100) to override the configured value.

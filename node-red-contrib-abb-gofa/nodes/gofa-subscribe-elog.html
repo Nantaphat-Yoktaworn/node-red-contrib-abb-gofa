@@ -2,12 +2,13 @@
     RED.nodes.registerType('gofa-subscribe-elog', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
+            outputPayload: { value: false },
             name:        { value: '' },
             robot:       { value: '', type: 'gofa-robot', required: true },
             domain:      { value: '1' },
             minSeverity: { value: '1' }
         },
-        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'Subscribe Event Log'; },
         paletteLabel: 'Subscribe Event Log'
     });
@@ -49,8 +50,13 @@
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Subscribe Event Log">
     </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-subscribe-elog">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Pushes new controller event log entries in real time over an RWS WebSocket subscription — a live feed, unlike <code>gofa-elog</code>'s poll-on-demand read.</p>
     <p><b>Domain is a category, not a severity filter</b> — each entry belongs to exactly one domain (e.g. Safety, Motion, RAPID) regardless of whether it's info/warning/error. Use <b>Min Severity</b> to filter by severity instead; combine both if you want e.g. "errors only, from the Safety domain." The domain list above was confirmed live against this project's controller (<code>GET /rw/elog</code>) — a different controller/RobotWare configuration could expose a different set. Entries below the Min Severity threshold are silently dropped (not emitted), not treated as an error.</p>
     <h3>Input</h3>

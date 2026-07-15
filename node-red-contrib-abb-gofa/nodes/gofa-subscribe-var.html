@@ -2,6 +2,7 @@
     RED.nodes.registerType('gofa-subscribe-var', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
+            outputPayload: { value: false },
             name:     { value: '' },
             robot:    { value: '', type: 'gofa-robot', required: true },
             task:     { value: 'T_ROB1' },
@@ -9,7 +10,7 @@
             variable: { value: '' },
             interval: { value: 1000 }
         },
-        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || this.variable || 'Subscribe Var'; },
         paletteLabel: 'Subscribe Var'
     });
@@ -39,8 +40,13 @@
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Subscribe Var">
     </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-subscribe-var">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Polls the controller every N ms for a RAPID variable's value. Send a message to start polling; send again to stop (toggle).</p>
     <h3>Configuration</h3>
     <dl class="message-properties">

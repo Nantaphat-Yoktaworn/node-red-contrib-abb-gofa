@@ -2117,5 +2117,231 @@
         "modules": {
             "node-red-contrib-abb-gofa": "1.0.1"
         }
+    },
+    {
+        "id": "45585e2ded1a2c5d",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/subscribe/elog",
+        "url": "/robot/subscribe/elog",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 100,
+        "y": 3520,
+        "wires": [
+            [
+                "5fb89ffbc6ffc8b6",
+                "fa85dd9ce5fc6586"
+            ]
+        ]
+    },
+    {
+        "id": "5fb89ffbc6ffc8b6",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "Elog ack (streams to debug)",
+        "func": "msg.statusCode=200;msg.payload={ok:true,started:true};return msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 360,
+        "y": 3500,
+        "wires": [
+            [
+                "5860cf0643b8db20"
+            ]
+        ]
+    },
+    {
+        "id": "5860cf0643b8db20",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 620,
+        "y": 3500,
+        "wires": []
+    },
+    {
+        "id": "fa85dd9ce5fc6586",
+        "type": "gofa-subscribe-elog",
+        "z": "4c1e771ad9964524",
+        "name": "Subscribe Elog",
+        "robot": "cfg_robot",
+        "domain": "1",
+        "minSeverity": "1",
+        "x": 380,
+        "y": 3540,
+        "wires": [
+            [
+                "ff00db1ea87b2bca"
+            ]
+        ]
+    },
+    {
+        "id": "ff00db1ea87b2bca",
+        "type": "debug",
+        "z": "4c1e771ad9964524",
+        "name": "{ ok, domain, code, title, tstamp, msgtype }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 660,
+        "y": 3540,
+        "wires": []
+    },
+    {
+        "id": "2a630b46966d60e1",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/egm",
+        "url": "/robot/egm",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 100,
+        "y": 3600,
+        "wires": [
+            [
+                "c2bfffd482136051",
+                "801af5f26de0071e"
+            ]
+        ]
+    },
+    {
+        "id": "c2bfffd482136051",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "EGM ack (streams to debug)",
+        "func": "msg.statusCode=200;msg.payload={ok:true,action:(msg.payload&&msg.payload.action)||'start'};return msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 340,
+        "y": 3580,
+        "wires": [
+            [
+                "4c03b6253ee4f038"
+            ]
+        ]
+    },
+    {
+        "id": "4c03b6253ee4f038",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 600,
+        "y": 3580,
+        "wires": []
+    },
+    {
+        "id": "801af5f26de0071e",
+        "type": "gofa-egm",
+        "z": "4c1e771ad9964524",
+        "name": "EGM Session",
+        "robot": "cfg_robot",
+        "action": "start",
+        "udpPort": 6510,
+        "throttleMs": 100,
+        "x": 360,
+        "y": 3620,
+        "wires": [
+            [
+                "02044bf14a9f4173"
+            ]
+        ]
+    },
+    {
+        "id": "02044bf14a9f4173",
+        "type": "debug",
+        "z": "4c1e771ad9964524",
+        "name": "{ ok, joints, ts } (EGM telemetry)",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 640,
+        "y": 3620,
+        "wires": []
+    },
+    {
+        "id": "37a712603aaba408",
+        "type": "http in",
+        "z": "4c1e771ad9964524",
+        "name": "POST /robot/egm/move",
+        "url": "/robot/egm/move",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 100,
+        "y": 3680,
+        "wires": [
+            [
+                "d625cf1bc2a21c0c"
+            ]
+        ]
+    },
+    {
+        "id": "d625cf1bc2a21c0c",
+        "type": "gofa-egm-move",
+        "z": "4c1e771ad9964524",
+        "name": "EGM Move",
+        "robot": "cfg_robot",
+        "x": 340,
+        "y": 3680,
+        "wires": [
+            [
+                "1068e8c126be79eb"
+            ],
+            [
+                "ddf46ca696d81f93"
+            ]
+        ]
+    },
+    {
+        "id": "1068e8c126be79eb",
+        "type": "function",
+        "z": "4c1e771ad9964524",
+        "name": "EGM Move resp (active)",
+        "func": "msg.statusCode=200;return msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 580,
+        "y": 3660,
+        "wires": [
+            [
+                "2167614b8318985b"
+            ]
+        ]
+    },
+    {
+        "id": "2167614b8318985b",
+        "type": "http response",
+        "z": "4c1e771ad9964524",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 800,
+        "y": 3660,
+        "wires": []
     }
 ]

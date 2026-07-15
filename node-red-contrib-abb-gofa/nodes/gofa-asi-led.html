@@ -2,6 +2,7 @@
     RED.nodes.registerType('gofa-asi-led', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
+            outputPayload: { value: false },
             name:       { value: '' },
             robot:      { value: '', type: 'gofa-robot', required: true },
             red:        { value: 0 },
@@ -11,7 +12,7 @@
             blinkCount: { value: 0 },
             blinkMs:    { value: 250 }
         },
-        inputs: 1, outputs: 1, icon: 'light.svg',
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'ASI LED'; },
         paletteLabel: 'ASI LED',
         oneditprepare: function() {
@@ -106,8 +107,13 @@
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="ASI LED">
     </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-asi-led">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Controls an ASI RGB LED on the ABB GoFa controller via the RAPID socket server (TCP port 1025).</p>
     <p><b>RAPID must be running</b> for this node to work (ASI signals have Rapid-only write access).</p>
     <h3>Blink count</h3>

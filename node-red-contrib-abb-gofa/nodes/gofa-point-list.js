@@ -1,4 +1,5 @@
 'use strict';
+var gate = require('./lib/gate');
 module.exports = function(RED) {
     function GoFaPointListNode(config) {
         RED.nodes.createNode(this, config);
@@ -6,6 +7,7 @@ module.exports = function(RED) {
         this.storage = config.storage || 'local';
         var node = this;
         node.on('input', function(msg, send, done) {
+            send = gate(config, send);
             if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
             var storage = (msg.payload && msg.payload.storage) || node.storage;
             var pointsPromise = (storage === 'remote')

@@ -1,4 +1,5 @@
 'use strict';
+var gate = require('./lib/gate');
 var resolveMoveType = require('./gofa-robot').resolveMoveType;
 module.exports = function(RED) {
     function GoFaSequencerNode(config) {
@@ -14,6 +15,7 @@ module.exports = function(RED) {
         var node = this;
 
         node.on('input', function(msg, send, done) {
+            send = gate(config, send);
             if (!node.robot) { node.error('No robot configured', msg); return done(); }
             var r = node.robot;
             if (r._seqRunning) {

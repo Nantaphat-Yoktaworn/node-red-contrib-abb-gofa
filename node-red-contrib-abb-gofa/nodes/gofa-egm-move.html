@@ -2,10 +2,11 @@
     RED.nodes.registerType('gofa-egm-move', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
+            outputPayload: { value: false },
             name:  { value: '' },
             robot: { value: '', type: 'gofa-robot', required: true }
         },
-        inputs: 1, outputs: 2, icon: 'white-globe.svg',
+        inputs: 1, outputs: 2, icon: 'gofa.svg',
         outputLabels: ['target sent', 'EGM not active (fallback)'],
         label: function() { return this.name || 'EGM Move'; },
         paletteLabel: 'EGM Move'
@@ -20,8 +21,13 @@
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="EGM Move">
     </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-egm-move">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Sets the live joint target for an EGM session started by a <code>gofa-egm</code> node
     wired to the same Robot. Purely a movement node — it does not start/stop EGM itself and does
     not emit telemetry (that's still <code>gofa-egm</code>'s job).</p>

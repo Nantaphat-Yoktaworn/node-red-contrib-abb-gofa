@@ -1,4 +1,5 @@
 'use strict';
+var gate = require('./lib/gate');
 module.exports = function(RED) {
     function GoFaJointJogNode(config) {
         RED.nodes.createNode(this, config);
@@ -8,6 +9,7 @@ module.exports = function(RED) {
         this.step  = parseFloat(config.step) || 5;
         var node = this;
         node.on('input', function(msg, send, done) {
+            send = gate(config, send);
             if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
             var p     = msg.payload || {};
             var joint = p.joint !== undefined ? p.joint : node.joint;

@@ -1,4 +1,5 @@
 'use strict';
+var gate = require('./lib/gate');
 
 module.exports = function(RED) {
     function GoFaSubscribePoseNode(config) {
@@ -6,6 +7,8 @@ module.exports = function(RED) {
         this.robot    = RED.nodes.getNode(config.robot);
         this.interval = parseInt(config.interval) || 500;
         var node = this;
+        var _rawSend = node.send.bind(node);
+        node.send = gate(config, _rawSend);
         node._timer   = null;
         node._running = false;
 
@@ -47,6 +50,7 @@ module.exports = function(RED) {
         }
 
         node.on('input', function(msg, send, done) {
+            send = gate(config, send);
             if (!node.robot) { node.error('No robot configured', msg); return done(); }
             if (node._running) {
                 stopPolling();

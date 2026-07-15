@@ -1,4 +1,5 @@
 'use strict';
+var gate = require('./lib/gate');
 module.exports = function(RED) {
     var VALID_ZONES = ['fine','z1','z5','z10','z20','z50','z100'];
 
@@ -9,6 +10,7 @@ module.exports = function(RED) {
         var node = this;
 
         node.on('input', function(msg, send, done) {
+            send = gate(config, send);
             if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
 
             var zone;

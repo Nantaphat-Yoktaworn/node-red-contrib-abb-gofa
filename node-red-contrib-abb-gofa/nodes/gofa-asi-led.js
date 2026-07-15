@@ -1,4 +1,5 @@
 'use strict';
+var gate = require('./lib/gate');
 
 var PRESETS = {
     off:     { r: 0,   g: 0,   b: 0   },
@@ -87,6 +88,7 @@ module.exports = function(RED) {
         });
 
         node.on('input', function(msg, send, done) {
+            send = gate(config, send);
             if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
 
             // Cancel any active blink sequence

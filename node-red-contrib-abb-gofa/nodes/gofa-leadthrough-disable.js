@@ -1,10 +1,12 @@
 'use strict';
+var gate = require('./lib/gate');
 module.exports = function(RED) {
     function GoFaLeadthroughDisableNode(config) {
         RED.nodes.createNode(this, config);
         this.robot = RED.nodes.getNode(config.robot);
         var node = this;
         node.on('input', function(msg, send, done) {
+            send = gate(config, send);
             if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
             node.status({ fill: 'blue', shape: 'dot', text: 'disabling...' });
             node.robot.rwsPost('/rw/motionsystem/mechunits/ROB_1/lead-through', 'status=inactive')

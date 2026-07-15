@@ -2,11 +2,12 @@
     RED.nodes.registerType('gofa-points-export', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
+            outputPayload: { value: false },
             name:     { value: '' },
             robot:    { value: '', type: 'gofa-robot', required: true },
             savePath: { value: '' }
         },
-        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'Points Export'; },
         paletteLabel: 'Points Export'
     });
@@ -24,8 +25,13 @@
         <label for="node-input-savePath"><i class="fa fa-save"></i> Save to file</label>
         <input type="text" id="node-input-savePath" placeholder="Leave blank to skip file save (e.g. /home/user/points_backup.json)">
     </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-points-export">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Exports the saved points list from the robot config node. Optionally writes the list to a file on the Node-RED host.</p>
 
     <h3>Input</h3>

@@ -2,10 +2,11 @@
     RED.nodes.registerType('gofa-stop-motion', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
+            outputPayload: { value: false },
             name:  { value: '' },
             robot: { value: '', type: 'gofa-robot', required: true }
         },
-        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'Stop Motion'; },
         paletteLabel: 'Stop Motion'
     });
@@ -19,8 +20,13 @@
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Stop Motion">
     </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-stop-motion">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Sends a <code>STOP</code> command to immediately halt robot motion via the RAPID socket server.</p>
     <p>The RAPID program calls <code>StopMove\Quick</code> and <code>ClearPath</code>, and sets a flag so the next queued motion is skipped.</p>
     <h3>Input</h3>

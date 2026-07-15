@@ -1,4 +1,5 @@
 'use strict';
+var gate = require('./lib/gate');
 const fs    = require('fs');
 
 // Rewrite MainModule.mod's SERVER_IP constant to match the robot config
@@ -22,6 +23,7 @@ module.exports = function(RED) {
         var node = this;
 
         node.on('input', function(msg, send, done) {
+            send = gate(config, send);
             if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
 
             var r          = node.robot;

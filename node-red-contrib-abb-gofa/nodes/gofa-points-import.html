@@ -2,11 +2,12 @@
     RED.nodes.registerType('gofa-points-import', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
+            outputPayload: { value: false },
             name:     { value: '' },
             robot:    { value: '', type: 'gofa-robot', required: true },
             loadPath: { value: '' }
         },
-        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'Points Import'; },
         paletteLabel: 'Points Import'
     });
@@ -24,8 +25,13 @@
         <label for="node-input-loadPath"><i class="fa fa-folder-open"></i> Load from file</label>
         <input type="text" id="node-input-loadPath" placeholder="Leave blank to use msg.payload (blank payload = clear all points)">
     </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-points-import">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Imports a points list into the robot config node, <b>replacing</b> the entire existing list.</p>
 
     <h3>Input</h3>

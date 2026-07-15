@@ -11,6 +11,7 @@
             remotePointsPath: { value: '$HOME/Programs/gofa_points.json' }
         },
         credentials: { password: { type: 'password' } },
+        icon: 'gofa.svg',
         label: function() { return this.name || this.ip || 'ABB-GoFa-12'; },
         oneditprepare: function() {
             var node = this;

@@ -1,4 +1,5 @@
 'use strict';
+var gate = require('./lib/gate');
 var fs = require('fs');
 module.exports = function(RED) {
     function GoFaPointsImportNode(config) {
@@ -7,6 +8,7 @@ module.exports = function(RED) {
         this.loadPath = config.loadPath || '';
         var node = this;
         node.on('input', function(msg, send, done) {
+            send = gate(config, send);
             if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
             var loadPath;
             if (typeof msg.payload === 'string' && msg.payload) {

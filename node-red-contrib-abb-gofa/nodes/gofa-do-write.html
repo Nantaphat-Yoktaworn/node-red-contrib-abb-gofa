@@ -2,13 +2,14 @@
     RED.nodes.registerType('gofa-do-write', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
+            outputPayload: { value: false },
             name:   { value: '' },
             robot:  { value: '', type: 'gofa-robot', required: true },
             signal:    { value: 'ABB_Scalable_IO_0_DO1' },
             value:     { value: 1, validate: RED.validators.number() },
             transport: { value: 'rws' }
         },
-        inputs: 1, outputs: 1, icon: 'white-globe.svg',
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || ('DO ' + this.signal); },
         paletteLabel: 'DO Write'
     });
@@ -42,8 +43,13 @@
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name">
     </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-do-write">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p><b>⚠ Requires external I/O module.</b> Digital output signals (DO) do not exist on the base OmniCore C30 — an expansion I/O module must be fitted and configured. Without it, this node returns HTTP 404.</p>
     <p>Writes a digital output (DO) signal on the ABB GoFa controller, via either of two transports:</p>
     <ul>

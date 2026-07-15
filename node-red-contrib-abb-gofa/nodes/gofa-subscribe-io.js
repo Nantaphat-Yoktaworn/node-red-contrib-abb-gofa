@@ -1,4 +1,5 @@
 'use strict';
+var gate = require('./lib/gate');
 var WS = require('ws');
 
 module.exports = function(RED) {
@@ -8,6 +9,8 @@ module.exports = function(RED) {
         this.signal  = config.signal || 'ABB_Scalable_IO_0_DI1';
         this.oneshot = !!config.oneshot;
         var node = this;
+        var _rawSend = node.send.bind(node);
+        node.send = gate(config, _rawSend);
         node._ws        = null;
         node._pollkey   = null;
         node._signal    = null;
@@ -153,6 +156,7 @@ module.exports = function(RED) {
         }
 
         node.on('input', function(msg, send, done) {
+            send = gate(config, send);
             if (!node.robot) { node.error('No robot configured'); return done(); }
             var signal = (msg.payload && typeof msg.payload === 'object' && msg.payload.signal)
                 ? msg.payload.signal

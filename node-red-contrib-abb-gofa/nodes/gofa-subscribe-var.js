@@ -1,4 +1,5 @@
 'use strict';
+var gate = require('./lib/gate');
 module.exports = function(RED) {
     function GoFaSubscribeVarNode(config) {
         RED.nodes.createNode(this, config);
@@ -8,6 +9,8 @@ module.exports = function(RED) {
         this.variable = config.variable || '';
         this.interval = parseInt(config.interval) || 1000;
         var node = this;
+        var _rawSend = node.send.bind(node);
+        node.send = gate(config, _rawSend);
         node._timer   = null;
         node._polling = false;
 
@@ -86,6 +89,7 @@ module.exports = function(RED) {
         }
 
         node.on('input', function(msg, send, done) {
+            send = gate(config, send);
             var task     = (msg.payload && msg.payload.task)     || node.task;
             var module   = (msg.payload && msg.payload.module)   || node.module;
             var variable = (msg.payload && msg.payload.variable) || node.variable;

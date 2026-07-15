@@ -1,4 +1,5 @@
 'use strict';
+var gate = require('./lib/gate');
 var resolveMoveType = require('./gofa-robot').resolveMoveType;
 module.exports = function(RED) {
     function GoFaGoPointNode(config) {
@@ -9,6 +10,7 @@ module.exports = function(RED) {
         this.storage   = config.storage   || 'local';
         var node = this;
         node.on('input', function(msg, send, done) {
+            send = gate(config, send);
             if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
             var p = msg.payload || {};
             var nameOrId = p.name || p.id || node.pointName;

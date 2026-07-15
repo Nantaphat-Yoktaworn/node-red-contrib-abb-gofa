@@ -2,6 +2,7 @@
     RED.nodes.registerType('gofa-sequencer', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
+            outputPayload: { value: false },
             name:     { value: '' },
             robot:    { value: '', type: 'gofa-robot', required: true },
             steps:    { value: [] },
@@ -14,7 +15,7 @@
         },
         inputs: 1, outputs: 2,
         outputLabels: ['step complete', 'sequence done / stopped'],
-        icon: 'white-globe.svg',
+        icon: 'gofa.svg',
         label: function() { return this.name || 'Sequencer'; },
         paletteLabel: 'Sequencer',
         oneditprepare: function() {
@@ -154,8 +155,13 @@
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Sequencer">
     </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-sequencer">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Runs a sequence of saved points when triggered.</p>
     <h3>Steps</h3>
     <p>Each row: pick a saved point, optionally set a dwell override (ms), and optionally pick a move type for that step. Leave dwell blank / move type on "default" to use the node-level settings below.</p>

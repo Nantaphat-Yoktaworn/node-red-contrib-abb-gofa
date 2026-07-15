@@ -1,4 +1,5 @@
 'use strict';
+var gate = require('./lib/gate');
 var dgram = require('dgram');
 
 // Reserved DO signal: gofa-egm's "please stop gracefully" trigger, watched
@@ -196,6 +197,8 @@ module.exports = function(RED) {
         this.udpPort    = parseInt(config.udpPort) || 6510;
         this.throttleMs = parseInt(config.throttleMs) || 100;
         var node = this;
+        var _rawSend = node.send.bind(node);
+        node.send = gate(config, _rawSend);
 
         node._starting  = false;
         node._stopped   = false;
@@ -383,6 +386,7 @@ module.exports = function(RED) {
         }
 
         node.on('input', function(msg, send, done) {
+            send = gate(config, send);
             var raw = msg.payload;
             var action = (typeof raw === 'string' && raw) ? raw.toLowerCase()
                        : (raw && raw.action) ? String(raw.action).toLowerCase()

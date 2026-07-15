@@ -1,4 +1,5 @@
 'use strict';
+var gate = require('./lib/gate');
 var TASK_FIELDS   = ['name', 'type', 'taskstate', 'excstate', 'active', 'motiontask'];
 var MODULE_FIELDS = ['name', 'type'];
 
@@ -31,6 +32,7 @@ module.exports = function(RED) {
         var node = this;
 
         node.on('input', function(msg, send, done) {
+            send = gate(config, send);
             if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
             var r = node.robot;
             var task = (msg.payload && msg.payload.task) || node.task;
