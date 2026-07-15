@@ -1,6 +1,6 @@
 'use strict';
 var gate = require('./lib/gate');
-var patchServerIp = require('./gofa-upload-mod').patchServerIp;
+var patchServerIp = require('./lib/patch-server-ip');
 
 // RWS fileservice directory-listing parser. NOT verified against a live
 // controller (none was reachable when this node was written — see the

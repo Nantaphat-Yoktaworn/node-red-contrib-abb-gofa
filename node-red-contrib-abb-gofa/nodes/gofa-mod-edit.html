@@ -174,7 +174,7 @@
         <em>deployed</em> first), or choose <b>New file…</b> and type a name.</li>
         <li><b>Load from robot</b> — fetch the selected file's current content into the editor.</li>
         <li><b>Save to robot</b> — write the editor's content to the selected path immediately
-        (RWS <code>fileservice</code> PUT, same mechanism as <b>gofa-upload-mod</b>). No deploy
+        (RWS <code>fileservice</code> PUT, same mechanism as <b>gofa-file</b> upload). No deploy
         needed to save.</li>
     </ul>
 
@@ -193,7 +193,7 @@
     <h3>Notes</h3>
     <p>If the content contains a <code>CONST string SERVER_IP := "..."</code> declaration
     (i.e. it's this palette's RAPID socket-server module), the IP is automatically rewritten to
-    the robot config node's IP on every save/upload, same as <b>gofa-upload-mod</b> — it no-ops
+    the robot config node's IP on every save/upload, same as <b>gofa-file</b> upload — it no-ops
     on any other file.</p>
     <p>Saving a file does <b>not</b> make a running RAPID task pick it up — follow with
     <b>gofa-rapid-exec</b> (<code>stop</code> → <code>loadmod</code> → <code>resetpp</code> →

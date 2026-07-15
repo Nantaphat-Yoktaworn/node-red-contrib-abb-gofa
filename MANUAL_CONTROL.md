@@ -116,7 +116,7 @@ curl -sk $AUTH -H "Content-Type: $CT" -X POST \
 curl -sk $AUTH -H "Content-Type: $CT" -X POST --data "stopmode=stop&usetsp=normal" \
   "https://$IP/rw/rapid/execution/stop"
 
-# Enable / disable hand-guiding (lead-through) — the palette's gofa-leadthrough-enable
+# Enable / disable hand-guiding (lead-through) — the palette's gofa-leadthrough node
 # node also sends a socket STOP first to clear queued moves; do that yourself too if
 # you're driving this manually and anything might still be moving.
 curl -sk $AUTH -H "Content-Type: $CT" -X POST --data "status=active"   "https://$IP/rw/motionsystem/mechunits/ROB_1/lead-through"
@@ -242,7 +242,7 @@ Send-GofaCmd "PING"
 
 Only `nTestVar` (num) and `sTestMsg` (string) are allow-listed for `GETVAR`/`SETVAR`
 out of the box — see "Adding RAPID variables" in `README.md` to add more (that edit
-is itself a Part A workflow: `gofa-upload-mod` → `loadmod`, RAPID stopped, then
+is itself a Part A workflow: `gofa-file` (action: upload) → `loadmod`, RAPID stopped, then
 `start` again).
 
 Bare `GOTO<11 nums>` (no `J`/`L`) is also accepted as a `GOTOJ` alias for backward

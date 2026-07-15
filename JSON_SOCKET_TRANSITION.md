@@ -39,7 +39,7 @@ Refactor the following files in `nodes/` that invoke `node.robot.socketSend(toke
 1. **`gofa-ping.js`**
    * *Current*: `socketSend('PING')`
    * *Target*: `socketSend({ cmd: 'ping' })`
-2. **`gofa-stop-motion.js` & `gofa-stop-seq.js` & `gofa-leadthrough-enable.js`**
+2. **`gofa-stop-motion.js` & `gofa-stop-seq.js` & `gofa-leadthrough-enable.js` (now `gofa-leadthrough.js`)**
    * *Current*: `socketSend('STOP')`
    * *Target*: `socketSend({ cmd: 'stop' })`
 3. **`gofa-speed-set.js`**

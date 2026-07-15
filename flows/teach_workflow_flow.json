@@ -120,7 +120,7 @@
     },
     {
         "id": "2fd9cc4e41043058",
-        "type": "gofa-leadthrough-enable",
+        "type": "gofa-leadthrough",
         "z": "a17a5b075916bef6",
         "g": "b474c6bb3eb103c2",
         "name": "Enable Lead-through",
@@ -131,7 +131,8 @@
             [
                 "11d4c947a8bda098"
             ]
-        ]
+        ],
+        "action": "enable"
     },
     {
         "id": "07ba7ba1de1d7370",
@@ -525,7 +526,7 @@
     },
     {
         "id": "eff22889116081ec",
-        "type": "gofa-leadthrough-disable",
+        "type": "gofa-leadthrough",
         "z": "a17a5b075916bef6",
         "g": "b474c6bb3eb103c2",
         "name": "Disable Lead-through (end teaching)",
@@ -537,7 +538,8 @@
                 "884f1b8212b78518",
                 "9ab9852e43b73265"
             ]
-        ]
+        ],
+        "action": "disable"
     },
     {
         "id": "319ff59df68d8789",

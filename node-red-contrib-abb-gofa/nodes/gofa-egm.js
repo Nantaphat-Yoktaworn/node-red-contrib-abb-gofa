@@ -314,7 +314,7 @@ module.exports = function(RED) {
             return node.robot.socketSend({ cmd: 'egmjoint' }).then(function(reply) {
                 if (reply === 'ERR:EGMJOINT') {
                     var err = new Error('Controller is running MainModule.mod (no EGM support) — ' +
-                        'load MainModuleEGM.mod via gofa-upload-mod + gofa-rapid-exec ' +
+                        'load MainModuleEGM.mod via gofa-file (upload) + gofa-rapid-exec ' +
                         '(loadmod, resetpp, start) first');
                     err.wrongModule = true;
                     throw err;

@@ -44,7 +44,7 @@ Restart Node-RED — a `gofa-robot` config node and 42 `gofa-*` nodes appear und
 
 **1. Create an RWS user.** The built-in `Admin` account cannot start/stop RAPID remotely. In RobotStudio: connect to the controller → **Authenticate** → **Edit User Accounts** → add a role with the **Remote Start** and **Remote Stop** grants → create a user with that role. Read-only nodes work with any account.
 
-**2. Upload the RAPID module.** The module ships in this package. Easiest path: add a `gofa-upload-mod` node and set its **Local Path** to the *absolute* path of the bundled file (e.g. `/home/pi/.node-red/node_modules/node-red-contrib-abb-gofa/rapid/MainModule.mod` — a relative path resolves against the Node-RED process directory, not your user dir). It uploads over RWS and automatically patches the module's `SERVER_IP` constant to your robot's IP (the RAPID socket server cannot bind a wildcard address, so this must match). Or upload manually:
+**2. Upload the RAPID module.** The module ships in this package. Easiest path: add a `gofa-file` node (action **upload**) and set its **Local Path** to the *absolute* path of the bundled file (e.g. `/home/pi/.node-red/node_modules/node-red-contrib-abb-gofa/rapid/MainModule.mod` — a relative path resolves against the Node-RED process directory, not your user dir). It uploads over RWS and automatically patches the module's `SERVER_IP` constant to your robot's IP (the RAPID socket server cannot bind a wildcard address, so this must match). Or upload manually:
 
 ```bash
 curl -sk -u <user>:<password> -X PUT -H "Content-Type: text/plain;v=2.0" \
@@ -91,17 +91,17 @@ needed just to silence output. Check it to get the full `msg.payload` described 
 | `gofa-ping` | Socket | Connectivity test with round-trip time |
 | `gofa-grip` | RWS | Digital output on/off (gripper-style) |
 | `gofa-save-point` / `gofa-go-point` / `gofa-point-list` / `gofa-delete-point` | mixed | Teach & replay named points, stored locally or on the robot's own disk |
-| `gofa-points-export` / `gofa-points-import` | disk | Bulk export/import of the point list |
+| `gofa-points` | disk | Bulk export/import of the point list (action: export / import — import **replaces** the whole list) |
 | `gofa-sequencer` / `gofa-stop-seq` | Socket | Visit saved points in order (dwell, loops, ping-pong) / stop the sequence |
 | `gofa-setup` | RWS + Socket | One-click first-run init: upload the bundled RAPID module (SERVER_IP auto-synced), load, reset PP, motors on, start, verify socket — with a per-step report |
 | `gofa-rapid-exec` | RWS | Start / stop / reset-PP / load / unload / activate RAPID program |
 | `gofa-rapid-var-read` / `gofa-rapid-var-write` | Socket | Read/write RAPID PERS variables |
 | `gofa-rapid-tasks` | RWS | List RAPID tasks and modules |
-| `gofa-upload-mod` / `gofa-file-read` | RWS | Upload / download controller files |
+| `gofa-file` | RWS | Upload / download / delete controller files (action dropdown; upload auto-syncs `SERVER_IP`) |
 | `gofa-mod-edit` | RWS | Edit a `.mod` (or any text) file on the controller's disk right in the node's edit dialog — pick a file in `$HOME/Programs` (or name a new one), Load/Save to robot, `SERVER_IP` auto-synced |
 | `gofa-io-list` / `gofa-di-read` | RWS | List signals, read inputs |
 | `gofa-do-write` | RWS or Socket | Write outputs — Transport dropdown: RWS `/set-value` (default, needs `Access: All`) or Socket `SETDO` (needs RAPID running) |
-| `gofa-leadthrough-enable` / `gofa-leadthrough-disable` | Socket + RWS | Hand-guiding (lead-through) on/off |
+| `gofa-leadthrough` | Socket + RWS | Hand-guiding (lead-through) on/off (action: enable / disable) |
 | `gofa-asi-led` | Socket | Arm status-light color and blink |
 | `gofa-subscribe-state` / `gofa-subscribe-io` | RWS WebSocket | Push on controller-state / I/O-signal changes |
 | `gofa-subscribe-var` / `gofa-subscribe-pose` | RWS poll | Poll a RAPID variable / TCP pose on an interval |
@@ -139,7 +139,7 @@ one while the other is still loaded leaves both loaded and RAPID rejects start w
 routine name main ambiguous" (both declare `PROC main()`). Full switch sequence either
 direction: `gofa-rapid-exec` (`stop`) → `gofa-rapid-exec` (`unloadmod`, naming the module
 *currently* loaded — this only detaches it from the task, the file stays on the controller's
-disk) → `gofa-upload-mod` (the other file) → `gofa-rapid-exec` (`loadmod` → `resetpp` →
+disk) → `gofa-file` upload (the other file) → `gofa-rapid-exec` (`loadmod` → `resetpp` →
 `start`). `gofa-egm` detects the wrong module itself (`start` fails with a clear "load
 MainModuleEGM.mod first" error instead of hanging) — but there is no way to run without one or
 the other, so mixing them up just costs a reload, not a broken robot.

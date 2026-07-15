@@ -260,11 +260,11 @@ function createRobotClient(opts) {
     }
     // Low-level escape hatch for callers that need something the body-only
     // rwsGet/rwsPost/rwsPut don't expose: a response header (RWS subscription's
-    // Location), or a binary-safe body (gofa-file-read downloading non-UTF8
+    // Location), or a binary-safe body (gofa-file downloading non-UTF8
     // files) — resolves the raw {statusCode, headers, body: Buffer} instead of
     // just a decoded string. Exists so node files stop hand-rolling their own
     // https/http request against private fields (ip/cookie/etc) — that
-    // duplication is exactly what broke gofa-upload-mod when session state
+    // duplication is exactly what broke the old gofa-upload-mod (now gofa-file upload) when session state
     // moved into this closure: three more node files (subscribe-io,
     // subscribe-state, file-read) had the same private-field reach-in and the
     // same latent bug.

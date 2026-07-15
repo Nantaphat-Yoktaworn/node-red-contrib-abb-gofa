@@ -1,0 +1,65 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-points', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            outputPayload: { value: false },
+            name:     { value: '' },
+            robot:    { value: '', type: 'gofa-robot', required: true },
+            action:   { value: 'export' },
+            path:     { value: '' }
+        },
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
+        label: function() {
+            var a = this.action || 'export';
+            return this.name || ('Points ' + a);
+        },
+        paletteLabel: 'Points File'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-points">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-action"><i class="fa fa-play"></i> Action</label>
+        <select id="node-input-action">
+            <option value="export">Export</option>
+            <option value="import">Import</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="">
+    </div>
+    <div class="form-row">
+        <label for="node-input-path"><i class="fa fa-file"></i> File path</label>
+        <input type="text" id="node-input-path" placeholder="Optional file path">
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-points">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
+    <p>Exports or imports the saved points list from/to the robot config node.</p>
+
+    <h3>Input</h3>
+    <dl class="message-properties">
+        <dt>payload.action <span class="property-type">string</span></dt>
+        <dd>Can be set to <code>"export"</code> or <code>"import"</code> to override the configured action at runtime. Unlike other nodes, a bare string <code>msg.payload</code> is interpreted as a file path, NOT an action override.</dd>
+    </dl>
+    
+    <h3>Actions</h3>
+    <ul>
+        <li><b>Export</b>: Outputs the current points list. Optionally writes it to a file if a path is specified (via the <em>File path</em> property, a string <code>msg.payload</code>, <code>msg.payload.savePath</code>, or <code>msg.savePath</code>).</li>
+        <li><b>Import</b>: REPLACES the entire point list (destructive). Reads points from a file if a path is specified (via the <em>File path</em> property, a string <code>msg.payload</code>, <code>msg.payload.loadPath</code>, or <code>msg.loadPath</code>). If NO path is given, it treats a <code>msg.payload</code> array (or <code>msg.payload.points</code>) as the points to import directly.</li>
+    </ul>
+
+    <h3>Output</h3>
+    <p>Returns a success object with <code>ok: true</code>, the <code>count</code> of points, and either the <code>points</code> array (on export) or <code>loadedFrom</code> path (on import).</p>
+
+    <h3>Notes</h3>
+    <p>Points are stored on the Node-RED host (not on the controller). <b>Security Note:</b> Like the Node-RED core file node, this node allows reading/writing to arbitrary file paths specified by the incoming payload.</p>
+</script>

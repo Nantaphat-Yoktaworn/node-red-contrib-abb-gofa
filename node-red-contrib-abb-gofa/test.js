@@ -12,7 +12,7 @@ var atomicWriteFileSync = robot.atomicWriteFileSync;
 var fileMtimeMs         = robot.fileMtimeMs;
 var resolveMoveType     = robot.resolveMoveType;
 var createRobotClient   = robot.createRobotClient;
-var patchServerIp       = require('./nodes/gofa-upload-mod').patchServerIp;
+var patchServerIp       = require('./nodes/lib/patch-server-ip');
 var parseLiSpans        = require('./nodes/gofa-rapid-tasks').parseLiSpans;
 var gate                = require('./nodes/lib/gate');
 
@@ -269,7 +269,7 @@ check('gofa-robot: _savePoints warns when the file changed on disk since last re
     assert.ok(node.warnings.some(function(w) { return w.indexOf('changed on disk') >= 0; }));
 });
 
-// ── gofa-upload-mod: SERVER_IP injection ────────────────────────────────────
+// ── gofa-file: SERVER_IP injection ────────────────────────────────────
 var sampleMod = 'MODULE MainModule\n' +
                 '    CONST string SERVER_IP   := "192.168.20.15";\n' +
                 '    CONST num    SERVER_PORT := 1025;\n' +
@@ -480,10 +480,10 @@ check('decodeEgmRobot: empty buffer decodes to empty/default fields, does not th
 // ── async node tests (drive the real 'input' handlers) ──────────────────────
 (async function() {
 
-// gofa-points-import ─────────────────────────────────────────────────────────
-await checkAsync('gofa-points-import: array payload replaces points', async function() {
+// gofa-points ─────────────────────────────────────────────────────────
+await checkAsync('gofa-points: array payload replaces points', async function() {
     var mockRobot = { _points: [{ id: 'old', name: 'old' }], _savePoints: function() { this._saved = true; }, replacePoints: function(arr) { this._points = arr; this._savePoints(); return arr; } };
-    var node = new (loadNodeType('./nodes/gofa-points-import', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'import' });
     var msg = { payload: [{ id: 'p1', name: 'p1', target: {} }] };
     await runInput(node, msg);
     assert.strictEqual(mockRobot._points.length, 1);
@@ -491,50 +491,50 @@ await checkAsync('gofa-points-import: array payload replaces points', async func
     assert.ok(mockRobot._saved);
     assert.deepStrictEqual(msg.payload, { ok: true, count: 1, loadedFrom: null });
 });
-await checkAsync('gofa-points-import: {points:[...]} wrapper is unwrapped', async function() {
+await checkAsync('gofa-points: {points:[...]} wrapper is unwrapped', async function() {
     var mockRobot = { _points: [], _savePoints: function() {}, replacePoints: function(arr) { this._points = arr; this._savePoints(); return arr; } };
-    var node = new (loadNodeType('./nodes/gofa-points-import', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'import' });
     await runInput(node, { payload: { points: [{ id: 'p1', name: 'p1' }] } });
     assert.strictEqual(mockRobot._points.length, 1);
 });
-await checkAsync('gofa-points-import: loads from a file path in msg.payload', async function() {
+await checkAsync('gofa-points: loads from a file path in msg.payload', async function() {
     var f = path.join(tmpDir, 'import-1.json');
     fs.writeFileSync(f, JSON.stringify([{ id: 'p1', name: 'p1' }]));
     var mockRobot = { _points: [], _savePoints: function() {}, replacePoints: function(arr) { this._points = arr; this._savePoints(); return arr; } };
-    var node = new (loadNodeType('./nodes/gofa-points-import', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'import' });
     var msg = { payload: f };
     await runInput(node, msg);
     assert.strictEqual(mockRobot._points.length, 1);
     assert.strictEqual(msg.payload.loadedFrom, f);
 });
-await checkAsync('gofa-points-import: missing file reports an error', async function() {
+await checkAsync('gofa-points: missing file reports an error', async function() {
     var mockRobot = { _points: [], _savePoints: function() {}, replacePoints: function(arr) { this._points = arr; this._savePoints(); return arr; } };
-    var node = new (loadNodeType('./nodes/gofa-points-import', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'import' });
     var err = await runInput(node, { payload: path.join(tmpDir, 'missing.json') });
     assert.ok(err);
     assert.ok(node.errors.length > 0);
 });
-await checkAsync('gofa-points-import: missing robot config reports an error', async function() {
-    var node = new (loadNodeType('./nodes/gofa-points-import', { nodesById: {} }))({ robot: 'nope' });
+await checkAsync('gofa-points: missing robot config reports an error', async function() {
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: {} }))({ robot: 'nope', action: 'import' });
     await runInput(node, { payload: [] });
     assert.ok(node.errors.length > 0);
 });
-await checkAsync('gofa-points-import: importing missing target is rejected', async function() {
+await checkAsync('gofa-points: importing missing target is rejected', async function() {
     var pointsFile = path.join(tmpDir, 'points-import-invalid.json');
     fs.writeFileSync(pointsFile, JSON.stringify([{ id: 'old', name: 'old', target: sample }]));
     var robotNode = makeRobotNode(pointsFile);
-    var node = new (loadNodeType('./nodes/gofa-points-import', { nodesById: { r1: robotNode } }))({ robot: 'r1' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: robotNode } }))({ robot: 'r1', action: 'import' });
     var err = await runInput(node, { payload: [{ name: 'p1' }] });
     assert.ok(err);
     assert.ok(node.errors.length > 0);
     assert.strictEqual(robotNode.getPoints().length, 1);
     assert.strictEqual(robotNode.getPoints()[0].name, 'old');
 });
-await checkAsync('gofa-points-import: importing non-numeric target field is rejected', async function() {
+await checkAsync('gofa-points: importing non-numeric target field is rejected', async function() {
     var pointsFile = path.join(tmpDir, 'points-import-nonnum.json');
     fs.writeFileSync(pointsFile, JSON.stringify([{ id: 'old', name: 'old', target: sample }]));
     var robotNode = makeRobotNode(pointsFile);
-    var node = new (loadNodeType('./nodes/gofa-points-import', { nodesById: { r1: robotNode } }))({ robot: 'r1' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: robotNode } }))({ robot: 'r1', action: 'import' });
     var invalidPoints = [{ name: 'p1', target: { x: 'abc', y: 0, z: 0, q1: 0, q2: 0, q3: 0, q4: 0, cf1: 0, cf4: 0, cf6: 0, cfx: 0 } }];
     var err = await runInput(node, { payload: invalidPoints });
     assert.ok(err);
@@ -542,11 +542,11 @@ await checkAsync('gofa-points-import: importing non-numeric target field is reje
     assert.strictEqual(robotNode.getPoints().length, 1);
     assert.strictEqual(robotNode.getPoints()[0].name, 'old');
 });
-await checkAsync('gofa-points-import: importing fully valid array succeeds', async function() {
+await checkAsync('gofa-points: importing fully valid array succeeds', async function() {
     var pointsFile = path.join(tmpDir, 'points-import-valid.json');
     fs.writeFileSync(pointsFile, JSON.stringify([]));
     var robotNode = makeRobotNode(pointsFile);
-    var node = new (loadNodeType('./nodes/gofa-points-import', { nodesById: { r1: robotNode } }))({ robot: 'r1' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: robotNode } }))({ robot: 'r1', action: 'import' });
     var validPoints = [{ id: 'p1', name: 'p1', target: sample }];
     var msg = { payload: validPoints };
     await runInput(node, msg);
@@ -554,11 +554,11 @@ await checkAsync('gofa-points-import: importing fully valid array succeeds', asy
     assert.strictEqual(robotNode.getPoints()[0].name, 'p1');
     assert.deepStrictEqual(msg.payload, { ok: true, count: 1, loadedFrom: null });
 });
-await checkAsync('gofa-points-import: importing valid element missing id auto-assigns id', async function() {
+await checkAsync('gofa-points: importing valid element missing id auto-assigns id', async function() {
     var pointsFile = path.join(tmpDir, 'points-import-missingid.json');
     fs.writeFileSync(pointsFile, JSON.stringify([]));
     var robotNode = makeRobotNode(pointsFile);
-    var node = new (loadNodeType('./nodes/gofa-points-import', { nodesById: { r1: robotNode } }))({ robot: 'r1' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: robotNode } }))({ robot: 'r1', action: 'import' });
     var validPoints = [{ name: 'p1', target: sample }, { name: 'p2', target: sample }];
     await runInput(node, { payload: validPoints });
     var pts = robotNode.getPoints();
@@ -570,27 +570,27 @@ await checkAsync('gofa-points-import: importing valid element missing id auto-as
     assert.notStrictEqual(pts[0].id, pts[1].id, 'auto-assigned IDs should not collide');
 });
 
-// gofa-points-export ─────────────────────────────────────────────────────────
-await checkAsync('gofa-points-export: no savePath just outputs the points', async function() {
+// gofa-points ─────────────────────────────────────────────────────────
+await checkAsync('gofa-points export: no savePath just outputs the points', async function() {
     var mockRobot = { getPoints: function() { return [{ id: 'p1', name: 'p1' }]; } };
-    var node = new (loadNodeType('./nodes/gofa-points-export', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
     var msg = { payload: null };
     await runInput(node, msg);
     assert.deepStrictEqual(msg.payload.points, [{ id: 'p1', name: 'p1' }]);
     assert.strictEqual(msg.payload.savedTo, undefined);
 });
-await checkAsync('gofa-points-export: savePath writes the file to disk', async function() {
+await checkAsync('gofa-points export: savePath writes the file to disk', async function() {
     var f = path.join(tmpDir, 'export-1.json');
     var mockRobot = { getPoints: function() { return [{ id: 'p1', name: 'p1' }]; } };
-    var node = new (loadNodeType('./nodes/gofa-points-export', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
     var msg = { payload: f };
     await runInput(node, msg);
     assert.strictEqual(msg.payload.savedTo, f);
     assert.strictEqual(JSON.parse(fs.readFileSync(f, 'utf8')).length, 1);
 });
-await checkAsync('gofa-points-export: write failure reports an error', async function() {
+await checkAsync('gofa-points export: write failure reports an error', async function() {
     var mockRobot = { getPoints: function() { return []; } };
-    var node = new (loadNodeType('./nodes/gofa-points-export', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
     var badPath = path.join(tmpDir, 'nope-dir', 'x.json');
     var err = await runInput(node, { payload: badPath });
     assert.ok(err);
@@ -957,12 +957,12 @@ await checkAsync('gofa-stop-seq: sets the stop flag and sends STOP', async funct
     assert.deepStrictEqual(sentCmds, [{ cmd: 'stop' }]);
 });
 
-// gofa-upload-mod: node-level tests go through r.rwsPut() (the public API),
+// gofa-file: node-level tests go through r.rwsPut() (the public API),
 // not private robot internals like r._getSession/r._cookie — a mock robot only
 // exposing what the real GoFaRobotNode exposes is what would have caught the
 // "r._getSession is not a function" regression from a gofa-robot.js refactor
 // that moved session/cookie state into a private createRobotClient() closure.
-await checkAsync('gofa-upload-mod: uploads via r.rwsPut with text/plain content type', async function() {
+await checkAsync('gofa-file: uploads via r.rwsPut with text/plain content type', async function() {
     var calls = [];
     var mockRobot = {
         ip: '10.0.0.9',
@@ -973,8 +973,8 @@ await checkAsync('gofa-upload-mod: uploads via r.rwsPut with text/plain content 
     };
     var tmpFile = path.join(tmpDir, 'MainModule.mod');
     fs.writeFileSync(tmpFile, sampleMod);
-    var node = new (loadNodeType('./nodes/gofa-upload-mod', { nodesById: { r1: mockRobot } }))({
-        robot: 'r1', localPath: tmpFile, remotePath: '$HOME/Programs/MainModule.mod'
+    var node = new (loadNodeType('./nodes/gofa-file', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', action: 'upload', localPath: tmpFile, remotePath: '$HOME/Programs/MainModule.mod'
     });
     var msg = {};
     await runInput(node, msg);
@@ -984,11 +984,11 @@ await checkAsync('gofa-upload-mod: uploads via r.rwsPut with text/plain content 
     assert.strictEqual(calls[0].contentType, 'text/plain;v=2.0');
     assert.ok(calls[0].body.toString().indexOf('"10.0.0.9"') >= 0, 'SERVER_IP should be patched to the robot ip');
 });
-await checkAsync('gofa-upload-mod: reports failure when rwsPut rejects', async function() {
+await checkAsync('gofa-file: reports failure when rwsPut rejects', async function() {
     var mockRobot = { ip: '10.0.0.9', rwsPut: function() { return Promise.reject(new Error('HTTP 401 — auth failed')); } };
     var tmpFile = path.join(tmpDir, 'Other.mod');
     fs.writeFileSync(tmpFile, 'MODULE Other\nENDMODULE\n');
-    var node = new (loadNodeType('./nodes/gofa-upload-mod', { nodesById: { r1: mockRobot } }))({ robot: 'r1', localPath: tmpFile });
+    var node = new (loadNodeType('./nodes/gofa-file', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'upload', localPath: tmpFile });
     var msg = {};
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, false);
@@ -1227,7 +1227,7 @@ await checkAsync('gofa-rapid-tasks: reports failure on RWS error', async functio
     assert.ok(msg.payload.error.indexOf('HTTP 500') >= 0);
 });
 
-// gofa-file-read / gofa-subscribe-io / gofa-subscribe-state ─────────────────
+// gofa-file / gofa-subscribe-io / gofa-subscribe-state ─────────────────
 // These three go through robot.requestRaw()/robot.getCookie() (the public API)
 // instead of the private robot._getSession/_cookie/_request fields that a
 // gofa-robot.js refactor removed — mock robots below deliberately expose only
@@ -1235,7 +1235,7 @@ await checkAsync('gofa-rapid-tasks: reports failure on RWS error', async functio
 // with "... is not a function" instead of silently passing.
 async function flush() { for (var i = 0; i < 6; i++) await Promise.resolve(); }
 
-await checkAsync('gofa-file-read: reads a file via robot.requestRaw, not private robot internals', async function() {
+await checkAsync('gofa-file: reads a file via robot.requestRaw, not private robot internals', async function() {
     var calls = [];
     var mockRobot = {
         requestRaw: function(method, p, body, opts) {
@@ -1243,7 +1243,7 @@ await checkAsync('gofa-file-read: reads a file via robot.requestRaw, not private
             return Promise.resolve({ statusCode: 200, headers: {}, body: Buffer.from('MODULE Foo\nENDMODULE\n') });
         }
     };
-    var node = new (loadNodeType('./nodes/gofa-file-read', { nodesById: { r1: mockRobot } }))(
+    var node = new (loadNodeType('./nodes/gofa-file', { nodesById: { r1: mockRobot } }))(
         { robot: 'r1', remotePath: '$HOME/Programs/MainModule.mod', encoding: 'utf8' });
     var msg = {};
     await runInput(node, msg);
@@ -1253,9 +1253,9 @@ await checkAsync('gofa-file-read: reads a file via robot.requestRaw, not private
     assert.strictEqual(calls[0].method, 'GET');
     assert.strictEqual(calls[0].path, '/fileservice/$HOME/Programs/MainModule.mod');
 });
-await checkAsync('gofa-file-read: reports failure on a non-2xx status', async function() {
+await checkAsync('gofa-file: reports failure on a non-2xx status', async function() {
     var mockRobot = { requestRaw: function() { return Promise.resolve({ statusCode: 404, headers: {}, body: Buffer.from('') }); } };
-    var node = new (loadNodeType('./nodes/gofa-file-read', { nodesById: { r1: mockRobot } }))({ robot: 'r1', remotePath: 'nope.mod' });
+    var node = new (loadNodeType('./nodes/gofa-file', { nodesById: { r1: mockRobot } }))({ robot: 'r1', remotePath: 'nope.mod' });
     var msg = {};
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, false);
@@ -2299,15 +2299,15 @@ await checkAsync('gofa-grip: rejects invalid numeric payload >1', async function
     assert.ok(/Invalid grip action/.test(msg.payload.error));
 });
 
-// ── gofa-leadthrough-enable ─────────────────────────────────────────────────
-await checkAsync('gofa-leadthrough-enable: safety STOP success triggers lead-through enable', async function() {
+// ── gofa-leadthrough ─────────────────────────────────────────────────
+await checkAsync('gofa-leadthrough: safety STOP success triggers lead-through enable', async function() {
     var sent = [];
     var posted = [];
     var mockRobot = {
         socketSend: function(cmd) { sent.push(cmd); return Promise.resolve('OK:STOP'); },
         rwsPost: function(path, body) { posted.push({ path: path, body: body }); return Promise.resolve(); }
     };
-    var node = new (loadNodeType('./nodes/gofa-leadthrough-enable', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var node = new (loadNodeType('./nodes/gofa-leadthrough', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
     var msg = { payload: {} };
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, true);
@@ -2315,26 +2315,26 @@ await checkAsync('gofa-leadthrough-enable: safety STOP success triggers lead-thr
     assert.deepStrictEqual(posted, [{ path: '/rw/motionsystem/mechunits/ROB_1/lead-through', body: 'status=active' }]);
 });
 
-await checkAsync('gofa-leadthrough-enable: safety STOP RWS error blocks lead-through enable', async function() {
+await checkAsync('gofa-leadthrough: safety STOP RWS error blocks lead-through enable', async function() {
     var sent = [];
     var posted = [];
     var mockRobot = {
         socketSend: function(cmd) { sent.push(cmd); return Promise.resolve('ERR:STOP'); },
         rwsPost: function(path, body) { posted.push({ path: path, body: body }); return Promise.resolve(); }
     };
-    var node = new (loadNodeType('./nodes/gofa-leadthrough-enable', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var node = new (loadNodeType('./nodes/gofa-leadthrough', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
     var err = await runInput(node, { payload: {} });
     assert.ok(err);
     assert.strictEqual(posted.length, 0);
 });
 
-await checkAsync('gofa-leadthrough-enable: safety STOP socket connection failure is swallowed and proceeds', async function() {
+await checkAsync('gofa-leadthrough: safety STOP socket connection failure is swallowed and proceeds', async function() {
     var posted = [];
     var mockRobot = {
         socketSend: function() { return Promise.reject(new Error('socket closed')); },
         rwsPost: function(path, body) { posted.push({ path: path, body: body }); return Promise.resolve(); }
     };
-    var node = new (loadNodeType('./nodes/gofa-leadthrough-enable', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var node = new (loadNodeType('./nodes/gofa-leadthrough', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
     var msg = { payload: {} };
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, true);
@@ -2446,7 +2446,7 @@ await checkAsync('gofa-motor: rejects invalid motor actions', async function() {
 });
 
 // gofa-asi-led / gofa-pose / gofa-joints / gofa-status / gofa-rapid-var-read /
-// gofa-save-point / gofa-upload-mod — Tier 6 fixes (agy, parallel batch D1-D6) ──
+// gofa-save-point / gofa-file — Tier 6 fixes (agy, parallel batch D1-D6) ──
 
 await checkAsync('gofa-asi-led: counted blink sequence completes', async function() {
     var calls = [];
@@ -2802,7 +2802,7 @@ await checkAsync('gofa-connection-status: default outputPayload strips the resul
     assert.deepStrictEqual(Object.keys(sent), [], 'default (unchecked) output must carry no payload');
 });
 
-await checkAsync('gofa-upload-mod: skips patching for binary buffers and preserves bytes exactly', async function() {
+await checkAsync('gofa-file: skips patching for binary buffers and preserves bytes exactly', async function() {
     var calls = [];
     var mockRobot = {
         ip: '10.0.0.9',
@@ -2812,8 +2812,8 @@ await checkAsync('gofa-upload-mod: skips patching for binary buffers and preserv
         }
     };
     var binaryData = Buffer.from([0x00, 0x80, 0xC0, 0xFF, 0x01, 0x02]);
-    var node = new (loadNodeType('./nodes/gofa-upload-mod', { nodesById: { r1: mockRobot } }))({
-        robot: 'r1', remotePath: '$HOME/Programs/binary.bin'
+    var node = new (loadNodeType('./nodes/gofa-file', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', action: 'upload', remotePath: '$HOME/Programs/binary.bin'
     });
     var msg = { payload: binaryData };
     await runInput(node, msg);
@@ -2963,7 +2963,7 @@ await checkAsync('gofa-di-read: reads value of digital input', async function() 
     assert.strictEqual(msg.payload.value, 1);
 });
 
-await checkAsync('gofa-leadthrough-disable: disables manual guidance', async function() {
+await checkAsync('gofa-leadthrough: disables manual guidance', async function() {
     var calls = [];
     var mockRobot = {
         rwsPost: function(path, body) {
@@ -2971,7 +2971,7 @@ await checkAsync('gofa-leadthrough-disable: disables manual guidance', async fun
             return Promise.resolve('');
         }
     };
-    var node = new (loadNodeType('./nodes/gofa-leadthrough-disable', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var node = new (loadNodeType('./nodes/gofa-leadthrough', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'disable' });
     var msg = {};
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, true);
@@ -3238,6 +3238,50 @@ await checkAsync('gofa-setup: no robot configured errors cleanly', async functio
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, false);
     assert.strictEqual(node.errors.length, 1);
+});
+
+// NEW TESTS
+await checkAsync('gofa-file: delete action returns 204 as ok:true, deleted:true', async function() {
+    var calls = [];
+    var mockRobot = { requestRaw: function(method, path) { calls.push(method, path); return Promise.resolve({ statusCode: 204 }); } };
+    var node = new (loadNodeType('./nodes/gofa-file', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'delete', remotePath: 'test.txt' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.deleted, true);
+    assert.strictEqual(msg.payload.remotePath, 'test.txt');
+    assert.deepStrictEqual(calls, ['DELETE', '/fileservice/test.txt']);
+});
+
+await checkAsync('gofa-file: delete action returns 404 as ok:false, not found', async function() {
+    var mockRobot = { requestRaw: function() { return Promise.resolve({ statusCode: 404 }); } };
+    var node = new (loadNodeType('./nodes/gofa-file', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'delete' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(msg.payload.error.indexOf('File not found') >= 0);
+});
+
+await checkAsync('gofa-leadthrough: action override via msg.payload', async function() {
+    var posts = [];
+    var mockRobot = { 
+        socketSend: function() { return Promise.resolve('OK:'); },
+        rwsPost: function(path, body) { posts.push(body); return Promise.resolve(''); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-leadthrough', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'enable' });
+    var msg = { payload: 'disable' };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.deepStrictEqual(posts, ['status=inactive']);
+});
+
+await checkAsync('gofa-points: import still accepts a bare array payload', async function() {
+    var mockRobot = { replacePoints: function(arr) { this._pts = arr; return arr; }, _savePoints: function(){} };
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'import' });
+    var msg = { payload: [{id:'p1', name:'pt1'}] };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(mockRobot._pts.length, 1);
 });
 
 fs.rmSync(tmpDir, { recursive: true, force: true });

@@ -4,7 +4,7 @@ var fs   = require('fs');
 var path = require('path');
 var parseXhtml    = require('./gofa-robot').parseXhtml;
 var parseLiSpans  = require('./gofa-rapid-tasks').parseLiSpans;
-var patchServerIp = require('./gofa-upload-mod').patchServerIp;
+var patchServerIp = require('./lib/patch-server-ip');
 
 // One-click first-run initialization: preflight → stop RAPID → unload the
 // conflicting sibling module → upload the bundled .mod (SERVER_IP auto-synced

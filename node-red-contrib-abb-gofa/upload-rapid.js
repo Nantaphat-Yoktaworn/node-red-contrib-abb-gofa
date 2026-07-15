@@ -2,7 +2,7 @@
 var fs = require('fs');
 var robot = require('./nodes/gofa-robot');
 var createRobotClient = robot.createRobotClient;
-var patchServerIp = require('./nodes/gofa-upload-mod').patchServerIp;
+var patchServerIp = require('./nodes/lib/patch-server-ip');
 
 var ip = process.env.GOFA_IP || '192.168.20.16';
 console.log('Target IP:', ip);

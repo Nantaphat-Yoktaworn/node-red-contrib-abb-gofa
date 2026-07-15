@@ -10,6 +10,24 @@ Node-RED palette for controlling the **ABB GoFa 12** (CRB 15000-12/1.27) collabo
 - The RAPID socket server (port 1025) accepts motion commands from **anyone who can reach the robot's IP — there is no authentication on that port**. Run the robot on an isolated or firewalled network segment. RWS credentials are sent over HTTPS with certificate checking disabled (self-signed controller cert), so the same isolation assumption applies there.
 - Jog/rotate step limits (50 mm / 30° per command) are enforced in the RAPID module, not in Node-RED — if you edit `MainModule.mod`, keep them.
 
+## 2.0.0 breaking changes
+
+Six single-action nodes were merged into three action-dropdown nodes (same pattern as
+`gofa-motor`/`gofa-rapid-exec`). If a flow made with 1.x shows "unknown node" after upgrading,
+replace the old node with its successor and pick the action:
+
+| Old node (removed) | Replace with | Action setting |
+|---|---|---|
+| `gofa-leadthrough-enable` | `gofa-leadthrough` | `enable` |
+| `gofa-leadthrough-disable` | `gofa-leadthrough` | `disable` |
+| `gofa-points-export` | `gofa-points` | `export` |
+| `gofa-points-import` | `gofa-points` | `import` |
+| `gofa-file-read` | `gofa-file` | `download` |
+| `gofa-upload-mod` | `gofa-file` | `upload` |
+
+Behavior, payload overrides, and outputs are unchanged per action; `gofa-file` also gains a new
+`delete` action. The bundled example flows are already migrated.
+
 ## What's in this repo
 
 ```
@@ -288,8 +306,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | **gofa-stop-motion** | TCP | Halt motion immediately |
 | **gofa-ping** | TCP | Round-trip latency test |
 | **gofa-grip** | RWS | Digital output on/off for a gripper (same mechanism as `gofa-do-write`, with a preconfigured signal name + friendly on/off/true/false/gripon/gripoff input) |
-| **gofa-leadthrough-enable** | TCP + RWS | Send STOP (clears queued moves), then activate hand-guiding |
-| **gofa-leadthrough-disable** | RWS | Deactivate hand-guiding |
+| **gofa-leadthrough** | TCP + RWS | Hand-guiding on/off — action `enable` (sends STOP first, clears queued moves) or `disable` |
 | **gofa-asi-led** | TCP | Set ASI status light RGB color (`0–255`) and blink; supports counted software blink |
 
 ### Saved points
@@ -300,12 +317,11 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | **gofa-go-point** | TCP + Local/RWS | Look up a saved point and move to it — move type (Joint/MoveJ or Linear/MoveL) selectable |
 | **gofa-point-list** | Local/RWS | Output the full saved-points array |
 | **gofa-delete-point** | Local/RWS | Remove a saved point by name |
-| **gofa-points-export** | Local | Dump points list to `msg.payload` (local storage only) |
-| **gofa-points-import** | Local | Replace points list from `msg.payload` (local storage only) |
+| **gofa-points** | Local | Action `export` (dump list to `msg.payload`, optionally to a file) or `import` (**replaces** the whole list from `msg.payload` or a file) — local storage only |
 | **gofa-sequencer** | TCP + Local/RWS | Visit saved points in order — per-step dwell + move type override, loop count, ping-pong, startStep |
 | **gofa-stop-seq** | TCP + Local | Stop sequencer immediately (sends `STOP` socket + sets flag) |
 
-> **Storage: Local vs On-Robot.** All five point nodes above (save/go/list/delete/sequencer) have a **Storage** option — **Local** (default) uses `points.json` on the Node-RED host, same as always. **On-Robot** stores the identical point data in a JSON file on the robot controller's own disk instead — the `gofa-robot` config node's **Remote Points Path** (default `$HOME/Programs/gofa_points.json`) — managed purely over RWS `fileservice` `GET`/`PUT` (the same mechanism `gofa-upload-mod`/`gofa-file-read` use), so **no local file is needed on the Node-RED host**. `msg.payload.storage` (`"local"`/`"remote"`) overrides the node's configured Storage per-message. Movement is unaffected either way — only where the point *data* is looked up changes; `gofa-sequencer` fetches the whole On-Robot list once per run, not once per step. No concurrent-write protection on the On-Robot file (unlike Local's changed-on-disk check) — fine for a human-paced "teach a point" workflow.
+> **Storage: Local vs On-Robot.** All five point nodes above (save/go/list/delete/sequencer) have a **Storage** option — **Local** (default) uses `points.json` on the Node-RED host, same as always. **On-Robot** stores the identical point data in a JSON file on the robot controller's own disk instead — the `gofa-robot` config node's **Remote Points Path** (default `$HOME/Programs/gofa_points.json`) — managed purely over RWS `fileservice` `GET`/`PUT` (the same mechanism `gofa-file` uses), so **no local file is needed on the Node-RED host**. `msg.payload.storage` (`"local"`/`"remote"`) overrides the node's configured Storage per-message. Movement is unaffected either way — only where the point *data* is looked up changes; `gofa-sequencer` fetches the whole On-Robot list once per run, not once per step. No concurrent-write protection on the On-Robot file (unlike Local's changed-on-disk check) — fine for a human-paced "teach a point" workflow.
 >
 > This was originally going to live inside `MainModule.mod`/RAPID itself, but RAPID's `string` type has a hard 80-character limit (see the move-type note below) that a growing list of named points would quickly exceed — storing it as a file managed entirely over RWS sidesteps that completely, since it's plain HTTP with no RAPID `string` involved.
 
@@ -323,7 +339,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 
 > `gofa-rapid-exec` requires the RWS user to have **Remote Start** and **Remote Stop** grants (see Step 2). `resetpp`, `loadmod`, `unloadmod`, and `activate` additionally acquire edit mastership automatically.
 >
-> `loadmod` reloads a module file already on the controller's disk into a task — the RWS equivalent of the FlexPendant's **Load Module** step (see [Load and start on the FlexPendant](#load-and-start-on-the-flexpendant)). Use it after **gofa-upload-mod** to make a running task pick up a changed `.mod` file without touching the FlexPendant. `activate` makes a named module the task's active/bound one — confirmed working but only needed if you must explicitly (re)bind a module by name; the common "edit and re-upload `MainModule.mod`" workflow only needs `loadmod`.
+> `loadmod` reloads a module file already on the controller's disk into a task — the RWS equivalent of the FlexPendant's **Load Module** step (see [Load and start on the FlexPendant](#load-and-start-on-the-flexpendant)). Use it after a **gofa-file** upload to make a running task pick up a changed `.mod` file without touching the FlexPendant. `activate` makes a named module the task's active/bound one — confirmed working but only needed if you must explicitly (re)bind a module by name; the common "edit and re-upload `MainModule.mod`" workflow only needs `loadmod`.
 >
 > **`unloadmod` removes a module from the task without touching the file on disk.** Necessary before `loadmod`-ing a *differently-named* module — `loadmod`'s `replace` option only replaces a module with the **same name**, so loading e.g. `MainModuleEGM` while `MainModule` is still loaded leaves **both** loaded. Since both declare `PROC main()`, RAPID then rejects `resetpp`/`start` with `(87,5): Global routine name main ambiguous` — confirmed live building the [EGM](#egm-externally-guided-motion) feature. Swap sequence either direction: `stop` → `unloadmod` (whichever module is currently loaded) → upload the other file → `loadmod` → `resetpp` → `start`.
 >
@@ -331,7 +347,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 
 > `gofa-rapid-var-read` / `gofa-rapid-var-write` use the TCP socket and work on standard OmniCore C30 without any extra RobotWare options. The variable must be listed in `TryGetVar` / `TrySetVar` in `MainModule.mod`. Built-in test variables: `nTestVar` (num) and `sTestMsg` (string). See [Adding RAPID variables](#adding-rapid-variables) below.
 >
-> **Why not a generic RWS variable read/write node?** RWS has a generic endpoint that can read/write any RAPID variable without editing RAPID code, but it 404s on this controller (`SYS_CTRL_E_UNRESOLVED_URL`) — not because of a missing license (that was checked and ruled out against ABB's own product manual). **Confirmed impossible on this controller, not just unworked-out**: ABB's own current documented `search-symbols` call (exact method/path/params, fetched live from their Developer Center) was reproduced verbatim against the real controller (RobotWare 7.21.0+229) and still fails — `POST /rw/rapid/symbols?action=search-symbols` returns `405 Method Not Allowed` even though the response's own `Allow` header claims POST is valid; every other path/method variant tried 404s or returns silently empty. See the `abb-rws` skill for the full investigation. The socket-based approach above is proven and needs no extra license, at the cost of having to allow-list each variable in `MainModule.mod`. Because there's no working RWS write endpoint at all, `gofa-rapid-var-write` has no fallback path the way `gofa-rapid-var-read` does — the only RWS-adjacent alternative (re-uploading the whole module with a new literal default via `gofa-upload-mod`) changes the compiled declaration, not the live value, and needs RAPID stopped and the program pointer reset to take effect, so it isn't a real substitute for a live write.
+> **Why not a generic RWS variable read/write node?** RWS has a generic endpoint that can read/write any RAPID variable without editing RAPID code, but it 404s on this controller (`SYS_CTRL_E_UNRESOLVED_URL`) — not because of a missing license (that was checked and ruled out against ABB's own product manual). **Confirmed impossible on this controller, not just unworked-out**: ABB's own current documented `search-symbols` call (exact method/path/params, fetched live from their Developer Center) was reproduced verbatim against the real controller (RobotWare 7.21.0+229) and still fails — `POST /rw/rapid/symbols?action=search-symbols` returns `405 Method Not Allowed` even though the response's own `Allow` header claims POST is valid; every other path/method variant tried 404s or returns silently empty. See the `abb-rws` skill for the full investigation. The socket-based approach above is proven and needs no extra license, at the cost of having to allow-list each variable in `MainModule.mod`. Because there's no working RWS write endpoint at all, `gofa-rapid-var-write` has no fallback path the way `gofa-rapid-var-read` does — the only RWS-adjacent alternative (re-uploading the whole module with a new literal default via `gofa-file`) changes the compiled declaration, not the live value, and needs RAPID stopped and the program pointer reset to take effect, so it isn't a real substitute for a live write.
 >
 > **Reading a variable that isn't allow-listed:** `gofa-rapid-var-read` and `gofa-subscribe-var` fall back to reading the module's source text off the controller and regex-matching `name := value` for variables not in `TryGetVar`. **Confirmed live against a real controller that this fallback is stale** — it returns the compiled/declared value, not the variable's current runtime value (writing a new value via `SETVAR` and re-reading through this path still shows the old one). Both nodes mark it `stale: true` with a `warning` field rather than presenting it with the same confidence as a live socket read. For a genuinely live value, add the variable to `TryGetVar` instead.
 >
@@ -341,8 +357,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 
 | Node | Protocol | What it does |
 |------|:--------:|-------------|
-| **gofa-file-read** | RWS | Download a file from the controller filesystem |
-| **gofa-upload-mod** | RWS | Upload a `.mod` file — local path set in node properties or via `msg.payload` |
+| **gofa-file** | RWS | Controller filesystem — action `download`, `upload` (local path in properties or via `msg.payload`; auto-syncs `SERVER_IP`), or `delete` (new in 2.0.0) |
 | **gofa-mod-edit** | RWS | Edit a `.mod` (or any text) file on the controller's disk in the node's edit dialog — dropdown of files in `$HOME/Programs` (or a new filename), **Load from robot** / **Save to robot** buttons, `SERVER_IP` auto-synced on save; an input message re-uploads the stored content |
 | **gofa-io-list** | RWS | List all I/O signals |
 | **gofa-di-read** | RWS | Read a digital input (0 or 1) |
@@ -408,7 +423,7 @@ sequence, either direction:
 
 1. `gofa-rapid-exec` → `stop`
 2. `gofa-rapid-exec` → `unloadmod` (module = whichever is currently loaded, e.g. `MainModule`)
-3. `gofa-upload-mod` → the other file (e.g. `rapid/MainModuleEGM.mod`, remote path
+3. `gofa-file` (action upload) → the other file (e.g. `rapid/MainModuleEGM.mod`, remote path
    `$HOME/Programs/MainModuleEGM.mod`)
 4. `gofa-rapid-exec` → `loadmod` (module path from step 3)
 5. `gofa-rapid-exec` → `resetpp`
@@ -529,10 +544,10 @@ msg.payload  →  node property (editor)  →  built-in default
 | **gofa-subscribe-io** | `{ signal }` | `ABB_Scalable_IO_0_DI1` |
 | **gofa-subscribe-var** | `{ task, module, variable }` (toggles polling) | T_ROB1 / MainModule / (property) |
 | **gofa-subscribe-pose** | Toggles on/off each input regardless of payload — starting reads `{ interval }` ms if present; already running always stops, even if a new `interval` is sent | 500 ms |
-| **gofa-file-read** | file path (string) · `{ remotePath, encoding }` | `$HOME/Programs/MainModule.mod` |
-| **gofa-upload-mod** | `Buffer` · file path (string) · `{ localPath, remotePath }` | (property) |
-| **gofa-points-export** | file path (string) · `{ savePath }` | (property / no file) |
-| **gofa-points-import** | file path (string) · `{ loadPath }` · array · `{ points: [...] }` | (property / clear) |
+| **gofa-file** (download/delete) | remote path (string) · `{ remotePath, encoding }` | `$HOME/Programs/MainModule.mod` |
+| **gofa-file** (upload) | `Buffer` · local path (string) · `{ localPath, remotePath }` | (property) |
+| **gofa-points** (export) | file path (string) · `{ savePath }` | (property / no file) |
+| **gofa-points** (import) | file path (string) · `{ loadPath }` · array · `{ points: [...] }` | (property / clear) |
 | **gofa-elog** | `{ domain, count, minSeverity }` | domain: 1, count: 10, minSeverity: 1 (all) |
 | **gofa-asi-led** | `'red'`/`'green'`/`'yellow'`/`'off'`/etc. · `false`/`0` (off) · `{ color, r, g, b, period, blinkCount, blinkMs }` · `'reset'` (restore default) | node defaults |
 | **gofa-sequencer** | `{ steps, dwell, moveType, loop, pingpong, count, startStep, storage? }` — `steps[i].moveType` overrides per-step, `storage`: `"local"`/`"remote"` | (property) |
@@ -545,7 +560,7 @@ These nodes fire on any input message and ignore `msg.payload`:
 
 `gofa-status` · `gofa-pose` · `gofa-joints` · `gofa-system-info` · `gofa-ping` ·
 `gofa-stop-motion` · `gofa-stop-seq` ·
-`gofa-leadthrough-enable` · `gofa-leadthrough-disable` ·
+`gofa-leadthrough` ·
 `gofa-subscribe-state` · `gofa-subscribe-elog`
 
 > **gofa-asi-led** — `msg.payload` is required. Use a color string (`'yellow'`), a preset object (`{ color: 'green', blinkCount: 3, blinkMs: 250 }`), or `'reset'` to restore the controller's default green LED. Omit `blinkCount` (or set to `0`) to use the hardware `period` signal for continuous blinking instead.
@@ -579,7 +594,7 @@ Saved points are stored in `points.json` on the Node-RED host — not on the rob
 ### Socket commands time out (jog, HOME, ping …)
 
 1. Confirm RAPID is running on the FlexPendant (green play indicator)
-2. Check `rapid/MainModule.mod` — `SERVER_IP` must match your robot's actual IP. If you upload via the `gofa-upload-mod` node, this is kept in sync automatically from the `gofa-robot` config node's IP — no manual edit needed.
+2. Check `rapid/MainModule.mod` — `SERVER_IP` must match your robot's actual IP. If you upload via the `gofa-file` node (or `gofa-setup`), this is kept in sync automatically from the `gofa-robot` config node's IP — no manual edit needed.
 3. Re-upload the `.mod` and reload on the FlexPendant if you changed the IP
 4. Verify port 1025 is reachable: `nc -zv <ROBOT_IP> 1025`
 

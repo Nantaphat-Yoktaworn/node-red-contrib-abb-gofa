@@ -109,7 +109,7 @@
         <li><b>stop</b> — halt RAPID execution</li>
         <li><b>resetpp</b> — move program pointer back to Main (requires Edit mastership)</li>
         <li><b>loadmod</b> — (re)load a module file already on the controller's disk into a
-        task, e.g. after <b>gofa-upload-mod</b> has PUT a changed <code>MainModule.mod</code>.
+        task, e.g. after a <b>gofa-file</b> upload has PUT a changed <code>MainModule.mod</code>.
         This is the RWS equivalent of the FlexPendant's <b>Load Module</b> step. Requires Edit
         mastership (granted automatically). Follow with <b>resetpp</b> if you also need the
         program pointer moved back to Main before <code>start</code>.</li>
@@ -122,7 +122,7 @@
         <code>resetpp</code>/<code>start</code> with "Global routine name main ambiguous"
         (confirmed live — both modules declare <code>PROC main()</code>). Swap sequence either
         direction: <code>stop</code> → <code>unloadmod</code> (the module currently loaded) →
-        <b>gofa-upload-mod</b> (the new file) → <code>loadmod</code> → <code>resetpp</code> →
+        <b>gofa-file</b> upload (the new file) → <code>loadmod</code> → <code>resetpp</code> →
         <code>start</code>.</li>
         <li><b>activate</b> — make a named module the task's active/bound module. Requires
         Edit mastership (granted automatically). Confirmed live but not required for the

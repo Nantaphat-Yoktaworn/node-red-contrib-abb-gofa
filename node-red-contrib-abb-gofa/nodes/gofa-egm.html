@@ -54,7 +54,7 @@
     <code>MainModule.mod</code> is currently loaded, first: <code>gofa-rapid-exec</code>
     (<code>stop</code>) → <code>gofa-rapid-exec</code> (<code>unloadmod</code>, module
     <code>MainModule</code> — this only detaches it from the task, the file stays on disk) →
-    <code>gofa-upload-mod</code> (<code>rapid/MainModuleEGM.mod</code>) →
+    <code>gofa-file</code> upload (<code>rapid/MainModuleEGM.mod</code>) →
     <code>gofa-rapid-exec</code> (<code>loadmod</code> → <code>resetpp</code> →
     <code>start</code>). Skipping the unload step leaves <em>both</em> modules loaded — RAPID
     rejects <code>resetpp</code>/<code>start</code> with "Global routine name main ambiguous"

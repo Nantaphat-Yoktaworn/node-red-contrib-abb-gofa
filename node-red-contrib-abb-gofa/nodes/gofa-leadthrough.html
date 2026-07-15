@@ -1,0 +1,55 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-leadthrough', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            outputPayload: { value: false },
+            name:  { value: '' },
+            robot: { value: '', type: 'gofa-robot', required: true },
+            action: { value: 'enable' }
+        },
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
+        label: function() { return this.name || (this.action === 'disable' ? 'Lead-through OFF' : 'Lead-through ON'); },
+        paletteLabel: 'Lead-through'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-leadthrough">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-action"><i class="fa fa-play"></i> Action</label>
+        <select id="node-input-action">
+            <option value="enable">Enable</option>
+            <option value="disable">Disable</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="">
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-leadthrough">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
+    <p>Enables or disables robot hand-guiding (leadthrough) mode via RWS.</p>
+    <h3>Input</h3>
+    <p>Any message triggers the configured action. <code>msg.payload</code> or <code>msg.payload.action</code> can be set to <code>"enable"</code> or <code>"disable"</code> to override the configured action at runtime.</p>
+    <h3>Output</h3>
+    <dl class="message-properties">
+        <dt>payload.ok <span class="property-type">boolean</span></dt>
+        <dd><code>true</code> on success.</dd>
+        <dt>payload.error <span class="property-type">string</span></dt>
+        <dd>Present on failure — the error message from RWS or the stop step.</dd>
+    </dl>
+    <h3>Actions</h3>
+    <ul>
+        <li><b>Enable</b>: First sends a <code>stop</code> over the TCP socket to clear any queued/in-flight moves (so a move already underway doesn't keep executing autonomously while hand-guiding is active), then sends <code>POST /rw/motionsystem/mechunits/ROB_1/lead-through</code>, body <code>status=active</code>. A socket-connection failure during the stop step (e.g. RAPID not running) is tolerated and does not block enabling leadthrough; any other stop failure does.</li>
+        <li><b>Disable</b>: Sends <code>POST /rw/motionsystem/mechunits/ROB_1/lead-through</code>, body <code>status=inactive</code>.</li>
+    </ul>
+    <h3>Notes</h3>
+    <p>Hand-guiding requires the SafeMove2 Pro option on the OmniCore C30 controller. A 404 response typically indicates this option is not licensed.</p>
+</script>
