@@ -66,10 +66,16 @@ Ready-made example flows (a per-node demo, a full control dashboard, and a physi
 
 ## Nodes
 
+Every node below (except the `gofa-robot` config node) has an **Output payload (debug)**
+checkbox, unchecked by default. Unchecked, a node still fires on completion to trigger the
+next node in the flow, but with an empty payload instead of full debug data — no `change` node
+needed just to silence output. Check it to get the full `msg.payload` described per node below.
+
 | Node | Transport | Description |
 |------|-----------|-------------|
 | `gofa-robot` | config | Shared connection settings (IP, ports, credentials, points storage) |
 | `gofa-status` | RWS | Controller state, operating mode, speed ratio, RAPID execution state |
+| `gofa-connection-status` | RWS + Socket | Checks RWS and the TCP socket server independently — reachable? reply time? — without assuming either one already works |
 | `gofa-pose` | RWS | Current TCP pose (position + quaternion + config flags) |
 | `gofa-joints` | RWS | All 6 joint angles |
 | `gofa-system-info` | RWS | RobotWare version, controller identity |

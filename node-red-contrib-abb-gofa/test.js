@@ -2712,6 +2712,96 @@ await checkAsync('gofa-status: successful status fetch sets green status and ret
     assert.ok(node.statuses.some(function(s) { return s.fill === 'green' && s.text === 'motoron'; }));
 });
 
+await checkAsync('gofa-connection-status: missing robot config reports an error and sets red status', async function() {
+    var node = new (loadNodeType('./nodes/gofa-connection-status', { nodesById: {} }))({ robot: 'nope' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.strictEqual(node.errors.length, 1);
+    assert.ok(node.statuses.some(function(s) { return s.fill === 'red' && s.text === 'no robot'; }));
+});
+
+await checkAsync('gofa-connection-status: both RWS and socket reachable reports ok:true', async function() {
+    var mockRobot = {
+        ip: '10.0.0.5',
+        rwsGet: function(path) {
+            if (path.indexOf('ctrl-state') >= 0) return Promise.resolve('<span class="ctrlstate">motoron</span>');
+            if (path.indexOf('opmode') >= 0) return Promise.resolve('<span class="opmode">auto</span>');
+            if (path.indexOf('speedratio') >= 0) return Promise.resolve('<span class="speedratio">75</span>');
+            if (path.indexOf('execution') >= 0) return Promise.resolve('<span class="ctrlexecstate">running</span>');
+            return Promise.reject(new Error('unexpected path: ' + path));
+        },
+        parseXhtml: parseXhtml,
+        socketSend: function() { return Promise.resolve('OK:PING'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-connection-status', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.ip, '10.0.0.5');
+    assert.strictEqual(msg.payload.rws.ok, true);
+    assert.strictEqual(msg.payload.rws.motors, 'motoron');
+    assert.strictEqual(msg.payload.socket.ok, true);
+    assert.strictEqual(typeof msg.payload.socket.rtt, 'number');
+    assert.deepStrictEqual(msg.payload.errors, []);
+    assert.ok(node.statuses.some(function(s) { return s.fill === 'green'; }));
+    assert.strictEqual(node.errors.length, 0, 'a healthy check must not raise a node error');
+});
+
+await checkAsync('gofa-connection-status: RWS down but socket up reports ok:false with rws.ok:false, socket.ok:true', async function() {
+    var mockRobot = {
+        ip: '10.0.0.5',
+        rwsGet: function() { return Promise.reject(new Error('RWS connection error')); },
+        parseXhtml: parseXhtml,
+        socketSend: function() { return Promise.resolve('OK:PING'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-connection-status', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.strictEqual(msg.payload.rws.ok, false);
+    assert.strictEqual(msg.payload.socket.ok, true);
+    assert.strictEqual(msg.payload.errors.length, 4, 'all four RWS calls should be reported as failed');
+    assert.ok(node.statuses.some(function(s) { return s.fill === 'red' && s.text === 'RWS unreachable'; }));
+    assert.strictEqual(node.errors.length, 0, 'a degraded-but-completed check must not raise a node error');
+});
+
+await checkAsync('gofa-connection-status: RWS up but socket down reports ok:false with rws.ok:true, socket.ok:false', async function() {
+    var mockRobot = {
+        ip: '10.0.0.5',
+        rwsGet: function(path) {
+            if (path.indexOf('ctrl-state') >= 0) return Promise.resolve('<span class="ctrlstate">motoron</span>');
+            return Promise.reject(new Error('unexpected path: ' + path));
+        },
+        parseXhtml: parseXhtml,
+        socketSend: function() { return Promise.reject(new Error('socket timeout')); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-connection-status', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.strictEqual(msg.payload.rws.ok, true);
+    assert.strictEqual(msg.payload.rws.motors, 'motoron');
+    assert.strictEqual(msg.payload.socket.ok, false);
+    assert.strictEqual(msg.payload.socket.error, 'socket timeout');
+    assert.ok(node.statuses.some(function(s) { return s.fill === 'yellow' && s.text === 'socket unreachable'; }));
+    assert.strictEqual(node.errors.length, 0);
+});
+
+await checkAsync('gofa-connection-status: default outputPayload strips the result to a bare signal', async function() {
+    var mockRobot = {
+        ip: '10.0.0.5',
+        rwsGet: function() { return Promise.resolve('<span class="ctrlstate">motoron</span>'); },
+        parseXhtml: parseXhtml,
+        socketSend: function() { return Promise.resolve('OK:PING'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-connection-status', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    var sent = node.sent[node.sent.length - 1];
+    assert.deepStrictEqual(Object.keys(sent), [], 'default (unchecked) output must carry no payload');
+});
+
 await checkAsync('gofa-upload-mod: skips patching for binary buffers and preserves bytes exactly', async function() {
     var calls = [];
     var mockRobot = {

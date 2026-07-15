@@ -329,12 +329,13 @@ accurate) before relying on EGM with real tooling mounted.
 Full design history and the reasoning behind the two-module decision: see the
 `project_egm_node_red_integration_plan` memory and its linked plan file.
 
-## Nodes (43 total)
+## Nodes (44 total)
 
 | Node | Transport | Description |
 |------|-----------|-------------|
 | `gofa-robot` | config | Shared config: IP, RWS port 443, socket port 1025, creds, local points file, remote (on-robot) points path |
 | `gofa-status` | RWS | Reads ctrlstate, opmode, speedratio, RAPID execstate |
+| `gofa-connection-status` | RWS + Socket | Checks RWS (4 calls) and the TCP socket ping independently — each failure is caught and reported per-layer instead of the whole node throwing on the first one down. Unlike `gofa-status`, a degraded/unreachable result is still a successful run (no Node-RED error raised), so it's safe to poll on a timer. |
 | `gofa-pose` | RWS | Current TCP pose (x,y,z + quaternion + config flags) |
 | `gofa-joints` | RWS | All 6 joint angles in degrees |
 | `gofa-system-info` | RWS | RobotWare version, controller name/ID/type/MAC |

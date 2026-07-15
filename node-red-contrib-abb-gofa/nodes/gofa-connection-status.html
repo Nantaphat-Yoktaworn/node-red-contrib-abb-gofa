@@ -1,0 +1,55 @@
+<script type="text/javascript">
+    RED.nodes.registerType('gofa-connection-status', {
+        category: 'ABB-GoFa-12', color: '#D3740C',
+        defaults: {
+            outputPayload: { value: false },
+            name:  { value: '' },
+            robot: { value: '', type: 'gofa-robot', required: true }
+        },
+        inputs: 1, outputs: 1, icon: 'gofa.svg',
+        label: function() { return this.name || 'Connection Status'; },
+        paletteLabel: 'Connection Status'
+    });
+</script>
+<script type="text/html" data-template-name="gofa-connection-status">
+    <div class="form-row">
+        <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
+        <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Connection Status">
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
+    </div>
+</script>
+<script type="text/html" data-help-name="gofa-connection-status">
+    <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node.
+    Checked: outputs the full <code>msg.payload</code> described below.</p>
+    <p>Checks connectivity to the controller on both layers this palette uses — RWS (HTTPS) and
+    the RAPID TCP socket server — independently of each other, so a robot that's reachable over
+    one but not the other is reported clearly instead of just erroring out. <code>msg.payload</code>
+    itself is ignored on input.</p>
+    <p>Unlike <code>gofa-status</code>, this node doesn't assume RWS already works — each of the
+    four RWS calls and the socket ping run as independent checks, so "RWS unreachable" and
+    "socket unreachable" are reported separately rather than the whole node just throwing.</p>
+    <h3>Output <code>msg.payload</code></h3>
+    <dl class="message-properties">
+        <dt>ok</dt><dd>true only if both RWS and the socket server responded</dd>
+        <dt>ip</dt><dd>the configured robot IP being checked</dd>
+        <dt>rws</dt><dd>
+            <code>{ ok, motors, mode, rapid, speed }</code> — <code>ok</code> is true if at least
+            one of the four RWS calls succeeded; fields for calls that failed are <code>null</code>
+        </dd>
+        <dt>socket</dt><dd>
+            <code>{ ok: true, rtt }</code> on success (round-trip time in ms), or
+            <code>{ ok: false, error }</code> on failure
+        </dd>
+        <dt>errors</dt><dd>array of <code>"label: message"</code> strings, one per failed check</dd>
+    </dl>
+    <p>A degraded/unreachable result is still a successful run of this node (it did its job:
+    telling you the robot isn't fully reachable) — it does not raise a Node-RED error, so this
+    node is safe to poll on a timer without spamming the debug/error sidebar.</p>
+</script>
