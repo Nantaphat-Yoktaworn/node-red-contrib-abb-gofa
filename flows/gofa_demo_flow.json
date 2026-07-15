@@ -1561,7 +1561,7 @@
         "type": "comment",
         "z": "a520b411b857ec3c",
         "g": "220d685a24069293",
-        "name": "Read current pose via RWS and save it as a named point  |  Storage: Local (points.json) or On-Robot (JSON file on the robot's own disk via RWS, no local file needed)  |  Go to a saved point: TCP Socket group → Go To Point  |  List/Delete saved points: Local group → Point List & Delete",
+        "name": "Read current pose via RWS and save it as a named point  |  Storage: Local (points.json) or On-Robot (JSON file on the robot's own disk via RWS, no local file needed)  |  Go to a saved point: TCP Socket group \u2192 Go To Point  |  List/Delete saved points: Local group \u2192 Point List & Delete",
         "info": "",
         "x": 890,
         "y": 615,
@@ -3087,7 +3087,7 @@
         "type": "comment",
         "z": "a520b411b857ec3c",
         "g": "1edb510d0e1876f8",
-        "name": "IO-LIST: enumerate all signals  |  DI-READ: digital in  |  DO-WRITE: digital out via RWS POST .../set-value — needs an I/O board (e.g. DSQC1030) with the signal's Access Level set to All in RobotStudio, else 403",
+        "name": "IO-LIST: enumerate all signals  |  DI-READ: digital in  |  DO-WRITE: digital out via RWS POST .../set-value \u2014 needs an I/O board (e.g. DSQC1030) with the signal's Access Level set to All in RobotStudio, else 403",
         "info": "",
         "x": 890,
         "y": 1185,
@@ -3771,7 +3771,7 @@
         "type": "comment",
         "z": "a520b411b857ec3c",
         "g": "1edb510d0e1876f8",
-        "name": "⚠ DO Write needs an I/O board (e.g. DSQC1030 Scalable I/O) with the target signal's Access Level set to All in RobotStudio (Controller → Configuration → I/O System → Signal) — otherwise RWS rejects the write with 403. No analog I/O exists on this controller (gofa-ai-read/gofa-ao-write were removed).",
+        "name": "\u26a0 DO Write needs an I/O board (e.g. DSQC1030 Scalable I/O) with the target signal's Access Level set to All in RobotStudio (Controller \u2192 Configuration \u2192 I/O System \u2192 Signal) \u2014 otherwise RWS rejects the write with 403. No analog I/O exists on this controller (gofa-ai-read/gofa-ao-write were removed).",
         "info": "",
         "x": 940,
         "y": 1315,
@@ -3782,7 +3782,7 @@
         "type": "comment",
         "z": "a520b411b857ec3c",
         "g": "b8c71f7a58a6d882",
-        "name": "RAPID-EXEC: start / stop / resetpp / loadmod / activate the RAPID program  |  Requires Remote Start/Stop UAS grant (RobotStudio → Edit User Accounts) + Auto mode + Motors on  |  resetpp, loadmod, and activate acquire edit mastership automatically  |  loadmod/activate require RAPID to be STOPPED (confirmed live — HTTP 403 while running) — stop first, then loadmod/activate, then start again",
+        "name": "RAPID-EXEC: start / stop / resetpp / loadmod / activate the RAPID program  |  Requires Remote Start/Stop UAS grant (RobotStudio \u2192 Edit User Accounts) + Auto mode + Motors on  |  resetpp, loadmod, and activate acquire edit mastership automatically  |  loadmod/activate require RAPID to be STOPPED (confirmed live \u2014 HTTP 403 while running) \u2014 stop first, then loadmod/activate, then start again",
         "info": "",
         "x": 935,
         "y": 2150,
@@ -4224,7 +4224,7 @@
         "type": "comment",
         "z": "a520b411b857ec3c",
         "g": "7f67148b43e52842",
-        "name": "SPEED: override 1–100%  |  GETVAR/SETVAR: read/write a RAPID PERS variable by name — built-in test vars: nTestVar (num), sTestMsg (string)  |  bStopMotion below is NOT allow-listed — demonstrates the stale module-text fallback",
+        "name": "SPEED: override 1\u2013100%  |  GETVAR/SETVAR: read/write a RAPID PERS variable by name \u2014 built-in test vars: nTestVar (num), sTestMsg (string)  |  bStopMotion below is NOT allow-listed \u2014 demonstrates the stale module-text fallback",
         "info": "",
         "x": 2640,
         "y": 1357,
@@ -4568,7 +4568,7 @@
         "type": "function",
         "z": "a520b411b857ec3c",
         "g": "d985d2ec6155d7fe",
-        "name": "Sine sweep joint 6 (±3°, 8s) -> feeds into gofa-egm-move",
+        "name": "Sine sweep joint 6 (\u00b13\u00b0, 8s) -> feeds into gofa-egm-move",
         "func": "// Mirrors gofa-egm-python's nudge_joint.py: capture the pose on the\n// first feedback frame as baseline, then offset one joint with a smooth\n// sine so it returns to baseline on its own every 8s. Baseline/start are\n// stored in this node's own context, captured once per Node-RED restart\n// or redeploy (context is cleared then) -- re-pressing \"Start EGM\" after\n// a \"Stop EGM\" without redeploying resumes the same sweep rather than\n// re-baselining, which is fine for this demo.\nvar joints = msg.payload && msg.payload.joints;\nif (!Array.isArray(joints) || joints.length !== 6) return null;\n\nif (context.get('baseline') === undefined) {\n    context.set('baseline', joints);\n    context.set('start', Date.now());\n}\n\nvar baseline = context.get('baseline');\nvar elapsed = (Date.now() - context.get('start')) / 1000;\nvar target = baseline.slice();\ntarget[5] = target[5] + 3 * Math.sin(2 * Math.PI * elapsed / 8);\n\nmsg.payload = target;\nreturn msg;",
         "outputs": 1,
         "timeout": 0,
@@ -4726,6 +4726,214 @@
         "targetType": "msg",
         "x": 1230,
         "y": 2085,
+        "wires": []
+    },
+    {
+        "id": "setupadmgrp01",
+        "type": "group",
+        "z": "a520b411b857ec3c",
+        "name": "4 - Setup & Admin",
+        "style": {
+            "stroke": "#0099cc",
+            "stroke-opacity": "1",
+            "fill": "#e8f4f8",
+            "fill-opacity": "0.5",
+            "label": true,
+            "label-position": "nw",
+            "color": "#0099cc"
+        },
+        "nodes": [
+            "setupinj01",
+            "setupnod01",
+            "setupdbg01",
+            "connsinj01",
+            "connsnod01",
+            "connsdbg01",
+            "modedinj01",
+            "modednod01",
+            "modeddbg01"
+        ],
+        "x": 663,
+        "y": 2570,
+        "w": 760,
+        "h": 200
+    },
+    {
+        "id": "setupinj01",
+        "type": "inject",
+        "z": "a520b411b857ec3c",
+        "g": "setupadmgrp01",
+        "name": "Run One-Click Setup",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 725,
+        "y": 2600,
+        "wires": [
+            [
+                "setupnod01"
+            ]
+        ]
+    },
+    {
+        "id": "setupnod01",
+        "type": "gofa-setup",
+        "z": "a520b411b857ec3c",
+        "g": "setupadmgrp01",
+        "outputPayload": true,
+        "name": "",
+        "robot": "cfg1",
+        "module": "MainModule",
+        "task": "T_ROB1",
+        "x": 960,
+        "y": 2600,
+        "wires": [
+            [
+                "setupdbg01"
+            ]
+        ]
+    },
+    {
+        "id": "setupdbg01",
+        "type": "debug",
+        "z": "a520b411b857ec3c",
+        "g": "setupadmgrp01",
+        "name": "{ ok, steps: [{name, ok, detail}] }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 1195,
+        "y": 2600,
+        "wires": []
+    },
+    {
+        "id": "connsinj01",
+        "type": "inject",
+        "z": "a520b411b857ec3c",
+        "g": "setupadmgrp01",
+        "name": "Check Connection",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 725,
+        "y": 2660,
+        "wires": [
+            [
+                "connsnod01"
+            ]
+        ]
+    },
+    {
+        "id": "connsnod01",
+        "type": "gofa-connection-status",
+        "z": "a520b411b857ec3c",
+        "g": "setupadmgrp01",
+        "outputPayload": true,
+        "name": "",
+        "robot": "cfg1",
+        "x": 960,
+        "y": 2660,
+        "wires": [
+            [
+                "connsdbg01"
+            ]
+        ]
+    },
+    {
+        "id": "connsdbg01",
+        "type": "debug",
+        "z": "a520b411b857ec3c",
+        "g": "setupadmgrp01",
+        "name": "{ overall, rws, socket }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 1195,
+        "y": 2660,
+        "wires": []
+    },
+    {
+        "id": "modedinj01",
+        "type": "inject",
+        "z": "a520b411b857ec3c",
+        "g": "setupadmgrp01",
+        "name": "Re-upload Edited File",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 725,
+        "y": 2720,
+        "wires": [
+            [
+                "modednod01"
+            ]
+        ]
+    },
+    {
+        "id": "modednod01",
+        "type": "gofa-mod-edit",
+        "z": "a520b411b857ec3c",
+        "g": "setupadmgrp01",
+        "outputPayload": true,
+        "name": "",
+        "robot": "cfg1",
+        "remotePath": "$HOME/Programs/gofa_demo_note.mod",
+        "content": "MODULE GofaDemoNote\n    ! Written by the gofa-mod-edit demo node.\n    ! Open this node to browse/edit files on the controller.\nENDMODULE\n",
+        "x": 960,
+        "y": 2720,
+        "wires": [
+            [
+                "modeddbg01"
+            ]
+        ]
+    },
+    {
+        "id": "modeddbg01",
+        "type": "debug",
+        "z": "a520b411b857ec3c",
+        "g": "setupadmgrp01",
+        "name": "{ ok, remotePath, bytes }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 1195,
+        "y": 2720,
         "wires": []
     }
 ]
