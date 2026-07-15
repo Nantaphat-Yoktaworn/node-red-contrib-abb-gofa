@@ -393,16 +393,23 @@ MODULE MainModuleEGM
                 ENDIF
             ENDIF
             SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""" + cmd + """,""msg"":""invalid target""}" + ByteToStr(10\Char));
-        CASE "movej":
+        CASE "movej", "movel":
             IF GetJsonNumArray(json, "val", jointVals) THEN
                 jt.robax := [jointVals{1}, jointVals{2}, jointVals{3}, jointVals{4}, jointVals{5}, jointVals{6}];
                 jt.extax := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
-                SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""movej""}" + ByteToStr(10\Char));
+                SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""" + cmd + """}" + ByteToStr(10\Char));
                 AddConcMove;
-                MoveAbsJ \Conc, jt, vGoto, zActive, tGripper \WObj:=wobj1;
+                IF cmd = "movel" THEN
+                    ! Straight-line TCP path to the pose those joints describe -
+                    ! CalcRobT does the forward kinematics. Same singularity
+                    ! caveat as gotol: the line can fault where MoveAbsJ would not.
+                    MoveL \Conc, CalcRobT(jt, tGripper \WObj:=wobj1), vGoto, zActive, tGripper \WObj:=wobj1;
+                ELSE
+                    MoveAbsJ \Conc, jt, vGoto, zActive, tGripper \WObj:=wobj1;
+                ENDIF
                 RETURN;
             ENDIF
-            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""movej"",""msg"":""invalid joints""}" + ByteToStr(10\Char));
+            SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""" + cmd + """,""msg"":""invalid joints""}" + ByteToStr(10\Char));
         CASE "egmjoint":
             bEgmRequested := TRUE;
             SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""egmjoint""}" + ByteToStr(10\Char));
@@ -861,21 +868,34 @@ MODULE MainModuleEGM
         MoveJ \Conc, pHome, v200, z50, tGripper \WObj:=wobj1;
     ENDPROC
 
-    ! Absolute joint move. Token: MOVEJ<j1;j2;j3;j4;j5;j6> (degrees).
-    ! Returns FALSE if not a MOVEJ token or parse fails.
+    ! Absolute joint move. Token: MOVEJ<j1;j2;j3;j4;j5;j6> (degrees) for
+    ! MoveAbsJ, or MOVEL<...> for a straight-line TCP path to the pose those
+    ! joints describe (CalcRobT forward kinematics + MoveL - same singularity
+    ! caveat as GOTOL). Returns FALSE if not a MOVEJ/MOVEL token or parse fails.
     FUNC bool TryMoveJ(string cmd)
         VAR num n;
         VAR num vals{6};
         VAR jointtarget jt;
+        VAR bool linear;
         n := StrLen(cmd);
         IF n < 6 RETURN FALSE;
-        IF StrPart(cmd, 1, 5) <> "MOVEJ" RETURN FALSE;
+        IF StrPart(cmd, 1, 5) = "MOVEJ" THEN
+            linear := FALSE;
+        ELSEIF StrPart(cmd, 1, 5) = "MOVEL" THEN
+            linear := TRUE;
+        ELSE
+            RETURN FALSE;
+        ENDIF
         IF NOT ParseNums(StrPart(cmd, 6, n - 5), vals) RETURN FALSE;
         jt.robax := [vals{1}, vals{2}, vals{3}, vals{4}, vals{5}, vals{6}];
         jt.extax := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
-        SocketSend clientSocket \Str:=("OK:MOVEJ" + ByteToStr(10\Char));
+        SocketSend clientSocket \Str:=("OK:" + StrPart(cmd, 1, 5) + ByteToStr(10\Char));
         AddConcMove;
-        MoveAbsJ \Conc, jt, vGoto, zActive, tGripper \WObj:=wobj1;
+        IF linear THEN
+            MoveL \Conc, CalcRobT(jt, tGripper \WObj:=wobj1), vGoto, zActive, tGripper \WObj:=wobj1;
+        ELSE
+            MoveAbsJ \Conc, jt, vGoto, zActive, tGripper \WObj:=wobj1;
+        ENDIF
         RETURN TRUE;
     ENDFUNC
 

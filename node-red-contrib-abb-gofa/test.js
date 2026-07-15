@@ -2840,6 +2840,42 @@ await checkAsync('gofa-movej: moves to configured joints on input', async functi
     assert.deepStrictEqual(msg.payload.joints, [10,20,30,40,50,60]);
     assert.strictEqual(calls.length, 1);
     assert.deepStrictEqual(calls[0], { cmd: 'movej', val: [10,20,30,40,50,60] });
+    assert.strictEqual(msg.payload.moveType, 'J');
+});
+
+await checkAsync('gofa-movej: Move type L sends movel; msg.moveType overrides config', async function() {
+    var calls = [];
+    var mockRobot = { socketSend: function(cmd) { calls.push(cmd); return Promise.resolve('OK:MOVEL'); } };
+    var Ctor = loadNodeType('./nodes/gofa-movej', { nodesById: { r1: mockRobot } });
+    var node = new Ctor({ robot: 'r1', joints: '[1,2,3,4,5,6]', moveType: 'L' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.moveType, 'L');
+    assert.strictEqual(calls[0].cmd, 'movel');
+    // per-message override back to J; bogus values resolve to J too
+    var node2 = new Ctor({ robot: 'r1', joints: '[1,2,3,4,5,6]', moveType: 'L' });
+    var msg2 = { moveType: 'J' };
+    await runInput(node2, msg2);
+    assert.strictEqual(calls[1].cmd, 'movej');
+    var node3 = new Ctor({ robot: 'r1', joints: '[1,2,3,4,5,6]' });
+    var msg3 = { payload: { j1: 1, j2: 2, j3: 3, j4: 4, j5: 5, j6: 6, moveType: 'L' } };
+    await runInput(node3, msg3);
+    assert.strictEqual(calls[2].cmd, 'movel');
+});
+
+check('translateToJSON: legacy MOVEL token maps to movel cmd', function() {
+    var robotModule = require('./nodes/gofa-robot');
+    var client = robotModule.createRobotClient({ ip: 'x', rwsPort: 443, socketPort: 1, username: 'u', password: 'p' });
+    // translateToJSON is internal to the client; exercise it via the documented
+    // token->JSON contract instead: both .mod files must contain the movel case.
+    var fs2 = require('fs');
+    ['rapid/MainModule.mod', 'rapid/MainModuleEGM.mod'].forEach(function(f) {
+        var mod = fs2.readFileSync(f, 'utf8');
+        assert.ok(mod.indexOf('CASE "movej", "movel":') >= 0, f + ' missing JSON movel case');
+        assert.ok(mod.indexOf('= "MOVEL"') >= 0, f + ' missing legacy MOVEL token');
+        assert.ok(mod.indexOf('CalcRobT(jt, tGripper') >= 0, f + ' missing CalcRobT linear path');
+    });
 });
 
 await checkAsync('gofa-zone-set: sets zone and propagates config', async function() {

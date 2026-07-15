@@ -46,7 +46,7 @@ The table below is the **logical command surface** most Node-RED nodes actually 
 | `RX+5` / `RY-10` / `RZ+15` | Rotate TCP ±° in tool frame (max 30°) |
 | `J1+10` / `J3-5` | Jog single joint ±° (max 30°, joints 1–6) |
 | `SPEED50` | Set speed override 1–100% |
-| `MOVEJ<j1;j2;j3;j4;j5;j6>` | Absolute joint move in degrees |
+| `MOVEJ<j1;..;j6>` / `MOVEL<j1;..;j6>` | Absolute joint move in degrees — MOVEJ = MoveAbsJ (joint-interpolated), MOVEL = straight-line TCP path to the same joint pose (CalcRobT forward kinematics + MoveL, added 2.1.0; same singularity caveat as GOTOL) |
 | `ZONE<name>` | Set path blend zone (FINE / Z1 / Z5 / Z10 / Z20 / Z50 / Z100) |
 | `STOP` | Halt motion immediately |
 | `PING` | Connectivity test |
@@ -343,7 +343,7 @@ Full design history and the reasoning behind the two-module decision: see the
 | `gofa-elog` | RWS | Controller event log entries; Domain (category, not severity) + Min Severity (info/warning+/error-only) filters |
 | `gofa-motor` | RWS | Motor on/off via `POST /rw/panel/ctrl-state` |
 | `gofa-move` | Socket | HOME or SETHOME |
-| `gofa-movej` | Socket | Absolute joint move |
+| `gofa-movej` | Socket | Absolute joint move; Move type dropdown Joint (MoveAbsJ, default) / Linear (CalcRobT + MoveL) — displayed as "Move Joints", type id unchanged for compat |
 | `gofa-jog` | Socket | Cartesian jog (X/Y/Z ± mm or RX/RY/RZ ± °) |
 | `gofa-joint-jog` | Socket | Single joint jog |
 | `gofa-grip` | RWS | Named DO signal on/off via `/set-value` (needs `Access: All` on that signal) |

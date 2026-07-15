@@ -367,9 +367,9 @@ function translateToJSON(cmd) {
             return JSON.stringify({ cmd: type, val: vals });
         }
         
-        if (trimmed.indexOf('MOVEJ') === 0) {
+        if (trimmed.indexOf('MOVEJ') === 0 || trimmed.indexOf('MOVEL') === 0) {
             var vals = trimmed.substring(5).split(';').map(Number);
-            return JSON.stringify({ cmd: 'movej', val: vals });
+            return JSON.stringify({ cmd: trimmed.substring(0, 5).toLowerCase(), val: vals });
         }
         
         var jogMatch = trimmed.match(/^(R?)([XYZ])([+-])(\d+(\.\d+)?)$/);

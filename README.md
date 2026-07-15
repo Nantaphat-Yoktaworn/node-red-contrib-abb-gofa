@@ -300,7 +300,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | **gofa-motor** | RWS | Motors on / off |
 | **gofa-speed-set** | TCP | Speed override 1–100% |
 | **gofa-move** | TCP | HOME (go to home) or SETHOME (save current pose as home) |
-| **gofa-movej** | TCP | Absolute joint move `[j1..j6]` degrees |
+| **gofa-movej** | TCP | Absolute joint move `[j1..j6]` degrees ("Move Joints") — Move type: Joint (default) or Linear straight-line TCP path |
 | **gofa-jog** | TCP | Relative TCP translate (mm, base frame) or rotate (°, tool frame) |
 | **gofa-joint-jog** | TCP | Rotate single joint by ± degrees |
 | **gofa-zone-set** | TCP | Path blend zone (fine / z1 / z5 / z10 / z20 / z50 / z100) |

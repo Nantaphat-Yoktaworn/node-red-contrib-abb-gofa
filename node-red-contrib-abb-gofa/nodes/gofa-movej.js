@@ -1,10 +1,12 @@
 'use strict';
 var gate = require('./lib/gate');
+var resolveMoveType = require('./gofa-robot').resolveMoveType;
 module.exports = function(RED) {
     function GoFaMoveJNode(config) {
         RED.nodes.createNode(this, config);
-        this.robot  = RED.nodes.getNode(config.robot);
-        this.joints = config.joints || '[0,0,85,0,0,0]';
+        this.robot    = RED.nodes.getNode(config.robot);
+        this.joints   = config.joints || '[0,0,85,0,0,0]';
+        this.moveType = resolveMoveType(config.moveType, 'J');
         var node = this;
 
         node.on('input', function(msg, send, done) {
@@ -55,11 +57,22 @@ module.exports = function(RED) {
                 send(msg); return done();
             }
 
-            node.status({ fill: 'blue', shape: 'dot', text: 'movej: [' + nums.map(function(v) { return v.toFixed(1); }).join(',') + ']' });
+            // Move type: J = MoveAbsJ (joint-interpolated, default, most reliable),
+            // L = straight-line TCP path to the pose those joints describe (the
+            // RAPID server does the forward kinematics via CalcRobT). Same
+            // per-message override names gofa-go-point uses.
+            var moveType = node.moveType;
+            if (msg.moveType !== undefined) moveType = resolveMoveType(msg.moveType, moveType);
+            if (msg.payload && typeof msg.payload === 'object' && !Array.isArray(msg.payload) && msg.payload.moveType !== undefined) {
+                moveType = resolveMoveType(msg.payload.moveType, moveType);
+            }
+            var cmdName = moveType === 'L' ? 'movel' : 'movej';
 
-            node.robot.socketSend({ cmd: 'movej', val: nums.map(function(v) { return parseFloat(v.toFixed(2)); }) }).then(function(resp) {
+            node.status({ fill: 'blue', shape: 'dot', text: cmdName + ': [' + nums.map(function(v) { return v.toFixed(1); }).join(',') + ']' });
+
+            node.robot.socketSend({ cmd: cmdName, val: nums.map(function(v) { return parseFloat(v.toFixed(2)); }) }).then(function(resp) {
                 if (!resp.startsWith('OK:')) throw new Error('Robot error: ' + resp);
-                msg.payload = { ok: true, joints: nums };
+                msg.payload = { ok: true, joints: nums, moveType: moveType };
                 node.status({ fill: 'green', shape: 'dot', text: '[' + nums.map(function(v) { return v.toFixed(1); }).join(',') + ']' });
                 send(msg); done();
             }).catch(function(err) {

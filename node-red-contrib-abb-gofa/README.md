@@ -82,7 +82,7 @@ needed just to silence output. Check it to get the full `msg.payload` described 
 | `gofa-elog` | RWS | Controller event log — Domain (category) + Min Severity (info/warning+/error-only) filters |
 | `gofa-motor` | RWS | Motors on/off |
 | `gofa-move` | Socket | Go home / set home |
-| `gofa-movej` | Socket | Absolute joint move |
+| `gofa-movej` | Socket | Absolute joint move ("Move Joints") — Move type: Joint (default) / Linear |
 | `gofa-jog` | Socket | Cartesian jog (±mm / ±°) |
 | `gofa-joint-jog` | Socket | Single-joint jog |
 | `gofa-zone-set` | Socket | Path blend zone (FINE…Z100) |
