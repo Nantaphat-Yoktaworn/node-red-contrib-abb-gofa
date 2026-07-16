@@ -5,9 +5,10 @@ source in `node-red-contrib-abb-gofa/nodes/`, not re-derived — so you can cont
 inspect the robot directly with `curl` / a raw TCP client, for debugging, scripting,
 or when Node-RED itself isn't available.
 
-Replace `<ROBOT_IP>` with the controller's current IP (`192.168.20.36` at time of
-writing — see the `SERVER_IP` note in `CLAUDE.md`, it has drifted before) and
-`<username>`/`<password>` with your RWS credentials.
+Replace `<ROBOT_IP>` with the controller's current IP (`192.168.1.103` as of 2026-07-16 —
+see the `SERVER_IP` note in `CLAUDE.md`; it drifts often, including whole-subnet changes,
+so re-check with `check-status.js` or the `/robot-status` skill before trusting this value)
+and `<username>`/`<password>` with your RWS credentials.
 
 ## The one thing that decides which half of this doc you need
 

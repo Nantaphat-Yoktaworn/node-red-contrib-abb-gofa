@@ -12,7 +12,7 @@ Custom Node-RED palette (`node-red-contrib-abb-gofa`) for controlling an ABB GoF
 
 ## Standalone status-check script
 
-`node-red-contrib-abb-gofa/check-status.js` — plain Node.js, no Node-RED runtime needed. Run directly (`node check-status.js`) to preflight-check the robot before a live test: Motors/Mode/RAPID/Speed via RWS, plus a socket `PING` (the motion socket server only runs while RAPID is actually executing, so `RAPID: stopped` reliably means the socket ping will fail too — that's expected, not a bug). Flags: `--full` (adds RobotWare version, controller identity, `T_ROB1` task state, last 3 error/warning elog entries), `--json`, and `--discover` (scans active IPv4 subnets for any ABB GoFa controllers). If the configured IP is unreachable, it automatically triggers a fallback network scan to discover and test the controller. Connection defaults match this doc's table below except IP, which is `192.168.20.36` (drifted from the `.33` default — see the `SERVER_IP` note); override any of it per-invocation via `GOFA_IP`/`GOFA_RWS_PORT`/`GOFA_SOCKET_PORT`/`GOFA_USERNAME`/`GOFA_PASSWORD` env vars. Exit codes: `0` OK, `1` RWS unreachable, `2` RWS OK but socket unreachable. Built on `createRobotClient()`, a RED-independent factory extracted from `gofa-robot.js`'s session/auth/cookie logic (`GoFaRobotNode` now just delegates to it) — the same "export pure helpers for standalone use" pattern `test.js` already relies on for `parseXhtml`/`gotoToken`/etc.
+`node-red-contrib-abb-gofa/check-status.js` — plain Node.js, no Node-RED runtime needed. Run directly (`node check-status.js`) to preflight-check the robot before a live test: Motors/Mode/RAPID/Speed via RWS, plus a socket `PING` (the motion socket server only runs while RAPID is actually executing, so `RAPID: stopped` reliably means the socket ping will fail too — that's expected, not a bug). Flags: `--full` (adds RobotWare version, controller identity, `T_ROB1` task state, last 3 error/warning elog entries), `--json`, and `--discover` (scans active IPv4 subnets for any ABB GoFa controllers). If the configured IP is unreachable, it automatically triggers a fallback network scan to discover and test the controller. Connection defaults match this doc's table below, including IP (`192.168.1.103` as of 2026-07-16 — this constant is kept in sync with the table's "last known good" value, but the robot's IP drifts regularly including whole-subnet changes, hence `--discover`); override any of it per-invocation via `GOFA_IP`/`GOFA_RWS_PORT`/`GOFA_SOCKET_PORT`/`GOFA_USERNAME`/`GOFA_PASSWORD` env vars. Exit codes: `0` OK, `1` RWS unreachable, `2` RWS OK but socket unreachable. Built on `createRobotClient()`, a RED-independent factory extracted from `gofa-robot.js`'s session/auth/cookie logic (`GoFaRobotNode` now just delegates to it) — the same "export pure helpers for standalone use" pattern `test.js` already relies on for `parseXhtml`/`gotoToken`/etc.
 
 ## Standalone mastership-test script
 
@@ -329,6 +329,37 @@ accurate) before relying on EGM with real tooling mounted.
 Full design history and the reasoning behind the two-module decision: see the
 `project_egm_node_red_integration_plan` memory and its linked plan file.
 
+## Interactive properties panels (2.2.0+, undocumented until 2026-07-16)
+
+Since 2.2.0, every non-config node's properties dialog has live-action buttons/live-read
+panels — "Jog Now", "Read Value", "Test Connection", etc. — that call the *real* robot right
+from the editor, independent of whether the flow is deployed. This is a completely separate
+code path from the runtime `node.on('input', ...)` handler:
+
+- Each button is wired in `oneditprepare` (in the node's `.html`) to a plain `$.ajax`/`$.getJSON`
+  call against a `RED.httpAdmin.get/post('/gofa-<node>/:id/<action>', RED.auth.needsPermission(...), ...)`
+  route registered in the node's `.js` file. That handler looks up the robot config node via
+  `RED.nodes.getNode(req.params.id)`, calls `robot.socketSend(...)`/`robot.rwsGet/rwsPost(...)`
+  directly, and replies with `res.json(...)`.
+- **It never calls the node's own `send()`.** Clicking a panel button moves the robot (or reads
+  live state) for real, but nothing propagates to whatever is wired to that node's output, even
+  in a deployed flow — the two code paths (admin endpoint vs. `on('input')`) don't intersect.
+- Every route is gated with `RED.auth.needsPermission('gofa-<node>.read'|'write')`, but on a
+  Node-RED instance with no `adminAuth` configured, that grants nothing — any client that can
+  reach the editor's admin HTTP port can trigger these actions with a bare request, browser
+  `confirm()` dialogs notwithstanding (those are UI-only, not a server-side check). See the
+  README's Safety and security section.
+- Cross-node shared state (`gofa-sequencer`'s `robot._seqRunning`/`_seqStop`) is genuinely
+  shared between the panel's admin-endpoint run and a deployed flow's runtime run of the *same*
+  node type on the *same* robot config node — starting one from the panel while the other is
+  also active will interact (see `gofa-sequencer.js`'s runtime handler: any new `on('input')`
+  message while `_seqRunning` is true treats it as a stop request).
+- `gofa-sequencer`'s panel keeps its **Stop Sequence** button always enabled regardless of the
+  polled `/status` result (fixed 2.2.2) — the polled `running` flag can lag or drop before the
+  robot has actually finished moving, and a kill switch that disables itself right when it's
+  needed most defeats the point. Only **Start** is gated on the polled status (server-side also
+  rejects a second concurrent start regardless, so this is redundant, not load-bearing).
+
 ## Nodes (43 total)
 
 | Node | Transport | Description |
@@ -409,7 +440,7 @@ Originally considered storing the list *inside* RAPID (new socket commands readi
 
 | Setting | Value |
 |---------|-------|
-| Robot IP | `192.168.20.33` |
+| Robot IP | `192.168.1.103` (confirmed live 2026-07-16 via `/robot-status`; **drifts often, including whole-subnet changes** — was `192.168.20.33` → `.36` → `192.168.20.14` → this. Never trust this table over a live check — see the `reference_robot_ip_drift`/`project_robot_current_ip` memories) |
 | RWS port | `443` (HTTPS, self-signed cert — `rejectUnauthorized: false`) |
 | Socket port | `1025` |
 | Username | `NNNN` |
@@ -420,7 +451,7 @@ username defaults to ABB's factory `Default User`, password has no default — s
 install never carries this lab's creds. This repo is public: don't write the actual password
 into any tracked file; it lives in the local (non-repo) Claude memory only.
 
-## Software versions (confirmed live, 2026-07-07)
+## Software versions (RobotWare/controller re-confirmed live 2026-07-16 via `check-status.js --full`; Node.js/Node-RED re-confirmed against the dev machine same date; RobotStudio not reverified this pass)
 
 | | |
 |---|---|
@@ -428,9 +459,9 @@ into any tracked file; it lives in the local (non-repo) Claude memory only.
 | RWS protocol generation | `2.0` (path-based actions, `/set-value` not `/set`, `hal+json;v=2.0` for `loadmod`/`activate`) |
 | Controller | OmniCore C30 Type A, identity `15000-501318` |
 | Robot | CRB 15000-12/1.27 (GoFa 12) |
-| RobotStudio (engineering tool, used for I/O config) | `2026.2`, build `26.2.11700.0` |
-| Node-RED | `5.0.1` | 
-| Node.js | `v22.9.0` |
+| RobotStudio (engineering tool, used for I/O config) | `2026.2`, build `26.2.11700.0` *(unverified since 2026-07-07)* |
+| Node-RED | `5.0.0` (`npm ls -g node-red`) | 
+| Node.js | `v24.18.0` (`node --version`) |
 
 Full product/option breakdown (RobotOS, ASI, EGM/Multitasking licensing, etc.) is in the `abb-rws` skill's version-snapshot section — re-pull via `GET /rw/system` + `GET /rw/system/products` rather than trusting this table blind after any ABB software update.
 

@@ -125,7 +125,7 @@ RWS `/rw/panel/opmode` returns: `auto`, `manualreduced`, `manualfull`
 
 ## RWS Network Access (this project)
 
-- Default IP: `192.168.20.33`
+- IP drifts often (confirmed `192.168.1.103` as of 2026-07-16) — always check via `/robot-status`, never hardcode one
 - Port: 443 (HTTPS, self-signed cert — use `-k` with curl)
 - Auth: Basic (admin account) → cookie session (auto-refresh on 401)
 - See `/abb-rws` skill for full endpoint reference

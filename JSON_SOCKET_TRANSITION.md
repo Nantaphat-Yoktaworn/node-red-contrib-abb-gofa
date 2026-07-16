@@ -5,23 +5,24 @@ This document outlines the progress and objectives of transitioning the ABB GoFa
 ---
 
 ## 1. Core Goal
-* **Reshape All Node Outputs**: The final objective is to reshape the output of all individual Node-RED nodes so that they construct and pass JSON objects directly to `socketSend` (e.g., `{ cmd: 'ping' }` or `{ cmd: 'movej', val: [...] }`), instead of constructing and translating legacy string tokens. This allows us to retire the translation layer entirely in a future release.
+* **Reshape All Node Outputs**: Reshape the output of all individual Node-RED nodes so that they construct and pass JSON objects directly to `socketSend` (e.g., `{ cmd: 'ping' }` or `{ cmd: 'movej', val: [...] }`), instead of constructing and translating legacy string tokens. **Done as of §4 below** — the `translateToJSON()` string-token layer stays permanently, though, since it's what keeps raw telnet/curl commands (`MANUAL_CONTROL.md`) working; it just isn't in the hot path for any shipped node anymore.
 
 ---
 
-## 2. Current Status (Phase 1: Complete & Verified)
+## 2. Current Status: Both phases complete (re-verified 2026-07-16)
 * **Wire Protocol**: The RAPID server now handles incoming JSON structures and replies in JSON (e.g. `{"status":"ok","cmd":"ping"}`).
 * **Backward Compatibility**: 100% intact. An old Node-RED client sending string tokens will trigger the RAPID server's string parser fallback. A new Node-RED client connecting to an old RAPID server will automatically handle legacy string replies.
 * **Network Auto-Discovery**: Implemented and verified via RWS scanning.
+* **Phase 2 (node refactor, see §4 below)**: also done — every node listed there now calls
+  `socketSend()` with a structured object, confirmed by re-reading every file's current
+  `socketSend(` call sites. `translateToJSON()` in `gofa-robot.js` still exists and still
+  converts legacy string tokens for backward compatibility (raw curl/telnet per
+  `MANUAL_CONTROL.md`, and any external client), but no shipped node relies on it anymore.
 
-### How to Test / Run Diagnostics
-We created several utility scripts under the agent's brain directory (`C:\Users\anapa\.gemini\antigravity-cli\brain\<conv-id>\scratch\`) to automate common tasks:
-1. **Upload Module**: `node scratch/upload-module.js`
-   Reads `rapid/MainModule.mod`, patches the `SERVER_IP` constant to the target controller's IP (`192.168.20.14`), and uploads it to `$HOME/Programs/MainModule.mod`.
-2. **Reload & Restart**: `node scratch/reload-program.js`
-   Stops RAPID execution, loads/replaces the module in the `T_ROB1` task, resets the Program Pointer (PP) to `main()`, and starts RAPID execution.
-3. **Debug Socket**: `node scratch/debug-jog.js`
-   Sends a raw JSON command (e.g. `{"cmd":"jog","axis":"X","sgn":"+","val":20,"rot":false}`) directly to the robot's TCP socket on port `1025` and outputs the raw response.
+For the standalone testing scripts this doc originally referenced (which lived in an
+agent scratch directory, not this repo), use `check-status.js` and `mastership-test.js`
+in `node-red-contrib-abb-gofa/` instead — see the `/robot-status` and `/mastership-test`
+skills in `CLAUDE.md`.
 
 ---
 
@@ -33,48 +34,25 @@ We created several utility scripts under the agent's brain directory (`C:\Users\
 
 ---
 
-## 4. Phase 2 Roadmap (Refactoring Node-RED Nodes)
-Refactor the following files in `nodes/` that invoke `node.robot.socketSend(token)` to send structured JSON objects directly:
+## 4. Phase 2 (Refactoring Node-RED Nodes) — DONE, re-verified 2026-07-16
 
-1. **`gofa-ping.js`**
-   * *Current*: `socketSend('PING')`
-   * *Target*: `socketSend({ cmd: 'ping' })`
-2. **`gofa-stop-motion.js` & `gofa-stop-seq.js` & `gofa-leadthrough-enable.js` (now `gofa-leadthrough.js`)**
-   * *Current*: `socketSend('STOP')`
-   * *Target*: `socketSend({ cmd: 'stop' })`
-3. **`gofa-speed-set.js`**
-   * *Current*: `socketSend('SPEED' + speed)`
-   * *Target*: `socketSend({ cmd: 'speed', val: speed })`
-4. **`gofa-zone-set.js`**
-   * *Current*: `socketSend(cmd)` (where `cmd` is `ZONE<val>`)
-   * *Target*: `socketSend({ cmd: 'zone', val: zone })`
-5. **`gofa-rapid-var-read.js`**
-   * *Current*: `socketSend('GETVAR:' + variable)`
-   * *Target*: `socketSend({ cmd: 'getvar', name: variable })`
-6. **`gofa-rapid-var-write.js`**
-   * *Current*: `socketSend('SETVAR:' + variable + ':' + value)`
-   * *Target*: `socketSend({ cmd: 'setvar', name: variable, val: value })`
-7. **`gofa-egm.js`**
-   * *Current*: `socketSend('EGMJOINT')` / `socketSend('PING')`
-   * *Target*: `socketSend({ cmd: 'egmjoint' })` / `socketSend({ cmd: 'ping' })`
-8. **`gofa-jog.js`**
-   * *Current*: `socketSend(token)` (where `token` is `R?X|Y|Z[+-]val`)
-   * *Target*: `socketSend({ cmd: 'jog', axis: axis, sgn: sgn, val: val, rot: rot })`
-9. **`gofa-joint-jog.js`**
-   * *Current*: `socketSend(token)` (where `token` is `J[1-6][+-]val`)
-   * *Target*: `socketSend({ cmd: 'jointjog', joint: joint, sgn: sgn, val: val })`
-10. ~~**`gofa-move.js`**~~ — **Already done.** This file only ever handles `HOME`/`SETHOME`
-    (not `GOTOL`/`GOTOJ` — that logic lives in `gofa-go-point.js`/`gofa-robot.js`, see item
-    12) and already sends `socketSend({ cmd: cmd.toLowerCase() })` directly, matching
-    `MainModule.mod`'s existing `"home"`/`"sethome"` JSON cases. `gofa-do-write.js`'s
-    `setdo` transport is likewise already fully JSON (`{ cmd: 'setdo', name, val }`,
-    matching the `"setdo"` JSON case) and needs no work either.
-11. **`gofa-movej.js`**
-    * *Current*: `socketSend(cmd)` (where `cmd` is `MOVEJ...`)
-    * *Target*: `socketSend({ cmd: 'movej', val: jointsArray })`
-12. **`gofa-go-point.js` & `gofa-sequencer.js`**
-    * *Current*: Pass calculated token strings
-    * *Target*: Pass structured objects matching `gotoj`/`gotol`/`movej` schema.
-13. **`gofa-asi-led.js`**
-    * *Current*: `socketSend('SETLED:r;g;b;period')` / `socketSend('RESETLED')`
-    * *Target*: `socketSend({ cmd: 'setled', val: [r, g, b, period] })` / `socketSend({ cmd: 'resetled' })`
+Originally a roadmap; every item below was checked against the current file and confirmed
+already sending the structured object, not the legacy string token:
+
+1. **`gofa-ping.js`** — `socketSend({ cmd: 'ping' })` ✅
+2. **`gofa-stop-motion.js` / `gofa-stop-seq.js` / `gofa-leadthrough.js`** — `socketSend({ cmd: 'stop' })` ✅
+3. **`gofa-speed-set.js`** — `socketSend({ cmd: 'speed', val: speed })` ✅
+4. **`gofa-zone-set.js`** — `socketSend({ cmd: 'zone', val: zone })` ✅
+5. **`gofa-rapid-var-read.js`** — `socketSend({ cmd: 'getvar', name: variable })` ✅
+6. **`gofa-rapid-var-write.js`** — `socketSend({ cmd: 'setvar', name: variable, val: value })` ✅
+7. **`gofa-egm.js`** — `socketSend({ cmd: 'egmjoint' })` / `socketSend({ cmd: 'ping' })` ✅
+8. **`gofa-jog.js`** — `socketSend({ cmd: 'jog', axis, sgn, val, rot })` ✅
+9. **`gofa-joint-jog.js`** — `socketSend({ cmd: 'jointjog', joint, sgn, val })` ✅
+10. **`gofa-move.js`** — `socketSend({ cmd: cmd.toLowerCase() })` (`home`/`sethome`) ✅. `gofa-do-write.js`'s `setdo` transport is likewise `{ cmd: 'setdo', name, val }` ✅
+11. **`gofa-movej.js`** — `socketSend({ cmd: cmdName, val: jointsArray })` ✅
+12. **`gofa-go-point.js` / `gofa-sequencer.js`** — both pass `robot.gotoObj(...)`'s return value, a `{ cmd: 'gotoj'|'gotol', val: [...] }` object, straight into `socketSend` ✅
+13. **`gofa-asi-led.js`** — `socketSend({ cmd: 'setled', val: [r,g,b,period] })` / `socketSend({ cmd: 'resetled' })` ✅
+
+`translateToJSON()` in `gofa-robot.js` is kept — it's what lets raw legacy string tokens
+(`PING`, `GOTOJ...`) sent by hand (`MANUAL_CONTROL.md`, a naïve external client) keep working —
+but no node in this package constructs a legacy string token anymore.

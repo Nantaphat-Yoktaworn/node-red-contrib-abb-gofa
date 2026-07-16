@@ -39,7 +39,7 @@ if (!urlPath) {
 }
 
 var cfg = {
-    ip:         process.env.GOFA_IP         || '192.168.20.36',
+    ip:         process.env.GOFA_IP         || '192.168.1.103',
     rwsPort:    parseInt(process.env.GOFA_RWS_PORT)    || 443,
     socketPort: parseInt(process.env.GOFA_SOCKET_PORT) || 1025,
     username:   process.env.GOFA_USERNAME   || 'NNNN',

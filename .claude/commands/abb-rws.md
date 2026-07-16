@@ -34,7 +34,7 @@ a new RAPID socket command, a fix to how one is called — **always work in this
 
 1. **Look for the right command first.** Curl the RWS endpoint (or send the raw socket
    command, e.g. via a PowerShell `TcpClient` one-off) against the live controller
-   (`192.168.20.33`) before writing any node code. Confirm it exists, confirm the response
+   (check its current IP via `/robot-status` — it drifts, don't hardcode one) before writing any node code. Confirm it exists, confirm the response
    shape, confirm it behaves the way you're about to assume it does. Don't trust a
    remembered/documented path blindly — this OmniCore (RWS 2.0) controller diverges from the
    general RWS reference in several confirmed places (path-based vs query-based actions;
@@ -449,7 +449,7 @@ Returns: `204 No Content` on success, `403` if the signal's `Access` level doesn
 
 ## Notes for This Project
 
-- Controller IP: `192.168.20.33`, credentials: user `NNNN`, password in the `user-robot-credentials` live memory (not written in this public repo)
+- Controller IP: drifts often (confirmed `192.168.1.103` as of 2026-07-16) — always check via `/robot-status`, never hardcode one; credentials: user `NNNN`, password in the `user-robot-credentials` live memory (not written in this public repo)
 - `rejectUnauthorized: false` is set in all HTTPS requests (self-signed cert on controller)
 - The project uses Basic auth (not Digest) on first request, then cookie for subsequent requests
 - Cookie is stored in `robot._cookie` on the config node and cleared on 401
