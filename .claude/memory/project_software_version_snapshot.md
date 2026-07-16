@@ -9,6 +9,12 @@ metadata:
 
 Pulled live from the controller (`GET /rw/system` + `GET /rw/system/products`) rather than assumed, specifically to avoid repeating the RWS-1.0-vs-2.0 documentation mistake already made once in this project (see [[feedback-search-vendor-docs-before-confirmed-impossible]]).
 
+**Update 2026-07-16** ([[project_docs_audit_2026-07-16]]): Node.js and Node-RED below are
+stale — re-confirmed as `v24.18.0` and `5.0.0` respectively on the dev machine this pass.
+RobotWare/controller identity re-confirmed unchanged live. RobotOS/Robots/ASI/etc. sub-versions
+and RobotStudio not reverified this pass. Current authoritative values are in CLAUDE.md's
+"Software versions" section, not this frozen snapshot.
+
 | | |
 |---|---|
 | RobotWare (RobotControl) | `7.21.0+229` |

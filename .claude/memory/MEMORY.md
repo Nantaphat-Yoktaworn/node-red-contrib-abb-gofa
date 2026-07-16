@@ -3,7 +3,8 @@
 - [Public release](reference_public_release.md) — package is PUBLIC since 2026-07-08 (npm + flow library); release process and public-repo rules
 - [gofa-egm-python project](project_gofa_egm_python.md) — standalone EGM control project, working end-to-end; egm_minmax silent-clamp gotcha, firewall/UDPUC setup notes
 - [EGM Node-RED integration](project_egm_node_red_integration_plan.md) — IMPLEMENTED + published; split into gofa-egm (session) + gofa-egm-move (movement, fallback output), live-verified — no known open bugs
-- [Robot's current IP](project_robot_current_ip.md) — 192.168.1.103 as of 2026-07-15 (subnet changed too); always verify via /robot-status, don't trust the documented .36 default
+- [Robot's current IP](project_robot_current_ip.md) — 192.168.1.103, reconfirmed 2026-07-16; always verify via /robot-status, don't trust any documented default
+- [Docs audit 2026-07-16](project_docs_audit_2026-07-16.md) — full doc-vs-reality sync (commit d589a13): stale IP everywhere, stale Node.js/Node-RED versions, undocumented properties-panel feature, JSON_SOCKET_TRANSITION.md's roadmap was 100% already shipped
 - [Always ask before push or merge](feedback_always_ask_before_push_or_merge.md) — confirm with user before any git push/merge; check for remote divergence first, surface what changed if behind
 - [Output payload checkbox](project_output_payload_checkbox.md) — implemented + live-verified 2026-07-15 across all 42 nodes; gate.js design, wiring pattern, motion-test strategy
 - [gofa-setup + gofa-mod-edit nodes](project_setup_and_mod_edit_nodes.md) — BOTH live-verified 2026-07-15 incl. gofa-setup from a wiped first-run state (2.4s); opmode is UPPERCASE live (fixed); fileservice DELETE works
@@ -24,11 +25,11 @@ Older memories preserved only in this snapshot (pruned from live memory but stil
 - [Stop Node-RED before controller restart](feedback_stop_nodered_before_controller_restart.md) — leaked RWS sessions (no logout call) can lock out FlexPendant via the 19/70-session cap
 - [DSQC1030 Scalable I/O addressing](reference_dsqc1030_scalable_io_addressing.md) — no rotary switches; IP is software-set in RobotStudio, range 192.168.125.100-129
 - [Search vendor docs before "confirmed impossible"](feedback_search_vendor_docs_before_confirmed_impossible.md) — repeated identical 405s isn't proof; web-search ABB forums before declaring an RWS endpoint dead
-- [Software version snapshot](project_software_version_snapshot.md) — RobotWare 7.21.0+229, RWS 2.0, RobotStudio 2026.2 (26.2.11700.0), Node-RED 5.0.1, confirmed live 2026-07-07
+- [Software version snapshot](project_software_version_snapshot.md) — RobotWare 7.21.0+229, RWS 2.0, RobotStudio 2026.2 (26.2.11700.0), confirmed live 2026-07-07; Node.js/Node-RED corrected 2026-07-16 (see docs audit)
 - [OmniCore Ethernet Switch section](reference_omnicore_ethernet_switch_section.md) — separate 5-port (X1-X5) switch on back panel, distinct from WAN/LAN/MGMT; no RWS/RAPID API, not a node candidate
 - [Robot IP drift](reference_robot_ip_drift.md) — controller IP changes often (even twice in one day); always re-check via /robot-status, never trust a recorded IP
 - [StopMove \Quick unsupported](feedback_stopmove_quick_unsupported.md) — fails RAPID consistency check on this controller despite being in ABB's docs; use plain StopMove
 - [OmniCore AppStudio investigation](reference_omnicore_appstudio_investigation.md) — persistent FlexPendant dashboard ruled out for now, needs RobotStudio GUI step, not RWS-drivable
 - [IP discovery deferred](project_ip_discovery_deferred.md) — check-status.js IP auto-discovery: design sketched and deferred at the time; since built (check-status.js --discover, gofa-robot Discover button)
 
-Note: this robot's real RWS/admin credentials live only in local (non-repo) Claude memory — deliberately never copied here since this repo is public. (Snapshot last synced from live memory: 2026-07-16.)
+Note: this robot's real RWS/admin credentials live only in local (non-repo) Claude memory — deliberately never copied here since this repo is public. (Snapshot last synced from live memory: 2026-07-16, twice — once for general memory sync, once after the docs audit.)
