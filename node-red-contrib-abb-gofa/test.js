@@ -3326,6 +3326,33 @@ check('rapid modules: package copies are in sync with the repo-root source of tr
     });
 });
 
+// gate.js (nodes/lib/gate.js) strips msg.payload down to {_msgid} whenever a
+// node's Output payload checkbox is off — the right default for a user's own
+// flow, but wrong for THESE bundled example/demo flows, whose entire purpose
+// is showing a node's real output (debug sidebar, and — for
+// teach_workflow_flow.json — the flow's own switch/change routing logic,
+// which reads msg.payload.* directly). Confirmed live 2026-07-16: exactly
+// this bug (no node had it set) silently broke all three example flows —
+// nobody noticed until an unrelated audit found it (15ef5fa/566907a/
+// 99b870d). Checks both flows/ (source of truth) and the npm-shipped
+// examples/ copy, so a flow edit with a forgotten `node prepack.js` also
+// fails loudly instead of shipping stale.
+check('example flows: every gofa-* node instance has Output payload enabled', function() {
+    var dirs = [path.join(__dirname, '..', 'flows'), path.join(__dirname, 'examples')];
+    var problems = [];
+    dirs.forEach(function(dir) {
+        fs.readdirSync(dir).filter(function(f) { return f.endsWith('.json'); }).forEach(function(f) {
+            var flow = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+            flow.forEach(function(n) {
+                if (n.type && n.type.indexOf('gofa-') === 0 && n.type !== 'gofa-robot' && n.outputPayload !== true) {
+                    problems.push(path.basename(dir) + '/' + f + ': ' + (n.name || n.id) + ' (' + n.type + ')');
+                }
+            });
+        });
+    });
+    assert.deepStrictEqual(problems, [], 'nodes missing outputPayload:true — ' + problems.join('; '));
+});
+
 // ── gofa-setup ───────────────────────────────────────────────────────────────
 // Stateful fake robot: POSTs actually flip the state the next GET reports,
 // so the node's verify-by-polling logic runs for real.

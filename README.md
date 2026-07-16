@@ -37,7 +37,6 @@ rapid/
   MainModuleEGM.mod              ← Optional sibling: adds EGM streaming support (see EGM section)
 flows/
   gofa_demo_flow.json            ← Demo flow — one inject per node, includes the EGM module-load + streaming demo (see EGM section)
-  dashboard_flow.json            ← Full robot control palette flow
   teach_workflow_flow.json       ← Physical-button teach workflow (see below)
 MANUAL_CONTROL.md                ← Control the robot directly (curl / raw TCP), no Node-RED needed
 ```
@@ -111,7 +110,7 @@ find . -type f \( -name "*.js" -o -name "*.html" -o -name "*.json" -o -name "*.m
 | `node-red-contrib-abb-gofa/nodes/gofa-robot.js` | Default IP in the config node |
 | `node-red-contrib-abb-gofa/nodes/gofa-robot.html` | Placeholder in the UI |
 | `flows/gofa_demo_flow.json` | Stored IP in the demo flow config |
-| `flows/dashboard_flow.json` | Stored IP in the dashboard flow config |
+| `flows/teach_workflow_flow.json` | Stored IP in the teach workflow config |
 
 > **Why MainModule.mod?** The RAPID socket server explicitly binds to the controller's own IP address. If this doesn't match the actual IP, the socket server silently fails to start and all TCP commands will time out.
 
@@ -242,7 +241,6 @@ Click **Update** → **Deploy**.
 | Flow | What it does |
 |------|-------------|
 | `flows/gofa_demo_flow.json` | One inject per node — good for testing each feature; includes a "4 - EGM (UDP)" group that loads `MainModuleEGM.mod` and streams (see [EGM](#egm-externally-guided-motion)) |
-| `flows/dashboard_flow.json` | Full robot control palette flow |
 | `flows/teach_workflow_flow.json` | Physical-button teach workflow (see below) |
 
 After importing, open the **gofa-robot** config node (click any GoFa node → pencil icon) and verify the IP and credentials match your setup.

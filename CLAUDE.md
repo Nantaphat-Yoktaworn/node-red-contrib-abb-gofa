@@ -477,7 +477,6 @@ node-red-contrib-abb-gofa/mastership-test.js ← standalone mastership-gated RWS
 rapid/MainModule.mod               ← RAPID socket server (must run on controller)
 rapid/MainModuleEGM.mod            ← optional: MainModule.mod clone + EGM mode (gofa-egm), see EGM section
 flows/gofa_demo_flow.json          ← one inject per node, for testing
-flows/dashboard_flow.json          ← full robot control palette flow
 flows/teach_workflow_flow.json     ← physical ASI-button teach workflow (own tab/config, see README)
 MANUAL_CONTROL.md                  ← curl/raw-TCP command reference for controlling the robot without Node-RED
 .claude/commands/                  ← skills (/abb-rws, /omnicore-c30, /crb15000, /robot-status, /mastership-test)
@@ -492,6 +491,21 @@ means one-click setup installs outdated RAPID code on a dev/git install (prepack
 re-syncs at `npm pack`/publish time, not on commit). After editing any root `rapid/*.mod`, copy
 it to `node-red-contrib-abb-gofa/rapid/` (or run `node prepack.js` from the package dir).
 Enforced: `test.js` has a byte-for-byte drift check that fails the suite if the copies differ.
+
+**`flows/dashboard_flow.json` removed from `main` (2026-07-16), lives only on the local
+`feature/mobile-pwa-dashboard` branch — not pushed to GitHub.** That branch's commit 99b870d
+did two things in one: (1) the same `outputPayload`/stale-IP/stale-version fix already applied
+to the teach/demo flows, and (2) a new second tab adding a phone-friendly PWA control panel
+built on `@flowfuse/node-red-dashboard` ("Dashboard 2.0"). The `ui-*` widget schemas were
+verified against Dashboard 2.0's real source (not memory) but never actually imported into a
+live Node-RED + Dashboard 2.0 instance — no such instance exists in this dev environment. Once
+`test.js` gained a check requiring every `flows/*.json` example to have `outputPayload` set
+correctly (added 2026-07-16, same day), keeping the *fixed-but-not-PWA* version of
+`dashboard_flow.json` on `main` while the *fixed-with-PWA* version sat on the branch would have
+meant permanently maintaining two diverging copies of the same file. Simplest resolution:
+pulled the file off `main` entirely rather than let it drift; it comes back (fixed, with or
+without the PWA tab) once the branch's Dashboard 2.0 widgets are actually import-tested. Full
+history: [[project_mobile_pwa_dashboard_branch]] memory.
 
 **On continuity across machines**: this project's Claude Code memory (hard-won lessons, decisions,
 live-test history) normally lives outside the repo, keyed to the local clone's working-directory
