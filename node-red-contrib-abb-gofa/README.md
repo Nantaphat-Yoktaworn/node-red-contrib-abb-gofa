@@ -11,6 +11,7 @@ Developed and live-tested against a GoFa 12 (CRB 15000-12/1.27) on an OmniCore C
 - The software **STOP** command and Node-RED itself are *not* safety functions. The robot's own safety controller, reduced-speed collaborative limits, and the physical emergency stop are the only real safety layer. Never rely on a flow to keep people safe.
 - The RAPID socket server (port 1025) accepts motion commands from **anyone who can reach the robot's IP — there is no authentication on that port**. Run the robot on an isolated or firewalled network segment. The same goes for RWS credentials sent over HTTPS with certificate checking disabled (the controller uses a self-signed certificate).
 - Jog/rotate step limits (50 mm / 30°) are enforced in the RAPID module, not in Node-RED — if you edit `MainModule.mod`, keep them.
+- Since 2.2.0 the node property panels have live-action buttons (jog, move, motors on/off, …) backed by Node-RED admin HTTP endpoints. The browser confirmation dialogs are convenience only — anyone who can reach the Node-RED editor port can trigger these actions with a plain HTTP request. Configure [`adminAuth`](https://nodered.org/docs/user-guide/runtime/securing-node-red) on any Node-RED instance controlling a real robot.
 
 ## How it works
 

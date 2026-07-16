@@ -78,7 +78,7 @@
             $('#gofa-do-set-high').on('click', function(e) { e.preventDefault(); writeDo(1); });
             $('#gofa-do-set-low').on('click', function(e) { e.preventDefault(); writeDo(0); });
             
-            $('#node-input-signal').on('change input', function() {
+            $('#node-input-signal').on('change', function() {
                 updateState();
             });
             // Initial load

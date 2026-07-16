@@ -71,8 +71,9 @@
                         if (action === 'download') {
                             var snippet = data.preview || '';
                             if (snippet.length > 500) snippet = snippet.slice(0, 500) + '...';
+                            var savedMsg = data.localPath ? ' (saved locally to ' + data.localPath + ')' : ' (preview only — set Local path to save)';
                             $('#gofa-file-result').html(
-                                '<div><b>Downloaded:</b> ' + data.bytes + ' bytes (saved locally to ' + data.localPath + ')</div>' +
+                                '<div><b>Downloaded:</b> ' + data.bytes + ' bytes' + savedMsg + '</div>' +
                                 '<pre style="margin-top: 5px; font-size: 11px; max-height: 150px; overflow: auto; background: white; padding: 5px; border: 1px solid #ccc; font-family: monospace;">' +
                                 $('<div/>').text(snippet).html() + '</pre>'
                             );

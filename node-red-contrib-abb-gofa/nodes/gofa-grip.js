@@ -62,6 +62,9 @@ module.exports = function(RED) {
         .then(function(body) {
             var raw = robot.parseXhtml(body, 'lvalue');
             var value = parseInt(raw);
+            if (isNaN(value)) {
+                throw new Error('Could not parse lvalue from response');
+            }
             res.json({ ok: true, signal: signal, value: value });
         }).catch(function(err) {
             res.status(502).json({ error: err.message });

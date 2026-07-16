@@ -21,7 +21,7 @@ module.exports = function(RED) {
 
     RED.httpAdmin.post('/gofa-stop-seq/:id/stop', RED.auth.needsPermission('gofa-stop-seq.write'), function(req, res) {
         var robot = RED.nodes.getNode(req.params.id);
-        if (!robot) {
+        if (!robot || typeof robot.socketSend !== 'function') {
             return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
         }
         robot._seqStop = true;

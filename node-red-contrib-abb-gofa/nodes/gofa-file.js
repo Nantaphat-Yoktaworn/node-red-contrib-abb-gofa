@@ -1,7 +1,6 @@
 'use strict';
 var gate = require('./lib/gate');
 const fs = require('fs');
-const path = require('path');
 var patchServerIp = require('./lib/patch-server-ip');
 
 module.exports = function(RED) {
@@ -58,29 +57,28 @@ module.exports = function(RED) {
                         ? res.body.toString('base64')
                         : res.body.toString('utf8');
 
+                    // Only save to disk when a local path was explicitly given —
+                    // a bare download stays in msg.payload.content.
                     var finalLocalPath = localPath || '';
                     if (msg.payload && typeof msg.payload === 'object' && msg.payload.localPath) {
                         finalLocalPath = msg.payload.localPath;
                     }
-                    if (!finalLocalPath) {
-                        var baseName = remotePath.split('/').pop() || 'downloaded_file';
-                        finalLocalPath = path.join(process.cwd(), baseName);
-                    }
-
-                    try {
-                        fs.writeFileSync(finalLocalPath, res.body);
-                    } catch(e) {
-                        throw new Error('Failed to save file locally at ' + finalLocalPath + ': ' + e.message);
+                    if (finalLocalPath) {
+                        try {
+                            fs.writeFileSync(finalLocalPath, res.body);
+                        } catch(e) {
+                            throw new Error('Failed to save file locally at ' + finalLocalPath + ': ' + e.message);
+                        }
                     }
 
                     msg.payload = {
                         ok: true,
                         remotePath: remotePath,
-                        localPath: finalLocalPath,
+                        localPath: finalLocalPath || null,
                         content: content,
                         bytes: res.body.length
                     };
-                    node.status({ fill: 'green', shape: 'dot', text: res.body.length + ' bytes saved' });
+                    node.status({ fill: 'green', shape: 'dot', text: res.body.length + ' bytes' + (finalLocalPath ? ' saved' : '') });
                     send(msg); done();
                 })
                 .catch(function(err) {
@@ -220,19 +218,16 @@ module.exports = function(RED) {
                     ? result.body.toString('base64')
                     : result.body.toString('utf8');
 
-                var finalLocalPath = localPath || '';
-                if (!finalLocalPath) {
-                    var baseName = remotePath.split('/').pop() || 'downloaded_file';
-                    finalLocalPath = path.join(process.cwd(), baseName);
+                // Only save to disk when a local path was explicitly given.
+                if (localPath) {
+                    try {
+                        fs.writeFileSync(localPath, result.body);
+                    } catch(e) {
+                        throw new Error('Failed to save file locally at ' + localPath + ': ' + e.message);
+                    }
                 }
 
-                try {
-                    fs.writeFileSync(finalLocalPath, result.body);
-                } catch(e) {
-                    throw new Error('Failed to save file locally at ' + finalLocalPath + ': ' + e.message);
-                }
-
-                res.json({ ok: true, remotePath: remotePath, localPath: finalLocalPath, bytes: result.body.length, preview: content.slice(0, 1000) });
+                res.json({ ok: true, remotePath: remotePath, localPath: localPath || null, bytes: result.body.length, preview: content.slice(0, 1000) });
             })
             .catch(function(err) {
                 res.status(502).json({ error: err.message });

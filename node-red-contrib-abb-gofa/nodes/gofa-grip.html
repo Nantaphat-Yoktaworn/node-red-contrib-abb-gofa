@@ -76,7 +76,7 @@
             $('#gofa-grip-close').on('click', function(e) { e.preventDefault(); triggerGrip('on'); });
             $('#gofa-grip-open').on('click', function(e) { e.preventDefault(); triggerGrip('off'); });
             
-            $('#node-input-signal').on('change input', function() {
+            $('#node-input-signal').on('change', function() {
                 updateState();
             });
             // Initial load

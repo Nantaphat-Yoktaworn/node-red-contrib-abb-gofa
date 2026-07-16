@@ -141,8 +141,8 @@ module.exports = function(RED) {
 
     RED.httpAdmin.post('/gofa-sequencer/:id/stop', RED.auth.needsPermission('gofa-sequencer.write'), function(req, res) {
         var robot = RED.nodes.getNode(req.params.id);
-        if (!robot) {
-            return res.status(400).json({ error: 'Robot config node not found' });
+        if (!robot || typeof robot.socketSend !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
         }
         robot._seqStop = true;
         robot.socketSend({ cmd: 'stop' }).then(function() {
@@ -154,7 +154,7 @@ module.exports = function(RED) {
 
     RED.httpAdmin.post('/gofa-sequencer/:id/start', RED.auth.needsPermission('gofa-sequencer.write'), function(req, res) {
         var robot = RED.nodes.getNode(req.params.id);
-        if (!robot) {
+        if (!robot || typeof robot.socketSend !== 'function') {
             return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
         }
         if (robot._seqRunning) {
@@ -221,8 +221,12 @@ module.exports = function(RED) {
                 var stepDwell = (c.dwell != null) ? c.dwell : dwell;
 
                 robot.socketSend(c.obj).then(function(ack) {
+                    if (!ack.startsWith('OK:')) {
+                        robot.warn('gofa-sequencer panel: step ' + (idx + 1) + ' (' + c.name + ') got: ' + ack);
+                    }
                     setTimeout(function() { runStep(idx + 1); }, stepDwell);
                 }).catch(function(err) {
+                    robot.warn('gofa-sequencer panel: sequence aborted at step ' + (idx + 1) + ' (' + c.name + '): ' + err.message);
                     robot._seqRunning = false;
                 });
             }

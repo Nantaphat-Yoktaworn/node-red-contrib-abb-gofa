@@ -253,6 +253,32 @@ module.exports = function(RED) {
         }
 
         var rv = result.r, gv = result.g, bv = result.b;
+        var blinkCount = Math.max(0, parseInt(req.body.blinkCount) || 0);
+        var blinkMs    = Math.max(50, parseInt(req.body.blinkMs) || 250);
+
+        if (blinkCount > 0 && (rv || gv || bv)) {
+            // Software counted blink, same behavior as the runtime node; a newer
+            // panel click supersedes an in-flight one via the session counter.
+            var session = robot._ledPanelBlink = (robot._ledPanelBlink || 0) + 1;
+            var remaining = blinkCount;
+            var wait = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
+            var blinkOnce = function() {
+                if (robot._ledPanelBlink !== session) return Promise.resolve();
+                if (remaining <= 0) return robot.socketSend({ cmd: 'setled', val: [0, 0, 0, 0] });
+                remaining--;
+                return robot.socketSend({ cmd: 'setled', val: [rv, gv, bv, 0] })
+                    .then(function() { return wait(blinkMs); })
+                    .then(function() { return robot.socketSend({ cmd: 'setled', val: [0, 0, 0, 0] }); })
+                    .then(function() { return wait(blinkMs); })
+                    .then(blinkOnce);
+            };
+            blinkOnce().then(function() {
+                res.json({ ok: true, r: rv, g: gv, b: bv, blinks: blinkCount });
+            }).catch(function(err) {
+                res.status(502).json({ error: err.message });
+            });
+            return;
+        }
 
         robot.socketSend({ cmd: 'setled', val: [rv, gv, bv, result.period] })
         .then(function(ack) {
