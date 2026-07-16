@@ -1471,7 +1471,7 @@ await checkAsync('gofa-subscribe-elog: subscribe POST resolves after close() doe
     assert.strictEqual(deleteCalls[0], '/subscription/abc');
 });
 await checkAsync('gofa-subscribe-elog: fetchAndEmit resolves after close() does not send message', async function() {
-    var origWs = require.cache[require.resolve('ws')];
+    var origWs = require.cache[require.resolve('./nodes/lib/ws')];
     var EventEmitter = require('events');
     function MockWS(url, protocols, options) {
         EventEmitter.call(this);
@@ -1479,7 +1479,7 @@ await checkAsync('gofa-subscribe-elog: fetchAndEmit resolves after close() does 
     }
     require('util').inherits(MockWS, EventEmitter);
     MockWS.prototype.terminate = function() {};
-    require.cache[require.resolve('ws')] = { exports: MockWS };
+    require.cache[require.resolve('./nodes/lib/ws')] = { exports: MockWS };
     delete require.cache[require.resolve('./nodes/gofa-subscribe-elog')];
 
     var resolveGet;
@@ -1516,7 +1516,7 @@ await checkAsync('gofa-subscribe-elog: fetchAndEmit resolves after close() does 
 
     assert.strictEqual(node.sent.length, 0, 'no message should be sent from closed node');
 
-    require.cache[require.resolve('ws')] = origWs;
+    require.cache[require.resolve('./nodes/lib/ws')] = origWs;
     delete require.cache[require.resolve('./nodes/gofa-subscribe-elog')];
 });
 check('gofa-subscribe-elog: parseEntry reads fields from both the list-item and single-entry XHTML shapes', function() {

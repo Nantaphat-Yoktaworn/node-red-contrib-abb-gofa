@@ -1,6 +1,6 @@
 'use strict';
 var gate = require('./lib/gate');
-var WS = require('ws');
+var WS = require('./lib/ws');
 
 function meetsSeverity(entry, minSeverity) {
     return !!entry && parseInt(entry.msgtype) >= minSeverity;

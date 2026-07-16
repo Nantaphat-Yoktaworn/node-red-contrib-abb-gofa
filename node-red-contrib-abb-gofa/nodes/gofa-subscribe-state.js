@@ -1,6 +1,6 @@
 'use strict';
 var gate = require('./lib/gate');
-var WS = require('ws');
+var WS = require('./lib/ws');
 
 module.exports = function(RED) {
     function GoFaSubscribeStateNode(config) {
