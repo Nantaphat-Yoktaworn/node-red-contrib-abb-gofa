@@ -1268,12 +1268,20 @@ await checkAsync('gofa-file: reads a file via robot.requestRaw, not private robo
     var node = new (loadNodeType('./nodes/gofa-file', { nodesById: { r1: mockRobot } }))(
         { robot: 'r1', remotePath: '$HOME/Programs/MainModule.mod', encoding: 'utf8' });
     var msg = {};
-    await runInput(node, msg);
-    assert.strictEqual(msg.payload.ok, true);
-    assert.strictEqual(msg.payload.content, 'MODULE Foo\nENDMODULE\n');
-    assert.strictEqual(calls.length, 1);
-    assert.strictEqual(calls[0].method, 'GET');
-    assert.strictEqual(calls[0].path, '/fileservice/$HOME/Programs/MainModule.mod');
+    try {
+        await runInput(node, msg);
+        assert.strictEqual(msg.payload.ok, true);
+        assert.strictEqual(msg.payload.content, 'MODULE Foo\nENDMODULE\n');
+        assert.strictEqual(calls.length, 1);
+        assert.strictEqual(calls[0].method, 'GET');
+        assert.strictEqual(calls[0].path, '/fileservice/$HOME/Programs/MainModule.mod');
+    } finally {
+        try {
+            if (fs.existsSync('MainModule.mod')) {
+                fs.unlinkSync('MainModule.mod');
+            }
+        } catch(e) {}
+    }
 });
 await checkAsync('gofa-file: reports failure on a non-2xx status', async function() {
     var mockRobot = { requestRaw: function() { return Promise.resolve({ statusCode: 404, headers: {}, body: Buffer.from('') }); } };

@@ -10,7 +10,47 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || this.variable || 'RAPID Var Write'; },
-        paletteLabel: 'RAPID Var Write'
+        paletteLabel: 'RAPID Var Write',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function writeVariable() {
+                var id = robotId();
+                var variable = $('#node-input-variable').val() || '';
+                var value = $('#node-input-value').val();
+                
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+                if (!variable) return RED.notify('Enter a variable name first', 'warning');
+
+                var btn = $('#gofa-var-write-btn').prop('disabled', true);
+                RED.notify('Sending SETVAR to robot...', 'info');
+
+                $.ajax({
+                    url: 'gofa-rapid-var-write/' + id + '/write',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ variable: variable, value: value })
+                })
+                    .done(function(data) {
+                        RED.notify('Variable "' + data.variable + '" successfully written with "' + data.value + '"', 'success');
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to write variable';
+                        RED.notify(err, 'error');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+
+            $('#gofa-var-write-btn').on('click', function(e) {
+                e.preventDefault();
+                writeVariable();
+            });
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-rapid-var-write">
@@ -25,6 +65,9 @@
     <div class="form-row">
         <label for="node-input-value"><i class="fa fa-tag"></i> Value</label>
         <input type="text" id="node-input-value" placeholder="0">
+    </div>
+    <div class="form-row">
+        <button id="gofa-var-write-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-pencil"></i> Write Variable Now</button>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

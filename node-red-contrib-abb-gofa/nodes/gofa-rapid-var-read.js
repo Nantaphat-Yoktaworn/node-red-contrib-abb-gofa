@@ -93,4 +93,71 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-rapid-var-read', GoFaRapidVarReadNode);
+
+    RED.httpAdmin.get('/gofa-rapid-var-read/:id/read', RED.auth.needsPermission('gofa-rapid-var-read.read'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot) {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var task = req.query.task || 'T_ROB1';
+        var moduleName = req.query.module || 'MainModule';
+        var variable = req.query.variable;
+
+        if (!variable) {
+            return res.status(400).json({ error: 'No variable name specified' });
+        }
+
+        if (typeof robot.socketSend !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+
+        robot.socketSend({ cmd: 'getvar', name: variable })
+        .then(function(reply) {
+            if (reply.startsWith('VAL:')) {
+                var rawVal = reply.slice(4);
+                var numVal = parseFloat(rawVal);
+                var value = isNaN(numVal) ? rawVal : numVal;
+                res.json({ ok: true, variable: variable, value: value, source: 'socket' });
+            } else {
+                throw new Error(reply);
+            }
+        })
+        .catch(function(err) {
+            if (err && err.message && err.message.startsWith('ERR:')) {
+                var textPath = '/rw/rapid/tasks/' +
+                    encodeURIComponent(task) + '/modules/' +
+                    encodeURIComponent(moduleName) + '/text';
+
+                robot.rwsGet(textPath)
+                .then(function(metaBody) {
+                    var filePath = robot.parseXhtml(metaBody, 'file-path');
+                    if (!filePath) throw new Error('Cannot locate module source for ' + moduleName);
+                    return robot.rwsGet('/fileservice/' + filePath);
+                })
+                .then(function(src) {
+                    var esc = variable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    var re  = new RegExp('\\b' + esc + '\\s*:=\\s*([^;]+);', 'i');
+                    var m   = src.match(re);
+                    if (!m) {
+                        throw new Error('Variable ' + variable + ' not found in module ' + moduleName +
+                            ' — add it to the GETVAR handler in MainModule.mod for live value access');
+                    }
+                    var value = m[1].trim().replace(/^"(.*)"$/, '$1');
+                    res.json({
+                        ok: true,
+                        variable: variable,
+                        value: value,
+                        source: 'module-text',
+                        stale: true,
+                        warning: 'value is the compiled/declared value, not necessarily the live current value'
+                    });
+                })
+                .catch(function(err2) {
+                    res.status(502).json({ error: err2.message });
+                });
+            } else {
+                res.status(502).json({ error: err.message || 'Unknown error' });
+            }
+        });
+    });
 };

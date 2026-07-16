@@ -20,7 +20,7 @@
             function loadPoints(robotId) {
                 var sel = $('#node-input-pointName').empty()
                     .append($('<option value="">-- select point --</option>'));
-                if (!robotId) return;
+                if (!robotId || robotId === '_ADD_') return;
                 $.getJSON(endpoint(robotId), function(pts) {
                     pts.forEach(function(p) {
                         sel.append($('<option>').val(p.name).text(p.name));
@@ -31,6 +31,40 @@
             loadPoints(node.robot);
             $('#node-input-robot').change(function() { loadPoints($(this).val()); });
             $('#node-input-storage').change(function() { loadPoints($('#node-input-robot').val()); });
+
+            function deletePoint() {
+                var id = $('#node-input-robot').val();
+                var ptName = $('#node-input-pointName').val();
+                var storage = $('#node-input-storage').val() || 'local';
+                if (!id || id === '_ADD_') return RED.notify('Select (and deploy) a robot config first', 'warning');
+                if (!ptName) return RED.notify('Select a point first', 'warning');
+
+                var btn = $('#gofa-delete-point-btn').prop('disabled', true);
+                RED.notify('Deleting point...', 'info');
+
+                $.ajax({
+                    url: 'gofa-delete-point/' + id + '/delete',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ pointName: ptName, storage: storage })
+                })
+                    .done(function(data) {
+                        RED.notify('Point "' + data.deleted.name + '" deleted successfully!', 'success');
+                        loadPoints(id);
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to delete point';
+                        RED.notify(err, 'error');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+
+            $('#gofa-delete-point-btn').on('click', function(e) {
+                e.preventDefault();
+                deletePoint();
+            });
         }
     });
 </script>
@@ -49,6 +83,9 @@
     <div class="form-row">
         <label for="node-input-pointName"><i class="fa fa-trash"></i> Point</label>
         <select id="node-input-pointName" style="width:70%"></select>
+    </div>
+    <div class="form-row">
+        <button id="gofa-delete-point-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-trash"></i> Delete Selected Point Now</button>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

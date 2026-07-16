@@ -39,4 +39,23 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-pose', GoFaPoseNode);
+
+    RED.httpAdmin.get('/gofa-pose/:id/read', RED.auth.needsPermission('gofa-pose.read'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsGet !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        robot.rwsGet('/rw/motionsystem/mechunits/ROB_1/robtarget?tool=tool0&wobj=wobj0&coordinate=Base')
+        .then(function(body) {
+            var p = function(c) { return parseFloat(robot.parseXhtml(body, c)); };
+            res.json({
+                ok: true,
+                x: p('x'), y: p('y'), z: p('z'),
+                q1: p('q1'), q2: p('q2'), q3: p('q3'), q4: p('q4'),
+                cf1: p('cf1'), cf4: p('cf4'), cf6: p('cf6'), cfx: p('cfx')
+            });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

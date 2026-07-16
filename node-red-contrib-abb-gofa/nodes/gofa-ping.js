@@ -28,4 +28,19 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-ping', GoFaPingNode);
+
+    RED.httpAdmin.get('/gofa-ping/:id/read', RED.auth.needsPermission('gofa-ping.read'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.socketSend !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var t0 = Date.now();
+        robot.socketSend({ cmd: 'ping' }).then(function(resp) {
+            if (!resp.startsWith('OK:')) throw new Error('Robot error: ' + resp);
+            var rtt = Date.now() - t0;
+            res.json({ ok: true, rtt: rtt });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

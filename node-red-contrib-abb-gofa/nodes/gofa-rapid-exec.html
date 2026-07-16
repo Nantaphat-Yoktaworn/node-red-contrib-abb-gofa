@@ -26,6 +26,74 @@
             }
             $('#node-input-action').on('change', toggleFields);
             toggleFields();
+
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function updateState() {
+                var id = robotId();
+                if (!id) {
+                    $('#gofa-rapid-status').html('<span style="color: var(--red-ui-text-color-error, #f00);">Select (and deploy) a robot config first</span>');
+                    return;
+                }
+                $.getJSON('gofa-rapid-exec/' + id + '/read')
+                    .done(function(data) {
+                        var stateColor = data.execstate === 'running' ? '#5cb85c' : '#d9534f';
+                        var motorColor = data.ctrlstate === 'motoron' ? '#5cb85c' : '#d9534f';
+                        var html = 'RAPID State: <span style="font-weight: bold; color: ' + stateColor + ';">' + data.execstate + '</span> | ' +
+                            'Motors: <span style="font-weight: bold; color: ' + motorColor + ';">' + (data.ctrlstate === 'motoron' ? 'ON' : 'OFF') + '</span>';
+                        $('#gofa-rapid-status').html(html);
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to read status';
+                        $('#gofa-rapid-status').html('<span style="color: var(--red-ui-text-color-error, #f00);">' + err + '</span>');
+                    });
+            }
+            function executeAction(act) {
+                var id = robotId();
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+                var task = $('#node-input-task').val() || 'T_ROB1';
+                var modulePath = $('#node-input-modulePath').val() || '$HOME/Programs/MainModule.mod';
+                var replace = $('#node-input-replace').is(':checked');
+                var module = $('#node-input-module').val() || 'MainModule';
+
+                var btn = $('#gofa-rapid-btn-' + act).prop('disabled', true);
+                RED.notify('Sending action "' + act + '" to robot...', 'info');
+                $.ajax({
+                    url: 'gofa-rapid-exec/' + id + '/action',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ action: act, task: task, modulePath: modulePath, replace: replace, module: module })
+                })
+                    .done(function(data) {
+                        RED.notify('Action "' + act + '" executed successfully!', 'success');
+                        updateState();
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Action failed';
+                        RED.notify(err, 'error');
+                        updateState();
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+
+            // Wire buttons
+            $('#gofa-rapid-btn-start').on('click', function(e) { e.preventDefault(); executeAction('start'); });
+            $('#gofa-rapid-btn-stop').on('click', function(e) { e.preventDefault(); executeAction('stop'); });
+            $('#gofa-rapid-btn-resetpp').on('click', function(e) { e.preventDefault(); executeAction('resetpp'); });
+            
+            $('#gofa-rapid-btn-configured').on('click', function(e) { 
+                e.preventDefault(); 
+                var act = $('#node-input-action').val();
+                executeAction(act); 
+            });
+
+            // Initial load
+            updateState();
         }
     });
 </script>
@@ -63,6 +131,16 @@
             <label for="node-input-module"><i class="fa fa-cube"></i> Module</label>
             <input type="text" id="node-input-module" placeholder="MainModule">
         </div>
+    </div>
+    <div class="form-row" style="display: flex; align-items: center; justify-content: space-between;">
+        <label style="margin-bottom: 0;"><i class="fa fa-info-circle"></i> Exec Status</label>
+        <span id="gofa-rapid-status">Select a robot to load state.</span>
+    </div>
+    <div class="form-row" style="display: flex; gap: 4px; flex-wrap: wrap;">
+        <button id="gofa-rapid-btn-start" class="editor-button" style="flex-grow: 1; min-width: 80px;"><i class="fa fa-play"></i> Start</button>
+        <button id="gofa-rapid-btn-stop" class="editor-button" style="flex-grow: 1; min-width: 80px;"><i class="fa fa-stop"></i> Stop</button>
+        <button id="gofa-rapid-btn-resetpp" class="editor-button" style="flex-grow: 1; min-width: 80px;"><i class="fa fa-refresh"></i> Reset PP</button>
+        <button id="gofa-rapid-btn-configured" class="editor-button" style="flex-grow: 2; min-width: 120px; font-weight: bold;"><i class="fa fa-cog"></i> Run Configured Action</button>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

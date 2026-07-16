@@ -5,13 +5,61 @@
             outputPayload: { value: false }, name: { value:'' }, robot: { value:'', type:'gofa-robot', required:true } },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'Robot Status'; },
-        paletteLabel: 'Robot Status'
+        paletteLabel: 'Robot Status',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function updateStatus() {
+                var id = robotId();
+                if (!id) {
+                    $('#gofa-status-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">Select (and deploy) a robot config first</span>');
+                    return;
+                }
+                var btn = $('#gofa-status-fetch').prop('disabled', true);
+                $('#gofa-status-result').html('<i class="fa fa-spinner fa-spin"></i> Fetching...');
+                $.getJSON('gofa-status/' + id + '/read')
+                    .done(function(data) {
+                        var html = '<table class="red-ui-info-table" style="width: 100%; border-collapse: collapse;">' +
+                            '<tr><td style="font-weight: bold; padding: 4px; width: 40%;">Control State</td><td style="padding: 4px;">' + data.ctrlstate + '</td></tr>' +
+                            '<tr><td style="font-weight: bold; padding: 4px;">Operation Mode</td><td style="padding: 4px;">' + data.opmode + '</td></tr>' +
+                            '<tr><td style="font-weight: bold; padding: 4px;">Speed Ratio</td><td style="padding: 4px;">' + data.speed + '%</td></tr>' +
+                            '<tr><td style="font-weight: bold; padding: 4px;">RAPID Execution</td><td style="padding: 4px;">' + data.rapid + '</td></tr>' +
+                            '</table>';
+                        $('#gofa-status-result').html(html);
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to fetch status';
+                        $('#gofa-status-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">' + err + '</span>');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+            $('#gofa-status-fetch').on('click', function(e) {
+                e.preventDefault();
+                updateStatus();
+            });
+            // Initial load
+            updateStatus();
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-status">
     <div class="form-row">
         <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
         <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row" style="display: flex; align-items: center; justify-content: space-between;">
+        <label style="margin-bottom: 0;"><i class="fa fa-info-circle"></i> Live Status</label>
+        <button id="gofa-status-fetch" class="editor-button" style="width: auto;"><i class="fa fa-refresh"></i> Fetch Status</button>
+    </div>
+    <div class="form-row">
+        <div id="gofa-status-result" style="background: var(--red-ui-tertiary-background, #f3f3f3); padding: 10px; border: 1px solid var(--red-ui-form-input-border, #ccc); border-radius: 4px; min-height: 50px;">
+            Select a robot and click Fetch Status.
+        </div>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

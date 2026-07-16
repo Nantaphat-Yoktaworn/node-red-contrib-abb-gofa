@@ -38,4 +38,26 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-di-read', GoFaDiReadNode);
+
+    RED.httpAdmin.get('/gofa-di-read/:id/read', RED.auth.needsPermission('gofa-di-read.read'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsGet !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var signal = req.query.signal;
+        if (!signal) {
+            return res.status(400).json({ error: 'Missing signal name' });
+        }
+        robot.rwsGet('/rw/iosystem/signals/' + encodeURIComponent(signal))
+        .then(function(body) {
+            var raw = robot.parseXhtml(body, 'lvalue');
+            var value = parseInt(raw);
+            if (isNaN(value)) {
+                throw new Error('Could not parse lvalue from response');
+            }
+            res.json({ ok: true, signal: signal, value: value });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

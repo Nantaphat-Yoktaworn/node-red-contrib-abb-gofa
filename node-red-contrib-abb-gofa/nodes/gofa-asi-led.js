@@ -222,6 +222,46 @@ module.exports = function(RED) {
     }
 
     RED.nodes.registerType('gofa-asi-led', GoFaAsiLedNode);
+
+    RED.httpAdmin.post('/gofa-asi-led/:id/set', RED.auth.needsPermission('gofa-asi-led.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.socketSend !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var payload = req.body.payload;
+
+        if (payload === 'reset' || (payload && payload.action === 'reset')) {
+            robot.socketSend({ cmd: 'resetled' }).then(function(ack) {
+                if (!ack.startsWith('OK:')) throw new Error('Unexpected reply: ' + ack);
+                res.json({ ok: true, reset: true });
+            }).catch(function(err) {
+                res.status(502).json({ error: err.message });
+            });
+            return;
+        }
+
+        var defaults = {
+            r: parseInt(req.body.red) || 0,
+            g: parseInt(req.body.green) || 0,
+            b: parseInt(req.body.blue) || 0,
+            period: parseInt(req.body.period) || 0
+        };
+
+        var result = resolvePayload(defaults, payload);
+        if (result.error) {
+            return res.status(400).json({ error: result.error });
+        }
+
+        var rv = result.r, gv = result.g, bv = result.b;
+
+        robot.socketSend({ cmd: 'setled', val: [rv, gv, bv, result.period] })
+        .then(function(ack) {
+            if (!ack.startsWith('OK:')) throw new Error('Unexpected reply: ' + ack);
+            res.json({ ok: true, r: rv, g: gv, b: bv, period: result.period });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };
 
 module.exports.PRESETS        = PRESETS;

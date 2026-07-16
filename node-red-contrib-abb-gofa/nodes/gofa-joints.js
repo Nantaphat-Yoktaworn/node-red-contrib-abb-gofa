@@ -35,4 +35,22 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-joints', GoFaJointsNode);
+
+    RED.httpAdmin.get('/gofa-joints/:id/read', RED.auth.needsPermission('gofa-joints.read'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsGet !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        robot.rwsGet('/rw/motionsystem/mechunits/ROB_1/jointtarget')
+        .then(function(body) {
+            var p = function(c) { return parseFloat(robot.parseXhtml(body, c)); };
+            res.json({
+                ok: true,
+                j1: p('rax_1'), j2: p('rax_2'), j3: p('rax_3'),
+                j4: p('rax_4'), j5: p('rax_5'), j6: p('rax_6')
+            });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

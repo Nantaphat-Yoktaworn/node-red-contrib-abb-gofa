@@ -9,7 +9,52 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || this.command || 'Move'; },
-        paletteLabel: 'Move Home'
+        paletteLabel: 'Move Home',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function runAction() {
+                var id = robotId();
+                var command = $('#node-input-command').val() || 'HOME';
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+
+                var msg = command === 'HOME'
+                    ? 'WARNING: The robot will execute a physical move to the Home position. Ensure the path is clear. Proceed?'
+                    : 'Are you sure you want to set the current pose as the Home position?';
+
+                if (!confirm(msg)) {
+                    return;
+                }
+
+                var btn = $('#gofa-move-btn').prop('disabled', true);
+                RED.notify('Sending home command to robot...', 'info');
+
+                $.ajax({
+                    url: 'gofa-move/' + id + '/action',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ command: command })
+                })
+                    .done(function(data) {
+                        RED.notify('Home command acknowledged: ' + data.ack, 'success');
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Action failed';
+                        RED.notify(err, 'error');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+
+            $('#gofa-move-btn').on('click', function(e) {
+                e.preventDefault();
+                runAction();
+            });
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-move">
@@ -23,6 +68,9 @@
             <option value="HOME">HOME — move to home position</option>
             <option value="SETHOME">SETHOME — set current pose as home</option>
         </select>
+    </div>
+    <div class="form-row">
+        <button id="gofa-move-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-home"></i> Run Command Now</button>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

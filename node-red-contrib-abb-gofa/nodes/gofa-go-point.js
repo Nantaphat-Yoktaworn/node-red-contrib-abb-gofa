@@ -45,4 +45,44 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-go-point', GoFaGoPointNode);
+
+    RED.httpAdmin.post('/gofa-go-point/:id/go', RED.auth.needsPermission('gofa-go-point.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot) {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var nameOrId = req.body.pointName;
+        var storage = req.body.storage || 'local';
+        var moveType = req.body.moveType || 'J';
+
+        if (!nameOrId) {
+            return res.status(400).json({ error: 'No point specified' });
+        }
+
+        var findPromise = (storage === 'remote')
+            ? (typeof robot.remoteFindPoint === 'function' ? robot.remoteFindPoint(nameOrId) : Promise.reject(new Error('Remote storage not supported')))
+            : Promise.resolve(typeof robot.findPoint === 'function' ? robot.findPoint(nameOrId) : null);
+
+        findPromise.then(function(pt) {
+            if (!pt) {
+                return res.status(404).json({ error: 'Point not found: ' + nameOrId });
+            }
+            if (typeof robot.gotoObj !== 'function' || typeof robot.socketSend !== 'function') {
+                return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+            }
+            var obj = robot.gotoObj(pt.target, moveType);
+            if (!obj) {
+                return res.status(400).json({ error: 'Point has invalid data (NaN): ' + pt.name });
+            }
+            return robot.socketSend(obj).then(function(ack) {
+                var ok = ack.startsWith('OK:');
+                if (!ok) {
+                    throw new Error(ack);
+                }
+                res.json({ ok: true, ack: ack, point: pt, moveType: moveType });
+            });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

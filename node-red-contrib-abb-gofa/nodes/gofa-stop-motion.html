@@ -8,13 +8,48 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'Stop Motion'; },
-        paletteLabel: 'Stop Motion'
+        paletteLabel: 'Stop Motion',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function stopRobot() {
+                var id = robotId();
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+                
+                var btn = $('#gofa-stop-btn').prop('disabled', true);
+                RED.notify('Sending STOP command to robot...', 'info');
+                $.ajax({
+                    url: 'gofa-stop-motion/' + id + '/stop',
+                    type: 'POST'
+                })
+                    .done(function() {
+                        RED.notify('Robot stopped successfully', 'success');
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to stop robot';
+                        RED.notify(err, 'error');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+            $('#gofa-stop-btn').on('click', function(e) {
+                e.preventDefault();
+                stopRobot();
+            });
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-stop-motion">
     <div class="form-row">
         <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
         <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <button id="gofa-stop-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-stop"></i> STOP MOTION IMMEDIATELY</button>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

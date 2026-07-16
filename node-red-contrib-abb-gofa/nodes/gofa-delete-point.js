@@ -46,4 +46,45 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-delete-point', GoFaDeletePointNode);
+
+    RED.httpAdmin.post('/gofa-delete-point/:id/delete', RED.auth.needsPermission('gofa-delete-point.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot) {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var nameOrId = req.body.pointName;
+        var storage = req.body.storage || 'local';
+
+        if (!nameOrId) {
+            return res.status(400).json({ error: 'No point specified' });
+        }
+
+        var findAndDelete = (storage === 'remote')
+            ? (typeof robot.remoteFindPoint === 'function' && typeof robot.remoteDeletePoint === 'function' && typeof robot.remoteGetPoints === 'function'
+                ? robot.remoteFindPoint(nameOrId).then(function(pt) {
+                    if (!pt) return null;
+                    return robot.remoteDeletePoint(pt.id).then(function() {
+                        return robot.remoteGetPoints().then(function(points) { return { deleted: pt, points: points }; });
+                    });
+                })
+                : Promise.reject(new Error('Remote points not supported/configured')))
+            : Promise.resolve().then(function() {
+                if (typeof robot.findPoint !== 'function' || typeof robot.deletePoint !== 'function' || typeof robot.getPoints !== 'function') {
+                    throw new Error('Local points not supported/configured');
+                }
+                var pt = robot.findPoint(nameOrId);
+                if (!pt) return null;
+                robot.deletePoint(pt.id);
+                return { deleted: pt, points: robot.getPoints() };
+            });
+
+        findAndDelete.then(function(result) {
+            if (!result) {
+                return res.status(404).json({ error: 'Point not found: ' + nameOrId });
+            }
+            res.json({ ok: true, deleted: result.deleted, points: result.points });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

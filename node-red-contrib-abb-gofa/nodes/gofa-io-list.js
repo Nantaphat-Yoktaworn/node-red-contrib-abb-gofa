@@ -60,4 +60,46 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-io-list', GoFaIoListNode);
+
+    RED.httpAdmin.get('/gofa-io-list/:id/read', RED.auth.needsPermission('gofa-io-list.read'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsGet !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var filterType = (req.query.type || '').toUpperCase();
+        robot.rwsGet('/rw/iosystem/signals')
+        .then(function(body) {
+            var signals = [];
+            var liRegex = /<li class="ios-signal-li"[^>]*>([\s\S]*?)<\/li>/g;
+            var spanRegex = /<span class="([^"]+)"[^>]*>([^<]*)<\/span>/g;
+            var liMatch;
+
+            while ((liMatch = liRegex.exec(body)) !== null) {
+                var inner = liMatch[1];
+                var item  = {};
+                var spanMatch;
+                spanRegex.lastIndex = 0;
+                while ((spanMatch = spanRegex.exec(inner)) !== null) {
+                    var cls = spanMatch[1];
+                    var val = spanMatch[2].trim();
+                    if (cls === 'name'   || cls === 'type' || cls === 'lvalue') {
+                        item[cls] = val;
+                    }
+                }
+                if (item.name) {
+                    signals.push(item);
+                }
+            }
+
+            if (filterType) {
+                signals = signals.filter(function(s) {
+                    return s.type && s.type.toUpperCase() === filterType;
+                });
+            }
+
+            res.json({ ok: true, count: signals.length, signals: signals });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

@@ -18,4 +18,17 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-stop-seq', GoFaStopSeqNode);
+
+    RED.httpAdmin.post('/gofa-stop-seq/:id/stop', RED.auth.needsPermission('gofa-stop-seq.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot) {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        robot._seqStop = true;
+        robot.socketSend({ cmd: 'stop' }).then(function() {
+            res.json({ ok: true, message: 'stop requested' });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

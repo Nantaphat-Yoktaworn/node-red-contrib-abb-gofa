@@ -9,7 +9,50 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || ('DI ' + this.signal); },
-        paletteLabel: 'DI Read'
+        paletteLabel: 'DI Read',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function fetchDiValue() {
+                var id = robotId();
+                var sig = $('#node-input-signal').val() || '';
+                if (!id) {
+                    $('#gofa-di-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">Select (and deploy) a robot config first</span>');
+                    return;
+                }
+                if (!sig) {
+                    $('#gofa-di-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">Enter a signal name first</span>');
+                    return;
+                }
+                var btn = $('#gofa-di-fetch').prop('disabled', true);
+                $('#gofa-di-result').html('<i class="fa fa-spinner fa-spin"></i> Reading...');
+                $.getJSON('gofa-di-read/' + id + '/read', { signal: sig })
+                    .done(function(data) {
+                        var color = data.value === 1 ? '#5cb85c' : '#777';
+                        var html = '<div style="display: flex; align-items: center;">' +
+                            '<span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background-color: ' + color + '; margin-right: 8px; border: 1px solid #444;"></span>' +
+                            '<span><b>Value:</b> ' + data.value + '</span>' +
+                            '</div>';
+                        $('#gofa-di-result').html(html);
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to read signal';
+                        $('#gofa-di-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">' + err + '</span>');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+            $('#gofa-di-fetch').on('click', function(e) {
+                e.preventDefault();
+                fetchDiValue();
+            });
+            // Initial load
+            fetchDiValue();
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-di-read">
@@ -20,6 +63,15 @@
     <div class="form-row">
         <label for="node-input-signal"><i class="fa fa-bolt"></i> Signal</label>
         <input type="text" id="node-input-signal" placeholder="ABB_Scalable_IO_0_DI1">
+    </div>
+    <div class="form-row" style="display: flex; align-items: center; justify-content: space-between;">
+        <label style="margin-bottom: 0;"><i class="fa fa-info-circle"></i> Live Read</label>
+        <button id="gofa-di-fetch" class="editor-button" style="width: auto;"><i class="fa fa-refresh"></i> Read Value</button>
+    </div>
+    <div class="form-row">
+        <div id="gofa-di-result" style="background: var(--red-ui-tertiary-background, #f3f3f3); padding: 10px; border: 1px solid var(--red-ui-form-input-border, #ccc); border-radius: 4px; min-height: 40px; display: flex; align-items: center;">
+            Select a robot and click Read Value.
+        </div>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

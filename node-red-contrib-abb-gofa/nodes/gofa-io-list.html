@@ -8,13 +8,88 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'IO List'; },
-        paletteLabel: 'IO List'
+        paletteLabel: 'IO List',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function fetchIoList() {
+                var id = robotId();
+                var filter = $('#gofa-io-filter').val() || '';
+                if (!id) {
+                    $('#gofa-io-list-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">Select (and deploy) a robot config first</span>');
+                    return;
+                }
+                var btn = $('#gofa-io-list-fetch').prop('disabled', true);
+                $('#gofa-io-list-result').html('<i class="fa fa-spinner fa-spin"></i> Fetching...');
+                $.getJSON('gofa-io-list/' + id + '/read', { type: filter })
+                    .done(function(data) {
+                        if (!data.signals || data.signals.length === 0) {
+                            $('#gofa-io-list-result').html('No signals found.');
+                            return;
+                        }
+                        var html = '<table class="red-ui-info-table" style="width: 100%; border-collapse: collapse;">' +
+                            '<thead><tr><th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc; width: 45%;">Name</th><th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc; width: 25%;">Type</th><th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc;">Value</th></tr></thead>' +
+                            '<tbody>';
+                        data.signals.forEach(function(sig) {
+                            var bulb = '';
+                            if (sig.type === 'DI' || sig.type === 'DO') {
+                                var color = sig.lvalue === '1' ? '#5cb85c' : '#777';
+                                bulb = '<span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ' + color + '; margin-right: 6px; border: 1px solid #444; vertical-align: middle;"></span>';
+                            }
+                            html += '<tr>' +
+                                '<td style="font-weight: bold; padding: 4px; border-bottom: 1px solid #eee;">' + sig.name + '</td>' +
+                                '<td style="padding: 4px; border-bottom: 1px solid #eee;">' + sig.type + '</td>' +
+                                '<td style="padding: 4px; border-bottom: 1px solid #eee;">' + bulb + sig.lvalue + '</td>' +
+                                '</tr>';
+                        });
+                        html += '</tbody></table>';
+                        $('#gofa-io-list-result').html(html);
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to fetch signals';
+                        $('#gofa-io-list-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">' + err + '</span>');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+            $('#gofa-io-list-fetch').on('click', function(e) {
+                e.preventDefault();
+                fetchIoList();
+            });
+            $('#gofa-io-filter').on('change', function() {
+                fetchIoList();
+            });
+            // Initial load
+            fetchIoList();
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-io-list">
     <div class="form-row">
         <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
         <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row" style="display: flex; align-items: center; justify-content: space-between;">
+        <label style="margin-bottom: 0;"><i class="fa fa-filter"></i> Filter</label>
+        <div style="flex-grow: 1; display: flex; align-items: center;">
+            <select id="gofa-io-filter" style="width: auto; margin-right: 5px; flex-grow: 1;">
+                <option value="">All Types</option>
+                <option value="DI">Digital Inputs (DI)</option>
+                <option value="DO">Digital Outputs (DO)</option>
+                <option value="GI">Group Inputs (GI)</option>
+                <option value="GO">Group Outputs (GO)</option>
+            </select>
+            <button id="gofa-io-list-fetch" class="editor-button" style="width: auto; white-space: nowrap;"><i class="fa fa-refresh"></i> Fetch Signals</button>
+        </div>
+    </div>
+    <div class="form-row">
+        <div id="gofa-io-list-result" style="background: var(--red-ui-tertiary-background, #f3f3f3); padding: 10px; border: 1px solid var(--red-ui-form-input-border, #ccc); border-radius: 4px; min-height: 80px; max-height: 200px; overflow-y: auto;">
+            Select a robot and click Fetch Signals.
+        </div>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

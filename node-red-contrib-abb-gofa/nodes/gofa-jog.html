@@ -11,7 +11,51 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || ('Jog ' + this.axis + this.dir + this.step); },
-        paletteLabel: 'Jog'
+        paletteLabel: 'Jog',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function performJog() {
+                var id = robotId();
+                var axis = $('#node-input-axis').val() || 'X';
+                var dir = $('#node-input-dir').val() || '+';
+                var step = $('#node-input-step').val() || '10';
+
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+
+                if (!confirm('WARNING: The robot will execute a relative jog movement of ' + axis + dir + step + '. Ensure the path is clear. Proceed?')) {
+                    return;
+                }
+
+                var btn = $('#gofa-jog-btn').prop('disabled', true);
+                RED.notify('Jogging robot...', 'info');
+
+                $.ajax({
+                    url: 'gofa-jog/' + id + '/jog',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ axis: axis, dir: dir, step: step })
+                })
+                    .done(function(data) {
+                        RED.notify('Jog command acknowledged successfully: ' + data.ack, 'success');
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Jog command failed';
+                        RED.notify(err, 'error');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+
+            $('#gofa-jog-btn').on('click', function(e) {
+                e.preventDefault();
+                performJog();
+            });
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-jog">
@@ -41,6 +85,9 @@
         <label for="node-input-step"><i class="fa fa-sliders"></i> Step</label>
         <input type="number" id="node-input-step" placeholder="10" min="1" max="50">
         <span style="margin-left:4px">mm (or deg for rotation, max 30)</span>
+    </div>
+    <div class="form-row">
+        <button id="gofa-jog-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-arrows"></i> Jog Now</button>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

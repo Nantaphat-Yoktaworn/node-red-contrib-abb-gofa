@@ -11,7 +11,57 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || this.variable || 'RAPID Var Read'; },
-        paletteLabel: 'RAPID Var Read'
+        paletteLabel: 'RAPID Var Read',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function readVariable() {
+                var id = robotId();
+                var variable = $('#node-input-variable').val() || '';
+                var task = $('#node-input-task').val() || 'T_ROB1';
+                var module = $('#node-input-module').val() || 'MainModule';
+                
+                if (!id) {
+                    $('#gofa-var-read-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">Select (and deploy) a robot config first</span>');
+                    return;
+                }
+                if (!variable) {
+                    $('#gofa-var-read-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">Enter a variable name first</span>');
+                    return;
+                }
+
+                var btn = $('#gofa-var-read-btn').prop('disabled', true);
+                $('#gofa-var-read-result').html('<i class="fa fa-spinner fa-spin"></i> Reading...');
+
+                $.getJSON('gofa-rapid-var-read/' + id + '/read', { task: task, module: module, variable: variable })
+                    .done(function(data) {
+                        var sourceLabel = data.source === 'socket' ? '<span style="color: #5cb85c; font-weight: bold;">[Live Socket]</span>' : '<span style="color: #f0ad4e; font-weight: bold;">[Stale Module-Text]</span>';
+                        var html = '<div>' + sourceLabel + ' <b>' + data.variable + ':</b> ' + data.value + '</div>';
+                        if (data.stale) {
+                            html += '<div style="font-size: 0.85em; color: #888; margin-top: 4px;"><i>Note: value is the compiled/declared value</i></div>';
+                        }
+                        $('#gofa-var-read-result').html(html);
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to read variable';
+                        $('#gofa-var-read-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">' + err + '</span>');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+
+            $('#gofa-var-read-btn').on('click', function(e) {
+                e.preventDefault();
+                readVariable();
+            });
+
+            // Initial load
+            readVariable();
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-rapid-var-read">
@@ -30,6 +80,15 @@
     <div class="form-row">
         <label for="node-input-variable"><i class="fa fa-tag"></i> Variable</label>
         <input type="text" id="node-input-variable" placeholder="myVar">
+    </div>
+    <div class="form-row" style="display: flex; align-items: center; justify-content: space-between;">
+        <label style="margin-bottom: 0;"><i class="fa fa-info-circle"></i> Live Read</label>
+        <button id="gofa-var-read-btn" class="editor-button" style="width: auto;"><i class="fa fa-refresh"></i> Read Variable</button>
+    </div>
+    <div class="form-row">
+        <div id="gofa-var-read-result" style="background: var(--red-ui-tertiary-background, #f3f3f3); padding: 10px; border: 1px solid var(--red-ui-form-input-border, #ccc); border-radius: 4px; min-height: 40px; display: flex; flex-direction: column; justify-content: center;">
+            Select a robot and click Read Variable.
+        </div>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

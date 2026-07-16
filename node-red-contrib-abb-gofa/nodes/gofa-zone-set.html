@@ -9,7 +9,46 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || ('Zone ' + this.zone); },
-        paletteLabel: 'Zone Set'
+        paletteLabel: 'Zone Set',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+
+            function applyZone() {
+                var id = robotId();
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+
+                var zone = $('#node-input-zone').val() || 'z10';
+
+                var btn = $('#gofa-zone-btn').prop('disabled', true);
+                RED.notify('Setting motion zone...', 'info');
+
+                $.ajax({
+                    url: 'gofa-zone-set/' + id + '/set',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ zone: zone })
+                })
+                    .done(function(data) {
+                        RED.notify('Motion zone set to ' + data.zone + ' successfully', 'success');
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to set zone';
+                        RED.notify(err, 'error');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+
+            $('#gofa-zone-btn').on('click', function(e) {
+                e.preventDefault();
+                applyZone();
+            });
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-zone-set">
@@ -28,6 +67,9 @@
             <option value="z50">z50 — 50 mm radius</option>
             <option value="z100">z100 — 100 mm radius</option>
         </select>
+    </div>
+    <div class="form-row">
+        <button id="gofa-zone-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-crosshairs"></i> Set Zone Now</button>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

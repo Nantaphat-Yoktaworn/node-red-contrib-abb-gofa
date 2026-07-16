@@ -130,4 +130,109 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-sequencer', GoFaSequencerNode);
+
+    RED.httpAdmin.get('/gofa-sequencer/:id/status', RED.auth.needsPermission('gofa-sequencer.read'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot) {
+            return res.status(400).json({ error: 'Robot config node not found' });
+        }
+        res.json({ running: !!robot._seqRunning });
+    });
+
+    RED.httpAdmin.post('/gofa-sequencer/:id/stop', RED.auth.needsPermission('gofa-sequencer.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot) {
+            return res.status(400).json({ error: 'Robot config node not found' });
+        }
+        robot._seqStop = true;
+        robot.socketSend({ cmd: 'stop' }).then(function() {
+            res.json({ ok: true, message: 'Stop sent' });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
+
+    RED.httpAdmin.post('/gofa-sequencer/:id/start', RED.auth.needsPermission('gofa-sequencer.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot) {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        if (robot._seqRunning) {
+            return res.status(400).json({ error: 'Sequence already running' });
+        }
+
+        var steps = req.body.steps || [];
+        var dwell = parseInt(req.body.dwell) || 800;
+        var loop = req.body.loop === true;
+        var pingpong = req.body.pingpong === true;
+        var count = parseInt(req.body.count) || 0;
+        var moveType = resolveMoveType(req.body.moveType, 'J');
+        var storage = req.body.storage || 'local';
+
+        if (!steps || !steps.length) {
+            return res.status(400).json({ error: 'No steps configured' });
+        }
+
+        robot._seqRunning = true;
+        robot._seqStop = false;
+
+        var pointsPromise = (storage === 'remote') ? robot.remoteGetPoints() : Promise.resolve(robot.getPoints());
+
+        pointsPromise.then(function(allPoints) {
+            function findPt(nameOrId) {
+                return allPoints.find(function(pt) { return pt.id === nameOrId || pt.name === nameOrId; }) || null;
+            }
+
+            var cmds = [];
+            for (var i = 0; i < steps.length; i++) {
+                var pt = findPt(steps[i].name);
+                if (!pt) continue;
+                var stepMoveType = resolveMoveType(steps[i].moveType, moveType);
+                var obj = robot.gotoObj(pt.target, stepMoveType);
+                if (!obj) continue;
+                cmds.push({ name: pt.name, obj: obj, moveType: stepMoveType, dwell: steps[i].dwell != null ? steps[i].dwell : null });
+            }
+
+            if (!cmds.length) {
+                robot._seqRunning = false;
+                return res.status(400).json({ error: 'No valid points found in sequence' });
+            }
+
+            if (pingpong) {
+                cmds = cmds.concat(cmds.slice(0, cmds.length - 1).reverse());
+            }
+
+            var loopCount = 0;
+
+            function runStep(idx) {
+                if (robot._seqStop) {
+                    robot._seqRunning = false;
+                    return;
+                }
+                if (idx >= cmds.length) {
+                    loopCount++;
+                    if (loop && (count === 0 || loopCount < count)) {
+                        return runStep(0);
+                    }
+                    robot._seqRunning = false;
+                    return;
+                }
+                var c = cmds[idx];
+                var stepDwell = (c.dwell != null) ? c.dwell : dwell;
+
+                robot.socketSend(c.obj).then(function(ack) {
+                    setTimeout(function() { runStep(idx + 1); }, stepDwell);
+                }).catch(function(err) {
+                    robot._seqRunning = false;
+                });
+            }
+
+            res.json({ ok: true, message: 'Sequence started', totalSteps: cmds.length });
+
+            runStep(0);
+        }).catch(function(err) {
+            robot._seqRunning = false;
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

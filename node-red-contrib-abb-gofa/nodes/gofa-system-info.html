@@ -8,13 +8,63 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'System Info'; },
-        paletteLabel: 'System Info'
+        paletteLabel: 'System Info',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function fetchSystemInfo() {
+                var id = robotId();
+                if (!id) {
+                    $('#gofa-sys-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">Select (and deploy) a robot config first</span>');
+                    return;
+                }
+                var btn = $('#gofa-sys-fetch').prop('disabled', true);
+                $('#gofa-sys-result').html('<i class="fa fa-spinner fa-spin"></i> Fetching...');
+                $.getJSON('gofa-system-info/' + id + '/read')
+                    .done(function(data) {
+                        var html = '<table class="red-ui-info-table" style="width: 100%; border-collapse: collapse;">' +
+                            '<tr><td style="font-weight: bold; padding: 4px; width: 40%;">RobotWare Version</td><td style="padding: 4px;">' + (data.rwVersion || 'N/A') + '</td></tr>' +
+                            '<tr><td style="font-weight: bold; padding: 4px;">RW Build Date</td><td style="padding: 4px;">' + (data.rwBuildDate || 'N/A') + '</td></tr>' +
+                            '<tr><td style="font-weight: bold; padding: 4px;">Controller Name</td><td style="padding: 4px;">' + (data.ctrlName || 'N/A') + '</td></tr>' +
+                            '<tr><td style="font-weight: bold; padding: 4px;">Controller ID</td><td style="padding: 4px;">' + (data.ctrlId || 'N/A') + '</td></tr>' +
+                            '<tr><td style="font-weight: bold; padding: 4px;">Controller Type</td><td style="padding: 4px;">' + (data.ctrlType || 'N/A') + '</td></tr>' +
+                            '<tr><td style="font-weight: bold; padding: 4px;">MAC Address</td><td style="padding: 4px;">' + (data.ctrlMac || 'N/A') + '</td></tr>' +
+                            '</table>';
+                        $('#gofa-sys-result').html(html);
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to fetch system info';
+                        $('#gofa-sys-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">' + err + '</span>');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+            $('#gofa-sys-fetch').on('click', function(e) {
+                e.preventDefault();
+                fetchSystemInfo();
+            });
+            // Initial load
+            fetchSystemInfo();
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-system-info">
     <div class="form-row">
         <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
         <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row" style="display: flex; align-items: center; justify-content: space-between;">
+        <label style="margin-bottom: 0;"><i class="fa fa-info-circle"></i> System Details</label>
+        <button id="gofa-sys-fetch" class="editor-button" style="width: auto;"><i class="fa fa-refresh"></i> Fetch Info</button>
+    </div>
+    <div class="form-row">
+        <div id="gofa-sys-result" style="background: var(--red-ui-tertiary-background, #f3f3f3); padding: 10px; border: 1px solid var(--red-ui-form-input-border, #ccc); border-radius: 4px; min-height: 50px;">
+            Select a robot and click Fetch Info.
+        </div>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

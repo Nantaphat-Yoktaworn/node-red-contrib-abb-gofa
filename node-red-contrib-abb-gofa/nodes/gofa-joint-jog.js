@@ -51,4 +51,35 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-joint-jog', GoFaJointJogNode);
+
+    RED.httpAdmin.post('/gofa-joint-jog/:id/jog', RED.auth.needsPermission('gofa-joint-jog.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.socketSend !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var joint = req.body.joint || 'J1';
+        var dir = req.body.dir || '+';
+        var step = parseFloat(req.body.step) || 5;
+
+        var jointNum = parseInt(String(joint).replace('J', ''));
+        if (isNaN(jointNum) || jointNum < 1 || jointNum > 6) {
+            return res.status(400).json({ error: 'Invalid joint: ' + joint });
+        }
+
+        if (dir !== '+' && dir !== '-') {
+            return res.status(400).json({ error: 'Invalid direction: ' + dir });
+        }
+
+        step = Math.max(1, Math.min(30, step));
+
+        robot.socketSend({ cmd: 'jointjog', joint: jointNum, sgn: dir, val: step }).then(function(ack) {
+            var ok = ack.startsWith('OK:');
+            if (!ok) {
+                throw new Error(ack);
+            }
+            res.json({ ok: true, ack: ack });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

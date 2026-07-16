@@ -46,4 +46,22 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-speed-set', GoFaSpeedSetNode);
+
+    RED.httpAdmin.post('/gofa-speed-set/:id/set', RED.auth.needsPermission('gofa-speed-set.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.socketSend !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var speed = parseInt(req.body.speed);
+        if (isNaN(speed) || speed < 1 || speed > 100) {
+            return res.status(400).json({ error: 'Invalid speed value: ' + req.body.speed });
+        }
+
+        robot.socketSend({ cmd: 'speed', val: speed }).then(function(resp) {
+            if (!resp.startsWith('OK:')) throw new Error('Robot error: ' + resp);
+            res.json({ ok: true, speed: speed });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

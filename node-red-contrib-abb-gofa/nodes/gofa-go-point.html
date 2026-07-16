@@ -21,7 +21,7 @@
             function loadPoints(robotId) {
                 var sel = $('#node-input-pointName').empty()
                     .append($('<option value="">-- select point --</option>'));
-                if (!robotId) return;
+                if (!robotId || robotId === '_ADD_') return;
                 $.getJSON(endpoint(robotId), function(pts) {
                     pts.forEach(function(p) {
                         sel.append($('<option>').val(p.name).text(p.name));
@@ -32,6 +32,44 @@
             loadPoints(node.robot);
             $('#node-input-robot').change(function() { loadPoints($(this).val()); });
             $('#node-input-storage').change(function() { loadPoints($('#node-input-robot').val()); });
+
+            function goPoint() {
+                var id = $('#node-input-robot').val();
+                var ptName = $('#node-input-pointName').val();
+                var storage = $('#node-input-storage').val() || 'local';
+                var moveType = $('#node-input-moveType').val() || 'J';
+                if (!id || id === '_ADD_') return RED.notify('Select (and deploy) a robot config first', 'warning');
+                if (!ptName) return RED.notify('Select a point first', 'warning');
+
+                if (!confirm('WARNING: The robot will execute a physical move to point "' + ptName + '" (' + moveType + '). Ensure the path is clear. Proceed?')) {
+                    return;
+                }
+
+                var btn = $('#gofa-go-point-btn').prop('disabled', true);
+                RED.notify('Moving to point...', 'info');
+
+                $.ajax({
+                    url: 'gofa-go-point/' + id + '/go',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ pointName: ptName, storage: storage, moveType: moveType })
+                })
+                    .done(function(data) {
+                        RED.notify('Move command acknowledged: ' + data.ack, 'success');
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Move failed';
+                        RED.notify(err, 'error');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+
+            $('#gofa-go-point-btn').on('click', function(e) {
+                e.preventDefault();
+                goPoint();
+            });
         }
     });
 </script>
@@ -57,6 +95,9 @@
             <option value="J">Joint (MoveJ)</option>
             <option value="L">Linear (MoveL)</option>
         </select>
+    </div>
+    <div class="form-row">
+        <button id="gofa-go-point-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-share"></i> Go to Point Now</button>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

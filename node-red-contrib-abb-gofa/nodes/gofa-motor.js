@@ -37,4 +37,34 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-motor', GoFaMotorNode);
+
+    RED.httpAdmin.get('/gofa-motor/:id/read', RED.auth.needsPermission('gofa-motor.read'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsGet !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        robot.rwsGet('/rw/panel/ctrl-state')
+        .then(function(body) {
+            res.json({ ok: true, ctrlstate: robot.parseXhtml(body, 'ctrlstate') });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
+
+    RED.httpAdmin.post('/gofa-motor/:id/toggle', RED.auth.needsPermission('gofa-motor.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsPost !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var action = req.body.action;
+        if (action !== 'motoron' && action !== 'motoroff') {
+            return res.status(400).json({ error: 'Invalid action: ' + action });
+        }
+        robot.rwsPost('/rw/panel/ctrl-state', 'ctrl-state=' + action)
+        .then(function() {
+            res.json({ ok: true, action: action });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

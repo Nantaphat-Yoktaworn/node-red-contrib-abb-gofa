@@ -11,7 +11,76 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'Event Log'; },
-        paletteLabel: 'Event Log'
+        paletteLabel: 'Event Log',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function fetchElogs() {
+                var id = robotId();
+                var dom = $('#node-input-domain').val() || '1';
+                var sev = $('#node-input-minSeverity').val() || '1';
+                var cnt = $('#node-input-count').val() || 10;
+                if (!id) {
+                    $('#gofa-elog-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">Select (and deploy) a robot config first</span>');
+                    return;
+                }
+                var btn = $('#gofa-elog-fetch').prop('disabled', true);
+                $('#gofa-elog-result').html('<i class="fa fa-spinner fa-spin"></i> Fetching...');
+                $.getJSON('gofa-elog/' + id + '/read', { domain: dom, minSeverity: sev, count: cnt })
+                    .done(function(data) {
+                        if (!data.entries || data.entries.length === 0) {
+                            $('#gofa-elog-result').html('No matching elog entries.');
+                            return;
+                        }
+                        var html = '<table class="red-ui-info-table" style="width: 100%; border-collapse: collapse;">' +
+                            '<thead><tr>' +
+                            '<th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc; width: 10%;">Seq</th>' +
+                            '<th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc; width: 15%;">Severity</th>' +
+                            '<th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc; width: 15%;">Code</th>' +
+                            '<th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc;">Title</th>' +
+                            '</tr></thead>' +
+                            '<tbody>';
+                        data.entries.forEach(function(e) {
+                            var sevStr = 'Info';
+                            var color = '#777';
+                            if (e.msgtype === '2') {
+                                sevStr = 'Warning';
+                                color = '#f0ad4e';
+                            } else if (e.msgtype === '3') {
+                                sevStr = 'Error';
+                                color = '#d9534f';
+                            }
+                            html += '<tr>' +
+                                '<td style="padding: 4px; border-bottom: 1px solid #eee; font-family: monospace; font-size: 11px;">' + e.seqnum + '</td>' +
+                                '<td style="padding: 4px; border-bottom: 1px solid #eee; font-weight: bold; color: ' + color + ';">' + sevStr + '</td>' +
+                                '<td style="padding: 4px; border-bottom: 1px solid #eee; font-family: monospace; font-size: 11px;">' + e.code + '</td>' +
+                                '<td style="padding: 4px; border-bottom: 1px solid #eee; font-size: 11px;" title="' + e.tstamp + '">' + e.title + '</td>' +
+                                '</tr>';
+                        });
+                        html += '</tbody></table>';
+                        $('#gofa-elog-result').html(html);
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to fetch elogs';
+                        $('#gofa-elog-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">' + err + '</span>');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+            $('#gofa-elog-fetch').on('click', function(e) {
+                e.preventDefault();
+                fetchElogs();
+            });
+            $('#node-input-domain, #node-input-minSeverity, #node-input-count').on('change input', function() {
+                fetchElogs();
+            });
+            // Initial load
+            fetchElogs();
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-elog">
@@ -50,6 +119,15 @@
     <div class="form-row">
         <label for="node-input-count"><i class="fa fa-hashtag"></i> Entries</label>
         <input type="number" id="node-input-count" min="1" max="100" placeholder="10">
+    </div>
+    <div class="form-row" style="display: flex; align-items: center; justify-content: space-between;">
+        <label style="margin-bottom: 0;"><i class="fa fa-info-circle"></i> Live Elogs</label>
+        <button id="gofa-elog-fetch" class="editor-button" style="width: auto;"><i class="fa fa-refresh"></i> Fetch Elogs</button>
+    </div>
+    <div class="form-row">
+        <div id="gofa-elog-result" style="background: var(--red-ui-tertiary-background, #f3f3f3); padding: 10px; border: 1px solid var(--red-ui-form-input-border, #ccc); border-radius: 4px; min-height: 80px; max-height: 200px; overflow-y: auto;">
+            Select a robot and click Fetch Elogs.
+        </div>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

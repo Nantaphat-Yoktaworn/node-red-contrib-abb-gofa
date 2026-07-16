@@ -10,7 +10,45 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'Save Point'; },
-        paletteLabel: 'Save Point'
+        paletteLabel: 'Save Point',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function savePoint() {
+                var id = robotId();
+                var pointName = $('#node-input-pointName').val() || '';
+                var storage = $('#node-input-storage').val() || 'local';
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+
+                var btn = $('#gofa-save-point-btn').prop('disabled', true);
+                RED.notify('Saving point...', 'info');
+
+                $.ajax({
+                    url: 'gofa-save-point/' + id + '/save',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ pointName: pointName, storage: storage })
+                })
+                    .done(function(data) {
+                        RED.notify('Point "' + data.point.name + '" saved successfully!', 'success');
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to save point';
+                        RED.notify(err, 'error');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+
+            $('#gofa-save-point-btn').on('click', function(e) {
+                e.preventDefault();
+                savePoint();
+            });
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-save-point">
@@ -28,6 +66,9 @@
             <option value="local">Local (points.json)</option>
             <option value="remote">On-Robot</option>
         </select>
+    </div>
+    <div class="form-row">
+        <button id="gofa-save-point-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-map-marker"></i> Save Current Pose</button>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

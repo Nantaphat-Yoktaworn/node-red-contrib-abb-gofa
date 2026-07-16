@@ -1,4 +1,5 @@
 <script type="text/javascript">
+    var gofaSeqStatusTimer = null;
     RED.nodes.registerType('gofa-sequencer', {
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
@@ -94,8 +95,114 @@
             }
             $('#node-input-loop').on('change', toggleCountRow);
             toggleCountRow();
+
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+
+            function startSeq() {
+                var id = robotId();
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+
+                // Read steps from editableList directly
+                var steps = [];
+                $('#node-input-steps-container').editableList('items').each(function() {
+                    var name = $(this).find('select.goto-point-select').val();
+                    if (!name) return;
+                    var dwellRaw = $(this).find('input[type=number]').val();
+                    var dwell = dwellRaw !== '' ? parseInt(dwellRaw) : null;
+                    var moveType = $(this).find('select').not('.goto-point-select').val() || null;
+                    steps.push({ name: name, dwell: dwell, moveType: moveType });
+                });
+
+                if (!steps.length) {
+                    return RED.notify('No steps configured or points selected', 'warning');
+                }
+
+                var dwell = parseInt($('#node-input-dwell').val()) || 800;
+                var loop = $('#node-input-loop').prop('checked');
+                var pingpong = $('#node-input-pingpong').prop('checked');
+                var count = parseInt($('#node-input-count').val()) || 0;
+                var moveType = $('#node-input-moveType').val() || 'J';
+                var storage = $('#node-input-storage').val() || 'local';
+
+                RED.notify('Starting sequence execution...', 'info');
+
+                $.ajax({
+                    url: 'gofa-sequencer/' + id + '/start',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        steps: steps,
+                        dwell: dwell,
+                        loop: loop,
+                        pingpong: pingpong,
+                        count: count,
+                        moveType: moveType,
+                        storage: storage
+                    })
+                })
+                    .done(function(data) {
+                        RED.notify('Sequence started successfully', 'success');
+                        updateStatus();
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to start sequence';
+                        RED.notify(err, 'error');
+                    });
+            }
+
+            function stopSeq() {
+                var id = robotId();
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+
+                RED.notify('Sending stop signal to sequence...', 'info');
+
+                $.ajax({
+                    url: 'gofa-sequencer/' + id + '/stop',
+                    type: 'POST'
+                })
+                    .done(function(data) {
+                        RED.notify('Sequence stop requested', 'success');
+                        updateStatus();
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to stop sequence';
+                        RED.notify(err, 'error');
+                    });
+            }
+
+            function updateStatus() {
+                var id = robotId();
+                if (!id) {
+                    $('#gofa-seq-status').text('Status: Config node not deployed').css({ background: '#ffdddd', color: '#ff0000' });
+                    return;
+                }
+                $.getJSON('gofa-sequencer/' + id + '/status', function(data) {
+                    if (data.running) {
+                        $('#gofa-seq-status').text('Status: Running...').css({ background: '#e1f5fe', color: '#0288d1' });
+                        $('#gofa-seq-start-btn').prop('disabled', true);
+                        $('#gofa-seq-stop-btn').prop('disabled', false);
+                    } else {
+                        $('#gofa-seq-status').text('Status: Idle').css({ background: '#f3f3f3', color: '#333' });
+                        $('#gofa-seq-start-btn').prop('disabled', false);
+                        $('#gofa-seq-stop-btn').prop('disabled', true);
+                    }
+                }).fail(function() {
+                    $('#gofa-seq-status').text('Status: Connection failed').css({ background: '#ffdddd', color: '#ff0000' });
+                });
+            }
+
+            $('#gofa-seq-start-btn').on('click', function(e) { e.preventDefault(); startSeq(); });
+            $('#gofa-seq-stop-btn').on('click', function(e) { e.preventDefault(); stopSeq(); });
+
+            if (gofaSeqStatusTimer) clearInterval(gofaSeqStatusTimer);
+            gofaSeqStatusTimer = setInterval(updateStatus, 1500);
+            updateStatus();
         },
         oneditsave: function() {
+            if (gofaSeqStatusTimer) clearInterval(gofaSeqStatusTimer);
             var steps = [];
             $('#node-input-steps-container').editableList('items').each(function() {
                 var name = $(this).find('select.goto-point-select').val();
@@ -106,6 +213,9 @@
                 steps.push({ name: name, dwell: dwell, moveType: moveType });
             });
             this.steps = steps;
+        },
+        oneditcancel: function() {
+            if (gofaSeqStatusTimer) clearInterval(gofaSeqStatusTimer);
         }
     });
 </script>
@@ -150,6 +260,15 @@
     <div class="form-row">
         <label for="node-input-pingpong"><i class="fa fa-exchange"></i> Back-and-forth</label>
         <input type="checkbox" id="node-input-pingpong" style="width:auto">
+    </div>
+    <div class="form-row" style="display: flex; gap: 8px;">
+        <button id="gofa-seq-start-btn" class="editor-button" style="flex: 1; font-weight: bold;"><i class="fa fa-play"></i> Start Sequence Now</button>
+        <button id="gofa-seq-stop-btn" class="editor-button" style="flex: 1; font-weight: bold;"><i class="fa fa-stop"></i> Stop Sequence</button>
+    </div>
+    <div class="form-row">
+        <div id="gofa-seq-status" style="background: var(--red-ui-tertiary-background, #f3f3f3); padding: 8px; border: 1px solid var(--red-ui-form-input-border, #ccc); border-radius: 4px; text-align: center; font-weight: bold;">
+            Status: Idle
+        </div>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

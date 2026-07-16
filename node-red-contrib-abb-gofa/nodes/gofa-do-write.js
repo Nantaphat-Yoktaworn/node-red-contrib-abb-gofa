@@ -62,4 +62,55 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-do-write', GoFaDoWriteNode);
+
+    RED.httpAdmin.get('/gofa-do-write/:id/read', RED.auth.needsPermission('gofa-do-write.read'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsGet !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var signal = req.query.signal;
+        if (!signal) {
+            return res.status(400).json({ error: 'Missing signal name' });
+        }
+        robot.rwsGet('/rw/iosystem/signals/' + encodeURIComponent(signal))
+        .then(function(body) {
+            var raw = robot.parseXhtml(body, 'lvalue');
+            var value = parseInt(raw);
+            res.json({ ok: true, signal: signal, value: value });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
+
+    RED.httpAdmin.post('/gofa-do-write/:id/write', RED.auth.needsPermission('gofa-do-write.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot) {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var signal = req.body.signal;
+        var value = parseInt(req.body.value);
+        var transport = req.body.transport || 'rws';
+        if (!signal) {
+            return res.status(400).json({ error: 'Missing signal name' });
+        }
+        if (isNaN(value) || (value !== 0 && value !== 1)) {
+            return res.status(400).json({ error: 'Invalid value (must be 0 or 1)' });
+        }
+
+        var writePromise = (transport === 'socket')
+            ? (typeof robot.socketSend === 'function'
+                ? robot.socketSend({ cmd: 'setdo', name: signal.toUpperCase(), val: value }).then(function(reply) {
+                    if (!/^OK:SETDO/.test(reply)) throw new Error('Socket write failed: ' + reply);
+                })
+                : Promise.reject(new Error('Socket transport not configured/supported')))
+            : (typeof robot.rwsPost === 'function'
+                ? robot.rwsPost('/rw/iosystem/signals/' + encodeURIComponent(signal) + '/set-value', 'lvalue=' + value)
+                : Promise.reject(new Error('RWS transport not configured/supported')));
+
+        writePromise.then(function() {
+            res.json({ ok: true, signal: signal, value: value, transport: transport });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

@@ -73,4 +73,53 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-leadthrough', GoFaLeadthroughNode);
+
+    RED.httpAdmin.get('/gofa-leadthrough/:id/read', RED.auth.needsPermission('gofa-leadthrough.read'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsGet !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        robot.rwsGet('/rw/motionsystem/mechunits/ROB_1/lead-through')
+        .then(function(body) {
+            res.json({ ok: true, status: robot.parseXhtml(body, 'status') });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
+
+    RED.httpAdmin.post('/gofa-leadthrough/:id/toggle', RED.auth.needsPermission('gofa-leadthrough.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsPost !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var action = req.body.action;
+        if (action !== 'enable' && action !== 'disable') {
+            return res.status(400).json({ error: 'Invalid action: ' + action });
+        }
+
+        var p = Promise.resolve();
+        if (action === 'enable') {
+            p = robot.socketSend({ cmd: 'stop' })
+            .then(function(ack) {
+                if (!ack.startsWith('OK:')) throw new Error('Stop motion failed: ' + ack);
+            })
+            .catch(function(err) {
+                var isSocketError = err.message && (
+                    err.message.indexOf('socket') >= 0 ||
+                    err.message.indexOf('connect') >= 0 ||
+                    err.message.indexOf('ECONNREFUSED') >= 0
+                );
+                if (!isSocketError) throw err;
+            });
+        }
+
+        p.then(function() {
+            var statusVal = action === 'enable' ? 'active' : 'inactive';
+            return robot.rwsPost('/rw/motionsystem/mechunits/ROB_1/lead-through', 'status=' + statusVal);
+        }).then(function() {
+            res.json({ ok: true });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

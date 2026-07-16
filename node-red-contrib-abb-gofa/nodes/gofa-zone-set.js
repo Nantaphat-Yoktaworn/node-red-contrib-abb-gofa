@@ -43,4 +43,22 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-zone-set', GoFaZoneSetNode);
+
+    RED.httpAdmin.post('/gofa-zone-set/:id/set', RED.auth.needsPermission('gofa-zone-set.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.socketSend !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var zone = (req.body.zone || 'z10').toLowerCase();
+        if (VALID_ZONES.indexOf(zone) === -1) {
+            return res.status(400).json({ error: 'Invalid zone: ' + zone });
+        }
+
+        robot.socketSend({ cmd: 'zone', val: zone.toUpperCase() }).then(function(resp) {
+            if (!resp.startsWith('OK:')) throw new Error('Robot error: ' + resp);
+            res.json({ ok: true, zone: zone });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

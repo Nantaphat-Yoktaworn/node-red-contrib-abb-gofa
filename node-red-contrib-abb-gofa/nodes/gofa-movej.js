@@ -84,4 +84,39 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-movej', GoFaMoveJNode);
+
+    RED.httpAdmin.post('/gofa-movej/:id/move', RED.auth.needsPermission('gofa-movej.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.socketSend !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var j = req.body.joints;
+        var moveType = req.body.moveType || 'J';
+
+        if (typeof j === 'string') {
+            try {
+                j = JSON.parse(j);
+            } catch(e) {
+                return res.status(400).json({ error: 'Invalid joints string: ' + j });
+            }
+        }
+
+        if (!Array.isArray(j) || j.length !== 6) {
+            return res.status(400).json({ error: 'joints must be a 6-element array' });
+        }
+
+        var nums = j.map(function(v) { return parseFloat(v); });
+        if (nums.some(function(v) { return isNaN(v); })) {
+            return res.status(400).json({ error: 'joints contains non-numeric values' });
+        }
+
+        var cmdName = moveType === 'L' ? 'movel' : 'movej';
+
+        robot.socketSend({ cmd: cmdName, val: nums.map(function(v) { return parseFloat(v.toFixed(2)); }) }).then(function(resp) {
+            if (!resp.startsWith('OK:')) throw new Error('Robot error: ' + resp);
+            res.json({ ok: true, joints: nums, moveType: moveType });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

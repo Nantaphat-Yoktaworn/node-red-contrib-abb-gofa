@@ -40,4 +40,27 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-status', GoFaStatusNode);
+
+    RED.httpAdmin.get('/gofa-status/:id/read', RED.auth.needsPermission('gofa-status.read'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsGet !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        Promise.all([
+            robot.rwsGet('/rw/panel/ctrl-state'),
+            robot.rwsGet('/rw/panel/opmode'),
+            robot.rwsGet('/rw/panel/speedratio'),
+            robot.rwsGet('/rw/rapid/execution')
+        ]).then(function(b) {
+            res.json({
+                ok: true,
+                ctrlstate: robot.parseXhtml(b[0], 'ctrlstate'),
+                opmode:    robot.parseXhtml(b[1], 'opmode'),
+                speed:     parseInt(robot.parseXhtml(b[2], 'speedratio')) || 0,
+                rapid:     robot.parseXhtml(b[3], 'ctrlexecstate')
+            });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

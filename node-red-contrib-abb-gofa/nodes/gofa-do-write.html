@@ -11,7 +11,79 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || ('DO ' + this.signal); },
-        paletteLabel: 'DO Write'
+        paletteLabel: 'DO Write',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function updateState() {
+                var id = robotId();
+                var sig = $('#node-input-signal').val() || '';
+                if (!id) {
+                    $('#gofa-do-status').html('<span style="color: var(--red-ui-text-color-error, #f00);">Select (and deploy) a robot config first</span>');
+                    return;
+                }
+                if (!sig) {
+                    $('#gofa-do-status').html('<span style="color: var(--red-ui-text-color-error, #f00);">Enter a signal name first</span>');
+                    return;
+                }
+                $.getJSON('gofa-do-write/' + id + '/read', { signal: sig })
+                    .done(function(data) {
+                        var color = data.value === 1 ? '#5cb85c' : '#777';
+                        var text = data.value === 1 ? 'High (1)' : 'Low (0)';
+                        var html = '<div style="display: flex; align-items: center;">' +
+                            '<span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: ' + color + '; margin-right: 6px; border: 1px solid #444;"></span>' +
+                            '<span><b>State:</b> ' + text + '</span>' +
+                            '</div>';
+                        $('#gofa-do-status').html(html);
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to read state';
+                        $('#gofa-do-status').html('<span style="color: var(--red-ui-text-color-error, #f00);">' + err + '</span>');
+                    });
+            }
+            function writeDo(value) {
+                var id = robotId();
+                var sig = $('#node-input-signal').val() || '';
+                var transport = $('#node-input-transport').val() || 'rws';
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+                if (!sig) return RED.notify('Enter a signal name first', 'warning');
+                
+                var btn = value === 1 ? $('#gofa-do-set-high') : $('#gofa-do-set-low');
+                var other = value === 1 ? $('#gofa-do-set-low') : $('#gofa-do-set-high');
+                btn.prop('disabled', true);
+                other.prop('disabled', true);
+
+                $.ajax({
+                    url: 'gofa-do-write/' + id + '/write',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ signal: sig, value: value, transport: transport })
+                })
+                    .done(function() {
+                        RED.notify('Signal successfully set to ' + (value === 1 ? 'High (1)' : 'Low (0)'), 'success');
+                        updateState();
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Command failed';
+                        RED.notify(err, 'error');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                        other.prop('disabled', false);
+                    });
+            }
+            $('#gofa-do-set-high').on('click', function(e) { e.preventDefault(); writeDo(1); });
+            $('#gofa-do-set-low').on('click', function(e) { e.preventDefault(); writeDo(0); });
+            
+            $('#node-input-signal').on('change input', function() {
+                updateState();
+            });
+            // Initial load
+            updateState();
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-do-write">
@@ -38,6 +110,14 @@
             <option value="rws">RWS (requires Access Level: All)</option>
             <option value="socket">Socket (requires RAPID running)</option>
         </select>
+    </div>
+    <div class="form-row" style="display: flex; align-items: center; justify-content: space-between;">
+        <label style="margin-bottom: 0;"><i class="fa fa-info-circle"></i> Current State</label>
+        <span id="gofa-do-status">Select a robot to load state.</span>
+    </div>
+    <div class="form-row" style="display: flex; gap: 5px;">
+        <button id="gofa-do-set-high" class="editor-button" style="flex-grow: 1;"><i class="fa fa-toggle-on"></i> Write High (1)</button>
+        <button id="gofa-do-set-low" class="editor-button" style="flex-grow: 1;"><i class="fa fa-toggle-off"></i> Write Low (0)</button>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

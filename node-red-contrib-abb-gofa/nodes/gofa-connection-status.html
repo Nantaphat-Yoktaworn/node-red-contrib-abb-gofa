@@ -8,13 +8,70 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'Connection Status'; },
-        paletteLabel: 'Connection Status'
+        paletteLabel: 'Connection Status',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function testConnection() {
+                var id = robotId();
+                if (!id) {
+                    $('#gofa-conn-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">Select (and deploy) a robot config first</span>');
+                    return;
+                }
+                var btn = $('#gofa-conn-test').prop('disabled', true);
+                $('#gofa-conn-result').html('<i class="fa fa-spinner fa-spin"></i> Checking...');
+                $.getJSON('gofa-connection-status/' + id + '/test')
+                    .done(function(data) {
+                        var rwsIcon = data.rws.ok ? '<i class="fa fa-check-circle" style="color: #5cb85c;"></i> Reachable' : '<i class="fa fa-times-circle" style="color: #d9534f;"></i> Unreachable';
+                        var socketIcon = data.socket.ok ? '<i class="fa fa-check-circle" style="color: #5cb85c;"></i> Reachable (' + data.socket.rtt + 'ms)' : '<i class="fa fa-times-circle" style="color: #d9534f;"></i> Unreachable';
+                        
+                        var html = '<table class="red-ui-info-table" style="width: 100%; border-collapse: collapse;">' +
+                            '<tr><td style="font-weight: bold; padding: 4px; width: 40%;">RWS Connection</td><td style="padding: 4px;">' + rwsIcon + '</td></tr>' +
+                            '<tr><td style="font-weight: bold; padding: 4px;">Socket Connection</td><td style="padding: 4px;">' + socketIcon + '</td></tr>' +
+                            '<tr><td style="font-weight: bold; padding: 4px;">Robot IP</td><td style="padding: 4px;">' + data.ip + '</td></tr>' +
+                            '</table>';
+                        if (data.errors && data.errors.length > 0) {
+                            html += '<div style="margin-top: 8px; color: #d9534f; font-size: 11px;"><b>Errors:</b><ul>';
+                            data.errors.forEach(function(e) {
+                                html += '<li>' + e + '</li>';
+                            });
+                            html += '</ul></div>';
+                        }
+                        $('#gofa-conn-result').html(html);
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to check connection';
+                        $('#gofa-conn-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">' + err + '</span>');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+            $('#gofa-conn-test').on('click', function(e) {
+                e.preventDefault();
+                testConnection();
+            });
+            // Initial load
+            testConnection();
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-connection-status">
     <div class="form-row">
         <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
         <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row" style="display: flex; align-items: center; justify-content: space-between;">
+        <label style="margin-bottom: 0;"><i class="fa fa-info-circle"></i> Connection Status</label>
+        <button id="gofa-conn-test" class="editor-button" style="width: auto;"><i class="fa fa-refresh"></i> Test Connection</button>
+    </div>
+    <div class="form-row">
+        <div id="gofa-conn-result" style="background: var(--red-ui-tertiary-background, #f3f3f3); padding: 10px; border: 1px solid var(--red-ui-form-input-border, #ccc); border-radius: 4px; min-height: 50px;">
+            Select a robot and click Test Connection.
+        </div>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

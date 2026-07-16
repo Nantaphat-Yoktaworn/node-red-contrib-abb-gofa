@@ -5,13 +5,52 @@
             outputPayload: { value: false }, name: { value: '' }, robot: { value: '', type: 'gofa-robot', required: true } },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'Stop Sequence'; },
-        paletteLabel: 'Stop Sequence'
+        paletteLabel: 'Stop Sequence',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+
+            function stopSequence() {
+                var id = robotId();
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+
+                var btn = $('#gofa-stop-seq-btn').prop('disabled', true);
+                RED.notify('Halting sequence...', 'info');
+
+                $.ajax({
+                    url: 'gofa-stop-seq/' + id + '/stop',
+                    type: 'POST',
+                    contentType: 'application/json'
+                })
+                    .done(function(data) {
+                        RED.notify('Sequence stop requested successfully', 'success');
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to stop sequence';
+                        RED.notify(err, 'error');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+
+            $('#gofa-stop-seq-btn').on('click', function(e) {
+                e.preventDefault();
+                stopSequence();
+            });
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-stop-seq">
     <div class="form-row">
         <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
         <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <button id="gofa-stop-seq-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-stop"></i> Stop Sequence Now</button>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

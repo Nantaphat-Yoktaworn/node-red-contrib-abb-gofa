@@ -26,4 +26,21 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-point-list', GoFaPointListNode);
+
+    RED.httpAdmin.get('/gofa-point-list/:id/read', RED.auth.needsPermission('gofa-point-list.read'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot) {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var storage = req.query.storage || 'local';
+        var pointsPromise = (storage === 'remote')
+            ? (typeof robot.remoteGetPoints === 'function' ? robot.remoteGetPoints() : Promise.reject(new Error('Remote points not supported')))
+            : (typeof robot.getPoints === 'function' ? Promise.resolve(robot.getPoints()) : Promise.reject(new Error('Local points not supported')));
+        
+        pointsPromise.then(function(points) {
+            res.json({ ok: true, points: points });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

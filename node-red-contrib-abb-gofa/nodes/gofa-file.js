@@ -1,6 +1,7 @@
 'use strict';
 var gate = require('./lib/gate');
 const fs = require('fs');
+const path = require('path');
 var patchServerIp = require('./lib/patch-server-ip');
 
 module.exports = function(RED) {
@@ -56,13 +57,30 @@ module.exports = function(RED) {
                     var content = encoding === 'base64'
                         ? res.body.toString('base64')
                         : res.body.toString('utf8');
+
+                    var finalLocalPath = localPath || '';
+                    if (msg.payload && typeof msg.payload === 'object' && msg.payload.localPath) {
+                        finalLocalPath = msg.payload.localPath;
+                    }
+                    if (!finalLocalPath) {
+                        var baseName = remotePath.split('/').pop() || 'downloaded_file';
+                        finalLocalPath = path.join(process.cwd(), baseName);
+                    }
+
+                    try {
+                        fs.writeFileSync(finalLocalPath, res.body);
+                    } catch(e) {
+                        throw new Error('Failed to save file locally at ' + finalLocalPath + ': ' + e.message);
+                    }
+
                     msg.payload = {
                         ok: true,
                         remotePath: remotePath,
+                        localPath: finalLocalPath,
                         content: content,
                         bytes: res.body.length
                     };
-                    node.status({ fill: 'green', shape: 'dot', text: res.body.length + ' bytes' });
+                    node.status({ fill: 'green', shape: 'dot', text: res.body.length + ' bytes saved' });
                     send(msg); done();
                 })
                 .catch(function(err) {
@@ -174,4 +192,116 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-file', GoFaFileNode);
+
+    RED.httpAdmin.post('/gofa-file/:id/test', RED.auth.needsPermission('gofa-file.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.requestRaw !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var action = req.body.action || 'download';
+        var remotePath = req.body.remotePath || '';
+        var localPath = req.body.localPath || '';
+        var encoding = req.body.encoding || 'utf8';
+        var autoChangeIp = req.body.autoChangeIp === true;
+
+        if (!remotePath) {
+            return res.status(400).json({ error: 'Remote path is required' });
+        }
+
+        var escapedPath = remotePath.split('/').map(encodeURIComponent).join('/').replace(/%24/g, '$');
+
+        if (action === 'download') {
+            robot.requestRaw('GET', '/fileservice/' + escapedPath, null, { accept: '*/*' })
+            .then(function(result) {
+                if (result.statusCode < 200 || result.statusCode >= 300) {
+                    throw new Error('HTTP ' + result.statusCode + ' ' + remotePath);
+                }
+                var content = encoding === 'base64'
+                    ? result.body.toString('base64')
+                    : result.body.toString('utf8');
+
+                var finalLocalPath = localPath || '';
+                if (!finalLocalPath) {
+                    var baseName = remotePath.split('/').pop() || 'downloaded_file';
+                    finalLocalPath = path.join(process.cwd(), baseName);
+                }
+
+                try {
+                    fs.writeFileSync(finalLocalPath, result.body);
+                } catch(e) {
+                    throw new Error('Failed to save file locally at ' + finalLocalPath + ': ' + e.message);
+                }
+
+                res.json({ ok: true, remotePath: remotePath, localPath: finalLocalPath, bytes: result.body.length, preview: content.slice(0, 1000) });
+            })
+            .catch(function(err) {
+                res.status(502).json({ error: err.message });
+            });
+        } else if (action === 'upload') {
+            if (!localPath) {
+                return res.status(400).json({ error: 'Local path is required for upload test' });
+            }
+            var content;
+            try {
+                content = fs.readFileSync(localPath);
+            } catch(e) {
+                return res.status(400).json({ error: 'Could not read local file: ' + e.message });
+            }
+
+            var isBuffer = Buffer.isBuffer(content);
+            var result = { text: content, injected: false };
+            if (autoChangeIp) {
+                if (isBuffer) {
+                    var canPatch = false;
+                    const bufferModule = require('buffer');
+                    if (typeof bufferModule.isUtf8 === 'function') {
+                        canPatch = bufferModule.isUtf8(content);
+                    } else {
+                        try {
+                            const { TextDecoder } = require('util');
+                            new TextDecoder('utf-8', { fatal: true }).decode(content);
+                            canPatch = true;
+                        } catch (e) {
+                            canPatch = false;
+                        }
+                    }
+
+                    if (canPatch) {
+                        var textResult = patchServerIp(content.toString('utf8'), robot.ip);
+                        content = Buffer.from(textResult.text, 'utf8');
+                        result.injected = textResult.injected;
+                    }
+                } else {
+                    var textResult = patchServerIp(String(content), robot.ip);
+                    content = textResult.text;
+                    result.injected = textResult.injected;
+                }
+            }
+
+            var body = Buffer.isBuffer(content) ? content : Buffer.from(String(content));
+            robot.rwsPut('/fileservice/' + remotePath, body, 'text/plain;v=2.0')
+            .then(function() {
+                res.json({ ok: true, remotePath: remotePath, bytes: body.length, serverIpInjected: result.injected });
+            })
+            .catch(function(err) {
+                res.status(502).json({ error: err.message });
+            });
+        } else if (action === 'delete') {
+            robot.requestRaw('DELETE', '/fileservice/' + escapedPath, null, {})
+            .then(function(result) {
+                if (result.statusCode >= 200 && result.statusCode < 300) {
+                    res.json({ ok: true, remotePath: remotePath, deleted: true });
+                } else if (result.statusCode === 404) {
+                    res.status(404).json({ error: 'File not found on controller: ' + remotePath });
+                } else {
+                    throw new Error('HTTP ' + result.statusCode + ' ' + remotePath);
+                }
+            })
+            .catch(function(err) {
+                res.status(502).json({ error: err.message });
+            });
+        } else {
+            res.status(400).json({ error: 'Unknown action: ' + action });
+        }
+    });
 };

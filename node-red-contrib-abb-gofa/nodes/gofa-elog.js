@@ -52,4 +52,38 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-elog', GoFaElogNode);
+
+    RED.httpAdmin.get('/gofa-elog/:id/read', RED.auth.needsPermission('gofa-elog.read'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsGet !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var domain = req.query.domain || '1';
+        var count = Math.min(parseInt(req.query.count) || 10, 100);
+        var minSeverity = parseInt(req.query.minSeverity) || 1;
+
+        robot.rwsGet('/rw/elog/' + encodeURIComponent(domain) + '?lang=en&lim=' + count)
+        .then(function(body) {
+            var entries = [];
+            var liRe = /<li class="elog-message-li"[^>]*>([\s\S]*?)<\/li>/g;
+            var spanRe = /class="([^"]+)">([^<]*)</g;
+            var fields = ['seqnum', 'msgtype', 'code', 'title', 'tstamp'];
+            var li;
+            while ((li = liRe.exec(body)) !== null) {
+                var entry = {};
+                var span;
+                while ((span = spanRe.exec(li[1])) !== null) {
+                    var cls = span[1].trim();
+                    if (fields.indexOf(cls) >= 0) entry[cls] = span[2].trim();
+                }
+                if (Object.keys(entry).length) entries.push(entry);
+            }
+            if (minSeverity > 1) {
+                entries = entries.filter(function(e) { return parseInt(e.msgtype) >= minSeverity; });
+            }
+            res.json({ ok: true, domain: parseInt(domain), entries: entries });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

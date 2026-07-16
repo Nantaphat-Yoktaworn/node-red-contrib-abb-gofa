@@ -73,4 +73,40 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-rapid-var-write', GoFaRapidVarWriteNode);
+
+    RED.httpAdmin.post('/gofa-rapid-var-write/:id/write', RED.auth.needsPermission('gofa-rapid-var-write.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.socketSend !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var variable = req.body.variable;
+        var value    = req.body.value;
+
+        if (!variable) {
+            return res.status(400).json({ error: 'No variable name configured' });
+        }
+
+        var parsedValue = value;
+        var isNumericString = typeof value === 'string' && value !== '' && !isNaN(Number(value));
+        if (isNumericString) {
+            var isStringPrefix = variable.toLowerCase().startsWith('s');
+            if (!isStringPrefix) {
+                parsedValue = Number(value);
+            }
+        }
+
+        robot.socketSend({ cmd: 'setvar', name: variable, val: parsedValue })
+        .then(function(reply) {
+            if (reply.startsWith('OK:SETVAR')) {
+                res.json({ ok: true, variable: variable, value: String(value) });
+            } else {
+                var hint = ' — check that "' + variable.toUpperCase() + '" is listed in ' +
+                    'TryGetVar/TrySetVar in MainModule.mod, and that "' + value + '" is a valid value for its RAPID type';
+                throw new Error(reply + hint);
+            }
+        })
+        .catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

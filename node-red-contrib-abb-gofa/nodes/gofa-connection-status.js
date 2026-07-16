@@ -73,4 +73,56 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-connection-status', GoFaConnectionStatusNode);
+
+    RED.httpAdmin.get('/gofa-connection-status/:id/test', RED.auth.needsPermission('gofa-connection-status.read'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsGet !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        function settled(label, promise) {
+            return promise.then(
+                function(value) { return { label: label, ok: true, value: value }; },
+                function(err)   { return { label: label, ok: false, error: err.message }; }
+            );
+        }
+        var t0 = Date.now();
+        Promise.all([
+            settled('ctrlstate', robot.rwsGet('/rw/panel/ctrl-state')),
+            settled('opmode',    robot.rwsGet('/rw/panel/opmode')),
+            settled('execution', robot.rwsGet('/rw/rapid/execution')),
+            settled('speed',     robot.rwsGet('/rw/panel/speedratio')),
+            settled('socket', (function() {
+                var s0 = Date.now();
+                return robot.socketSend({ cmd: 'ping' }).then(function(resp) {
+                    if (!resp.startsWith('OK:')) throw new Error('unexpected reply: ' + resp);
+                    return Date.now() - s0;
+                });
+            })())
+        ]).then(function(results) {
+            var find = function(label) { return results.filter(function(x) { return x.label === label; })[0]; };
+            var ctrlstate = find('ctrlstate');
+            var opmode    = find('opmode');
+            var execution = find('execution');
+            var speed     = find('speed');
+            var socket    = find('socket');
+            var rwsOk = ctrlstate.ok || opmode.ok || execution.ok || speed.ok;
+
+            res.json({
+                ok: rwsOk && socket.ok,
+                ip: robot.ip,
+                rws: {
+                    ok:     rwsOk,
+                    motors: ctrlstate.ok ? robot.parseXhtml(ctrlstate.value, 'ctrlstate')      : null,
+                    mode:   opmode.ok    ? robot.parseXhtml(opmode.value, 'opmode')             : null,
+                    rapid:  execution.ok ? robot.parseXhtml(execution.value, 'ctrlexecstate')   : null,
+                    speed:  speed.ok     ? parseInt(robot.parseXhtml(speed.value, 'speedratio')) || 0 : null
+                },
+                socket: socket.ok ? { ok: true, rtt: socket.value } : { ok: false, error: socket.error },
+                errors: results.filter(function(x) { return !x.ok; }).map(function(x) { return x.label + ': ' + x.error; }),
+                duration: Date.now() - t0
+            });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

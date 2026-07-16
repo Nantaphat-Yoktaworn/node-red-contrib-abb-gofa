@@ -9,7 +9,68 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || (this.action === 'disable' ? 'Lead-through OFF' : 'Lead-through ON'); },
-        paletteLabel: 'Lead-through'
+        paletteLabel: 'Lead-through',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function updateState() {
+                var id = robotId();
+                if (!id) {
+                    $('#gofa-lt-status').html('<span style="color: var(--red-ui-text-color-error, #f00);">Select (and deploy) a robot config first</span>');
+                    return;
+                }
+                $.getJSON('gofa-leadthrough/' + id + '/read')
+                    .done(function(data) {
+                        var isAct = data.status === 'active';
+                        var stateStr = isAct ? 'Enabled (Active)' : 'Disabled (Inactive)';
+                        var color = isAct ? '#5cb85c' : '#777';
+                        $('#gofa-lt-status').html('<span style="font-weight: bold; color: ' + color + ';">' + stateStr + '</span>');
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to read status';
+                        $('#gofa-lt-status').html('<span style="color: var(--red-ui-text-color-error, #f00);">' + err + '</span>');
+                    });
+            }
+            function setLeadthrough(action) {
+                var id = robotId();
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+                var btn = action === 'enable' ? $('#gofa-lt-enable') : $('#gofa-lt-disable');
+                var other = action === 'enable' ? $('#gofa-lt-disable') : $('#gofa-lt-enable');
+                btn.prop('disabled', true);
+                other.prop('disabled', true);
+                $.ajax({
+                    url: 'gofa-leadthrough/' + id + '/toggle',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ action: action })
+                })
+                    .done(function() {
+                        RED.notify('Leadthrough successfully ' + (action === 'enable' ? 'enabled' : 'disabled'), 'success');
+                        updateState();
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Command failed';
+                        RED.notify(err, 'error');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                        other.prop('disabled', false);
+                    });
+            }
+            $('#gofa-lt-enable').on('click', function(e) {
+                e.preventDefault();
+                setLeadthrough('enable');
+            });
+            $('#gofa-lt-disable').on('click', function(e) {
+                e.preventDefault();
+                setLeadthrough('disable');
+            });
+            // Initial load
+            updateState();
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-leadthrough">
@@ -23,6 +84,14 @@
             <option value="enable">Enable</option>
             <option value="disable">Disable</option>
         </select>
+    </div>
+    <div class="form-row" style="display: flex; align-items: center; justify-content: space-between;">
+        <label style="margin-bottom: 0;"><i class="fa fa-info-circle"></i> Current State</label>
+        <span id="gofa-lt-status">Select a robot to load state.</span>
+    </div>
+    <div class="form-row" style="display: flex; gap: 5px;">
+        <button id="gofa-lt-enable" class="editor-button" style="flex-grow: 1;"><i class="fa fa-hand-paper-o"></i> Enable Leadthrough</button>
+        <button id="gofa-lt-disable" class="editor-button" style="flex-grow: 1;"><i class="fa fa-lock"></i> Disable Leadthrough</button>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

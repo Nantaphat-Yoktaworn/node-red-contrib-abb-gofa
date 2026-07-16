@@ -66,4 +66,47 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-save-point', GoFaSavePointNode);
+
+    RED.httpAdmin.post('/gofa-save-point/:id/save', RED.auth.needsPermission('gofa-save-point.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsGet !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var name = String(req.body.pointName || '').trim();
+        var storage = req.body.storage || 'local';
+
+        robot.rwsGet('/rw/motionsystem/mechunits/ROB_1/robtarget?tool=tool0&wobj=wobj0&coordinate=Base')
+        .then(function(body) {
+            var p = function(c){ return parseFloat(robot.parseXhtml(body, c)); };
+            var target = {
+                x: p('x'), y: p('y'), z: p('z'),
+                q1: p('q1'), q2: p('q2'), q3: p('q3'), q4: p('q4'),
+                cf1: p('cf1'), cf4: p('cf4'), cf6: p('cf6'), cfx: p('cfx')
+            };
+            if (storage === 'remote') {
+                if (typeof robot.remoteAddPoint !== 'function' || typeof robot.remoteGetPoints !== 'function') {
+                    throw new Error('Remote storage not supported/configured');
+                }
+                return robot.remoteAddPoint(name, target).then(function(pt) {
+                    if (pt.error) return pt;
+                    return robot.remoteGetPoints().then(function(points) { return { point: pt, points: points }; });
+                });
+            }
+            if (typeof robot.addPoint !== 'function' || typeof robot.getPoints !== 'function') {
+                throw new Error('Local storage not supported/configured');
+            }
+            var pt = robot.addPoint(name, target);
+            if (pt.error) return pt;
+            return { point: pt, points: robot.getPoints() };
+        })
+        .then(function(result) {
+            if (result.error) {
+                return res.status(400).json({ error: result.error });
+            }
+            res.json({ ok: true, point: result.point, points: result.points });
+        })
+        .catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

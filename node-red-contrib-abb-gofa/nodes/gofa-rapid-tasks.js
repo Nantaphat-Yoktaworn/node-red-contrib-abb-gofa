@@ -57,6 +57,25 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-rapid-tasks', GoFaRapidTasksNode);
+
+    RED.httpAdmin.get('/gofa-rapid-tasks/:id/read', RED.auth.needsPermission('gofa-rapid-tasks.read'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsGet !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var task = req.query.task || 'T_ROB1';
+
+        Promise.all([
+            robot.rwsGet('/rw/rapid/tasks'),
+            robot.rwsGet('/rw/rapid/tasks/' + encodeURIComponent(task) + '/modules')
+        ]).then(function(b) {
+            var tasks   = parseLiSpans(b[0], 'rap-task-li', TASK_FIELDS);
+            var modules = parseLiSpans(b[1], 'rap-module-info-li', MODULE_FIELDS);
+            res.json({ ok: true, tasks: tasks, task: task, modules: modules });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };
 
 module.exports.parseLiSpans = parseLiSpans;

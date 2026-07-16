@@ -198,4 +198,144 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-rapid-exec', GoFaRapidExecNode);
+
+    RED.httpAdmin.get('/gofa-rapid-exec/:id/read', RED.auth.needsPermission('gofa-rapid-exec.read'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsGet !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        Promise.all([
+            robot.rwsGet('/rw/panel/ctrl-state'),
+            robot.rwsGet('/rw/rapid/execution')
+        ]).then(function(b) {
+            res.json({
+                ok: true,
+                ctrlstate: robot.parseXhtml(b[0], 'ctrlstate'),
+                execstate: robot.parseXhtml(b[1], 'ctrlexecstate')
+            });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
+
+    RED.httpAdmin.post('/gofa-rapid-exec/:id/action', RED.auth.needsPermission('gofa-rapid-exec.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsPost !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var action = req.body.action || 'start';
+        var task       = req.body.task || 'T_ROB1';
+        var modulePath = req.body.modulePath || '$HOME/Programs/MainModule.mod';
+        var replace    = req.body.replace !== false;
+        var moduleName = req.body.module || 'MainModule';
+
+        var bodies = {
+            start:   'regain=continue&execmode=continue&cycle=forever&condition=none&stopatbp=disabled&alltaskbytsp=false',
+            stop:    'stopmode=stop&usetsp=normal',
+            resetpp: '',
+            loadmod: '',
+            unloadmod: '',
+            activate: ''
+        };
+
+        if (!bodies.hasOwnProperty(action)) {
+            return res.status(400).json({ error: 'Unknown action: ' + action });
+        }
+
+        function readCtrlState() {
+            return robot.rwsGet('/rw/panel/ctrl-state').then(function(body) {
+                return robot.parseXhtml(body, 'ctrlstate');
+            });
+        }
+        function readExecState() {
+            return robot.rwsGet('/rw/rapid/execution').then(function(body) {
+                return robot.parseXhtml(body, 'ctrlexecstate');
+            });
+        }
+        function waitForExecState(want, timeoutMs) {
+            var deadline = Date.now() + timeoutMs;
+            function poll() {
+                return readExecState().then(function(state) {
+                    if (state === want) return state;
+                    if (Date.now() >= deadline) {
+                        var err = new Error('RAPID did not reach "' + want + '" (still "' + state + '")');
+                        err.execstate = state;
+                        throw err;
+                    }
+                    return new Promise(function(res) { setTimeout(res, 300); }).then(poll);
+                });
+            }
+            return poll();
+        }
+
+        var doAction;
+        if (action === 'start') {
+            doAction = readCtrlState().then(function(ctrlstate) {
+                if (ctrlstate !== 'motoron') {
+                    var err = new Error('Cannot start RAPID: motors are ' + (ctrlstate || 'off') + ' — turn Motors On first');
+                    err.ctrlstate = ctrlstate;
+                    throw err;
+                }
+                return robot.rwsPost('/rw/rapid/execution/start', bodies.start);
+            }).then(function() {
+                return waitForExecState('running', 1500).catch(function(err) {
+                    return readCtrlState().then(function(cs) {
+                        var reason = cs !== 'motoron' ? ' (motors are ' + cs + ')' : '';
+                        var e2 = new Error('RAPID did not start' + reason + ' — check the controller event log (gofa-elog)');
+                        e2.execstate = err.execstate;
+                        e2.ctrlstate = cs;
+                        throw e2;
+                    });
+                });
+            });
+        } else if (action === 'resetpp') {
+            doAction = robot.withMastership(function() {
+                return robot.rwsPost('/rw/rapid/execution/resetpp', '');
+            });
+        } else if (action === 'loadmod' || action === 'unloadmod' || action === 'activate') {
+            doAction = readExecState().then(function(execstate) {
+                if (execstate !== 'stopped') {
+                    var err = new Error('Cannot ' + action + ': RAPID is ' + execstate + ' — stop it first');
+                    err.execstate = execstate;
+                    throw err;
+                }
+                if (action === 'loadmod') {
+                    var body = 'modulepath=' + encodeURIComponent(modulePath) + '&replace=' + (replace ? 'true' : 'false');
+                    return robot.withMastership(function() {
+                        return robot.rwsPostHal('/rw/rapid/tasks/' + task + '/loadmod', body);
+                    });
+                } else if (action === 'unloadmod') {
+                    var unloadBody = 'module=' + encodeURIComponent(moduleName);
+                    return robot.withMastership(function() {
+                        return robot.rwsPostHal('/rw/rapid/tasks/' + task + '/unloadmod', unloadBody);
+                    });
+                } else {
+                    var activateBody = 'module=' + encodeURIComponent(moduleName);
+                    return robot.withMastership(function() {
+                        return robot.rwsPostHal('/rw/rapid/tasks/' + task + '/activate', activateBody);
+                    });
+                }
+            });
+        } else {
+            doAction = robot.rwsPost('/rw/rapid/execution/' + action, bodies[action]);
+        }
+
+        doAction.then(function(result) {
+            var out = { ok: true, action: action };
+            if (action === 'loadmod') {
+                out.task = task;
+                out.modulePath = modulePath;
+                try {
+                    var loaded = JSON.parse(result).state[0];
+                    out.module = loaded && loaded.name;
+                } catch (e) {}
+            } else if (action === 'activate' || action === 'unloadmod') {
+                out.task = task;
+                out.module = moduleName;
+            }
+            res.json(out);
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message, ctrlstate: err.ctrlstate, execstate: err.execstate });
+        });
+    });
 };

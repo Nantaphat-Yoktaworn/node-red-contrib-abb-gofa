@@ -11,7 +11,51 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || ('Joint Jog ' + this.joint + this.dir + this.step + 'deg'); },
-        paletteLabel: 'Joint Jog'
+        paletteLabel: 'Joint Jog',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function performJointJog() {
+                var id = robotId();
+                var joint = $('#node-input-joint').val() || 'J1';
+                var dir = $('#node-input-dir').val() || '+';
+                var step = $('#node-input-step').val() || '5';
+
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+
+                if (!confirm('WARNING: The robot will execute a physical relative joint jog movement of ' + joint + dir + step + ' degrees. Ensure the path is clear. Proceed?')) {
+                    return;
+                }
+
+                var btn = $('#gofa-joint-jog-btn').prop('disabled', true);
+                RED.notify('Jogging joint...', 'info');
+
+                $.ajax({
+                    url: 'gofa-joint-jog/' + id + '/jog',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ joint: joint, dir: dir, step: step })
+                })
+                    .done(function(data) {
+                        RED.notify('Joint jog command acknowledged successfully: ' + data.ack, 'success');
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Joint jog command failed';
+                        RED.notify(err, 'error');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+
+            $('#gofa-joint-jog-btn').on('click', function(e) {
+                e.preventDefault();
+                performJointJog();
+            });
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-joint-jog">
@@ -37,6 +81,9 @@
     <div class="form-row">
         <label for="node-input-step"><i class="fa fa-sliders"></i> Step (deg)</label>
         <input type="number" id="node-input-step" placeholder="5" min="1" max="30">
+    </div>
+    <div class="form-row">
+        <button id="gofa-joint-jog-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-cog"></i> Jog Joint Now</button>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

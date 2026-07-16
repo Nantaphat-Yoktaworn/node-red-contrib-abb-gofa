@@ -9,7 +9,49 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || ('Speed ' + this.speed + '%'); },
-        paletteLabel: 'Speed Set'
+        paletteLabel: 'Speed Set',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+
+            function applySpeed() {
+                var id = robotId();
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+
+                var speed = parseInt($('#node-input-speed').val());
+                if (isNaN(speed) || speed < 1 || speed > 100) {
+                    return RED.notify('Speed must be a number between 1 and 100', 'warning');
+                }
+
+                var btn = $('#gofa-speed-btn').prop('disabled', true);
+                RED.notify('Setting speed override...', 'info');
+
+                $.ajax({
+                    url: 'gofa-speed-set/' + id + '/set',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ speed: speed })
+                })
+                    .done(function(data) {
+                        RED.notify('Speed override set to ' + data.speed + '% successfully', 'success');
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to set speed';
+                        RED.notify(err, 'error');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+
+            $('#gofa-speed-btn').on('click', function(e) {
+                e.preventDefault();
+                applySpeed();
+            });
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-speed-set">
@@ -20,6 +62,9 @@
     <div class="form-row">
         <label for="node-input-speed"><i class="fa fa-tachometer"></i> Speed %</label>
         <input type="number" id="node-input-speed" min="1" max="100" placeholder="50">
+    </div>
+    <div class="form-row">
+        <button id="gofa-speed-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-tachometer"></i> Set Speed Now</button>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

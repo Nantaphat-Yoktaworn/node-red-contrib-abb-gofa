@@ -26,4 +26,17 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-stop-motion', GoFaStopMotionNode);
+
+    RED.httpAdmin.post('/gofa-stop-motion/:id/stop', RED.auth.needsPermission('gofa-stop-motion.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.socketSend !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        robot.socketSend({ cmd: 'stop' }).then(function(resp) {
+            if (!resp.startsWith('OK:')) throw new Error('Robot error: ' + resp);
+            res.json({ ok: true });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

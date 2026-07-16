@@ -60,4 +60,38 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-jog', GoFaJogNode);
+
+    RED.httpAdmin.post('/gofa-jog/:id/jog', RED.auth.needsPermission('gofa-jog.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.socketSend !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var axis = req.body.axis || 'X';
+        var dir = req.body.dir || '+';
+        var step = parseFloat(req.body.step) || 10;
+
+        var upperAxis = axis.toUpperCase();
+        if (['X', 'Y', 'Z', 'RX', 'RY', 'RZ'].indexOf(upperAxis) === -1) {
+            return res.status(400).json({ error: 'Invalid axis: ' + axis });
+        }
+        axis = upperAxis;
+
+        if (dir !== '+' && dir !== '-') {
+            return res.status(400).json({ error: 'Invalid direction: ' + dir });
+        }
+
+        var rot = axis.charAt(0) === 'R';
+        step = Math.max(1, Math.min(rot ? 30 : 50, step));
+        var axisLetter = rot ? axis.substring(1) : axis;
+
+        robot.socketSend({ cmd: 'jog', axis: axisLetter, sgn: dir, val: step, rot: rot }).then(function(ack) {
+            var ok = ack.startsWith('OK:');
+            if (!ok) {
+                throw new Error(ack);
+            }
+            res.json({ ok: true, ack: ack });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

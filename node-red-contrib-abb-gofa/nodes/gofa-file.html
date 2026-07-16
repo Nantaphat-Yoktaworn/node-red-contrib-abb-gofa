@@ -23,11 +23,80 @@
                 var val = $('#node-input-action').val();
                 $('.node-row-download').toggle(val === 'download');
                 $('.node-row-upload').toggle(val === 'upload');
+                $('.node-row-localPath').toggle(val === 'download' || val === 'upload');
                 $('.node-row-delete').toggle(val === 'delete');
                 $('.node-row-remotePath').toggle(val === 'download' || val === 'upload' || val === 'delete');
             };
             $('#node-input-action').on('change', toggleFields);
             toggleFields();
+
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+
+            function runFileAction() {
+                var id = robotId();
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+
+                var action = $('#node-input-action').val() || 'download';
+                var remotePath = $('#node-input-remotePath').val() || '';
+                var localPath = $('#node-input-localPath').val() || '';
+                var encoding = $('#node-input-encoding').val() || 'utf8';
+                var autoChangeIp = $('#node-input-autoChangeIp').prop('checked');
+
+                if (action === 'delete') {
+                    if (!confirm('Are you sure you want to delete ' + remotePath + ' from the controller?')) {
+                        return;
+                    }
+                }
+
+                var btn = $('#gofa-file-btn').prop('disabled', true);
+                $('#gofa-file-result').html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+
+                $.ajax({
+                    url: 'gofa-file/' + id + '/test',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        action: action,
+                        remotePath: remotePath,
+                        localPath: localPath,
+                        encoding: encoding,
+                        autoChangeIp: autoChangeIp
+                    })
+                })
+                    .done(function(data) {
+                        RED.notify('File action succeeded!', 'success');
+                        if (action === 'download') {
+                            var snippet = data.preview || '';
+                            if (snippet.length > 500) snippet = snippet.slice(0, 500) + '...';
+                            $('#gofa-file-result').html(
+                                '<div><b>Downloaded:</b> ' + data.bytes + ' bytes (saved locally to ' + data.localPath + ')</div>' +
+                                '<pre style="margin-top: 5px; font-size: 11px; max-height: 150px; overflow: auto; background: white; padding: 5px; border: 1px solid #ccc; font-family: monospace;">' +
+                                $('<div/>').text(snippet).html() + '</pre>'
+                            );
+                        } else if (action === 'upload') {
+                            var ipMsg = data.serverIpInjected ? ' (patched Server IP to target robot)' : '';
+                            $('#gofa-file-result').html('<div><b>Uploaded successfully:</b> ' + data.bytes + ' bytes' + ipMsg + '</div>');
+                        } else if (action === 'delete') {
+                            $('#gofa-file-result').html('<div><b>Deleted successfully from remote path:</b> ' + data.remotePath + '</div>');
+                        }
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'File action failed';
+                        RED.notify(err, 'error');
+                        $('#gofa-file-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">' + err + '</span>');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+
+            $('#gofa-file-btn').on('click', function(e) {
+                e.preventDefault();
+                runFileAction();
+            });
         }
     });
 </script>
@@ -44,7 +113,7 @@
             <option value="delete">Delete</option>
         </select>
     </div>
-    <div class="form-row node-row-upload">
+    <div class="form-row node-row-localPath">
         <label for="node-input-localPath"><i class="fa fa-file"></i> Local path</label>
         <input type="text" id="node-input-localPath" placeholder="/data/local_file.mod">
     </div>
@@ -62,6 +131,14 @@
             <option value="utf8">UTF-8 (text)</option>
             <option value="base64">Base64 (binary)</option>
         </select>
+    </div>
+    <div class="form-row">
+        <button id="gofa-file-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-play"></i> Run File Action Now</button>
+    </div>
+    <div class="form-row">
+        <div id="gofa-file-result" style="background: var(--red-ui-tertiary-background, #f3f3f3); padding: 10px; border: 1px solid var(--red-ui-form-input-border, #ccc); border-radius: 4px; min-height: 40px;">
+            Select a robot and click Run File Action Now.
+        </div>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

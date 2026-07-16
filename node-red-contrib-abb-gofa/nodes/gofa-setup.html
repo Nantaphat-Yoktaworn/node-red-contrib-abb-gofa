@@ -10,7 +10,69 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'One-Click Setup'; },
-        paletteLabel: 'Setup'
+        paletteLabel: 'Setup',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function runSetup() {
+                var id = robotId();
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+
+                var moduleVal = $('#node-input-module').val() || 'MainModule';
+                var taskVal = $('#node-input-task').val() || 'T_ROB1';
+
+                var btn = $('#gofa-setup-start').prop('disabled', true);
+                $('#gofa-setup-steps-list').html('<i class="fa fa-spinner fa-spin"></i> Initializing bring-up sequence...');
+
+                $.ajax({
+                    url: 'gofa-setup/' + id + '/start',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ module: moduleVal, task: taskVal })
+                })
+                    .done(function(data) {
+                        RED.notify('One-Click Setup finished successfully!', 'success');
+                        renderSteps(data.steps);
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Setup failed';
+                        RED.notify(err, 'error');
+                        if (xhr.responseJSON && xhr.responseJSON.steps) {
+                            renderSteps(xhr.responseJSON.steps);
+                        } else {
+                            $('#gofa-setup-steps-list').html('<span style="color: var(--red-ui-text-color-error, #f00);">' + err + '</span>');
+                        }
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+
+            function renderSteps(steps) {
+                var html = '<table class="red-ui-info-table" style="width: 100%; border-collapse: collapse;">' +
+                    '<thead><tr><th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc; width: 40%;">Step</th><th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc; width: 15%;">Status</th><th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc;">Details</th></tr></thead>' +
+                    '<tbody>';
+                steps.forEach(function(s) {
+                    var statusStr = s.ok ? 'OK' : 'FAILED';
+                    var color = s.ok ? '#5cb85c' : '#d9534f';
+                    html += '<tr>' +
+                        '<td style="font-weight: bold; padding: 4px; border-bottom: 1px solid #eee;">' + s.name + '</td>' +
+                        '<td style="padding: 4px; border-bottom: 1px solid #eee; font-weight: bold; color: ' + color + ';">' + statusStr + '</td>' +
+                        '<td style="padding: 4px; border-bottom: 1px solid #eee; font-size: 11px;">' + (s.detail || '') + '</td>' +
+                        '</tr>';
+                });
+                html += '</tbody></table>';
+                $('#gofa-setup-steps-list').html(html);
+            }
+
+            $('#gofa-setup-start').on('click', function(e) {
+                e.preventDefault();
+                runSetup();
+            });
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-setup">
@@ -28,6 +90,15 @@
     <div class="form-row">
         <label for="node-input-task"><i class="fa fa-cogs"></i> Task</label>
         <input type="text" id="node-input-task" placeholder="T_ROB1">
+    </div>
+    <div class="form-row" style="display: flex; align-items: center; justify-content: space-between;">
+        <label style="margin-bottom: 0;"><i class="fa fa-info-circle"></i> Initialize</label>
+        <button id="gofa-setup-start" class="editor-button red-ui-button-active" style="width: auto; font-weight: bold;"><i class="fa fa-rocket"></i> Run One-Click Setup</button>
+    </div>
+    <div class="form-row">
+        <div id="gofa-setup-steps-list" style="background: var(--red-ui-tertiary-background, #f3f3f3); padding: 10px; border: 1px solid var(--red-ui-form-input-border, #ccc); border-radius: 4px; min-height: 100px; max-height: 250px; overflow-y: auto;">
+            Select a robot and click Run One-Click Setup.
+        </div>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

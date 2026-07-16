@@ -9,7 +9,58 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'Point List'; },
-        paletteLabel: 'Point List'
+        paletteLabel: 'Point List',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function fetchPointList() {
+                var id = robotId();
+                var storage = $('#node-input-storage').val() || 'local';
+                if (!id) {
+                    $('#gofa-points-list-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">Select (and deploy) a robot config first</span>');
+                    return;
+                }
+                var btn = $('#gofa-points-list-fetch').prop('disabled', true);
+                $('#gofa-points-list-result').html('<i class="fa fa-spinner fa-spin"></i> Fetching...');
+                $.getJSON('gofa-point-list/' + id + '/read', { storage: storage })
+                    .done(function(data) {
+                        if (!data.points || data.points.length === 0) {
+                            $('#gofa-points-list-result').html('No points saved.');
+                            return;
+                        }
+                        var html = '<table class="red-ui-info-table" style="width: 100%; border-collapse: collapse;">' +
+                            '<thead><tr><th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc; width: 40%;">Name</th><th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc;">Coordinates</th></tr></thead>' +
+                            '<tbody>';
+                        data.points.forEach(function(pt) {
+                            html += '<tr>' +
+                                '<td style="font-weight: bold; padding: 4px; border-bottom: 1px solid #eee;">' + pt.name + '</td>' +
+                                '<td style="padding: 4px; border-bottom: 1px solid #eee; font-family: monospace; font-size: 11px;">' + (pt.target || '') + '</td>' +
+                                '</tr>';
+                        });
+                        html += '</tbody></table>';
+                        $('#gofa-points-list-result').html(html);
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to fetch points';
+                        $('#gofa-points-list-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">' + err + '</span>');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+            $('#gofa-points-list-fetch').on('click', function(e) {
+                e.preventDefault();
+                fetchPointList();
+            });
+            $('#node-input-storage').on('change', function() {
+                fetchPointList();
+            });
+            // Initial load
+            fetchPointList();
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-point-list">
@@ -23,6 +74,15 @@
             <option value="local">Local (points.json)</option>
             <option value="remote">On-Robot</option>
         </select>
+    </div>
+    <div class="form-row" style="display: flex; align-items: center; justify-content: space-between;">
+        <label style="margin-bottom: 0;"><i class="fa fa-info-circle"></i> Saved Points</label>
+        <button id="gofa-points-list-fetch" class="editor-button" style="width: auto;"><i class="fa fa-refresh"></i> Refresh Points</button>
+    </div>
+    <div class="form-row">
+        <div id="gofa-points-list-result" style="background: var(--red-ui-tertiary-background, #f3f3f3); padding: 10px; border: 1px solid var(--red-ui-form-input-border, #ccc); border-radius: 4px; min-height: 80px; max-height: 200px; overflow-y: auto;">
+            Select a robot and click Refresh Points.
+        </div>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

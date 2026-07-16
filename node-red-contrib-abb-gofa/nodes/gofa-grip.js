@@ -48,4 +48,45 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-grip', GoFaGripNode);
+
+    RED.httpAdmin.get('/gofa-grip/:id/read', RED.auth.needsPermission('gofa-grip.read'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsGet !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var signal = req.query.signal;
+        if (!signal) {
+            return res.status(400).json({ error: 'Missing signal name' });
+        }
+        robot.rwsGet('/rw/iosystem/signals/' + encodeURIComponent(signal))
+        .then(function(body) {
+            var raw = robot.parseXhtml(body, 'lvalue');
+            var value = parseInt(raw);
+            res.json({ ok: true, signal: signal, value: value });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
+
+    RED.httpAdmin.post('/gofa-grip/:id/toggle', RED.auth.needsPermission('gofa-grip.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsPost !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var signal = req.body.signal;
+        var action = req.body.action; // 'on' or 'off'
+        if (!signal) {
+            return res.status(400).json({ error: 'Missing signal name' });
+        }
+        if (action !== 'on' && action !== 'off') {
+            return res.status(400).json({ error: 'Invalid action: ' + action });
+        }
+        var value = action === 'on' ? 1 : 0;
+        robot.rwsPost('/rw/iosystem/signals/' + encodeURIComponent(signal) + '/set-value', 'lvalue=' + value)
+        .then(function() {
+            res.json({ ok: true, action: action, signal: signal });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

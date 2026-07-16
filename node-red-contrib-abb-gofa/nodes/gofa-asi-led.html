@@ -63,6 +63,57 @@
                 updateSwatch();
                 toggleBlinkMs();
             }, 0);
+
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+
+            function setLedColor(isReset) {
+                var id = robotId();
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+
+                var btn = isReset ? $('#gofa-led-reset') : $('#gofa-led-set');
+                btn.prop('disabled', true);
+
+                var data = {};
+                if (isReset) {
+                    data.payload = 'reset';
+                } else {
+                    data.red = $('#node-input-red').val() || 0;
+                    data.green = $('#node-input-grn').val() || 0;
+                    data.blue = $('#node-input-blu').val() || 0;
+                    data.period = $('#node-input-period').val() || 0;
+                    data.blinkCount = $('#node-input-blinkCount').val() || 0;
+                    data.blinkMs = $('#node-input-blinkMs').val() || 250;
+                }
+
+                $.ajax({
+                    url: 'gofa-asi-led/' + id + '/set',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data)
+                })
+                    .done(function() {
+                        RED.notify(isReset ? 'LED successfully reset' : 'LED color set successfully', 'success');
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to update LED';
+                        RED.notify(err, 'error');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+
+            $('#gofa-led-set').on('click', function(e) {
+                e.preventDefault();
+                setLedColor(false);
+            });
+            $('#gofa-led-reset').on('click', function(e) {
+                e.preventDefault();
+                setLedColor(true);
+            });
         }
     });
 </script>
@@ -102,6 +153,10 @@
         <label for="node-input-blinkMs"><i class="fa fa-clock-o"></i> Flash time (ms)</label>
         <input type="text" inputmode="numeric" id="node-input-blinkMs" placeholder="250" style="width:80px">
         <span style="color:#888;font-size:0.85em;margin-left:6px">on + off duration per flash</span>
+    </div>
+    <div class="form-row" style="display: flex; gap: 5px;">
+        <button id="gofa-led-set" class="editor-button" style="flex-grow: 1;"><i class="fa fa-lightbulb-o"></i> Set LED Color</button>
+        <button id="gofa-led-reset" class="editor-button" style="flex-grow: 1;"><i class="fa fa-refresh"></i> Reset to Green</button>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

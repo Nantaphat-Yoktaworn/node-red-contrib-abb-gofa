@@ -10,7 +10,78 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || ('Grip ' + (this.action || 'on').toUpperCase()); },
-        paletteLabel: 'Grip'
+        paletteLabel: 'Grip',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function updateState() {
+                var id = robotId();
+                var sig = $('#node-input-signal').val() || '';
+                if (!id) {
+                    $('#gofa-grip-status').html('<span style="color: var(--red-ui-text-color-error, #f00);">Select (and deploy) a robot config first</span>');
+                    return;
+                }
+                if (!sig) {
+                    $('#gofa-grip-status').html('<span style="color: var(--red-ui-text-color-error, #f00);">Enter a signal name first</span>');
+                    return;
+                }
+                $.getJSON('gofa-grip/' + id + '/read', { signal: sig })
+                    .done(function(data) {
+                        var color = data.value === 1 ? '#5cb85c' : '#777';
+                        var text = data.value === 1 ? 'Closed (ON)' : 'Open (OFF)';
+                        var html = '<div style="display: flex; align-items: center;">' +
+                            '<span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: ' + color + '; margin-right: 6px; border: 1px solid #444;"></span>' +
+                            '<span><b>State:</b> ' + text + '</span>' +
+                            '</div>';
+                        $('#gofa-grip-status').html(html);
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to read state';
+                        $('#gofa-grip-status').html('<span style="color: var(--red-ui-text-color-error, #f00);">' + err + '</span>');
+                    });
+            }
+            function triggerGrip(action) {
+                var id = robotId();
+                var sig = $('#node-input-signal').val() || '';
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+                if (!sig) return RED.notify('Enter a signal name first', 'warning');
+                
+                var btn = action === 'on' ? $('#gofa-grip-close') : $('#gofa-grip-open');
+                var other = action === 'on' ? $('#gofa-grip-open') : $('#gofa-grip-close');
+                btn.prop('disabled', true);
+                other.prop('disabled', true);
+
+                $.ajax({
+                    url: 'gofa-grip/' + id + '/toggle',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ action: action, signal: sig })
+                })
+                    .done(function() {
+                        RED.notify('Gripper successfully set to ' + (action === 'on' ? 'Closed' : 'Open'), 'success');
+                        updateState();
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Command failed';
+                        RED.notify(err, 'error');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                        other.prop('disabled', false);
+                    });
+            }
+            $('#gofa-grip-close').on('click', function(e) { e.preventDefault(); triggerGrip('on'); });
+            $('#gofa-grip-open').on('click', function(e) { e.preventDefault(); triggerGrip('off'); });
+            
+            $('#node-input-signal').on('change input', function() {
+                updateState();
+            });
+            // Initial load
+            updateState();
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-grip">
@@ -28,6 +99,14 @@
     <div class="form-row">
         <label for="node-input-signal"><i class="fa fa-plug"></i> DO Signal</label>
         <input type="text" id="node-input-signal" placeholder="ABB_Scalable_IO_0_DO1" style="width:70%">
+    </div>
+    <div class="form-row" style="display: flex; align-items: center; justify-content: space-between;">
+        <label style="margin-bottom: 0;"><i class="fa fa-info-circle"></i> Current State</label>
+        <span id="gofa-grip-status">Select a robot to load state.</span>
+    </div>
+    <div class="form-row" style="display: flex; gap: 5px;">
+        <button id="gofa-grip-close" class="editor-button" style="flex-grow: 1;"><i class="fa fa-hand-grab-o"></i> Close Gripper (ON)</button>
+        <button id="gofa-grip-open" class="editor-button" style="flex-grow: 1;"><i class="fa fa-hand-paper-o"></i> Open Gripper (OFF)</button>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

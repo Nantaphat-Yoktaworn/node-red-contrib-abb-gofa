@@ -13,7 +13,64 @@
             var a = this.action || 'export';
             return this.name || ('Points ' + a);
         },
-        paletteLabel: 'Points File'
+        paletteLabel: 'Points File',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+
+            function runPointsAction() {
+                var id = robotId();
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+
+                var action = $('#node-input-action').val() || 'export';
+                var path = $('#node-input-path').val() || '';
+
+                if (action === 'import') {
+                    if (!confirm('WARNING: Importing points will overwrite all currently saved points in the robot node. Proceed?')) {
+                        return;
+                    }
+                }
+
+                var btn = $('#gofa-points-btn').prop('disabled', true);
+                $('#gofa-points-result').html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+
+                $.ajax({
+                    url: 'gofa-points/' + id + '/test',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ action: action, path: path })
+                })
+                    .done(function(data) {
+                        RED.notify('Points action succeeded!', 'success');
+                        if (action === 'export') {
+                            var savedMsg = data.savedTo ? ' and saved to ' + data.savedTo : ' (in memory)';
+                            $('#gofa-points-result').html(
+                                '<div><b>Exported:</b> ' + data.count + ' points' + savedMsg + '</div>'
+                            );
+                        } else if (action === 'import') {
+                            $('#gofa-points-result').html(
+                                '<div><b>Imported successfully:</b> ' + data.count + ' points from ' + data.loadedFrom + '</div>'
+                            );
+                        }
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Points action failed';
+                        RED.notify(err, 'error');
+                        $('#gofa-points-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">' + err + '</span>');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+
+            $('#gofa-points-btn').on('click', function(e) {
+                e.preventDefault();
+                runPointsAction();
+            });
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-points">
@@ -27,6 +84,14 @@
             <option value="export">Export</option>
             <option value="import">Import</option>
         </select>
+    </div>
+    <div class="form-row">
+        <button id="gofa-points-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-play"></i> Run Points Action Now</button>
+    </div>
+    <div class="form-row">
+        <div id="gofa-points-result" style="background: var(--red-ui-tertiary-background, #f3f3f3); padding: 10px; border: 1px solid var(--red-ui-form-input-border, #ccc); border-radius: 4px; min-height: 40px;">
+            Select a robot and click Run Points Action Now.
+        </div>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

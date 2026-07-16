@@ -96,4 +96,57 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-points', GoFaPointsNode);
+
+    RED.httpAdmin.post('/gofa-points/:id/test', RED.auth.needsPermission('gofa-points.write'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot) {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        var action = req.body.action || 'export';
+        var filePath = req.body.path || '';
+
+        if (action === 'export') {
+            if (typeof robot.getPoints !== 'function') {
+                return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+            }
+            var points = robot.getPoints();
+            if (filePath) {
+                if (!/\.json$/i.test(filePath)) {
+                    filePath += '.json';
+                }
+                try {
+                    fs.writeFileSync(filePath, JSON.stringify(points, null, 2), 'utf8');
+                } catch (err) {
+                    return res.status(502).json({ error: 'File write failed: ' + err.message });
+                }
+            }
+            res.json({ ok: true, count: points.length, points: points.slice(0, 5), savedTo: filePath || null });
+        } else if (action === 'import') {
+            if (!filePath) {
+                return res.status(400).json({ error: 'File path is required for import action' });
+            }
+            var arr;
+            try {
+                var raw = fs.readFileSync(filePath, 'utf8');
+                var parsed = JSON.parse(raw);
+                arr = Array.isArray(parsed) ? parsed
+                    : (parsed && Array.isArray(parsed.points)) ? parsed.points
+                    : null;
+                if (!arr) throw new Error('File must contain an array or {points:[...]}');
+            } catch (err) {
+                return res.status(502).json({ error: 'File read failed: ' + err.message });
+            }
+
+            if (typeof robot.replacePoints !== 'function') {
+                return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+            }
+            var result = robot.replacePoints(arr);
+            if (result.error) {
+                return res.status(400).json({ error: result.error });
+            }
+            res.json({ ok: true, count: result.length, loadedFrom: filePath });
+        } else {
+            res.status(400).json({ error: 'Unknown action: ' + action });
+        }
+    });
 };

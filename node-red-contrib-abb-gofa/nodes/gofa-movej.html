@@ -10,7 +10,50 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || (this.moveType === 'L' ? 'Move Joints (Linear)' : 'Move Joints'); },
-        paletteLabel: 'Move Joints'
+        paletteLabel: 'Move Joints',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function moveJoints() {
+                var id = robotId();
+                var jointsVal = $('#node-input-joints').val();
+                var moveType = $('#node-input-moveType').val() || 'J';
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+                if (!jointsVal) return RED.notify('Enter joints first', 'warning');
+
+                if (!confirm('WARNING: The robot will execute a physical move to joints ' + jointsVal + ' (' + moveType + '). Ensure the path is clear. Proceed?')) {
+                    return;
+                }
+
+                var btn = $('#gofa-movej-btn').prop('disabled', true);
+                RED.notify('Moving joints...', 'info');
+
+                $.ajax({
+                    url: 'gofa-movej/' + id + '/move',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ joints: jointsVal, moveType: moveType })
+                })
+                    .done(function(data) {
+                        RED.notify('Move joints command acknowledged successfully!', 'success');
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Move joints failed';
+                        RED.notify(err, 'error');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+
+            $('#gofa-movej-btn').on('click', function(e) {
+                e.preventDefault();
+                moveJoints();
+            });
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-movej">
@@ -33,6 +76,9 @@
             <option value="J">Joint (MoveJ) — default, most reliable</option>
             <option value="L">Linear (MoveL) — straight-line TCP path</option>
         </select>
+    </div>
+    <div class="form-row">
+        <button id="gofa-movej-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-arrows"></i> Move Joints Now</button>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

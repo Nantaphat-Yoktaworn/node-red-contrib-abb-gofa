@@ -5,13 +5,66 @@
             outputPayload: { value: false }, name: { value:'' }, robot: { value:'', type:'gofa-robot', required:true } },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'Read Joints'; },
-        paletteLabel: 'Read Joints'
+        paletteLabel: 'Read Joints',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function fetchJoints() {
+                var id = robotId();
+                if (!id) {
+                    $('#gofa-joints-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">Select (and deploy) a robot config first</span>');
+                    return;
+                }
+                var btn = $('#gofa-joints-fetch').prop('disabled', true);
+                $('#gofa-joints-result').html('<i class="fa fa-spinner fa-spin"></i> Fetching...');
+                $.getJSON('gofa-joints/' + id + '/read')
+                    .done(function(data) {
+                        var html = '<table class="red-ui-info-table" style="width: 100%; border-collapse: collapse;">' +
+                            '<thead><tr><th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc;" colspan="2">Joint Target Angles (°)</th></tr></thead>' +
+                            '<tbody>' +
+                            '<tr><td style="font-weight: bold; padding: 4px; width: 40%;">Joint 1 (J1)</td><td style="padding: 4px;">' + data.j1.toFixed(2) + '°</td></tr>' +
+                            '<tr><td style="font-weight: bold; padding: 4px;">Joint 2 (J2)</td><td style="padding: 4px;">' + data.j2.toFixed(2) + '°</td></tr>' +
+                            '<tr><td style="font-weight: bold; padding: 4px;">Joint 3 (J3)</td><td style="padding: 4px;">' + data.j3.toFixed(2) + '°</td></tr>' +
+                            '<tr><td style="font-weight: bold; padding: 4px;">Joint 4 (J4)</td><td style="padding: 4px;">' + data.j4.toFixed(2) + '°</td></tr>' +
+                            '<tr><td style="font-weight: bold; padding: 4px;">Joint 5 (J5)</td><td style="padding: 4px;">' + data.j5.toFixed(2) + '°</td></tr>' +
+                            '<tr><td style="font-weight: bold; padding: 4px;">Joint 6 (J6)</td><td style="padding: 4px;">' + data.j6.toFixed(2) + '°</td></tr>' +
+                            '</tbody>' +
+                            '</table>';
+                        $('#gofa-joints-result').html(html);
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to fetch joint angles';
+                        $('#gofa-joints-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">' + err + '</span>');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+            $('#gofa-joints-fetch').on('click', function(e) {
+                e.preventDefault();
+                fetchJoints();
+            });
+            // Initial load
+            fetchJoints();
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-joints">
     <div class="form-row">
         <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
         <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row" style="display: flex; align-items: center; justify-content: space-between;">
+        <label style="margin-bottom: 0;"><i class="fa fa-info-circle"></i> Joint Angles</label>
+        <button id="gofa-joints-fetch" class="editor-button" style="width: auto;"><i class="fa fa-refresh"></i> Get Joints</button>
+    </div>
+    <div class="form-row">
+        <div id="gofa-joints-result" style="background: var(--red-ui-tertiary-background, #f3f3f3); padding: 10px; border: 1px solid var(--red-ui-form-input-border, #ccc); border-radius: 4px; min-height: 50px;">
+            Select a robot and click Get Joints.
+        </div>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>

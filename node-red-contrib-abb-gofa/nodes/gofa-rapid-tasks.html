@@ -9,7 +9,61 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'RAPID Tasks'; },
-        paletteLabel: 'RAPID Tasks'
+        paletteLabel: 'RAPID Tasks',
+        oneditprepare: function() {
+            var node = this;
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+
+            function fetchTasks() {
+                var id = robotId();
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+
+                var task = $('#node-input-task').val() || 'T_ROB1';
+
+                var btn = $('#gofa-rapid-tasks-btn').prop('disabled', true);
+                $('#gofa-rapid-tasks-result').html('<i class="fa fa-spinner fa-spin"></i> Reading...');
+
+                $.ajax({
+                    url: 'gofa-rapid-tasks/' + id + '/read',
+                    type: 'GET',
+                    data: { task: task }
+                })
+                    .done(function(data) {
+                        RED.notify('RAPID tasks fetched successfully', 'success');
+                        var html = '<h4>Tasks:</h4><table class="red-ui-info-table" style="width:100%; margin-bottom:10px;">';
+                        html += '<thead><tr><th>Name</th><th>Type</th><th>State</th><th>Execution</th></tr></thead><tbody>';
+                        (data.tasks || []).forEach(function(t) {
+                            html += '<tr><td><b>' + t.name + '</b></td><td>' + (t.type || '-') + '</td><td>' + (t.taskstate || '-') + '</td><td>' + (t.excstate || '-') + '</td></tr>';
+                        });
+                        html += '</tbody></table>';
+
+                        html += '<h4>Modules in ' + data.task + ':</h4><table class="red-ui-info-table" style="width:100%;">';
+                        html += '<thead><tr><th>Module Name</th><th>Type</th></tr></thead><tbody>';
+                        (data.modules || []).forEach(function(m) {
+                            html += '<tr><td><b>' + m.name + '</b></td><td>' + (m.type || '-') + '</td></tr>';
+                        });
+                        html += '</tbody></table>';
+
+                        $('#gofa-rapid-tasks-result').html(html);
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to fetch tasks';
+                        RED.notify(err, 'error');
+                        $('#gofa-rapid-tasks-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">' + err + '</span>');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+
+            $('#gofa-rapid-tasks-btn').on('click', function(e) {
+                e.preventDefault();
+                fetchTasks();
+            });
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-rapid-tasks">
@@ -20,6 +74,14 @@
     <div class="form-row">
         <label for="node-input-task"><i class="fa fa-list"></i> Task</label>
         <input type="text" id="node-input-task" placeholder="T_ROB1">
+    </div>
+    <div class="form-row">
+        <button id="gofa-rapid-tasks-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-list"></i> Fetch Tasks & Modules</button>
+    </div>
+    <div class="form-row">
+        <div id="gofa-rapid-tasks-result" style="background: var(--red-ui-tertiary-background, #f3f3f3); padding: 10px; border: 1px solid var(--red-ui-form-input-border, #ccc); border-radius: 4px; min-height: 40px; max-height: 300px; overflow-y: auto;">
+            Select a robot and click Fetch Tasks & Modules.
+        </div>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
