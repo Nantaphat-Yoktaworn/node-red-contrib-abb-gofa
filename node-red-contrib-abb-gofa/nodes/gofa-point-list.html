@@ -34,10 +34,15 @@
                         var html = '<table class="red-ui-info-table" style="width: 100%; border-collapse: collapse;">' +
                             '<thead><tr><th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc; width: 40%;">Name</th><th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc;">Coordinates</th></tr></thead>' +
                             '<tbody>';
+                        function fmtTarget(t) {
+                            if (!t || typeof t !== 'object') return '';
+                            var n = function(v) { return typeof v === 'number' ? v.toFixed(1) : '?'; };
+                            return 'x=' + n(t.x) + ' y=' + n(t.y) + ' z=' + n(t.z) + ' mm';
+                        }
                         data.points.forEach(function(pt) {
                             html += '<tr>' +
                                 '<td style="font-weight: bold; padding: 4px; border-bottom: 1px solid #eee;">' + pt.name + '</td>' +
-                                '<td style="padding: 4px; border-bottom: 1px solid #eee; font-family: monospace; font-size: 11px;">' + (pt.target || '') + '</td>' +
+                                '<td style="padding: 4px; border-bottom: 1px solid #eee; font-family: monospace; font-size: 11px;">' + fmtTarget(pt.target) + '</td>' +
                                 '</tr>';
                         });
                         html += '</tbody></table>';
