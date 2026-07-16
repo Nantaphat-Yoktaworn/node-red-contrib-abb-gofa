@@ -11,7 +11,11 @@ fs.mkdirSync('examples', { recursive: true });
 for (const f of fs.readdirSync('../flows').filter(f => f.endsWith('.json'))) {
     const text = fs.readFileSync('../flows/' + f, 'utf8')
         .replace(/"username": "NNNN"/g, '"username": "Default User"')
-        .replace(/192\.168\.20\.\d+/g, '192.168.20.33');
+        // Match the "ip" field itself, not one hardcoded subnet — this lab's robot
+        // has drifted across several subnets already (192.168.20.x, 192.168.1.x),
+        // and a subnet-specific regex silently stops genericizing the moment it
+        // drifts again, leaking this lab's real current IP into the public package.
+        .replace(/"ip":\s*"[^"]*"/g, '"ip": "192.168.20.33"');
     fs.writeFileSync('examples/' + f, text);
 }
 console.log('prepack: synced rapid/*.mod and examples/ from repo root');

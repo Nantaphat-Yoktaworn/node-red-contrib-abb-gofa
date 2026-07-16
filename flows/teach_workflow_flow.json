@@ -51,12 +51,17 @@
             "466416196504a299",
             "727274d6493e5c07",
             "0aaad16114a799e0",
-            "c63cdc6bd086dd23"
+            "c63cdc6bd086dd23",
+            "25fbe81a9822a863",
+            "bcc1ecd178fb721d",
+            "99b8690d913153dd",
+            "3ef8d5d15a068b65",
+            "5c6e737a1765beee"
         ],
         "x": 24,
         "y": 59,
-        "w": 3452,
-        "h": 682
+        "w": 3520,
+        "h": 720
     },
     {
         "id": "7fa433d560ceee6d",
@@ -84,11 +89,13 @@
             "fadacf1ef594fa02",
             "ef54f998f6eeade2",
             "fc7fa52bcc252753",
-            "c459aef903d9a4c8"
+            "c459aef903d9a4c8",
+            "2ebda9c57277dc20",
+            "22da089234ab4c52"
         ],
         "x": 14,
         "y": 759,
-        "w": 2422,
+        "w": 2560,
         "h": 242
     },
     {
@@ -129,10 +136,12 @@
         "y": 160,
         "wires": [
             [
-                "11d4c947a8bda098"
+                "11d4c947a8bda098",
+                "25fbe81a9822a863"
             ]
         ],
-        "action": "enable"
+        "action": "enable",
+        "outputPayload": true
     },
     {
         "id": "07ba7ba1de1d7370",
@@ -248,7 +257,8 @@
             [
                 "b8110cdb1505bc4e"
             ]
-        ]
+        ],
+        "outputPayload": true
     },
     {
         "id": "b8110cdb1505bc4e",
@@ -365,7 +375,8 @@
                 "4435d831b508fcc6",
                 "df4c842165c5765c"
             ]
-        ]
+        ],
+        "outputPayload": true
     },
     {
         "id": "f89e7899a9ee6bde",
@@ -395,9 +406,11 @@
         "y": 520,
         "wires": [
             [
-                "f89e7899a9ee6bde"
+                "f89e7899a9ee6bde",
+                "99b8690d913153dd"
             ]
-        ]
+        ],
+        "outputPayload": true
     },
     {
         "id": "8ba7bbaa2239fa83",
@@ -482,7 +495,8 @@
                 "14b162f82809b4f7",
                 "99aa4d2c0c07b185"
             ]
-        ]
+        ],
+        "outputPayload": true
     },
     {
         "id": "884f1b8212b78518",
@@ -539,7 +553,8 @@
                 "9ab9852e43b73265"
             ]
         ],
-        "action": "disable"
+        "action": "disable",
+        "outputPayload": true
     },
     {
         "id": "319ff59df68d8789",
@@ -655,7 +670,8 @@
                 "e37ecc7f24ceef09",
                 "1fcab4b586c8f8a8"
             ]
-        ]
+        ],
+        "outputPayload": true
     },
     {
         "id": "466416196504a299",
@@ -723,7 +739,8 @@
             [
                 "727274d6493e5c07"
             ]
-        ]
+        ],
+        "outputPayload": true
     },
     {
         "id": "c63cdc6bd086dd23",
@@ -834,9 +851,11 @@
         "y": 860,
         "wires": [
             [
-                "23f015ee54a77261"
+                "23f015ee54a77261",
+                "2ebda9c57277dc20"
             ]
-        ]
+        ],
+        "outputPayload": true
     },
     {
         "id": "a09ca872b97ee9e4",
@@ -900,7 +919,8 @@
                 "a09ca872b97ee9e4",
                 "01a29e1f45684439"
             ]
-        ]
+        ],
+        "outputPayload": true
     },
     {
         "id": "fadacf1ef594fa02",
@@ -968,7 +988,8 @@
             [
                 "ef54f998f6eeade2"
             ]
-        ]
+        ],
+        "outputPayload": true
     },
     {
         "id": "c459aef903d9a4c8",
@@ -1000,7 +1021,7 @@
         "id": "cfg1",
         "type": "gofa-robot",
         "name": "ABB-GoFa-12",
-        "ip": "192.168.20.36",
+        "ip": "192.168.1.103",
         "rwsPort": "443",
         "socketPort": "1025",
         "username": "NNNN",
@@ -1012,7 +1033,167 @@
         "type": "global-config",
         "env": [],
         "modules": {
-            "node-red-contrib-abb-gofa": "1.0.1"
+            "node-red-contrib-abb-gofa": "2.2.3"
         }
+    },
+    {
+        "id": "25fbe81a9822a863",
+        "type": "switch",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
+        "name": "Enable OK?",
+        "property": "payload.ok",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "true"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 1,
+        "x": 3060,
+        "y": 100,
+        "wires": [
+            [
+                "bcc1ecd178fb721d"
+            ]
+        ]
+    },
+    {
+        "id": "bcc1ecd178fb721d",
+        "type": "gofa-asi-led",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
+        "name": "LED: Teach Mode ON (cyan)",
+        "robot": "cfg1",
+        "outputPayload": false,
+        "red": 0,
+        "grn": 200,
+        "blu": 200,
+        "period": 0,
+        "blinkCount": 0,
+        "blinkMs": 250,
+        "x": 3300,
+        "y": 100,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "2ebda9c57277dc20",
+        "type": "switch",
+        "z": "a17a5b075916bef6",
+        "g": "7fa433d560ceee6d",
+        "name": "Save OK?",
+        "property": "payload.ok",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "true"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 1,
+        "x": 2240,
+        "y": 800,
+        "wires": [
+            [
+                "22da089234ab4c52"
+            ]
+        ]
+    },
+    {
+        "id": "22da089234ab4c52",
+        "type": "gofa-asi-led",
+        "z": "a17a5b075916bef6",
+        "g": "7fa433d560ceee6d",
+        "name": "LED: Point Saved (white flash x2)",
+        "robot": "cfg1",
+        "outputPayload": false,
+        "red": 255,
+        "grn": 255,
+        "blu": 255,
+        "period": 0,
+        "blinkCount": 2,
+        "blinkMs": 120,
+        "x": 2480,
+        "y": 800,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "99b8690d913153dd",
+        "type": "switch",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
+        "name": "Restart OK?",
+        "property": "payload.ok",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "true"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 1,
+        "x": 2820,
+        "y": 620,
+        "wires": [
+            [
+                "3ef8d5d15a068b65"
+            ]
+        ]
+    },
+    {
+        "id": "3ef8d5d15a068b65",
+        "type": "change",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
+        "name": "Set LED Reset Payload",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "reset",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 3060,
+        "y": 620,
+        "wires": [
+            [
+                "5c6e737a1765beee"
+            ]
+        ]
+    },
+    {
+        "id": "5c6e737a1765beee",
+        "type": "gofa-asi-led",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
+        "name": "LED: Teach Mode OFF (reset to green)",
+        "robot": "cfg1",
+        "outputPayload": false,
+        "red": 0,
+        "grn": 0,
+        "blu": 0,
+        "period": 0,
+        "blinkCount": 0,
+        "blinkMs": 250,
+        "x": 3300,
+        "y": 620,
+        "wires": [
+            []
+        ]
     }
 ]

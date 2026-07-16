@@ -262,19 +262,26 @@ FlexPendant at all:
 that up, it assumes it and checks for it.
 
 1. **Press Button 1** — stops RAPID, confirms it actually reached the stopped state (bounded
-   live poll, not a fixed guess-and-hope delay), then enables lead-through.
+   live poll, not a fixed guess-and-hope delay), then enables lead-through. The ASI status
+   light turns solid cyan as a physical "teach mode active" cue — no screen needed.
 2. Hand-guide the arm.
 3. **Press Button 2** (any time while lead-through is active) — saves the current pose as a new
-   point. Pressing it while *not* in teach mode is safely ignored with a clear message instead
-   of silently saving an unintended pose.
+   point, and the ASI light flashes white twice as a physical "saved" confirmation. Pressing it
+   while *not* in teach mode is safely ignored with a clear message instead of silently saving
+   an unintended pose (the LED doesn't flash in this case either — an implicit "nothing
+   happened" cue).
 4. **Press Button 1 again** — disables lead-through, resets the program pointer, restarts
-   RAPID — back to exactly the state before step 1.
+   RAPID — back to exactly the state before step 1, including the ASI light resetting to its
+   normal solid-green RAPID-running state.
 
 Every press re-reads live robot state (`gofa-status`) to decide what to do rather than trusting
 an internal flag, so it's self-healing across a Node-RED restart mid-session. Every multi-step
 sequence is gated on the previous step's success (a failed RAPID stop won't blindly proceed into
 enabling lead-through, etc.) and every step's result is visible in its own debug output — check
-the debug sidebar if a press doesn't seem to do anything.
+the debug sidebar if a press doesn't seem to do anything. Every producing node in this flow has
+**Output payload** enabled (unlike this package's other example flows, which leave it off by
+default) since the flow's own routing logic depends on reading the real `msg.payload` at every
+step, not just on the debug sidebar being useful.
 
 ---
 
