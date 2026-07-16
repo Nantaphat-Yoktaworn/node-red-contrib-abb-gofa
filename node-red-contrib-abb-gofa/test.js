@@ -1403,6 +1403,138 @@ await checkAsync('gofa-subscribe-state: subscribe POST resolves after close() do
     assert.strictEqual(deleteCalls[0], '/subscription/abc');
 });
 
+// ── nodes/lib/ws.js (SimpleWS) ───────────────────────────────────────────────
+// Hand-crafts a real WebSocket upgrade response over a plain net server (no `ws`
+// package involved) so these tests exercise the real handshake/frame parser, not a
+// mock. Frame bytes are built by hand per RFC 6455 §5.2.
+var crypto = require('crypto');
+var net    = require('net');
+var SimpleWS = require('./nodes/lib/ws');
+
+function wsFrame(opcode, fin, payload) {
+    payload = Buffer.isBuffer(payload) ? payload : Buffer.from(payload);
+    var len = payload.length;
+    var header;
+    if (len < 126) {
+        header = Buffer.from([(fin ? 0x80 : 0) | opcode, len]);
+    } else {
+        header = Buffer.alloc(4);
+        header[0] = (fin ? 0x80 : 0) | opcode;
+        header[1] = 126;
+        header.writeUInt16BE(len, 2);
+    }
+    return Buffer.concat([header, payload]);
+}
+
+// Starts a raw TCP server that performs the WS opening handshake by hand, then lets
+// the caller push arbitrary raw bytes (frames) at will — including bytes sent in the
+// SAME write as the handshake response, to exercise the 'upgrade' event's `head`
+// parameter (any bytes Node's HTTP parser already read off the socket before the
+// 'upgrade' event fires never appear in a later 'data' event).
+function startFakeWsServer(onSocket) {
+    return new Promise(function(resolve) {
+        var server = net.createServer(function(socket) {
+            var buf = '';
+            socket.on('data', function(chunk) {
+                buf += chunk.toString('latin1');
+                var m = /Sec-WebSocket-Key: (.+)\r\n/.exec(buf);
+                if (!m || buf.indexOf('\r\n\r\n') === -1) return;
+                var accept = crypto.createHash('sha1')
+                    .update(m[1].trim() + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')
+                    .digest('base64');
+                socket.write(
+                    'HTTP/1.1 101 Switching Protocols\r\n' +
+                    'Upgrade: websocket\r\n' +
+                    'Connection: Upgrade\r\n' +
+                    'Sec-WebSocket-Accept: ' + accept + '\r\n\r\n'
+                );
+                onSocket(socket);
+            });
+        });
+        server.listen(0, function() { resolve({ server: server, port: server.address().port }); });
+    });
+}
+
+await checkAsync('SimpleWS: basic handshake + single unfragmented text message', async function() {
+    var fake = await startFakeWsServer(function(socket) {
+        socket.write(wsFrame(0x1, true, 'hello world'));
+    });
+    var client = new SimpleWS('ws://127.0.0.1:' + fake.port + '/');
+    var message = await new Promise(function(resolve, reject) {
+        client.on('message', resolve);
+        client.on('error', reject);
+        setTimeout(function() { reject(new Error('timeout')); }, 2000);
+    });
+    assert.strictEqual(message, 'hello world');
+    fake.server.close();
+});
+
+await checkAsync('SimpleWS: frame bytes bundled with the handshake response (head) are not dropped', async function() {
+    // Writes the 101 response and the WS frame in the SAME socket.write() call, the
+    // exact scenario that surfaces Node's 'upgrade' event `head` parameter — a real,
+    // not-rare occurrence whenever a server pushes promptly after accepting the upgrade.
+    var fake = await new Promise(function(resolve) {
+        var server = net.createServer(function(socket) {
+            var buf = '';
+            socket.on('data', function(chunk) {
+                buf += chunk.toString('latin1');
+                var m = /Sec-WebSocket-Key: (.+)\r\n/.exec(buf);
+                if (!m || buf.indexOf('\r\n\r\n') === -1) return;
+                var accept = crypto.createHash('sha1')
+                    .update(m[1].trim() + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')
+                    .digest('base64');
+                var headers = Buffer.from(
+                    'HTTP/1.1 101 Switching Protocols\r\n' +
+                    'Upgrade: websocket\r\n' +
+                    'Connection: Upgrade\r\n' +
+                    'Sec-WebSocket-Accept: ' + accept + '\r\n\r\n'
+                );
+                socket.write(Buffer.concat([headers, wsFrame(0x1, true, 'bundled')]));
+            });
+        });
+        server.listen(0, function() { resolve({ server: server, port: server.address().port }); });
+    });
+    var client = new SimpleWS('ws://127.0.0.1:' + fake.port + '/');
+    var message = await new Promise(function(resolve, reject) {
+        client.on('message', resolve);
+        client.on('error', reject);
+        setTimeout(function() { reject(new Error('timeout — bundled frame was dropped')); }, 2000);
+    });
+    assert.strictEqual(message, 'bundled');
+    fake.server.close();
+});
+
+await checkAsync('SimpleWS: reassembles a fragmented message (FIN=0 then continuation FIN=1)', async function() {
+    var fake = await startFakeWsServer(function(socket) {
+        socket.write(wsFrame(0x1, false, 'FRAG-'));
+        setTimeout(function() { socket.write(wsFrame(0x0, true, 'MENTED')); }, 20);
+    });
+    var client = new SimpleWS('ws://127.0.0.1:' + fake.port + '/');
+    var messages = [];
+    client.on('message', function(m) { messages.push(m); });
+    await new Promise(function(resolve) { setTimeout(resolve, 300); });
+    assert.deepStrictEqual(messages, ['FRAG-MENTED'], 'should emit exactly one reassembled message, not two fragments');
+    fake.server.close();
+});
+
+await checkAsync('SimpleWS: server rejecting the upgrade with a plain HTTP response emits an error, not a hang', async function() {
+    var server = http.createServer(function(req, res) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('not found');
+    });
+    await new Promise(function(resolve) { server.listen(0, resolve); });
+    var port = server.address().port;
+    var client = new SimpleWS('ws://127.0.0.1:' + port + '/subscribe/bad');
+    var err = await new Promise(function(resolve, reject) {
+        client.on('open', function() { reject(new Error('should not have opened')); });
+        client.on('error', resolve);
+        setTimeout(function() { reject(new Error('timeout — rejected upgrade should error, not hang')); }, 2000);
+    });
+    assert.ok(/404/.test(err.message), 'error should mention the rejecting status code: ' + err.message);
+    server.close();
+});
+
+
 // gofa-subscribe-elog ────────────────────────────────────────────────────────
 // The subscribable resource is confirmed live to be the BARE path
 // "/rw/elog/<domain>" — no ";suffix" at all, unlike ctrl-state (";ctrlstate")
@@ -1471,7 +1603,7 @@ await checkAsync('gofa-subscribe-elog: subscribe POST resolves after close() doe
     assert.strictEqual(deleteCalls[0], '/subscription/abc');
 });
 await checkAsync('gofa-subscribe-elog: fetchAndEmit resolves after close() does not send message', async function() {
-    var origWs = require.cache[require.resolve('ws')];
+    var origWs = require.cache[require.resolve('./nodes/lib/ws')];
     var EventEmitter = require('events');
     function MockWS(url, protocols, options) {
         EventEmitter.call(this);
@@ -1479,7 +1611,7 @@ await checkAsync('gofa-subscribe-elog: fetchAndEmit resolves after close() does 
     }
     require('util').inherits(MockWS, EventEmitter);
     MockWS.prototype.terminate = function() {};
-    require.cache[require.resolve('ws')] = { exports: MockWS };
+    require.cache[require.resolve('./nodes/lib/ws')] = { exports: MockWS };
     delete require.cache[require.resolve('./nodes/gofa-subscribe-elog')];
 
     var resolveGet;
@@ -1516,7 +1648,7 @@ await checkAsync('gofa-subscribe-elog: fetchAndEmit resolves after close() does 
 
     assert.strictEqual(node.sent.length, 0, 'no message should be sent from closed node');
 
-    require.cache[require.resolve('ws')] = origWs;
+    require.cache[require.resolve('./nodes/lib/ws')] = origWs;
     delete require.cache[require.resolve('./nodes/gofa-subscribe-elog')];
 });
 check('gofa-subscribe-elog: parseEntry reads fields from both the list-item and single-entry XHTML shapes', function() {

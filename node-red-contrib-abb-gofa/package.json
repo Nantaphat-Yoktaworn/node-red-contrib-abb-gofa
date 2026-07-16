@@ -30,9 +30,6 @@
     "test": "node test.js",
     "prepack": "node prepack.js"
   },
-  "dependencies": {
-    "ws": "^8.21.0"
-  },
   "node-red": {
     "version": ">=3.0.0",
     "nodes": {
