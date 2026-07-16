@@ -7,13 +7,15 @@ metadata:
   originSessionId: 2fe0fd58-9b96-4052-b0d4-0f8dffaf0354
 ---
 
-As of 2026-07-09, the robot is at `192.168.20.14` (user-confirmed, "today robot will be .14").
-The documented/hardcoded default baked into `check-status.js`/`CLAUDE.md` is `192.168.20.36`,
-which was already stale before this — that default itself is unreachable now (confirmed live:
-RWS request timeout on `192.168.20.36`, works fine on `.14`).
+As of 2026-07-15, the robot is at `192.168.1.103` (user-provided this session — confirmed live
+via `/robot-status`: RWS reachable, motors on, AUTO, RAPID running, socket 18ms RTT at the time).
+Note the subnet itself changed too, not just the host octet (`192.168.20.x` → `192.168.1.x`) —
+previously `192.168.20.14` as of 2026-07-09 before that. The documented/hardcoded default baked
+into `check-status.js`/`CLAUDE.md` is still `192.168.20.36`, long since stale.
 
 **Why:** the robot's IP drifts often (has changed multiple times across sessions — `.33` was
-the original documented default, then `.36`, now `.14`), likely DHCP on the lab network.
+the original documented default, then `.36`, then `192.168.20.14`, now a different subnet
+entirely at `192.168.1.103`), likely DHCP on the lab network.
 
 **How to apply:** never trust `CLAUDE.md`'s or `check-status.js`'s hardcoded default IP without
 verifying first — always run `/robot-status` (which will report `RWS: ... timeout` clearly if

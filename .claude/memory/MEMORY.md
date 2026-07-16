@@ -1,3 +1,17 @@
+- [Autonomous sequence feature](project_autonomous_sequence_feature.md) — standalone RAPID point-sequencer, ABANDONED — branch deleted, recoverable from commit a5aeada
+- [User's learning context](user_learning_context.md) — no defined business use case yet, senior said "learn everything," user wants to enjoy it — favor fun/broad-learning suggestions
+- [Public release](reference_public_release.md) — package is PUBLIC since 2026-07-08 (npm + flow library); release process and public-repo rules
+- [gofa-egm-python project](project_gofa_egm_python.md) — standalone EGM control project, working end-to-end; egm_minmax silent-clamp gotcha, firewall/UDPUC setup notes
+- [EGM Node-RED integration](project_egm_node_red_integration_plan.md) — IMPLEMENTED + published; split into gofa-egm (session) + gofa-egm-move (movement, fallback output), live-verified — no known open bugs
+- [Robot's current IP](project_robot_current_ip.md) — 192.168.1.103 as of 2026-07-15 (subnet changed too); always verify via /robot-status, don't trust the documented .36 default
+- [Always ask before push or merge](feedback_always_ask_before_push_or_merge.md) — confirm with user before any git push/merge; check for remote divergence first, surface what changed if behind
+- [Output payload checkbox](project_output_payload_checkbox.md) — implemented + live-verified 2026-07-15 across all 42 nodes; gate.js design, wiring pattern, motion-test strategy
+- [gofa-setup + gofa-mod-edit nodes](project_setup_and_mod_edit_nodes.md) — BOTH live-verified 2026-07-15 incl. gofa-setup from a wiped first-run state (2.4s); opmode is UPPERCASE live (fixed); fileservice DELETE works
+- [Socket server stuck 2026-07-15](project_socket_server_stuck_2026-07-15.md) — RESOLVED-BY-REINSTALL 2026-07-15 (gofa-setup full reinstall restored socket serving); root cause of the original wedge still unconfirmed
+- [Improvement roadmap 2026-07-15](../../ideas/improvement-roadmap.md) — saved plan: version handshake + watchdog flow first; backup flow, mod-edit delete button, virtual controller, MQTT, vision-pick; LoadIdentify safety debt (repo ideas/improvement-roadmap.md)
+
+Older memories preserved only in this snapshot (pruned from live memory but still referenced by CLAUDE.md and the skills):
+
 - [Verify before building robot features](feedback_verify_before_building_robot_features.md) — curl/socket-test live against the robot before writing node code, and re-test after building
 - [Check staged changes before commit](feedback_check_staged_before_commit.md) — git commit takes the whole index, not just files you just `git add`ed
 - [Ambiguous hardware test result](feedback_ambiguous_hardware_test_result.md) — check live state first, ask for verbatim debug output, don't guess
@@ -13,14 +27,8 @@
 - [Software version snapshot](project_software_version_snapshot.md) — RobotWare 7.21.0+229, RWS 2.0, RobotStudio 2026.2 (26.2.11700.0), Node-RED 5.0.1, confirmed live 2026-07-07
 - [OmniCore Ethernet Switch section](reference_omnicore_ethernet_switch_section.md) — separate 5-port (X1-X5) switch on back panel, distinct from WAN/LAN/MGMT; no RWS/RAPID API, not a node candidate
 - [Robot IP drift](reference_robot_ip_drift.md) — controller IP changes often (even twice in one day); always re-check via /robot-status, never trust a recorded IP
-- [Autonomous sequence feature](project_autonomous_sequence_feature.md) — standalone RAPID point-sequencer, ABANDONED — branch deleted, recoverable from commit a5aeada
 - [StopMove \Quick unsupported](feedback_stopmove_quick_unsupported.md) — fails RAPID consistency check on this controller despite being in ABB's docs; use plain StopMove
 - [OmniCore AppStudio investigation](reference_omnicore_appstudio_investigation.md) — persistent FlexPendant dashboard ruled out for now, needs RobotStudio GUI step, not RWS-drivable
-- [Always ask before push or merge](feedback_always_ask_before_push_or_merge.md) — always ask the user for explicit approval before running git push or merge
-- [User's learning context](user_learning_context.md) — no defined business use case yet, senior said "learn everything," user wants to enjoy it — favor fun/broad-learning suggestions
-- [Public release](reference_public_release.md) — package is PUBLIC since 2026-07-08 (npm + flow library); release process and public-repo rules
-- [gofa-egm-python project](project_gofa_egm_python.md) — standalone EGM control project, working end-to-end; egm_minmax silent-clamp gotcha, firewall/UDPUC setup notes
-- [EGM Node-RED integration](project_egm_node_red_integration_plan.md) — IMPLEMENTED + published; split into gofa-egm (session) + gofa-egm-move (movement, fallback output), live-verified — no known open bugs
-- [Robot's current IP](project_robot_current_ip.md) — drifts often (was 192.168.20.14 as of 2026-07-09); always verify via /robot-status, don't trust any documented default
+- [IP discovery deferred](project_ip_discovery_deferred.md) — check-status.js IP auto-discovery: design sketched and deferred at the time; since built (check-status.js --discover, gofa-robot Discover button)
 
-Note: this robot's real RWS/admin credentials live only in local (non-repo) Claude memory — deliberately never copied here since this repo is public.
+Note: this robot's real RWS/admin credentials live only in local (non-repo) Claude memory — deliberately never copied here since this repo is public. (Snapshot last synced from live memory: 2026-07-16.)
