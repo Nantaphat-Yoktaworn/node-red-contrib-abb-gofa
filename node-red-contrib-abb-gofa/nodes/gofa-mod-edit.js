@@ -55,8 +55,9 @@ module.exports = function(RED) {
     function GoFaModEditNode(config) {
         RED.nodes.createNode(this, config);
         this.robot      = RED.nodes.getNode(config.robot);
-        this.remotePath = config.remotePath || '';
-        this.content    = config.content || '';
+        this.remotePath   = config.remotePath || '';
+        this.content      = config.content || '';
+        this.autoChangeIp = config.autoChangeIp !== false;
         var node = this;
 
         // Runtime input re-uploads the content stored in the node config to
@@ -79,13 +80,19 @@ module.exports = function(RED) {
             }
 
             var r = node.robot;
-            var result = patchServerIp(String(node.content), r.ip);
-            var body = Buffer.from(result.text, 'utf8');
+            var contentToUpload = String(node.content);
+            var serverIpInjected = false;
+            if (node.autoChangeIp) {
+                var result = patchServerIp(contentToUpload, r.ip);
+                contentToUpload = result.text;
+                serverIpInjected = result.injected;
+            }
+            var body = Buffer.from(contentToUpload, 'utf8');
 
             node.status({ fill: 'blue', shape: 'dot', text: 'uploading…' });
             r.rwsPut('/fileservice/' + node.remotePath, body, 'text/plain;v=2.0')
             .then(function() {
-                msg.payload = { ok: true, remotePath: node.remotePath, bytes: body.length, serverIpInjected: result.injected };
+                msg.payload = { ok: true, remotePath: node.remotePath, bytes: body.length, serverIpInjected: serverIpInjected };
                 node.status({ fill: 'green', shape: 'dot', text: 'uploaded ' + body.length + 'B' });
                 send(msg); done();
             })
@@ -145,11 +152,17 @@ module.exports = function(RED) {
         .then(function(body) {
             if (!body.path) throw new Error('Missing path');
             if (typeof body.content !== 'string') throw new Error('Missing content');
-            // Keep SERVER_IP synced on dialog saves too, same as runtime uploads.
-            var result = patchServerIp(body.content, robot.ip);
+            var contentToUpload = body.content;
+            var serverIpInjected = false;
+            if (body.autoChangeIp !== false) {
+                // Keep SERVER_IP synced on dialog saves too, same as runtime uploads.
+                var result = patchServerIp(contentToUpload, robot.ip);
+                contentToUpload = result.text;
+                serverIpInjected = result.injected;
+            }
             // fileservice PUT requires text/plain;v=2.0 (application/json is 415) — confirmed live.
-            return robot.rwsPut('/fileservice/' + body.path, Buffer.from(result.text, 'utf8'), 'text/plain;v=2.0')
-                .then(function() { res.json({ ok: true, path: body.path, bytes: Buffer.byteLength(result.text, 'utf8'), serverIpInjected: result.injected }); });
+            return robot.rwsPut('/fileservice/' + body.path, Buffer.from(contentToUpload, 'utf8'), 'text/plain;v=2.0')
+                .then(function() { res.json({ ok: true, path: body.path, bytes: Buffer.byteLength(contentToUpload, 'utf8'), serverIpInjected: serverIpInjected }); });
         })
         .catch(function(err) {
             var code = /^Missing |^Invalid JSON/.test(err.message) ? 400 : 502;

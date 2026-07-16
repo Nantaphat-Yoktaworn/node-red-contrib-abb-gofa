@@ -974,7 +974,7 @@ await checkAsync('gofa-file: uploads via r.rwsPut with text/plain content type',
     var tmpFile = path.join(tmpDir, 'MainModule.mod');
     fs.writeFileSync(tmpFile, sampleMod);
     var node = new (loadNodeType('./nodes/gofa-file', { nodesById: { r1: mockRobot } }))({
-        robot: 'r1', action: 'upload', localPath: tmpFile, remotePath: '$HOME/Programs/MainModule.mod'
+        robot: 'r1', action: 'upload', localPath: tmpFile, remotePath: '$HOME/Programs/MainModule.mod', autoChangeIp: true
     });
     var msg = {};
     await runInput(node, msg);
@@ -983,6 +983,28 @@ await checkAsync('gofa-file: uploads via r.rwsPut with text/plain content type',
     assert.strictEqual(calls[0].path, '/fileservice/$HOME/Programs/MainModule.mod');
     assert.strictEqual(calls[0].contentType, 'text/plain;v=2.0');
     assert.ok(calls[0].body.toString().indexOf('"10.0.0.9"') >= 0, 'SERVER_IP should be patched to the robot ip');
+});
+await checkAsync('gofa-file: uploads via r.rwsPut without SERVER_IP patched when autoChangeIp is false (default)', async function() {
+    var calls = [];
+    var mockRobot = {
+        ip: '10.0.0.9',
+        rwsPut: function(p, b, contentType) {
+            calls.push({ path: p, body: b, contentType: contentType });
+            return Promise.resolve('');
+        }
+    };
+    var tmpFile = path.join(tmpDir, 'MainModule2.mod');
+    fs.writeFileSync(tmpFile, sampleMod);
+    var node = new (loadNodeType('./nodes/gofa-file', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', action: 'upload', localPath: tmpFile, remotePath: '$HOME/Programs/MainModule.mod'
+    });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0].path, '/fileservice/$HOME/Programs/MainModule.mod');
+    assert.strictEqual(calls[0].contentType, 'text/plain;v=2.0');
+    assert.ok(calls[0].body.toString().indexOf('"192.168.20.15"') >= 0, 'SERVER_IP should not be patched and stay at default');
 });
 await checkAsync('gofa-file: reports failure when rwsPut rejects', async function() {
     var mockRobot = { ip: '10.0.0.9', rwsPut: function() { return Promise.reject(new Error('HTTP 401 — auth failed')); } };
@@ -3118,6 +3140,30 @@ await checkAsync('gofa-mod-edit: uploads stored content with SERVER_IP patched a
     assert.strictEqual(call.path, '/fileservice/$HOME/Programs/M.mod');
     assert.strictEqual(call.contentType, 'text/plain;v=2.0');
     assert.ok(call.body.toString('utf8').indexOf('SERVER_IP := "10.0.0.5"') >= 0);
+    assert.strictEqual(msg.payload.bytes, call.body.length);
+});
+
+await checkAsync('gofa-mod-edit: uploads stored content without SERVER_IP patched when autoChangeIp is false', async function() {
+    var call = null;
+    var mockRobot = {
+        ip: '10.0.0.5',
+        rwsPut: function(path, body, contentType) {
+            call = { path: path, body: body, contentType: contentType };
+            return Promise.resolve('');
+        }
+    };
+    var content = 'MODULE M\n    CONST string SERVER_IP := "1.2.3.4";\nENDMODULE\n';
+    var node = new (loadNodeType('./nodes/gofa-mod-edit', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', outputPayload: true, autoChangeIp: false,
+        remotePath: '$HOME/Programs/M.mod', content: content
+    });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.serverIpInjected, false);
+    assert.strictEqual(call.path, '/fileservice/$HOME/Programs/M.mod');
+    assert.strictEqual(call.contentType, 'text/plain;v=2.0');
+    assert.ok(call.body.toString('utf8').indexOf('SERVER_IP := "1.2.3.4"') >= 0);
     assert.strictEqual(msg.payload.bytes, call.body.length);
 });
 

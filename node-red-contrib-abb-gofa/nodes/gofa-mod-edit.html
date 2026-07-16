@@ -3,6 +3,7 @@
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
             outputPayload: { value: false },
+            autoChangeIp:  { value: true },
             name:       { value: '' },
             robot:      { value: '', type: 'gofa-robot', required: true },
             remotePath: { value: '$HOME/Programs/MainModule.mod', required: true },
@@ -100,11 +101,12 @@
                 var p = currentPath();
                 if (!p) return RED.notify('Pick a file (or name a new one) first', 'warning');
                 var btn = $(this).prop('disabled', true);
+                var autoChangeIp = $('#node-input-autoChangeIp').is(':checked');
                 $.ajax({
                     url: 'gofa-mod-edit/' + id + '/file',
                     type: 'POST',
                     contentType: 'application/json',
-                    data: JSON.stringify({ path: p, content: node.editor.getValue() })
+                    data: JSON.stringify({ path: p, content: node.editor.getValue(), autoChangeIp: autoChangeIp })
                 })
                     .done(function(data) { RED.notify('Saved ' + p + ' (' + data.bytes + 'B)' + (data.serverIpInjected ? ', SERVER_IP synced' : ''), 'success'); })
                     .fail(function(xhr) { notifyErr(xhr, 'Save failed'); })
@@ -158,6 +160,10 @@
         <input type="text" id="node-input-name" placeholder="Mod Edit">
     </div>
     <div class="form-row">
+        <input type="checkbox" id="node-input-autoChangeIp" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-autoChangeIp" style="width:auto;"><i class="fa fa-refresh"></i> Auto change IP to match robot configuration</label>
+    </div>
+    <div class="form-row">
         <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
         <label for="node-input-outputPayload" style="width:auto;"><i class="fa fa-bug"></i> Output payload (debug)</label>
     </div>
@@ -191,7 +197,7 @@
     </dl>
 
     <h3>Notes</h3>
-    <p>If the content contains a <code>CONST string SERVER_IP := "..."</code> declaration
+    <p>If <b>Auto change IP</b> is checked and the content contains a <code>CONST string SERVER_IP := "..."</code> declaration
     (i.e. it's this palette's RAPID socket-server module), the IP is automatically rewritten to
     the robot config node's IP on every save/upload, same as <b>gofa-file</b> upload — it no-ops
     on any other file.</p>

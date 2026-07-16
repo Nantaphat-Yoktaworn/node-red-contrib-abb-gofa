@@ -11,6 +11,7 @@ module.exports = function(RED) {
         this.localPath  = config.localPath  || '';
         this.remotePath = config.remotePath || '$HOME/Programs/MainModule.mod';
         this.encoding   = config.encoding   || 'utf8';
+        this.autoChangeIp = config.autoChangeIp === true;
         var node = this;
 
         node.on('input', function(msg, send, done) {
@@ -95,30 +96,32 @@ module.exports = function(RED) {
 
                 var isBuffer = Buffer.isBuffer(content);
                 var result = { text: content, injected: false };
-                if (isBuffer) {
-                    var canPatch = false;
-                    const bufferModule = require('buffer');
-                    if (typeof bufferModule.isUtf8 === 'function') {
-                        canPatch = bufferModule.isUtf8(content);
-                    } else {
-                        try {
-                            const { TextDecoder } = require('util');
-                            new TextDecoder('utf-8', { fatal: true }).decode(content);
-                            canPatch = true;
-                        } catch (e) {
-                            canPatch = false;
+                if (node.autoChangeIp) {
+                    if (isBuffer) {
+                        var canPatch = false;
+                        const bufferModule = require('buffer');
+                        if (typeof bufferModule.isUtf8 === 'function') {
+                            canPatch = bufferModule.isUtf8(content);
+                        } else {
+                            try {
+                                const { TextDecoder } = require('util');
+                                new TextDecoder('utf-8', { fatal: true }).decode(content);
+                                canPatch = true;
+                            } catch (e) {
+                                canPatch = false;
+                            }
                         }
-                    }
 
-                    if (canPatch) {
-                        var textResult = patchServerIp(content.toString('utf8'), r.ip);
-                        content = Buffer.from(textResult.text, 'utf8');
+                        if (canPatch) {
+                            var textResult = patchServerIp(content.toString('utf8'), r.ip);
+                            content = Buffer.from(textResult.text, 'utf8');
+                            result.injected = textResult.injected;
+                        }
+                    } else {
+                        var textResult = patchServerIp(String(content), r.ip);
+                        content = textResult.text;
                         result.injected = textResult.injected;
                     }
-                } else {
-                    var textResult = patchServerIp(String(content), r.ip);
-                    content = textResult.text;
-                    result.injected = textResult.injected;
                 }
 
                 var body = Buffer.isBuffer(content) ? content : Buffer.from(String(content));
