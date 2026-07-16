@@ -179,15 +179,16 @@
                     $('#gofa-seq-status').text('Status: Config node not deployed').css({ background: '#ffdddd', color: '#ff0000' });
                     return;
                 }
+                // Stop is always clickable regardless of polled status — it's a safety
+                // net, and the reported "running" flag can lag or drop before the robot
+                // has actually finished/stopped moving. Only Start is gated on it.
                 $.getJSON('gofa-sequencer/' + id + '/status', function(data) {
                     if (data.running) {
                         $('#gofa-seq-status').text('Status: Running...').css({ background: '#e1f5fe', color: '#0288d1' });
                         $('#gofa-seq-start-btn').prop('disabled', true);
-                        $('#gofa-seq-stop-btn').prop('disabled', false);
                     } else {
                         $('#gofa-seq-status').text('Status: Idle').css({ background: '#f3f3f3', color: '#333' });
                         $('#gofa-seq-start-btn').prop('disabled', false);
-                        $('#gofa-seq-stop-btn').prop('disabled', true);
                     }
                 }).fail(function() {
                     $('#gofa-seq-status').text('Status: Connection failed').css({ background: '#ffdddd', color: '#ff0000' });
