@@ -27,10 +27,12 @@
                     .done(function(data) {
                         var rwsIcon = data.rws.ok ? '<i class="fa fa-check-circle" style="color: #5cb85c;"></i> Reachable' : '<i class="fa fa-times-circle" style="color: #d9534f;"></i> Unreachable';
                         var socketIcon = data.socket.ok ? '<i class="fa fa-check-circle" style="color: #5cb85c;"></i> Reachable (' + data.socket.rtt + 'ms)' : '<i class="fa fa-times-circle" style="color: #d9534f;"></i> Unreachable';
-                        
+                        var bgIcon = data.background.ok ? '<i class="fa fa-check-circle" style="color: #5cb85c;"></i> Reachable (' + data.background.rtt + 'ms)' : '<i class="fa fa-times-circle" style="color: #d9534f;"></i> Unreachable';
+
                         var html = '<table class="red-ui-info-table" style="width: 100%; border-collapse: collapse;">' +
                             '<tr><td style="font-weight: bold; padding: 4px; width: 40%;">RWS Connection</td><td style="padding: 4px;">' + rwsIcon + '</td></tr>' +
-                            '<tr><td style="font-weight: bold; padding: 4px;">Socket Connection</td><td style="padding: 4px;">' + socketIcon + '</td></tr>' +
+                            '<tr><td style="font-weight: bold; padding: 4px;">Socket Connection (T_ROB1)</td><td style="padding: 4px;">' + socketIcon + '</td></tr>' +
+                            '<tr><td style="font-weight: bold; padding: 4px;">Background Task</td><td style="padding: 4px;">' + bgIcon + '</td></tr>' +
                             '<tr><td style="font-weight: bold; padding: 4px;">Robot IP</td><td style="padding: 4px;">' + data.ip + '</td></tr>' +
                             '</table>';
                         if (data.errors && data.errors.length > 0) {
@@ -90,11 +92,12 @@
     one but not the other is reported clearly instead of just erroring out. <code>msg.payload</code>
     itself is ignored on input.</p>
     <p>Unlike <code>gofa-status</code>, this node doesn't assume RWS already works — each of the
-    four RWS calls and the socket ping run as independent checks, so "RWS unreachable" and
-    "socket unreachable" are reported separately rather than the whole node just throwing.</p>
+    four RWS calls, the T_ROB1 socket ping, and the background-task ping run as independent
+    checks, so "RWS unreachable", "socket unreachable", and "background task unreachable" are
+    reported separately rather than the whole node just throwing.</p>
     <h3>Output <code>msg.payload</code></h3>
     <dl class="message-properties">
-        <dt>ok</dt><dd>true only if both RWS and the socket server responded</dd>
+        <dt>ok</dt><dd>true only if both RWS and the T_ROB1 socket server responded</dd>
         <dt>ip</dt><dd>the configured robot IP being checked</dd>
         <dt>rws</dt><dd>
             <code>{ ok, motors, mode, rapid, speed }</code> — <code>ok</code> is true if at least
@@ -102,7 +105,16 @@
         </dd>
         <dt>socket</dt><dd>
             <code>{ ok: true, rtt }</code> on success (round-trip time in ms), or
-            <code>{ ok: false, error }</code> on failure
+            <code>{ ok: false, error }</code> on failure — this is T_ROB1's socket
+            (<code>MainModule.mod</code>), which goes down whenever RAPID/T_ROB1 is stopped
+            (teach workflow, EGM session)
+        </dd>
+        <dt>background</dt><dd>
+            same shape as <code>socket</code>, but for <code>BackgroundLed.mod</code>'s separate
+            RAPID task (<code>robot.backgroundPort</code>). Since that task survives T_ROB1 being
+            stopped, comparing <code>socket.ok</code> and <code>background.ok</code> distinguishes
+            "T_ROB1 specifically wedged/stopped" (socket down, background up) from "whole
+            controller unreachable" (both down)
         </dd>
         <dt>errors</dt><dd>array of <code>"label: message"</code> strings, one per failed check</dd>
     </dl>

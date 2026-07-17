@@ -510,7 +510,7 @@ module.exports = function(RED) {
         this.ip         = config.ip         || '192.168.20.33';
         this.rwsPort    = parseInt(config.rwsPort)    || 443;
         this.socketPort = parseInt(config.socketPort) || 1025;
-        this.ledPort    = parseInt(config.ledPort)    || 1026;
+        this.backgroundPort = parseInt(config.backgroundPort) || 1026;
         this.username   = config.username   || 'Default User';
         this.password   = (this.credentials && this.credentials.password) || '';
         if (!this.password) {

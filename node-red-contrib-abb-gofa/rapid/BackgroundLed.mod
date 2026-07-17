@@ -1,7 +1,7 @@
 MODULE BackgroundLed
 
     ! -------------------------------------------------------
-    ! Background LED server for node-red-contrib-abb-gofa.
+    ! Background services server for node-red-contrib-abb-gofa.
     !
     ! Runs in its OWN RAPID task (SEMISTATIC/STATIC, e.g. "T_LED") —
     ! NOT the T_ROB1 motion task that MainModule.mod runs in. The
@@ -9,24 +9,39 @@ MODULE BackgroundLed
     ! workflow (POST /rw/rapid/execution/stop) before hand-guiding,
     ! which kills MainModule.mod's socket server along with it. A
     ! SEMISTATIC/STATIC task is not part of that Program Stop/Start
-    ! cycle, so this server keeps answering SETLED/RESETLED the
-    ! whole time T_ROB1 is down. Requires RobotWare Multitasking
-    ! [3114-1] (licensed on this controller) plus a one-time
-    ! RobotStudio task setup — see CLAUDE.md's "Background LED task"
-    ! section. NOT YET LIVE-VERIFIED that execution/stop actually
-    ! leaves a SEMISTATIC task running — test this before relying on
-    ! it for a real teach session.
+    ! cycle, so this server keeps answering the whole time T_ROB1 is
+    ! down. Requires RobotWare Multitasking [3114-1] (licensed on
+    ! this controller) plus a one-time RobotStudio task setup — see
+    ! CLAUDE.md's "Background LED task" section. LIVE-VERIFIED that
+    ! execution/stop leaves a SEMISTATIC task running, incl. physical
+    ! LED confirmation — see the project_background_led_task memory.
     !
     ! Deliberately a separate module/task rather than folding into
     ! MainModule.mod, same reasoning as MainModuleEGM.mod: a second
     ! PROC main() can't coexist with MainModule's in the same task,
     ! and the whole point here is a task T_ROB1's stop can't touch.
     !
+    ! Reload note: unlike T_ROB1, this task is SEMISTATIC and NOT
+    ! stopped by POST /rw/rapid/execution/stop, so loadmod (which
+    ! requires the target task stopped) needs a manual per-task stop
+    ! (FlexPendant/RobotStudio) before pushing an updated module —
+    ! not the usual RWS-automatable stop/loadmod/start flow.
+    !
     ! Same JSON wire protocol as MainModule.mod, restricted to the
-    ! only commands that need to survive T_ROB1 being stopped:
+    ! commands that need to survive T_ROB1 being stopped:
     !   {"cmd":"ping"}                         -> {"status":"ok","cmd":"ping"}
     !   {"cmd":"setled","val":[r,g,b,period]}  -> {"status":"ok","cmd":"setled"}
     !   {"cmd":"resetled"}                      -> {"status":"ok","cmd":"resetled"}
+    !   {"cmd":"setdo","name":"...","val":0|1} -> {"status":"ok","cmd":"setdo"}
+    !
+    ! setdo uses the same allow-listed ABB_SCALABLE_IO_0_DO1..DO16
+    ! signal names and case-sensitive all-caps matching as
+    ! MainModule.mod's TrySetDo/setdo — digital I/O is global/
+    ! task-independent by RAPID's I/O architecture (already proven
+    ! via SetGO on the ASI signals working identically from T_LED),
+    ! so no cross-task sharing concerns like PERS variables would
+    ! have (see ideas/background-services-task-plan.md's "out of
+    ! scope" section for why PERS var read/write isn't done here).
     !
     ! SERVER_IP must be a real configured interface address (RAPID
     ! cannot bind a wildcard) — same caveat as MainModule.mod. The
@@ -79,6 +94,8 @@ MODULE BackgroundLed
     PROC DispatchJson(string json)
         VAR string cmd := "";
         VAR num ledVals{4};
+        VAR string name;
+        VAR num val;
 
         IF NOT GetJsonStringVal(json, "cmd", cmd) THEN
             SocketSend ledClientSocket \Str:=("{""status"":""err"",""cmd"":""unknown"",""msg"":""invalid json command""}" + ByteToStr(10\Char));
@@ -104,10 +121,76 @@ MODULE BackgroundLed
                 RETURN;
             ENDIF
             SocketSend ledClientSocket \Str:=("{""status"":""err"",""cmd"":""setled"",""msg"":""invalid led params""}" + ByteToStr(10\Char));
+        CASE "setdo":
+            IF GetJsonStringVal(json, "name", name) AND GetJsonNumVal(json, "val", val) THEN
+                IF val = 0 OR val = 1 THEN
+                    TEST name
+                    CASE "ABB_SCALABLE_IO_0_DO1":  SetDO ABB_Scalable_IO_0_DO1,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO2":  SetDO ABB_Scalable_IO_0_DO2,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO3":  SetDO ABB_Scalable_IO_0_DO3,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO4":  SetDO ABB_Scalable_IO_0_DO4,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO5":  SetDO ABB_Scalable_IO_0_DO5,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO6":  SetDO ABB_Scalable_IO_0_DO6,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO7":  SetDO ABB_Scalable_IO_0_DO7,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO8":  SetDO ABB_Scalable_IO_0_DO8,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO9":  SetDO ABB_Scalable_IO_0_DO9,  val;
+                    CASE "ABB_SCALABLE_IO_0_DO10": SetDO ABB_Scalable_IO_0_DO10, val;
+                    CASE "ABB_SCALABLE_IO_0_DO11": SetDO ABB_Scalable_IO_0_DO11, val;
+                    CASE "ABB_SCALABLE_IO_0_DO12": SetDO ABB_Scalable_IO_0_DO12, val;
+                    CASE "ABB_SCALABLE_IO_0_DO13": SetDO ABB_Scalable_IO_0_DO13, val;
+                    CASE "ABB_SCALABLE_IO_0_DO14": SetDO ABB_Scalable_IO_0_DO14, val;
+                    CASE "ABB_SCALABLE_IO_0_DO15": SetDO ABB_Scalable_IO_0_DO15, val;
+                    CASE "ABB_SCALABLE_IO_0_DO16": SetDO ABB_Scalable_IO_0_DO16, val;
+                    DEFAULT:
+                        SocketSend ledClientSocket \Str:=("{""status"":""err"",""cmd"":""setdo"",""msg"":""unknown signal""}" + ByteToStr(10\Char));
+                        RETURN;
+                    ENDTEST
+                    SocketSend ledClientSocket \Str:=("{""status"":""ok"",""cmd"":""setdo""}" + ByteToStr(10\Char));
+                    RETURN;
+                ENDIF
+            ENDIF
+            SocketSend ledClientSocket \Str:=("{""status"":""err"",""cmd"":""setdo"",""msg"":""invalid signal params""}" + ByteToStr(10\Char));
         DEFAULT:
             SocketSend ledClientSocket \Str:=("{""status"":""err"",""cmd"":""" + cmd + """,""msg"":""unsupported command""}" + ByteToStr(10\Char));
         ENDTEST
     ENDPROC
+
+    ! Finds the numeric value associated with a key in a flat JSON string
+    FUNC bool GetJsonNumVal(string json, string key, INOUT num val)
+        VAR num keyPos;
+        VAR num colonPos;
+        VAR num endVal;
+        VAR string quotedKey;
+        VAR string valstr;
+        quotedKey := """" + key + """";
+        keyPos := StrMatch(json, 1, quotedKey);
+        IF keyPos > StrLen(json) RETURN FALSE;
+        colonPos := StrMatch(json, keyPos + StrLen(quotedKey), ":");
+        IF colonPos > StrLen(json) RETURN FALSE;
+        endVal := StrMatch(json, colonPos + 1, ",");
+        IF endVal > StrLen(json) THEN
+            endVal := StrMatch(json, colonPos + 1, "}");
+        ENDIF
+        IF endVal > StrLen(json) RETURN FALSE;
+        valstr := StrPart(json, colonPos + 1, endVal - colonPos - 1);
+        valstr := CleanCmd(valstr);
+        RETURN StrToVal(valstr, val);
+    ENDFUNC
+
+    ! Strips whitespace/control bytes and uppercases (same as MainModule.mod's
+    ! CleanCmd) - used to sanitize a numeric substring before StrToVal.
+    FUNC string CleanCmd(string raw)
+        VAR string out := "";
+        VAR string ch;
+        VAR num i;
+        FOR i FROM 1 TO StrLen(raw) DO
+            ch := StrPart(raw, i, 1);
+            IF StrToByte(ch\Char) > 32 THEN
+                out := out + ch;
+            ENDIF
+        ENDFOR
+        RETURN StrMap(out, "abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    ENDFUNC
 
     ! Finds the string value associated with a key in a flat JSON string
     FUNC bool GetJsonStringVal(string json, string key, INOUT string val)

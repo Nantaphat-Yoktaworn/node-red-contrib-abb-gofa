@@ -320,6 +320,45 @@ EGM frames received within 2s" from `gofa-egm` despite the module/mastership/fir
 correct — check `EGM_PC`'s configured Remote Address against the Node-RED host's *current* IP
 before assuming anything else is wrong.
 
+**`EGM_PC`'s config is readable over RWS (confirmed live, 2026-07-17) — `GET
+/rw/cfg/SIO/UDPUC_HOST/instances/EGM_PC`** (domain `SIO`, type `UDPUC_HOST` — found by listing
+`GET /rw/cfg/<domain>` for all six domains this controller exposes: `EIO`, `MMC`, `MOC`, `PROC`,
+`SIO`, `SYS`). Returns `RemoteAddress`/`RemotePortNumber`/`LocalPortNumber` directly, so the
+Remote-Address-drift check above no longer needs RobotStudio open — just diff it against the
+Node-RED host's current IP. **Writing it over RWS was not solved**: `OPTIONS` reports `Allow:
+GET,POST,DELETE,OPTIONS` (POST looks valid) but a plain form-encoded `POST
+.../instances/EGM_PC` body (`RemoteAddress=<ip>`, both plain and `hal+json` Accept) gets a clean
+`400 "Error incorrect value representation"` — a different failure shape than the
+`loadmod`/`CAB_TASKS` "wrong URL, Allow lies" cases elsewhere in this doc (this one has zero
+side effects and looks like a body-encoding mismatch, not a dead endpoint), but not chased
+further since blind trial-and-error against a network-config write on a live controller wasn't
+worth the risk for a one-time setting. **RobotStudio remains the way to change it.**
+
+**Caution — a config change in the wrong domain silently doesn't fix `EGM_PC` and can revert
+other things.** Live incident (2026-07-17): a user-made config change intended to fix
+`EGM_PC`'s stale Remote Address actually landed in the **`EIO`** domain (confirmed via the
+elog: `"Configuration parameter changed... domain: EIO"`), not `SIO` — `EGM_PC` was still stale
+after a restart, **and** `ABB_Scalable_IO_0_DO16`'s (the EGM graceful-stop signal, see below)
+Access Level reverted from `All` to `Default` as a side effect, breaking `gofa-egm`'s RWS write
+to it (`403 Rejected`) on the next `stop`. Confirm which domain a config change actually lands
+in (the elog says so) before assuming a fix took effect, and re-check signal Access Levels after
+any `EIO`-domain change, not just after a full backup/restore.
+
+**`gofa-egm`'s `stop()` now falls back to the background-task transport if the RWS write to the
+graceful-stop signal (`ABB_Scalable_IO_0_DO16`) is rejected** (`setStopSignal()` in
+`gofa-egm.js`, added 2026-07-17 after hitting the incident above live) — RAPID always has I/O
+write access regardless of RWS Access Level (same reasoning as `gofa-do-write`'s Background
+transport), so `robot.socketSend({cmd:'setdo', name, val}, robot.backgroundPort)` is a reliable
+fallback whenever the direct RWS `POST .../set-value` 403s. Without this, an Access-Level
+regression like the one above leaves an active EGM session permanently stuck mid-`EGMRunJoint`
+with literally no way to trigger the graceful-stop TRAP — confirmed live: it took a manual,
+out-of-band `setdo` over the background port to recover from exactly this, before the fallback
+existed in code. **Confirmed live end-to-end after the fix**: full `gofa-egm` `start` → `+3°`
+nudge on joint 6 (telemetry confirmed real convergence, `6.40°` target reached) → back to
+baseline (converged again) → `stop` (succeeded via the code path, no manual intervention) —
+physical motion and the ASI LED (magenta while streaming, green after stop, via
+`BackgroundLed.mod`) both independently confirmed by a human watching the robot.
+
 **Tool load data caution (from ABB's EGM Application Manual, not yet acted on):** the manual
 states the robot must have correct tool load data (`LoadIdentify`) before starting EGM —
 incorrect load data can cause servo torque overruns or safety halts when EGM issues fast
@@ -347,13 +386,73 @@ regular I/O add-on.
 
 **Fix**: `rapid/BackgroundLed.mod` is a small, standalone RAPID module — its own copies of the
 JSON-parsing helpers, not shared with `MainModule.mod` (RAPID modules in different tasks can't
-call each other's local PROCs directly) — that only serves `ping`/`setled`/`resetled` over its
-own TCP port (`LED_SERVER_PORT := 1026`, matches `gofa-robot`'s new `ledPort` config field,
-default 1026). It's meant to run in a **separate RAPID task**, not `T_ROB1` — the whole point
+call each other's local PROCs directly) — that only serves `ping`/`setled`/`resetled`/`setdo`
+over its own TCP port (`LED_SERVER_PORT := 1026`, matches `gofa-robot`'s `backgroundPort` config
+field, default 1026 — renamed from `ledPort` once this task started serving more than LED
+commands). It's meant to run in a **separate RAPID task**, not `T_ROB1` — the whole point
 is that stopping `T_ROB1` doesn't touch it. This relies on RobotWare Multitasking `[3114-1]`,
 confirmed genuinely licensed on this controller (`GET /rw/system`, see the `omnicore-c30`
 skill) — up to 20 concurrent tasks, ABB's own stated use case for it is exactly this
 ("supervising signals or driving peripheral equipment in parallel with robot motion").
+
+**Generalized to a background-services task (2026-07-17), per
+`ideas/background-services-task-plan.md`.** Beyond LED feedback, this same mechanism fixes
+anything else that depends on `T_ROB1`'s socket and breaks whenever it's stopped:
+- `setdo` was added to `BackgroundLed.mod`'s `DispatchJson`, copying `MainModule.mod`'s
+  `TrySetDo`/`setdo` allow-list/case-sensitivity pattern verbatim (digital I/O is
+  global/task-independent by RAPID's I/O architecture, unlike PERS variables — see below).
+  `gofa-do-write` gained a third **Background task** transport option alongside RWS/Socket,
+  using the exact same `socketSend({cmd:'setdo', name: signal.toUpperCase(), val}, robot.backgroundPort)`
+  pattern `gofa-asi-led`'s Background transport already established.
+- `gofa-connection-status` now pings `robot.backgroundPort` as a third, independent check
+  (`msg.payload.background`) — since that task survives `T_ROB1` being stopped, comparing
+  `socket.ok` (T_ROB1) against `background.ok` distinguishes "T_ROB1 specifically
+  wedged/stopped" from "whole controller unreachable" — the diagnostic value
+  `ideas/improvement-roadmap.md`'s watchdog idea wanted, for near-zero new code since the hard
+  part (a task that survives `T_ROB1` issues) was already built and live-verified for LED.
+- `gofa-egm` now sets the ASI LED to a distinct color (magenta) via the Background transport
+  while an EGM session is streaming (same root cause: EGM also closes `T_ROB1`'s TCP serving
+  for the session's duration) and resets it to green on `stop` — best-effort only, a LED write
+  failure never blocks/fails an EGM start or stop.
+- **Explicitly out of scope**: PERS variable read/write (`gofa-rapid-var-read`/`write`) via the
+  background task — whether a PERS variable declared in `MainModule.mod` (`T_ROB1`) is visible
+  to code in a different task (`T_LED`), or whether each task gets its own independent copy,
+  isn't confirmed and needs its own live test before a design can be committed to. Digital I/O
+  doesn't have this problem (already proven via `SetGO` on the ASI signals working identically
+  from `T_LED`).
+- **Reload procedure — confirmed live end-to-end, 2026-07-17.** Unlike `T_ROB1`, `T_LED` is
+  `SEMISTATIC` and confirmed **not** stopped by `POST /rw/rapid/execution/stop`, so there's no
+  RWS call to stop it before `loadmod` (which requires the target task stopped). The actual
+  working procedure, found live (RobotStudio's RAPID-tab Debug-group task selector turned out
+  not to be the way — the real control is FlexPendant-side):
+  1. **Controller must be in Manual mode** — the setting below is hidden/blocked in Auto.
+  2. FlexPendant → **Execution menu** → check **"Handle static and semi-static tasks the same
+     way as normal task regarding start/stop."** This is what actually makes a semistatic task
+     stoppable at all — with it off, there is no path (RWS, RobotStudio, or FlexPendant) found
+     to stop `T_LED` short of a full controller restart.
+  3. Press **Stop** — now stops `T_ROB1` *and* `T_LED` together. Confirmed via `GET
+     /rw/rapid/tasks/T_LED` → `excstate: stopped`.
+  4. **RWS `loadmod` is still blocked here** — `POST /rw/mastership/edit/request` fails `403
+     "Requested resource is held by someone else"` once the FlexPendant is actively driving the
+     controller (`GET /rw/mastership/edit` shows `location: FlexPendant device`, `application:
+     TPU` holding it locally) and separately, edit mastership over RWS was found to need Auto
+     mode, which un-does the stop (see step 6). **Load the module directly on the FlexPendant
+     instead**: ABB menu → Program Editor → task selector (top) → switch to `T_LED` → File →
+     Load Module... → `$HOME/Programs/BackgroundLed.mod` (upload it first via `gofa-file`/RWS
+     `fileservice PUT` same as always — only the *load-into-task* step needs the FlexPendant,
+     not the file transfer) → confirm **Replace** (same module name already loaded).
+  5. Verified the reload actually took by reading the loaded module back over RWS — `GET
+     /rw/rapid/tasks/T_LED/modules/BackgroundLed/text` returns a fileservice reference
+     (`file-path`), not the text itself (same indirection as the module-text fallback noted
+     elsewhere in this doc); a follow-up `GET` on that path returned the new source byte-for-byte,
+     confirmed against the repo copy.
+  6. Restart both tasks (Start on the FlexPendant, or a normal `gofa-rapid-exec` `start` once
+     back in Auto — both tasks came back together). Then **uncheck the Execution-menu setting
+     from step 2 again** — leaving it on means every future ordinary RAPID stop (including the
+     teach workflow's) also stops `T_LED`, defeating the entire reason this task exists.
+  7. Live-verified after reload, both directly over the socket and through the real
+     `gofa-do-write` node file: `setdo` on `ABB_SCALABLE_IO_0_DO1` via the background port
+     flips `0→1→0`, independently cross-checked with an RWS `lvalue` read after each step.
 
 **Confirmed live (2026-07-17): RWS cannot create a new task, only RobotStudio can.**
 `GET /rw/cfg/sys/CAB_TASKS/instances/T_ROB1` exposes the full task config schema (17
@@ -491,9 +590,11 @@ the white/yellow override states above.
 **Node-RED side**: `gofa-robot`'s `socketSend(cmd, port)` now takes an optional port override
 (previously always used the configured `socketPort`) — confirmed live end-to-end today with a
 throwaway TCP server (not just unit-mocked) and against the real `T_LED` port. `gofa-asi-led`
-gained a third Transport option, `'background'`, that calls `socketSend(cmd, robot.ledPort)`
+gained a third Transport option, `'background'`, that calls `socketSend(cmd, robot.backgroundPort)`
 instead of the default port. `teach_workflow_flow.json`'s three LED nodes (Teach Mode ON/OFF,
 Point Saved) are wired to `transport: 'background'` and now confirmed working for real.
+`gofa-do-write` gained the same `'background'` transport option later (2026-07-17) — see the
+"Generalized to a background-services task" note above.
 
 ## Interactive properties panels (2.2.0+, undocumented until 2026-07-16)
 
@@ -533,7 +634,7 @@ code path from the runtime `node.on('input', ...)` handler:
 | `gofa-robot` | config | Shared config: IP, RWS port 443, socket port 1025, creds, local points file, remote (on-robot) points path. Config dialog has a **Discover** button (admin endpoint `/gofa-robot/discover` → `discover()` LAN scan, verifies ABB via WWW-Authenticate realm) |
 | `gofa-setup` | RWS + Socket | One-click first-run init: preflight (must be Auto mode — RWS can't change opmode) → stop RAPID → unload conflicting MainModule/MainModuleEGM sibling → upload bundled `.mod` (SERVER_IP auto-synced) → loadmod → resetpp → motors on → start (verified by polling, HTTP 200 lies) → socket PING. Per-step `{name, ok, detail}` report; `outputPayload` defaults **true** (the report is the point). Module files read from the package's own `rapid/` dir (synced by prepack.js) |
 | `gofa-status` | RWS | Reads ctrlstate, opmode, speedratio, RAPID execstate |
-| `gofa-connection-status` | RWS + Socket | Checks RWS (4 calls) and the TCP socket ping independently — each failure is caught and reported per-layer instead of the whole node throwing on the first one down. Unlike `gofa-status`, a degraded/unreachable result is still a successful run (no Node-RED error raised), so it's safe to poll on a timer. |
+| `gofa-connection-status` | RWS + Socket + Background | Checks RWS (4 calls), the T_ROB1 TCP socket ping, and the `BackgroundLed.mod` background-task ping independently — each failure is caught and reported per-layer instead of the whole node throwing on the first one down. `msg.payload.background` distinguishes "T_ROB1 specifically stopped" from "whole controller unreachable". Unlike `gofa-status`, a degraded/unreachable result is still a successful run (no Node-RED error raised), so it's safe to poll on a timer. |
 | `gofa-pose` | RWS | Current TCP pose (x,y,z + quaternion + config flags) |
 | `gofa-joints` | RWS | All 6 joint angles in degrees |
 | `gofa-system-info` | RWS | RobotWare version, controller name/ID/type/MAC |
@@ -563,7 +664,7 @@ code path from the runtime `node.on('input', ...)` handler:
 | `gofa-mod-edit` | RWS | Edit a controller-disk file in the node's edit dialog: file dropdown ($HOME/Programs, admin endpoint `/gofa-mod-edit/:id/files`) or new filename, ace editor, Load/Save-to-robot buttons (SERVER_IP auto-synced on save); runtime input re-uploads stored content. Directory-listing parse (`parseFileList`) **confirmed live 2026-07-15**: entries are `<li class="fs-file" title="<name>">` (name in the `title` attr — the parser's first-choice path; the anchors carry the name only in `href`, with empty text), plus `fs-cdate`/`fs-mdate`/`fs-size`/`fs-readonly` spans. `fs-dir` shape still unobserved (no subdirs existed). Also confirmed live: fileservice `DELETE /fileservice/<path>` works (`204`, then `404` on GET) — first confirmed RWS file-delete in this project |
 | `gofa-io-list` | RWS | List all I/O signals |
 | `gofa-di-read` | RWS | Read digital input |
-| `gofa-do-write` | RWS or Socket | Write digital output; Transport dropdown — RWS `/set-value` (needs `Access: All`) or Socket `SETDO` (needs RAPID running, no Access Level restriction) |
+| `gofa-do-write` | RWS, Socket, or Background task | Write digital output; Transport dropdown — RWS `/set-value` (needs `Access: All`), Socket `SETDO` (needs RAPID/T_ROB1 running, no Access Level restriction), or Background task (same `SETDO` allow-list via `BackgroundLed.mod`, works while T_ROB1 is stopped) |
 | `gofa-leadthrough` | Socket + RWS | Hand-guiding: action `enable` (sends socket STOP first to clear queued moves, tolerates socket-down) / `disable` (RWS only) |
 | `gofa-asi-led` | Socket, RWS, or Background task | Set ASI status light RGB color + counted software blink; Transport dropdown — Socket `SETLED`/`RESETLED` (needs T_ROB1 running), RWS `/set-value` (needs Access Level: All, not available on this controller's ASI board), or Background task (`BackgroundLed.mod` in its own RAPID task, works while T_ROB1 is stopped) |
 | `gofa-subscribe-state` | RWS WS | Push on every controller state change; one-shot mode polls once per inject |
@@ -571,7 +672,7 @@ code path from the runtime `node.on('input', ...)` handler:
 | `gofa-subscribe-var` | RWS poll | Poll a RAPID variable on an interval; toggles on/off per inject |
 | `gofa-subscribe-pose` | RWS poll | Poll TCP position on an interval; toggles on/off per inject |
 | `gofa-subscribe-elog` | RWS WS | Push new controller event log entries in real time (bare `/rw/elog/<domain>` subscription — no `;suffix`, unlike other subscribe nodes; the push only carries a `seqnum` reference, so the node fetches the full entry before emitting); same Domain + Min Severity filters as `gofa-elog` |
-| `gofa-egm` | Socket + UDP (EGM) | Session control + telemetry — Action dropdown (start/stop) sends `EGMJOINT`/graceful-stop signal, holds pose, emits throttled feedback. Requires `MainModuleEGM.mod` loaded, not the default `MainModule.mod` — see EGM section above |
+| `gofa-egm` | Socket + UDP (EGM) | Session control + telemetry — Action dropdown (start/stop) sends `EGMJOINT`/graceful-stop signal, holds pose, emits throttled feedback. Requires `MainModuleEGM.mod` loaded, not the default `MainModule.mod` — see EGM section above. Best-effort sets the ASI LED (via the Background transport) to a distinct color while streaming, resets on stop |
 | `gofa-egm-move` | In-memory (shared robot state) | Sets the live EGM joint target if a `gofa-egm` session is active (output 1); otherwise routes unchanged to a fallback output (output 2), e.g. into `gofa-movej` |
 
 ## Saved points format

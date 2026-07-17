@@ -37,13 +37,15 @@ module.exports = function(RED) {
 
             node.status({ fill: 'blue', shape: 'dot', text: signal + '=' + value });
 
-            var writePromise = (transport === 'socket')
-                // RAPID's DispatchJson matches signal names case-sensitively against an
-                // ALL-CAPS allow-list (unlike the legacy text protocol, which CleanCmd
-                // uppercases automatically) — confirmed live: a mixed-case name like this
-                // node's own default, "ABB_Scalable_IO_0_DO1", gets ERR:SETDO ("unknown
-                // signal") unless upper-cased first.
-                ? node.robot.socketSend({ cmd: 'setdo', name: signal.toUpperCase(), val: value }).then(function(reply) {
+            // RAPID's DispatchJson matches signal names case-sensitively against an
+            // ALL-CAPS allow-list (unlike the legacy text protocol, which CleanCmd
+            // uppercases automatically) — confirmed live: a mixed-case name like this
+            // node's own default, "ABB_Scalable_IO_0_DO1", gets ERR:SETDO ("unknown
+            // signal") unless upper-cased first. Same allow-list/case rule on both
+            // MainModule.mod's T_ROB1 socket and BackgroundLed.mod's background task.
+            var writePromise = (transport === 'socket' || transport === 'background')
+                ? node.robot.socketSend({ cmd: 'setdo', name: signal.toUpperCase(), val: value },
+                        transport === 'background' ? node.robot.backgroundPort : undefined).then(function(reply) {
                     if (!/^OK:SETDO/.test(reply)) throw new Error('Socket write failed: ' + reply);
                 })
                 : node.robot.rwsPost('/rw/iosystem/signals/' + encodeURIComponent(signal) + '/set-value', 'lvalue=' + value);
@@ -100,9 +102,10 @@ module.exports = function(RED) {
             return res.status(400).json({ error: 'Invalid value (must be 0 or 1)' });
         }
 
-        var writePromise = (transport === 'socket')
+        var writePromise = (transport === 'socket' || transport === 'background')
             ? (typeof robot.socketSend === 'function'
-                ? robot.socketSend({ cmd: 'setdo', name: signal.toUpperCase(), val: value }).then(function(reply) {
+                ? robot.socketSend({ cmd: 'setdo', name: signal.toUpperCase(), val: value },
+                        transport === 'background' ? robot.backgroundPort : undefined).then(function(reply) {
                     if (!/^OK:SETDO/.test(reply)) throw new Error('Socket write failed: ' + reply);
                 })
                 : Promise.reject(new Error('Socket transport not configured/supported')))

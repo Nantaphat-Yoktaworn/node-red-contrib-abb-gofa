@@ -27,7 +27,7 @@ function clamp(v) {
 //
 // 'background' talks to BackgroundLed.mod instead — a second RAPID task
 // (see CLAUDE.md's "Background LED task" section) that keeps serving SETLED/
-// RESETLED on robot.ledPort even while T_ROB1 (and MainModule.mod's socket
+// RESETLED on robot.backgroundPort even while T_ROB1 (and MainModule.mod's socket
 // server) is stopped, e.g. during gofa-leadthrough hand-guiding.
 function ledWrite(robot, transport, r, g, b, period) {
     if (transport === 'rws') {
@@ -36,14 +36,14 @@ function ledWrite(robot, transport, r, g, b, period) {
             .then(function() { return robot.rwsPost('/rw/iosystem/signals/Asi1LedBlue/set-value', 'lvalue=' + b); })
             .then(function() { return robot.rwsPost('/rw/iosystem/signals/Asi1LedPeriod/set-value', 'lvalue=' + period); });
     }
-    var port = transport === 'background' ? robot.ledPort : undefined;
+    var port = transport === 'background' ? robot.backgroundPort : undefined;
     return robot.socketSend({ cmd: 'setled', val: [r, g, b, period] }, port).then(function(ack) {
         if (!ack.startsWith('OK:')) throw new Error('Unexpected reply: ' + ack);
     });
 }
 function ledReset(robot, transport) {
     if (transport === 'rws') return ledWrite(robot, transport, 0, 255, 0, 0);
-    var port = transport === 'background' ? robot.ledPort : undefined;
+    var port = transport === 'background' ? robot.backgroundPort : undefined;
     return robot.socketSend({ cmd: 'resetled' }, port).then(function(ack) {
         if (!ack.startsWith('OK:')) throw new Error('Unexpected reply: ' + ack);
     });

@@ -98,6 +98,11 @@
     after a genuinely fresh <code>resetpp</code> + <code>start</code>, the problem has moved to
     a stuck EGM resource at the controller level — a full controller restart is the only fix.</p>
 
+    <p>If <code>robot.backgroundPort</code>'s <code>BackgroundLed.mod</code> task is set up (see
+    <code>CLAUDE.md</code>'s "Background LED task" section), this node sets the ASI status LED
+    to a distinct color (magenta) while a session is streaming and resets it to green on
+    <code>stop</code> — best-effort only, a LED write failure never blocks/fails start or stop.</p>
+
     <p><b>This node only controls the EGM session itself (start/stop) and emits telemetry.</b>
     To send a movement target once a session is active, use the separate
     <code>gofa-egm-move</code> node — it checks whether this node's session is active and routes

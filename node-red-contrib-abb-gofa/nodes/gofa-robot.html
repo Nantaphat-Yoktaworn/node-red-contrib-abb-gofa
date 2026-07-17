@@ -6,7 +6,7 @@
             ip:          { value: '192.168.20.33', required: true },
             rwsPort:     { value: '443',  required: true },
             socketPort:  { value: '1025', required: true },
-            ledPort:     { value: '1026' },
+            backgroundPort: { value: '1026' },
             username:    { value: 'Default User' },
             pointsFile:  { value: 'points.json' },
             remotePointsPath: { value: '$HOME/Programs/gofa_points.json' }
@@ -87,9 +87,9 @@
         <input type="number" id="node-config-input-socketPort" placeholder="1025">
     </div>
     <div class="form-row">
-        <label for="node-config-input-ledPort"><i class="fa fa-lightbulb-o"></i> Background LED Port</label>
-        <input type="number" id="node-config-input-ledPort" placeholder="1026">
-        <span style="color:#888;font-size:0.85em;margin-left:6px">optional — only used by gofa-asi-led's "Background task" transport; see BackgroundLed.mod</span>
+        <label for="node-config-input-backgroundPort"><i class="fa fa-lightbulb-o"></i> Background Services Port</label>
+        <input type="number" id="node-config-input-backgroundPort" placeholder="1026">
+        <span style="color:#888;font-size:0.85em;margin-left:6px">optional — used by gofa-asi-led's/gofa-do-write's "Background task"/"Background" transport; see BackgroundLed.mod</span>
     </div>
     <div class="form-row">
         <label for="node-config-input-username"><i class="fa fa-user"></i> Username</label>

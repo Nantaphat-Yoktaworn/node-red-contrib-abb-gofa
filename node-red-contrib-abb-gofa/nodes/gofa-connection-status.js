@@ -37,14 +37,26 @@ module.exports = function(RED) {
                         if (!resp.startsWith('OK:')) throw new Error('unexpected reply: ' + resp);
                         return Date.now() - s0;
                     });
+                })()),
+                // T_ROB1's socket (above) goes down whenever RAPID/T_ROB1 is stopped (teach
+                // workflow, EGM session). BackgroundLed.mod runs in a separate SEMISTATIC task
+                // that survives that — pinging it lets ok=false be split into "T_ROB1 socket
+                // specifically down" vs. "whole controller unreachable" (RWS also down).
+                settled('background', (function() {
+                    var b0 = Date.now();
+                    return r.socketSend({ cmd: 'ping' }, r.backgroundPort).then(function(resp) {
+                        if (!resp.startsWith('OK:')) throw new Error('unexpected reply: ' + resp);
+                        return Date.now() - b0;
+                    });
                 })())
             ]).then(function(results) {
                 var find = function(label) { return results.filter(function(x) { return x.label === label; })[0]; };
-                var ctrlstate = find('ctrlstate');
-                var opmode    = find('opmode');
-                var execution = find('execution');
-                var speed     = find('speed');
-                var socket    = find('socket');
+                var ctrlstate  = find('ctrlstate');
+                var opmode     = find('opmode');
+                var execution  = find('execution');
+                var speed      = find('speed');
+                var socket     = find('socket');
+                var background = find('background');
                 var rwsOk = ctrlstate.ok || opmode.ok || execution.ok || speed.ok;
 
                 var payload = {
@@ -58,6 +70,7 @@ module.exports = function(RED) {
                         speed:  speed.ok     ? parseInt(r.parseXhtml(speed.value, 'speedratio')) || 0 : null
                     },
                     socket: socket.ok ? { ok: true, rtt: socket.value } : { ok: false, error: socket.error },
+                    background: background.ok ? { ok: true, rtt: background.value } : { ok: false, error: background.error },
                     errors: results.filter(function(x) { return !x.ok; }).map(function(x) { return x.label + ': ' + x.error; })
                 };
                 msg.payload = payload;
@@ -97,14 +110,22 @@ module.exports = function(RED) {
                     if (!resp.startsWith('OK:')) throw new Error('unexpected reply: ' + resp);
                     return Date.now() - s0;
                 });
+            })()),
+            settled('background', (function() {
+                var b0 = Date.now();
+                return robot.socketSend({ cmd: 'ping' }, robot.backgroundPort).then(function(resp) {
+                    if (!resp.startsWith('OK:')) throw new Error('unexpected reply: ' + resp);
+                    return Date.now() - b0;
+                });
             })())
         ]).then(function(results) {
             var find = function(label) { return results.filter(function(x) { return x.label === label; })[0]; };
-            var ctrlstate = find('ctrlstate');
-            var opmode    = find('opmode');
-            var execution = find('execution');
-            var speed     = find('speed');
-            var socket    = find('socket');
+            var ctrlstate  = find('ctrlstate');
+            var opmode     = find('opmode');
+            var execution  = find('execution');
+            var speed      = find('speed');
+            var socket     = find('socket');
+            var background = find('background');
             var rwsOk = ctrlstate.ok || opmode.ok || execution.ok || speed.ok;
 
             res.json({
@@ -118,6 +139,7 @@ module.exports = function(RED) {
                     speed:  speed.ok     ? parseInt(robot.parseXhtml(speed.value, 'speedratio')) || 0 : null
                 },
                 socket: socket.ok ? { ok: true, rtt: socket.value } : { ok: false, error: socket.error },
+                background: background.ok ? { ok: true, rtt: background.value } : { ok: false, error: background.error },
                 errors: results.filter(function(x) { return !x.ok; }).map(function(x) { return x.label + ': ' + x.error; }),
                 duration: Date.now() - t0
             });

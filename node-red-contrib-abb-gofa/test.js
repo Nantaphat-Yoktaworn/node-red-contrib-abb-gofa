@@ -1727,6 +1727,20 @@ await checkAsync('gofa-do-write: Socket transport surfaces an ERR:SETDO reply (e
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, false);
 });
+await checkAsync('gofa-do-write: Background transport sends setdo to robot.backgroundPort with the same upper-cased name as Socket', async function() {
+    var calls = [];
+    var mockRobot = {
+        backgroundPort: 1026,
+        socketSend: function(cmd, port) { calls.push({ cmd: cmd, port: port }); return Promise.resolve('OK:SETDO'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-do-write', { nodesById: { r1: mockRobot } }))({ robot: 'r1', signal: 'ABB_Scalable_IO_0_DO1', value: 1, transport: 'background' });
+    var msg = { payload: 1 };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.transport, 'background');
+    assert.deepStrictEqual(calls[0].cmd, { cmd: 'setdo', name: 'ABB_SCALABLE_IO_0_DO1', val: 1 });
+    assert.strictEqual(calls[0].port, 1026);
+});
 await checkAsync('gofa-do-write: msg.payload.transport overrides the configured transport at runtime', async function() {
     var socketCalled = false, rwsCalled = false;
     var mockRobot = {
@@ -2061,11 +2075,37 @@ await checkAsync('gofa-egm: "stop" sets the graceful-stop signal via RWS and wai
     assert.strictEqual(mockRobot._egmActive, false);
     assert.strictEqual(mockRobot._egmTarget, null);
 });
+await checkAsync('gofa-egm: "stop" falls back to the background transport if RWS rejects the stop-signal write (e.g. Access Level reverted)', async function() {
+    var calls = [];
+    var mockRobot = {
+        backgroundPort: 1026,
+        rwsPost: function(p, b) {
+            calls.push(['rwsPost', p, b]);
+            return Promise.reject(new Error('HTTP 403 Rejected'));
+        },
+        socketSend: function(cmd, port) {
+            calls.push(['socketSend', cmd, port]);
+            if (cmd.cmd === 'setdo') return Promise.resolve('OK:SETDO');
+            return Promise.resolve('OK:PING');
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', udpPort: 0, throttleMs: 100 });
+    var err = await runInput(node, { payload: 'stop' });
+    assert.strictEqual(err, undefined, 'stop must succeed via the fallback, not fail because RWS was rejected');
+    assert.strictEqual(node.statuses[node.statuses.length - 1].text, 'stopped');
+    assert.ok(calls.some(function(c) {
+        return c[0] === 'socketSend' && c[1].cmd === 'setdo' && c[1].name === 'ABB_SCALABLE_IO_0_DO16' && c[1].val === 1 && c[2] === 1026;
+    }), 'must retry the stop-signal write over the background task setdo, upper-cased name');
+});
 await checkAsync('gofa-egm: "stop" retries PING until TCP mode actually resumes (not just after the signal write)', async function() {
     var pingAttempts = 0;
     var mockRobot = {
+        backgroundPort: 1026,
         rwsPost: function() { return Promise.resolve(''); },
-        socketSend: function() {
+        // port is set only for the best-effort background-task LED reset stop()
+        // fires afterward (see ledBackground) — must not count toward pingAttempts.
+        socketSend: function(cmd, port) {
+            if (port !== undefined) return Promise.resolve('OK:RESETLED');
             pingAttempts++;
             if (pingAttempts < 3) return Promise.reject(new Error('connection refused'));
             return Promise.resolve('OK:PING');
@@ -2224,6 +2264,52 @@ await checkAsync('gofa-egm: straggler UDP frame arriving after stop() does not r
         dgram.createSocket = originalCreateSocket;
     }
 });
+await checkAsync('gofa-egm: sets the background-task LED on a successful start, resets it on stop', async function() {
+    var dgram = require('dgram');
+    var originalCreateSocket = dgram.createSocket;
+    var messageHandler = null;
+    var mockSocket = {
+        on: function(evt, fn) { if (evt === 'message') messageHandler = fn; },
+        bind: function(port, cb) { if (cb) cb(); },
+        close: function() { this.closed = true; },
+        send: function() {}
+    };
+    dgram.createSocket = function() { return mockSocket; };
+
+    try {
+        var ledCalls = [];
+        var mockRobot = {
+            _egmActive: false, _egmBaseline: null, _egmTarget: null, _egmSocket: null,
+            backgroundPort: 1026,
+            socketSend: function(cmd, port) {
+                if (port === 1026) { ledCalls.push(cmd); return Promise.resolve('OK:SETLED'); }
+                if (cmd.cmd === 'egmjoint') return Promise.resolve('OK:EGMJOINT');
+                if (cmd.cmd === 'ping') return Promise.resolve('OK:PING');
+                return Promise.reject(new Error('unknown cmd'));
+            },
+            rwsPost: function() { return Promise.resolve(''); }
+        };
+
+        var startNode = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'start', udpPort: 12345, throttleMs: 100 });
+        var startPromise = runInput(startNode, { payload: 'start' });
+        await new Promise(function(resolve) { setImmediate(resolve); });
+        assert.ok(messageHandler);
+        messageHandler(Buffer.from(REF_ROBOT_HEX, 'hex'), { address: '127.0.0.1', port: 12345 });
+        await startPromise;
+
+        assert.strictEqual(ledCalls.length, 1);
+        assert.deepStrictEqual(ledCalls[0], { cmd: 'setled', val: [255, 0, 255, 0] });
+
+        var stopNode = new (loadNodeType('./nodes/gofa-egm', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'stop', udpPort: 12345, throttleMs: 100 });
+        await runInput(stopNode, { payload: 'stop' });
+
+        assert.strictEqual(ledCalls.length, 2);
+        assert.deepStrictEqual(ledCalls[1], { cmd: 'resetled' });
+    } finally {
+        dgram.createSocket = originalCreateSocket;
+    }
+});
+
 await checkAsync('gofa-egm: bindSocket no-frame timer firing after close() does not error or call stopAll again', async function() {
     var dgram = require('dgram');
     var originalCreateSocket = dgram.createSocket;
@@ -2817,10 +2903,10 @@ await checkAsync('gofa-asi-led: RWS transport counted blink sequence uses /set-v
     assert.strictEqual(calls.filter(function(p) { return p === '/rw/iosystem/signals/Asi1LedRed/set-value'; }).length, 5);
 });
 
-await checkAsync('gofa-asi-led: background transport sends setled to robot.ledPort, not the default socketPort', async function() {
+await checkAsync('gofa-asi-led: background transport sends setled to robot.backgroundPort, not the default socketPort', async function() {
     var calls = [];
     var mockRobot = {
-        ledPort: 1026,
+        backgroundPort: 1026,
         socketSend: function(cmd, port) { calls.push({ cmd: cmd, port: port }); return Promise.resolve('OK:SETLED'); }
     };
     var node = new (loadNodeType('./nodes/gofa-asi-led', { nodesById: { r1: mockRobot } }))({
@@ -2833,10 +2919,10 @@ await checkAsync('gofa-asi-led: background transport sends setled to robot.ledPo
     assert.strictEqual(calls[0].port, 1026);
 });
 
-await checkAsync('gofa-asi-led: background transport reset sends resetled to robot.ledPort', async function() {
+await checkAsync('gofa-asi-led: background transport reset sends resetled to robot.backgroundPort', async function() {
     var calls = [];
     var mockRobot = {
-        ledPort: 1026,
+        backgroundPort: 1026,
         socketSend: function(cmd, port) { calls.push({ cmd: cmd, port: port }); return Promise.resolve('OK:RESETLED'); }
     };
     var node = new (loadNodeType('./nodes/gofa-asi-led', { nodesById: { r1: mockRobot } }))({ robot: 'r1', transport: 'background' });
@@ -3097,6 +3183,31 @@ await checkAsync('gofa-connection-status: RWS up but socket down reports ok:fals
     assert.strictEqual(msg.payload.socket.error, 'socket timeout');
     assert.ok(node.statuses.some(function(s) { return s.fill === 'yellow' && s.text === 'socket unreachable'; }));
     assert.strictEqual(node.errors.length, 0);
+});
+
+await checkAsync('gofa-connection-status: T_ROB1 socket down but background task up distinguishes "T_ROB1 stopped" from "controller unreachable"', async function() {
+    var mockRobot = {
+        ip: '10.0.0.5',
+        backgroundPort: 1026,
+        rwsGet: function(path) {
+            if (path.indexOf('ctrl-state') >= 0) return Promise.resolve('<span class="ctrlstate">motoron</span>');
+            return Promise.reject(new Error('unexpected path: ' + path));
+        },
+        parseXhtml: parseXhtml,
+        // T_ROB1's socket is down (e.g. stopped for teach mode); BackgroundLed.mod's
+        // task (a distinct port) is still up — the whole point of this check.
+        socketSend: function(cmd, port) {
+            if (port === 1026) return Promise.resolve('OK:PING');
+            return Promise.reject(new Error('connection refused'));
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-connection-status', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.rws.ok, true);
+    assert.strictEqual(msg.payload.socket.ok, false);
+    assert.strictEqual(msg.payload.background.ok, true);
+    assert.strictEqual(typeof msg.payload.background.rtt, 'number');
 });
 
 await checkAsync('gofa-connection-status: default outputPayload strips the result to a bare signal', async function() {

@@ -9,6 +9,37 @@ var dgram = require('dgram');
 // move it in both places (here and MainModuleEGM.mod).
 var STOP_SIGNAL = 'ABB_Scalable_IO_0_DO16';
 
+// Writes STOP_SIGNAL over RWS; if that's rejected (e.g. 403 — confirmed live
+// that this signal's Access Level can revert from All to Default, breaking
+// RWS write access to it), falls back to the same write via the background
+// task's 'setdo' (RAPID always has I/O access regardless of RWS Access
+// Level, same reasoning as gofa-do-write's Background transport). Without
+// this fallback, an RWS rejection here leaves the session permanently stuck
+// mid-EGMRunJoint with no way to trigger the graceful-stop TRAP — confirmed
+// live during this feature's own EGM verification session.
+function setStopSignal(robot, val) {
+    return robot.rwsPost('/rw/iosystem/signals/' + STOP_SIGNAL + '/set-value', 'lvalue=' + val)
+        .catch(function(err) {
+            if (!robot.backgroundPort || typeof robot.socketSend !== 'function') throw err;
+            return robot.socketSend({ cmd: 'setdo', name: STOP_SIGNAL.toUpperCase(), val: val }, robot.backgroundPort)
+                .then(function(reply) {
+                    if (!/^OK:SETDO/.test(reply)) throw err;
+                });
+        });
+}
+
+// EGM streaming closes T_ROB1's TCP serving for the session's duration, same
+// root cause as the teach-workflow LED bug BackgroundLed.mod was built for —
+// so reuse its 'background' transport to show a distinct color while
+// streaming. Magenta chosen as distinct from the teach workflow's cyan/white.
+// Best-effort only: a LED write failure must never block/fail an EGM
+// start/stop, so callers never await this and its own promise is swallowed.
+var EGM_LED_COLOR = [255, 0, 255, 0];
+function ledBackground(robot, cmdObj) {
+    if (!robot || typeof robot.socketSend !== 'function') return;
+    robot.socketSend(cmdObj, robot.backgroundPort).catch(function() { /* best-effort */ });
+}
+
 // ── EGM protobuf codec (hand-rolled, proto2 wire format) ────────────────────
 // Covers only the fields this node actually reads/writes — see
 // gofa-egm-python/proto/egm.proto (ABB's own wire schema) for the full
@@ -323,6 +354,8 @@ module.exports = function(RED) {
                 egmjointAcked = true;
                 node.status({ fill: 'yellow', shape: 'ring', text: 'waiting for EGM frames...' });
                 return bindSocket();
+            }).then(function() {
+                ledBackground(node.robot, { cmd: 'setled', val: EGM_LED_COLOR });
             }).catch(function(err) {
                 // EGMJOINT already succeeded -- the controller is in EGM mode,
                 // blocked in RunEgmJoint -- but something after that failed
@@ -331,8 +364,7 @@ module.exports = function(RED) {
                 // \CommTimeout doesn't reliably end it). Best-effort: never
                 // let a cleanup failure mask the real error.
                 if (egmjointAcked) {
-                    node.robot.rwsPost('/rw/iosystem/signals/' + STOP_SIGNAL + '/set-value', 'lvalue=1')
-                        .catch(function() {});
+                    setStopSignal(node.robot, 1).catch(function() {});
                 }
                 throw err;
             }).finally(function() { node._starting = false; });
@@ -374,14 +406,15 @@ module.exports = function(RED) {
             if (!node.robot) { node.status({ fill: 'grey', shape: 'ring', text: 'stopped' }); return Promise.resolve(); }
             node.status({ fill: 'yellow', shape: 'ring', text: 'exiting EGM mode...' });
 
-            return node.robot.rwsPost('/rw/iosystem/signals/' + STOP_SIGNAL + '/set-value', 'lvalue=1')
+            return setStopSignal(node.robot, 1)
                 .then(function() {
                     return waitForTcpBack(15000).finally(function() {
-                        return node.robot.rwsPost('/rw/iosystem/signals/' + STOP_SIGNAL + '/set-value', 'lvalue=0').catch(function() {});
+                        return setStopSignal(node.robot, 0).catch(function() {});
                     });
                 })
                 .then(function() {
                     node.status({ fill: 'grey', shape: 'ring', text: 'stopped' });
+                    ledBackground(node.robot, { cmd: 'resetled' });
                 });
         }
 
