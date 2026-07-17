@@ -158,8 +158,9 @@
     <div class="form-row">
         <label for="node-input-transport"><i class="fa fa-exchange"></i> Transport</label>
         <select id="node-input-transport">
-            <option value="socket">Socket (requires RAPID running)</option>
-            <option value="rws">RWS (requires Access Level: All; works while RAPID stopped)</option>
+            <option value="socket">Socket (requires RAPID/T_ROB1 running)</option>
+            <option value="rws">RWS (requires Access Level: All on the ASI signals)</option>
+            <option value="background">Background task (works while T_ROB1 is stopped — see BackgroundLed.mod)</option>
         </select>
     </div>
     <div class="form-row" style="display: flex; gap: 5px;">
@@ -177,10 +178,11 @@
 </script>
 <script type="text/html" data-help-name="gofa-asi-led">
     <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
-    <p>Controls an ASI RGB LED on the ABB GoFa controller, via either of two transports:</p>
+    <p>Controls an ASI RGB LED on the ABB GoFa controller, via any of three transports:</p>
     <ul>
-        <li><b>Socket</b> (default) — RAPID's <code>SETLED</code>/<code>RESETLED</code> over the TCP socket server (port 1025). Needs RAPID actually running — the socket server is part of the RAPID task's own main loop, so it's dead whenever RAPID is stopped (e.g. mid hand-guiding/teach workflow).</li>
-        <li><b>RWS</b> — writes the underlying <code>Asi1LedRed</code>/<code>Asi1LedGreen</code>/<code>Asi1LedBlue</code>/<code>Asi1LedPeriod</code> GO signals directly via <code>POST /rw/iosystem/signals/{name}/set-value</code>, same as <code>gofa-do-write</code>'s RWS transport. Requires each signal's <code>Access Level</code> to be set to <code>All</code> in RobotStudio (<code>Controller</code> → <code>Configuration</code> → <code>I/O System</code> → <code>Signal</code>; needs a controller restart). Works even while RAPID is stopped — use this for any LED feedback that has to fire during a lead-through/teach-mode flow.</li>
+        <li><b>Socket</b> (default) — RAPID's <code>SETLED</code>/<code>RESETLED</code> over <code>MainModule.mod</code>'s TCP socket server (port 1025, T_ROB1). Needs T_ROB1 actually running — the socket server is part of that task's own main loop, so it's dead whenever T_ROB1 is stopped (e.g. mid hand-guiding/teach workflow).</li>
+        <li><b>RWS</b> — writes the underlying <code>Asi1LedRed</code>/<code>Asi1LedGreen</code>/<code>Asi1LedBlue</code>/<code>Asi1LedPeriod</code> GO signals directly via <code>POST /rw/iosystem/signals/{name}/set-value</code>, same as <code>gofa-do-write</code>'s RWS transport. Requires each signal's <code>Access Level</code> to be set to <code>All</code> in RobotStudio. On many controllers the ASI board (the robot's built-in collaborative status light) does not expose an editable Access Level at all — if that's the case here, this transport will always fail and you want <b>Background task</b> instead.</li>
+        <li><b>Background task</b> — talks to <code>BackgroundLed.mod</code> running in its own RAPID task (not T_ROB1) on <code>robot.ledPort</code> (default 1026). Keeps working while T_ROB1 is stopped, since it isn't part of T_ROB1's Program Stop/Start. Requires a one-time RobotStudio task setup (RobotWare Multitasking option) — see <code>CLAUDE.md</code>'s "Background LED task" section.</li>
     </ul>
     <h3>Blink count</h3>
     <p>When <em>Blink count</em> = 0 (default): sends a single <code>SETLED</code> command using the hardware <code>Asi1LedPeriod</code> signal for continuous blinking.</p>
@@ -192,7 +194,7 @@
         <li><code>{ r, g, b, period, blinkCount, blinkMs }</code> — full override</li>
         <li><code>{ color: 'red', blinkCount: 3, blinkMs: 200 }</code> — preset + counted blink</li>
         <li><code>'reset'</code> or <code>{ action: 'reset' }</code> — restore normal LED (static green)</li>
-        <li><code>{ transport: 'rws' }</code> (combine with any of the above) — override the configured transport for this message</li>
+        <li><code>{ transport: 'rws' }</code> / <code>{ transport: 'background' }</code> (combine with any of the above) — override the configured transport for this message</li>
         <li><code>null</code> / not set — uses node editor values</li>
     </ul>
     <h3>Output</h3>

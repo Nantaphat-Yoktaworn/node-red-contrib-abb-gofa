@@ -170,9 +170,7 @@ function fetchFull(clientInstance) {
         if (system.ok)   info.rwVersion = parseXhtml(system.value, 'rwversion');
         if (identity.ok) { info.ctrlName = parseXhtml(identity.value, 'ctrl-name'); info.ctrlId = parseXhtml(identity.value, 'ctrl-id'); }
         if (tasks.ok) {
-            var taskList = parseLiSpans(tasks.value, 'rap-task-li', ['name', 'type', 'taskstate', 'excstate', 'active', 'motiontask']);
-            var tRob1 = taskList.filter(function(t) { return t.name === 'T_ROB1'; })[0];
-            if (tRob1) info.tRob1 = tRob1;
+            info.tasks = parseLiSpans(tasks.value, 'rap-task-li', ['name', 'type', 'taskstate', 'excstate', 'active', 'motiontask']);
         }
         if (elog.ok) {
             var entries = [];
@@ -209,7 +207,12 @@ function print(out, rwsOk, autoDiscovered) {
         if (out.full) {
             if (out.full.rwVersion) console.log('RobotWare  : ' + out.full.rwVersion);
             if (out.full.ctrlName)  console.log('Controller : ' + out.full.ctrlName + (out.full.ctrlId ? ' (' + out.full.ctrlId + ')' : ''));
-            if (out.full.tRob1)     console.log('Task T_ROB1: active=' + out.full.tRob1.active + ' motiontask=' + out.full.tRob1.motiontask + ' excstate=' + out.full.tRob1.excstate);
+            if (out.full.tasks) {
+                out.full.tasks.forEach(function(t) {
+                    var extra = t.name === 'T_ROB1' ? ' active=' + t.active + ' motiontask=' + t.motiontask : '';
+                    console.log('Task ' + t.name + ': type=' + t.type + ' excstate=' + t.excstate + extra);
+                });
+            }
             if (out.full.recentErrors) {
                 console.log('Recent errors/warnings: ' + (out.full.recentErrors.length || 'none'));
                 out.full.recentErrors.forEach(function(e) { console.log('  - [' + e.tstamp + '] ' + e.title); });

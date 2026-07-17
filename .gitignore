@@ -22,6 +22,7 @@ node-red-contrib-abb-gofa/package-lock.json
 !rapid/
 !rapid/MainModule.mod
 !rapid/MainModuleEGM.mod
+!rapid/BackgroundLed.mod
 
 # This file, README, license, CI, and Claude Code project config
 !.gitignore

@@ -19,9 +19,16 @@ function clamp(v) {
 }
 
 // Asi1LedRed/Green/Blue/Period are plain GO signals (SetGO in MainModule.mod) —
-// writable over RWS /set-value exactly like any other signal once Access Level
-// is All, same restriction as gofa-do-write. RWS works even while RAPID (and so
-// the socket server) is stopped, unlike the Socket transport below.
+// in principle writable over RWS /set-value like any other signal once Access
+// Level is All, same as gofa-do-write. In practice the ASI board's Access
+// Level is not user-configurable on this hardware (it's the robot's built-in
+// safety/collaborative status light) — the 'rws' transport is kept for any
+// controller where that turns out not to be true.
+//
+// 'background' talks to BackgroundLed.mod instead — a second RAPID task
+// (see CLAUDE.md's "Background LED task" section) that keeps serving SETLED/
+// RESETLED on robot.ledPort even while T_ROB1 (and MainModule.mod's socket
+// server) is stopped, e.g. during gofa-leadthrough hand-guiding.
 function ledWrite(robot, transport, r, g, b, period) {
     if (transport === 'rws') {
         return robot.rwsPost('/rw/iosystem/signals/Asi1LedRed/set-value', 'lvalue=' + r)
@@ -29,13 +36,15 @@ function ledWrite(robot, transport, r, g, b, period) {
             .then(function() { return robot.rwsPost('/rw/iosystem/signals/Asi1LedBlue/set-value', 'lvalue=' + b); })
             .then(function() { return robot.rwsPost('/rw/iosystem/signals/Asi1LedPeriod/set-value', 'lvalue=' + period); });
     }
-    return robot.socketSend({ cmd: 'setled', val: [r, g, b, period] }).then(function(ack) {
+    var port = transport === 'background' ? robot.ledPort : undefined;
+    return robot.socketSend({ cmd: 'setled', val: [r, g, b, period] }, port).then(function(ack) {
         if (!ack.startsWith('OK:')) throw new Error('Unexpected reply: ' + ack);
     });
 }
 function ledReset(robot, transport) {
     if (transport === 'rws') return ledWrite(robot, transport, 0, 255, 0, 0);
-    return robot.socketSend({ cmd: 'resetled' }).then(function(ack) {
+    var port = transport === 'background' ? robot.ledPort : undefined;
+    return robot.socketSend({ cmd: 'resetled' }, port).then(function(ack) {
         if (!ack.startsWith('OK:')) throw new Error('Unexpected reply: ' + ack);
     });
 }

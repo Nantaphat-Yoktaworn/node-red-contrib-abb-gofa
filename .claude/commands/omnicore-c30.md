@@ -174,6 +174,36 @@ controller clearly runs 3 tasks — **resolved 2026-07-07**: `GET /rw/system` co
 `3114-1 Multitasking` is genuinely installed on this controller (full options list also in the
 `abb-rws` skill's version-snapshot section), so it's installed, not just an assumption.
 
+**The 3 tasks identified live (2026-07-17)**, via `GET /rw/rapid/tasks` and
+`GET /rw/rapid/tasks/{name}`:
+
+| Task | Type | Trust | Entry point | What it is |
+|---|---|---|---|---|
+| `T_ROB1` | normal | SysFail | `main` | The motion task — `MainModule.mod`'s socket server runs here. Stopped by `POST /rw/rapid/execution/stop`. |
+| `SC_CBC` | semistatic | SysHalt | `sc_cbc_main` | No modules visible (`GET /rw/rapid/tasks/SC_CBC/modules` → empty `<ul>`). Almost certainly tied to the licensed `3043-3 SafeMove Collaborative` option ("CBC" = Collaborative Behavior Configuration) — a safety-controller-side function, hence the severe `SysHalt` trust level. |
+| `T_GOFA_LED` | semistatic | None | `GOFA_LedMain` | Runs a `GOFA_Main` `SysMod`. Almost certainly ABB's own built-in driver for the collaborative-robot status light — explains why the ASI LED signals (`Asi1LedRed`/`Green`/`Blue`/`Period`) don't expose an editable `Access Level` in RobotStudio (they're already owned by protected firmware). Confirmed genuinely protected, not just hidden: `GET /rw/rapid/tasks/T_GOFA_LED/modules/GOFA_Main/text` → `500 "Module encoded, noview or readonly"`, and its own `GET /rw/cfg/sys/CAB_TASKS/instances/T_GOFA_LED` is `rdonly: true` with an empty attribute list. **Do not attempt to read, edit, or repurpose this task/module** — see the top-level `CLAUDE.md`'s "Background LED task" section for why a *separate* new task (`BackgroundLed.mod`) is used instead.
+
+**Confirmed live: `SEMISTATIC` tasks survive `POST /rw/rapid/execution/stop`, `NORMAL` doesn't.**
+Stopped `T_ROB1` via the exact same RWS call `gofa-rapid-exec`'s `stop` action uses (no motion
+involved) and polled task state immediately after: `T_ROB1` → `excstate: stopped`, while
+`SC_CBC` and `T_GOFA_LED` (both `semistatic`) stayed `excstate: started` throughout. This is the
+empirical basis for the `BackgroundLed.mod` design (see `CLAUDE.md`) — not an assumption from
+ABB's task-type docs, an actual live test.
+
+**Confirmed live: RWS cannot create a new task instance, only RobotStudio can.**
+`GET /rw/cfg/sys/CAB_TASKS/attributes` gives the full 17-attribute schema for a task config
+instance (all optional, sensible inits — `Type` even defaults to `SEMISTATIC` already). `OPTIONS`
+on both `/rw/cfg/sys/CAB_TASKS/instances` and a named existing instance report `Allow:
+GET,POST,DELETE,OPTIONS`, which looked like the familiar "Allow header is technically right, you
+just have the wrong URL shape" pattern already solved for `loadmod`/`/set-value` elsewhere in
+this project. It isn't, this time: four variants (`POST .../instances` with `Name=T_LED&
+Entry=main`; same with `Accept: application/hal+json;v=2.0`; `POST .../instances?action=add`;
+`POST .../CAB_TASKS?action=create-instance`) all gave a clean, consistent `405 HTTP method not
+supported by resource`, with zero side effects each time. Creating a new task appears to be a
+genuinely structural operation (stack allocation + boot-time registration) that RWS's config API
+isn't built to hot-provision — RobotStudio's offline Task-configuration UI plus a controller
+restart remains the only path found.
+
 **EGM [3124-1] is also installed** (same `GET /rw/system` options list) — this is relevant to
 the pose-subscription gap documented below: continuous Cartesian/joint streaming isn't
 available over RWS's subscription system, and EGM (Externally Guided Motion, UDP-based) is

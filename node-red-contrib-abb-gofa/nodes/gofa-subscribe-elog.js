@@ -60,9 +60,9 @@ module.exports = function(RED) {
                 contentType: 'application/x-www-form-urlencoded;v=2.0'
             }).then(function(res) {
                 if (res.statusCode !== 201) throw new Error('Subscription failed: HTTP ' + res.statusCode);
-                return robot.getCookie().then(function(cookie) {
-                    return { location: res.headers.location, cookie: cookie };
-                });
+                // Use the cookie from THIS subscribe response, not a separate robot.getCookie()
+                // re-fetch — see gofa-subscribe-io.js for why (confirmed live race).
+                return { location: res.headers.location, cookie: res.cookie };
             }).then(function(sub) {
                 if (node._stopped) {
                     // Node was closed while the subscribe POST was still in flight — close() already

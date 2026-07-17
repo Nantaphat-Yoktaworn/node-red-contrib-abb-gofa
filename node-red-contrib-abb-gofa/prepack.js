@@ -5,6 +5,7 @@ const fs = require('fs');
 
 fs.cpSync('../rapid/MainModule.mod', 'rapid/MainModule.mod');
 fs.cpSync('../rapid/MainModuleEGM.mod', 'rapid/MainModuleEGM.mod');
+fs.cpSync('../rapid/BackgroundLed.mod', 'rapid/BackgroundLed.mod');
 
 // Example flows = repo flows with this lab's username/IP genericized
 fs.mkdirSync('examples', { recursive: true });

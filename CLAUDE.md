@@ -62,7 +62,7 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 
 **GETVAR/SETVAR note**: variable names are uppercased by CleanCmd in RAPID (`nTestVar` → matched as `NTESTVAR`). String values are extracted from `rawclean` (preserves original case/spaces). To expose a new PERS variable, add an `ELSEIF` block in both `TryGetVar` and `TrySetVar` in `MainModule.mod`. Built-in: `nTestVar` (num), `sTestMsg` (string).
 
-**SETLED/RESETLED note**: `SetGO`-controlled ASI signals still go through the RAPID socket server, not RWS — `TrySetLed` in `MainModule.mod` handles `SETLED` via `SetGO` on `Asi1LedRed`, `Asi1LedGreen`, `Asi1LedBlue`, `Asi1LedPeriod`. Software-controlled counted blink (Node-RED side) is handled by `gofa-asi-led` when `blinkCount > 0`; in that case `period` is ignored and set to 0. (Historical note: this used to say "HTTP RWS cannot write them" — corrected below. RWS *can* write them, same as any other signal, once `Access` is `All`; the ASI signals are just left at `Default` today, and `SETLED` predates the `/set-value` discovery, so it hasn't been switched over.)
+**SETLED/RESETLED note**: `SetGO`-controlled ASI signals via `TrySetLed`/`DispatchJson`'s `setled` case in `MainModule.mod`, `SetGO` on `Asi1LedRed`, `Asi1LedGreen`, `Asi1LedBlue`, `Asi1LedPeriod`. Software-controlled counted blink (Node-RED side) is handled by `gofa-asi-led` when `blinkCount > 0`; in that case `period` is ignored and set to 0. `gofa-asi-led` has three transports as of 2026-07-17 — Socket (`MainModule.mod`/`T_ROB1`, the original), RWS (`/set-value`, added first — works in principle but this controller's ASI board doesn't expose an editable `Access Level` at all, confirmed live, so RWS is a dead end **on this specific hardware**; kept for controllers where it isn't), and Background task (`BackgroundLed.mod` in its own RAPID task, the one actually wired into the teach workflow — see the "Background LED task" section below for why and how).
 
 **RWS I/O write note — `/set-value` is the real action, not `/set`.** `gofa-do-write`/`gofa-ao-write` used `POST /rw/iosystem/signals/{name}/set` for a long time; that path is simply wrong on this OmniCore controller (`OPTIONS` on it is `404`; POSTing it is `405 rws_resource.cpp[472]: HTTP method not supported by resource`, on *every* signal, not just restricted ones). That `405` was misread as "RWS can't write I/O on this firmware at all" — a real DSQC1030 test session got 6 variants of `405` in a row (path-based `/set`, IRC5 `?action=set`, direct `PUT`, `hal+json` Accept, a `/simulated` sub-resource guess) and concluded RWS write was dead, leading to the `SETDO` socket command below as a workaround. **That conclusion was wrong.** The real action, found via ABB's own community forum, is **`POST /rw/iosystem/signals/{name}/set-value`** (body `lvalue=<value>`) — confirmed live: `204` success on a signal with `Access: All`, `403` (correctly) on one still at `Access: Default`. `gofa-do-write.js`/`gofa-ao-write.js` are now fixed to call `/set-value`; re-verified by exercising the real node code (not just curl) against `ABB_Scalable_IO_0_DO5`. **Access level still needs to be `All`** (via RobotStudio `Controller` → `Configuration` → `I/O System` → `Signal` → `Access Level`, needs a controller restart) for RWS write to work on a given signal — that part of the original diagnosis was always correct, only the endpoint name was wrong.
 
@@ -332,6 +332,169 @@ accurate) before relying on EGM with real tooling mounted.
 Full design history and the reasoning behind the two-module decision: see the
 `project_egm_node_red_integration_plan` memory and its linked plan file.
 
+## Background LED task (`BackgroundLed.mod`, added 2026-07-17)
+
+**Problem this solves**: `flows/teach_workflow_flow.json`'s teach workflow stops the whole
+`T_ROB1` task (`POST /rw/rapid/execution/stop`) before enabling lead-through — hand-guiding
+requires the motion task fully stopped, not just motion cleared. That kills
+`MainModule.mod`'s socket server along with it (it's part of `T_ROB1`'s own `main()` loop), so
+`gofa-asi-led`'s Socket transport (`SETLED`/`RESETLED`) times out for the whole teach session.
+The RWS transport (`/set-value`, added earlier the same day) doesn't help either — the ASI
+board is the robot's built-in collaborative-status/safety light, and on this controller its
+signals don't expose an editable `Access Level` at all (confirmed live: RobotStudio only lets
+you change Access Level on the DSQC1030 Scalable I/O board, not the ASI signals), unlike a
+regular I/O add-on.
+
+**Fix**: `rapid/BackgroundLed.mod` is a small, standalone RAPID module — its own copies of the
+JSON-parsing helpers, not shared with `MainModule.mod` (RAPID modules in different tasks can't
+call each other's local PROCs directly) — that only serves `ping`/`setled`/`resetled` over its
+own TCP port (`LED_SERVER_PORT := 1026`, matches `gofa-robot`'s new `ledPort` config field,
+default 1026). It's meant to run in a **separate RAPID task**, not `T_ROB1` — the whole point
+is that stopping `T_ROB1` doesn't touch it. This relies on RobotWare Multitasking `[3114-1]`,
+confirmed genuinely licensed on this controller (`GET /rw/system`, see the `omnicore-c30`
+skill) — up to 20 concurrent tasks, ABB's own stated use case for it is exactly this
+("supervising signals or driving peripheral equipment in parallel with robot motion").
+
+**Confirmed live (2026-07-17): RWS cannot create a new task, only RobotStudio can.**
+`GET /rw/cfg/sys/CAB_TASKS/instances/T_ROB1` exposes the full task config schema (17
+attributes — `Name`, `Type` (init `SEMISTATIC`), `Entry` (init `main`), `TrustLevel`,
+`MotionTask`, `Hidden`, RMQ settings, etc., **none marked mandatory**), and `OPTIONS` on both
+`/rw/cfg/sys/CAB_TASKS/instances` and an existing named instance both report `Allow:
+GET,POST,DELETE,OPTIONS` — looked exactly like the kind of case this project has cracked
+before (Allow header technically correct, just needs the right URL shape/Accept header, per the
+`loadmod`/`/set-value` precedents). Tried four variants against the live controller, all
+`405 HTTP method not supported by resource` with zero side effects each time (confirmed via
+instance count staying at 3 throughout): plain `POST .../instances` with `Name=T_LED&Entry=main`;
+same with `Accept: application/hal+json;v=2.0`; `POST .../instances?action=add`; and
+`POST .../CAB_TASKS?action=create-instance` (type-level). Unlike the `loadmod`/backup cases,
+**no variant worked** — this reads as a genuine, structural "RWS can create/modify existing
+instances but not add new ones" limitation (task creation needs stack allocation and boot-time
+registration RWS isn't built to hot-provision), not a wrong-URL red herring. **Don't re-attempt
+this without a new, concrete reason to believe it's changed** (a RobotWare update, or new
+official documentation) — this was tested thoroughly, not assumed.
+
+**CONFIRMED LIVE (2026-07-17) — the core premise holds.** Stopped `T_ROB1` via
+`POST /rw/rapid/execution/stop` (the exact call `gofa-rapid-exec`'s `stop` action and the teach
+workflow's "Stop RAPID" step use — no motion involved) and polled `GET /rw/rapid/tasks`
+immediately after. Result: `T_ROB1` (`type: normal`) → `excstate: stopped`, while the
+controller's own **pre-existing** `SC_CBC` and `T_GOFA_LED` tasks (both `type: semistatic`)
+stayed `excstate: started` throughout, unaffected. `T_ROB1` was restarted afterward (motors on
++ `regain=continue` start) and confirmed back to `running` with a clean socket `PING`. This is
+the exact mechanism the whole design depends on, and it's real, not inferred.
+
+**Bonus discovery from that same check: this controller already has a task named
+`T_GOFA_LED`.** `GET /rw/rapid/tasks/T_GOFA_LED/modules` shows it runs `GOFA_Main` (`SysMod`) —
+almost certainly ABB's own built-in driver for the collaborative-robot status light (explains
+why the ASI board's `Access Level` isn't user-editable: it's a protected/safety-tied signal ABB
+firmware already owns). Confirmed it's genuinely off-limits, not just cosmetically locked:
+`GET /rw/rapid/tasks/T_GOFA_LED/modules/GOFA_Main/text` → `500 "Module encoded, noview or
+readonly"`. **Do not attempt to read, edit, or repurpose `T_GOFA_LED`/`GOFA_Main`** — it's
+ABB's own protected code, encoded and inaccessible by design; `BackgroundLed.mod` must run in
+its *own*, separate new task, never this one.
+
+**Tried and confirmed NOT possible: creating that new task via RWS instead of RobotStudio** (see
+the box below) — a real, thorough attempt, not a guess. RobotStudio remains required for this
+one step.
+
+**`BackgroundLed.mod` is already uploaded to the controller** (`$HOME/Programs/BackgroundLed.mod`,
+via the real `gofa-robot.js`/`patchServerIp` code path, `SERVER_IP` confirmed correctly patched
+to `192.168.1.103`, verified with a follow-up `GET` round-trip) — the remaining setup step below
+is RobotStudio-side only, no re-upload needed.
+
+**One-time RobotStudio setup (confirmed required — RWS cannot create tasks):**
+1. ~~Upload `BackgroundLed.mod`~~ — already done, see above. (If it ever needs re-uploading —
+   e.g. after an edit — use `gofa-file`'s upload action or RobotStudio; same `SERVER_IP`
+   auto-patch mechanism as `MainModule.mod`.)
+2. RobotStudio → **Controller** tab → **Configuration** → **Controller** topic → **Task** →
+   add a new task instance, name `T_LED`.
+3. Set **Type** to `SEMISTATIC` (starts automatically at power-up, resets to the top of `main()`
+   each restart, and — per ABB's task-type model, now empirically confirmed above — is *not*
+   part of the FlexPendant/RWS Program Start/Stop cycle the way a `NORMAL` task like `T_ROB1`
+   is). `STATIC` would also work (same independence from Program Stop) but doesn't auto-reset
+   the program pointer on restart.
+4. **Set `TrustLevel` to the least-severe option available, NOT the field's own default
+   (`SysFail`).** Confirmed live via `GET /rw/cfg/sys/CAB_TASKS/attributes`: a brand-new task
+   instance defaults to the *same* `TrustLevel` as `T_ROB1`'s real motion task — meaning an
+   unhandled RAPID error in this little LED-blinking utility task would, left at default, be
+   treated as severely as a fault in the motion task itself (`SysFail` — full system failure).
+   There's no reason a cosmetic feedback task should carry that blast radius. Supporting
+   evidence: `GET /rw/rapid/tasks/T_GOFA_LED` (the controller's own built-in LED task) reports
+   `trust="None"` at runtime — ABB's own equivalent task uses the least-severe level, not
+   `SysFail`. Couldn't confirm the exact raw config string this maps to, though — `T_GOFA_LED`'s
+   own `CAB_TASKS` config instance is itself `rdonly: true` with its attribute list hidden
+   (consistent with `GOFA_Main` being "encoded, noview" — see below), so the mapping from
+   RobotStudio's Task-config `TrustLevel` dropdown labels to this runtime `trust` string wasn't
+   directly verifiable. In RobotStudio's own Task Type dialog, pick whichever option is labeled
+   as no/least safety-propagation (commonly `NoSafety`, sometimes `SysStop` if that's not
+   offered) — anything less severe than the `SysFail` default is the point.
+5. Assign `BackgroundLed.mod` to this task (**not** `T_ROB1` — loading it there would collide
+   with `MainModule.mod`'s own `PROC main()`, same ambiguity as the `MainModule`/`MainModuleEGM`
+   case documented in the EGM section above).
+6. Restart the controller.
+
+**CONFIRMED LIVE END-TO-END (2026-07-17), including physical visual verification — the whole
+feature works.** `T_LED` created and set up per the steps above (RD2 did this live); after the
+controller restart, `T_LED` shows `excstate: started` and `BackgroundLed.mod` compiled cleanly
+on the first try (no RAPID syntax errors). Full sequence tested against the real robot:
+1. `ping` on port 1026 → `OK:PING`, confirming the module's socket server is actually up.
+2. `setled` (cyan, then white, then cyan again) while `T_ROB1` was genuinely stopped the whole
+   time → every call `OK:SETLED`, and a plain RWS read of `Asi1LedGreen` independently confirmed
+   the hardware value actually changed (not just a fake ack).
+3. **Physical confirmation, not just API/signal-level**: set the LED to bright red via `T_LED`
+   and polled `Asi1LedRed/Green/Blue` every 300ms for 6 seconds — the signal held steady the
+   whole time (ruling out `T_GOFA_LED` fighting for control), and RD2 confirmed the physical
+   light genuinely went solid red, then back to solid green after `resetled` — a clean, visible
+   change, not a flicker or a no-op.
+4. Full realistic cycle — stop `T_ROB1` → LED cyan → LED white flash → LED cyan → restart
+   `T_ROB1` → LED reset to green — ran start to finish with `T_ROB1` ending back in `running`
+   and a clean socket `PING` on port 1025 too. Both tasks healthy simultaneously.
+
+An earlier "LED stuck at solid green, no color change" report during this same session turned
+out to be a false alarm — the automated test script cycled through colors and reset back to
+green within a couple of seconds with no pause, so by the time the color was checked visually,
+`resetled` had already fired. Slowing down and checking mid-sequence confirmed every color
+change was real. Worth remembering if this is ever debugged again: confirm timing/pauses before
+assuming the mechanism itself is broken.
+
+**Also confirmed against the real, deployed `teach_workflow_flow.json`** (not just raw scripts
+driving `gofa-robot.js` directly) — ran Node-RED locally with the flow imported and the actual
+physical ASI buttons pressed live: Button 1 → stop RAPID → enable lead-through → (see LED
+priority note below) → Button 2 pressed twice, two real poses captured (`gofa-save-point`
+correctly wrote both to `points.json`) → Button 1 again → disable lead-through → resetpp →
+restart RAPID, ending back in `running` with motors on. Full realistic cycle, not a simulation.
+
+**ABB's own safety controller drives the physical LED through several states that override
+whatever `gofa-asi-led` sets, and this is correct, desirable behavior — not something to
+"fix."** Confirmed live, in order, on a single lead-through cycle:
+- **White**, ~3 seconds, immediately on enabling lead-through — a transition/negotiation
+  indicator while the safety controller activates hand-guiding mode. `waitForLeadThroughState`
+  in `gofa-leadthrough.js` can report RWS status `Active` slightly before this physical
+  transition fully settles, so the LED doesn't switch to whatever custom color was just set
+  until a few seconds after the flow believes lead-through is active.
+- **Yellow**, immediately and only while the robot is *actually moving* — confirmed by moving
+  the arm under hand-guiding and watching the color change in real time. This overrides any
+  custom color instantly, and reverts the instant motion stops (confirmed the underlying
+  `Asi1LedRed/Green/Blue` GO signal values held steady and unchanged throughout — the override
+  happens at the physical-hardware level, not by rewriting the signals, so a `setled`/`SetGO`
+  call always "succeeds" per its ack even while yellow is showing).
+- Our own custom color (cyan, white-flash, green) — only visible during genuinely idle,
+  stationary moments, once the above two are not asserting.
+
+**Practical takeaway for the teach workflow's LED design**: don't design around forcing cyan to
+be continuously visible throughout an active lead-through session — it won't be, and shouldn't
+be, since yellow-while-moving is a real safety signal that must take priority. Treat cyan as an
+"idle within the teach session" indicator only. The white double-flash for "point saved"
+(Button 2) works reliably because a point save naturally happens while the arm is stationary
+(the user pauses hand-guiding to press the button) — confirmed live, twice, no interference from
+the white/yellow override states above.
+
+**Node-RED side**: `gofa-robot`'s `socketSend(cmd, port)` now takes an optional port override
+(previously always used the configured `socketPort`) — confirmed live end-to-end today with a
+throwaway TCP server (not just unit-mocked) and against the real `T_LED` port. `gofa-asi-led`
+gained a third Transport option, `'background'`, that calls `socketSend(cmd, robot.ledPort)`
+instead of the default port. `teach_workflow_flow.json`'s three LED nodes (Teach Mode ON/OFF,
+Point Saved) are wired to `transport: 'background'` and now confirmed working for real.
+
 ## Interactive properties panels (2.2.0+, undocumented until 2026-07-16)
 
 Since 2.2.0, every non-config node's properties dialog has live-action buttons/live-read
@@ -402,7 +565,7 @@ code path from the runtime `node.on('input', ...)` handler:
 | `gofa-di-read` | RWS | Read digital input |
 | `gofa-do-write` | RWS or Socket | Write digital output; Transport dropdown — RWS `/set-value` (needs `Access: All`) or Socket `SETDO` (needs RAPID running, no Access Level restriction) |
 | `gofa-leadthrough` | Socket + RWS | Hand-guiding: action `enable` (sends socket STOP first to clear queued moves, tolerates socket-down) / `disable` (RWS only) |
-| `gofa-asi-led` | Socket | Set ASI status light RGB color + counted software blink via `SETLED` / `RESETLED` |
+| `gofa-asi-led` | Socket, RWS, or Background task | Set ASI status light RGB color + counted software blink; Transport dropdown — Socket `SETLED`/`RESETLED` (needs T_ROB1 running), RWS `/set-value` (needs Access Level: All, not available on this controller's ASI board), or Background task (`BackgroundLed.mod` in its own RAPID task, works while T_ROB1 is stopped) |
 | `gofa-subscribe-state` | RWS WS | Push on every controller state change; one-shot mode polls once per inject |
 | `gofa-subscribe-io` | RWS WS | Push on every I/O signal change (real WebSocket push, confirmed live down to a single button tap); falls back to 500 ms polling only if the subscribe request itself fails; one-shot mode available |
 | `gofa-subscribe-var` | RWS poll | Poll a RAPID variable on an interval; toggles on/off per inject |
@@ -476,6 +639,7 @@ node-red-contrib-abb-gofa/check-status.js  ← standalone robot preflight check,
 node-red-contrib-abb-gofa/mastership-test.js ← standalone mastership-gated RWS test, see /mastership-test above
 rapid/MainModule.mod               ← RAPID socket server (must run on controller)
 rapid/MainModuleEGM.mod            ← optional: MainModule.mod clone + EGM mode (gofa-egm), see EGM section
+rapid/BackgroundLed.mod             ← optional: separate-task LED server, survives T_ROB1 stop, see Background LED task section
 flows/gofa_demo_flow.json          ← one inject per node, for testing
 flows/teach_workflow_flow.json     ← physical ASI-button teach workflow (own tab/config, see README)
 MANUAL_CONTROL.md                  ← curl/raw-TCP command reference for controlling the robot without Node-RED

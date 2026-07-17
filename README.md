@@ -272,6 +272,13 @@ that up, it assumes it and checks for it.
    RAPID — back to exactly the state before step 1, including the ASI light resetting to its
    normal solid-green RAPID-running state.
 
+> **LED feedback requires a one-time controller setup.** RAPID (and its socket server) is
+> stopped for the entire hand-guiding session, so the three `gofa-asi-led` nodes in this flow
+> use the `background` transport — `BackgroundLed.mod` running in its own RAPID task, alongside
+> `T_ROB1`, so it keeps answering even while `T_ROB1` is stopped. This needs `BackgroundLed.mod`
+> uploaded and assigned to a second task (RobotWare Multitasking) before the lights will work —
+> see `CLAUDE.md`'s "Background LED task" section for the exact one-time RobotStudio steps.
+
 Every press re-reads live robot state (`gofa-status`) to decide what to do rather than trusting
 an internal flag, so it's self-healing across a Node-RED restart mid-session. Every multi-step
 sequence is gated on the previous step's success (a failed RAPID stop won't blindly proceed into

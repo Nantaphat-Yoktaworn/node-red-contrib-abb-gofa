@@ -1928,6 +1928,39 @@ await checkAsync('createRobotClient: requestRaw retries once with forced Basic-a
         assert.ok(basicAuthHits >= 2, 'expected the initial login plus at least one forced-auth retry');
     } finally { server.close(); }
 });
+await checkAsync('createRobotClient: requestRaw resolves with the cookie from ITS OWN response, immune to a concurrent request overwriting the shared session cookie', async function() {
+    // Reproduces a real bug found live 2026-07-17: two gofa-subscribe-io nodes sharing
+    // one gofa-robot config node both POST /subscription around the same time. OmniCore
+    // reissues Set-Cookie on each response, so the shared session cookie variable gets
+    // overwritten by whichever response arrives second — if a caller re-fetches the
+    // cookie afterward (the old robot.getCookie() pattern) instead of using the cookie
+    // from its own response, it can pick up a DIFFERENT node's cookie and use it for its
+    // own WebSocket upgrade, which OmniCore then rejects (confirmed live: intermittent
+    // "WebSocket upgrade rejected: HTTP 500", alternating between which node failed).
+    var server = http.createServer(function(req, res) {
+        if (req.url === '/a') {
+            // Slow response — resolves AFTER /b, so if the fix didn't work, reading the
+            // shared cookie once /a resolves would see /b's later overwrite.
+            setTimeout(function() {
+                res.writeHead(200, { 'Set-Cookie': 'ABBCX=sessA' });
+                res.end('a');
+            }, 30);
+        } else {
+            res.writeHead(200, { 'Set-Cookie': 'ABBCX=sessB' });
+            res.end('b');
+        }
+    });
+    var port = await new Promise(function(resolve) { server.listen(0, function() { resolve(server.address().port); }); });
+    try {
+        var client = createRobotClient({ ip: '127.0.0.1', rwsPort: port, socketPort: 1025, username: 'u', password: 'p' });
+        await client.getCookie(); // establish a session first so both requests below send Cookie, not Basic auth
+        var pA = client.requestRaw('GET', '/a', null, {});
+        var pB = client.requestRaw('GET', '/b', null, {});
+        var resA = await pA, resB = await pB;
+        assert.strictEqual(resA.cookie, 'ABBCX=sessA', "request A's resolved cookie must be its own, not B's");
+        assert.strictEqual(resB.cookie, 'ABBCX=sessB', "request B's resolved cookie must be its own, not A's");
+    } finally { server.close(); }
+});
 await checkAsync('createRobotClient: logout is a no-op when no session was ever established', async function() {
     var hit = false;
     var server = http.createServer(function(req, res) { hit = true; res.writeHead(200); res.end(); });
@@ -2425,6 +2458,22 @@ await checkAsync('socketSend: legacy fallback works when server replies with str
     }
 });
 
+await checkAsync('socketSend: an explicit port argument overrides the configured socketPort (BackgroundLed.mod use case)', async function() {
+    var net = require('net');
+    var server = net.createServer(function(socket) {
+        socket.on('data', function() { socket.write('{"status":"ok","cmd":"setled"}\n'); });
+    });
+    var port = await new Promise(function(resolve) { server.listen(0, '127.0.0.1', function() { resolve(server.address().port); }); });
+    try {
+        // configured socketPort deliberately wrong/unreachable — only the explicit port argument should be used
+        var client = createRobotClient({ ip: '127.0.0.1', socketPort: 1 });
+        var resp = await client.socketSend({ cmd: 'setled', val: [0, 200, 200, 0] }, port);
+        assert.strictEqual(resp, 'OK:SETLED');
+    } finally {
+        server.close();
+    }
+});
+
 // ── gofa-grip ───────────────────────────────────────────────────────────────
 await checkAsync('gofa-grip: accepts valid on/off inputs', async function() {
     var posted = [];
@@ -2766,6 +2815,35 @@ await checkAsync('gofa-asi-led: RWS transport counted blink sequence uses /set-v
     assert.strictEqual(msg.payload.ok, true);
     assert.strictEqual(msg.payload.blinks, 2);
     assert.strictEqual(calls.filter(function(p) { return p === '/rw/iosystem/signals/Asi1LedRed/set-value'; }).length, 5);
+});
+
+await checkAsync('gofa-asi-led: background transport sends setled to robot.ledPort, not the default socketPort', async function() {
+    var calls = [];
+    var mockRobot = {
+        ledPort: 1026,
+        socketSend: function(cmd, port) { calls.push({ cmd: cmd, port: port }); return Promise.resolve('OK:SETLED'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-asi-led', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', red: 0, grn: 200, blu: 200, period: 0, transport: 'background'
+    });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.deepStrictEqual(calls[0].cmd, { cmd: 'setled', val: [0, 200, 200, 0] });
+    assert.strictEqual(calls[0].port, 1026);
+});
+
+await checkAsync('gofa-asi-led: background transport reset sends resetled to robot.ledPort', async function() {
+    var calls = [];
+    var mockRobot = {
+        ledPort: 1026,
+        socketSend: function(cmd, port) { calls.push({ cmd: cmd, port: port }); return Promise.resolve('OK:RESETLED'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-asi-led', { nodesById: { r1: mockRobot } }))({ robot: 'r1', transport: 'background' });
+    var msg = { payload: 'reset' };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.deepStrictEqual(calls[0], { cmd: { cmd: 'resetled' }, port: 1026 });
 });
 
 await checkAsync('gofa-joints: error during joints fetch sets red status and propagates error', async function() {
@@ -3412,7 +3490,7 @@ await checkAsync('gofa-mod-edit: empty content is rejected, nothing uploaded', a
 // runtime — every edit must land in both, same commit. prepack.js only syncs
 // at publish time, so this check catches dev-time drift.
 check('rapid modules: package copies are in sync with the repo-root source of truth', function() {
-    ['MainModule.mod', 'MainModuleEGM.mod'].forEach(function(f) {
+    ['MainModule.mod', 'MainModuleEGM.mod', 'BackgroundLed.mod'].forEach(function(f) {
         var root = fs.readFileSync(path.join(__dirname, '..', 'rapid', f));
         var pkg  = fs.readFileSync(path.join(__dirname, 'rapid', f));
         assert.ok(root.equals(pkg), f + ' drifted — copy rapid/' + f + ' into node-red-contrib-abb-gofa/rapid/ (or run node prepack.js)');

@@ -286,8 +286,21 @@ function createRobotClient(opts) {
                 hostname: ip, port: rwsPort, path: urlPath, method: method,
                 headers: headers, rejectUnauthorized: false
             }, function(res) {
+                // Capture the cookie that belongs to THIS specific response synchronously,
+                // in this same callback — not via a later separate getCookie() call. The
+                // shared `cookie` variable can be overwritten by another concurrent request's
+                // response in between (OmniCore reissues Set-Cookie on many responses, and
+                // node-red flows commonly have several nodes sharing one gofa-robot config
+                // node firing requests around the same time — confirmed live: two
+                // gofa-subscribe-io nodes starting concurrently raced on exactly this,
+                // causing whichever one's WS-connect ran after the other's cookie overwrite
+                // to fail its upgrade with "held by someone else"-style session mismatch).
+                // A same-callback read is immune to that, since Node never interleaves two
+                // response callbacks mid-execution.
+                var thisCookie = cookie;
                 if (res.headers['set-cookie']) {
-                    cookie = res.headers['set-cookie'].map(function(c) { return c.split(';')[0]; }).join('; ');
+                    thisCookie = res.headers['set-cookie'].map(function(c) { return c.split(';')[0]; }).join('; ');
+                    cookie = thisCookie;
                 }
                 var chunks = [];
                 res.on('data', function(c) { chunks.push(c); });
@@ -297,7 +310,7 @@ function createRobotClient(opts) {
                         requestRawOnce(method, urlPath, body, opts, true).then(resolve).catch(reject);
                         return;
                     }
-                    resolve({ statusCode: res.statusCode, headers: res.headers, body: Buffer.concat(chunks) });
+                    resolve({ statusCode: res.statusCode, headers: res.headers, body: Buffer.concat(chunks), cookie: thisCookie });
                 });
             });
             req.on('error', reject);
@@ -418,7 +431,7 @@ function translateToJSON(cmd) {
         return trimmed;
     }
 
-    function socketSend(cmd) {
+    function socketSend(cmd, port) {
         return new Promise(function(resolve, reject) {
             var sock = new net.Socket();
             var buf = '', settled = false;
@@ -429,7 +442,7 @@ function translateToJSON(cmd) {
             }
             var jsonCmd = translateToJSON(cmd);
             sock.setTimeout(5000);
-            sock.connect(socketPort, ip, function() { sock.write(jsonCmd + '\n'); });
+            sock.connect(port || socketPort, ip, function() { sock.write(jsonCmd + '\n'); });
             sock.on('data', function(d) {
                 buf += d.toString();
                 if (buf.indexOf('\n') >= 0) {
@@ -497,6 +510,7 @@ module.exports = function(RED) {
         this.ip         = config.ip         || '192.168.20.33';
         this.rwsPort    = parseInt(config.rwsPort)    || 443;
         this.socketPort = parseInt(config.socketPort) || 1025;
+        this.ledPort    = parseInt(config.ledPort)    || 1026;
         this.username   = config.username   || 'Default User';
         this.password   = (this.credentials && this.credentials.password) || '';
         if (!this.password) {
@@ -686,7 +700,7 @@ module.exports = function(RED) {
     GoFaRobotNode.prototype.rwsPut        = function(p, b, contentType) { return this._client.rwsPut(p, b, contentType); };
     GoFaRobotNode.prototype.rwsPostHal    = function(p, b) { return this._client.rwsPostHal(p, b); };
     GoFaRobotNode.prototype.withMastership = function(fn)  { return this._client.withMastership(fn); };
-    GoFaRobotNode.prototype.socketSend    = function(cmd)  { return this._client.socketSend(cmd); };
+    GoFaRobotNode.prototype.socketSend    = function(cmd, port) { return this._client.socketSend(cmd, port); };
     GoFaRobotNode.prototype.requestRaw    = function(method, p, b, opts) { return this._client.requestRaw(method, p, b, opts); };
     GoFaRobotNode.prototype.getCookie     = function()     { return this._client.getCookie(); };
     GoFaRobotNode.prototype.logout        = function()     { return this._client.logout(); };

@@ -1074,7 +1074,7 @@
         "period": 0,
         "blinkCount": 0,
         "blinkMs": 250,
-        "transport": "rws",
+        "transport": "background",
         "x": 3300,
         "y": 100,
         "wires": [
@@ -1119,7 +1119,7 @@
         "period": 0,
         "blinkCount": 2,
         "blinkMs": 120,
-        "transport": "rws",
+        "transport": "background",
         "x": 2480,
         "y": 800,
         "wires": [
@@ -1192,7 +1192,7 @@
         "period": 0,
         "blinkCount": 0,
         "blinkMs": 250,
-        "transport": "rws",
+        "transport": "background",
         "x": 3300,
         "y": 620,
         "wires": [
