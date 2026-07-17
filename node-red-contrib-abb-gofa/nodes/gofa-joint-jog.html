@@ -108,5 +108,9 @@
     </ul>
     <h3>Output</h3>
     <p>Success: <code>msg.payload = { ok: true, ack: "OK:...", token: "J1+5" }</code></p>
-    <p>Failure (invalid input or socket error): <code>msg.payload = { ok: false, error: "..." }</code></p>
+    <p>Invalid input (bad joint/direction/step) or a connection-level failure:
+    <code>msg.payload = { ok: false, error: "..." }</code>. A rejected socket command (robot
+    replied but not with <code>OK:</code>) instead gives <code>{ ok: false, ack: "...",
+    token: "..." }</code> — <code>ok</code> is <code>false</code> and <code>ack</code> holds the
+    raw rejection, with no <code>error</code> field.</p>
 </script>

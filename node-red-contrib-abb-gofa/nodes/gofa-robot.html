@@ -116,6 +116,8 @@
     <em>Storage</em> is set to <b>On-Robot</b>. A plain JSON file on the robot controller's own
     disk (managed purely via RWS <code>fileservice</code> <code>GET</code>/<code>PUT</code>, same
     mechanism as <b>gofa-file</b>) — no local file needed on the
-    Node-RED host. No concurrent-write protection (unlike the local Points File's
-    changed-on-disk check) — fine for a human-paced "teach a point" workflow.</p>
+    Node-RED host. Same best-effort protection as the local Points File's changed-on-disk
+    check: a save re-fetches the remote file right before writing and warns (doesn't block) if
+    it changed since it was last read — doesn't fully close the race, but turns a previously
+    silent overwrite into a visible warning, fine for a human-paced "teach a point" workflow.</p>
 </script>

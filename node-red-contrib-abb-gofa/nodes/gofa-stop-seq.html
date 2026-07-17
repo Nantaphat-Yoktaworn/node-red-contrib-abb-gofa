@@ -67,6 +67,9 @@
     next step) <em>and</em> sends an immediate <code>stop</code> over the TCP socket to abort
     any in-progress move right away, rather than waiting for the current move + dwell to finish.</p>
     <p>Must reference the same Robot config node as the running Sequencer.</p>
+    <p>The properties panel also has a <b>Stop Sequence Now</b> button that triggers the same
+    stop directly from the editor, without deploying/triggering the node at runtime — same
+    effect as a real input message, but for design-time testing.</p>
     <h3>Input</h3>
     <p>Any message triggers the action. <code>msg.payload</code> is ignored.</p>
     <h3>Output</h3>

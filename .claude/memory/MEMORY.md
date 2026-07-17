@@ -13,6 +13,8 @@
 - [Mobile PWA dashboard branch](project_mobile_pwa_dashboard_branch.md) — feature/mobile-pwa-dashboard, LOCAL ONLY, tip 74841b8; main deleted dashboard_flow.json entirely (8e97ffe) so this is no longer a simple merge; don't push/merge without asking
 - [Lead-through TSS violation 2026-07-17](project_leadthrough_tss_violation_2026-07-17.md) — 90515 fixed by manual-mode jog under enabling device, not config/code; also fixed a real HTTP-200-lies bug in gofa-leadthrough.js enable
 - [Background LED task 2026-07-17](project_background_led_task.md) — BackgroundLed.mod/T_LED verified against the real deployed teach flow (physical buttons); RWS can't create tasks; ABB's own safety LED overrides (white=activating, yellow=moving) are real, not bugs; fixed a shared-cookie race across all 3 WS-subscribe nodes
+- [Background services generalization 2026-07-17](project_background_services_task.md) — setdo/gofa-do-write/-connection-status/-egm added, ledPort→backgroundPort renamed; FULLY LIVE-VERIFIED incl. reload procedure (needs a FlexPendant Execution-menu checkbox to stop a SEMISTATIC task at all) and a full EGM start/move/stop cycle; found+fixed a real gofa-egm stop() stranding bug live
+- [Docs/help-text audit 2026-07-17](project_docs_audit_2026-07-17.md) — agy-parallelized 43-node + 5-doc audit (same day, later session); real bugs found incl. a silent flows/↔examples/ sync gap (now has a permanent drift test); removed JSON_SOCKET_TRANSITION.md (see docs-audit-2026-07-16 below) + a stale todo draft, with user sign-off
 
 Older memories preserved only in this snapshot (pruned from live memory but still referenced by CLAUDE.md and the skills):
 
@@ -35,4 +37,4 @@ Older memories preserved only in this snapshot (pruned from live memory but stil
 - [OmniCore AppStudio investigation](reference_omnicore_appstudio_investigation.md) — persistent FlexPendant dashboard ruled out for now, needs RobotStudio GUI step, not RWS-drivable
 - [IP discovery deferred](project_ip_discovery_deferred.md) — check-status.js IP auto-discovery: design sketched and deferred at the time; since built (check-status.js --discover, gofa-robot Discover button)
 
-Note: this robot's real RWS/admin credentials live only in local (non-repo) Claude memory — deliberately never copied here since this repo is public. (Snapshot last synced from live memory: 2026-07-17, after the Background LED task session — added that memory plus two from 2026-07-16/17 that hadn't been synced yet: mobile PWA dashboard branch, lead-through TSS violation.)
+Note: this robot's real RWS/admin credentials live only in local (non-repo) Claude memory — deliberately never copied here since this repo is public. (Snapshot last synced from live memory: 2026-07-17, after the docs/help-text audit session — added the background-services generalization and docs-audit-2026-07-17 memories.)

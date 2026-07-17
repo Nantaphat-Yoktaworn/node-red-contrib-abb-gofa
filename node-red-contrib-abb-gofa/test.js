@@ -3635,6 +3635,43 @@ check('example flows: every gofa-* node instance has Output payload enabled', fu
     assert.deepStrictEqual(problems, [], 'nodes missing outputPayload:true — ' + problems.join('; '));
 });
 
+// flows/ (repo-root source of truth) and examples/ (npm-shipped copy) must stay in sync, same
+// rule as the rapid/*.mod drift check above — confirmed live 2026-07-17 that this drifts
+// silently otherwise: examples/teach_workflow_flow.json was missing a transport:"background"
+// field flows/teach_workflow_flow.json already had, for months, with nothing catching it. The
+// ONE intentional difference: gofa-robot's ip/username are genericized in examples/ for the
+// public npm release (see reference_public_release memory) — excluded here, everything else
+// must be byte-for-byte identical.
+check('example flows: examples/ (npm copy) matches flows/ (source of truth), except gofa-robot ip/username', function() {
+    var flowsDir = path.join(__dirname, '..', 'flows');
+    var exDir    = path.join(__dirname, 'examples');
+    var problems = [];
+    fs.readdirSync(flowsDir).filter(function(f) { return f.endsWith('.json'); }).forEach(function(f) {
+        var exPath = path.join(exDir, f);
+        if (!fs.existsSync(exPath)) { problems.push(f + ': missing from examples/'); return; }
+        var a = JSON.parse(fs.readFileSync(path.join(flowsDir, f), 'utf8'));
+        var b = JSON.parse(fs.readFileSync(exPath, 'utf8'));
+        var bMap = {};
+        b.forEach(function(n) { bMap[n.id] = n; });
+        a.forEach(function(n) {
+            var m = bMap[n.id];
+            if (!m) { problems.push(f + ': node ' + n.id + ' missing from examples/ copy'); return; }
+            if (n.type === 'gofa-robot') {
+                var aRest = Object.assign({}, n, { ip: undefined, username: undefined });
+                var bRest = Object.assign({}, m, { ip: undefined, username: undefined });
+                if (JSON.stringify(aRest) !== JSON.stringify(bRest)) {
+                    problems.push(f + ': gofa-robot config differs beyond ip/username');
+                }
+                return;
+            }
+            if (JSON.stringify(n) !== JSON.stringify(m)) {
+                problems.push(f + ': node ' + n.id + ' (' + n.type + ') differs between flows/ and examples/');
+            }
+        });
+    });
+    assert.deepStrictEqual(problems, [], problems.join('; '));
+});
+
 // ── gofa-setup ───────────────────────────────────────────────────────────────
 // Stateful fake robot: POSTs actually flip the state the next GET reports,
 // so the node's verify-by-polling logic runs for real.

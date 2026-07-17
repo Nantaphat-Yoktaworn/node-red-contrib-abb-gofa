@@ -100,9 +100,11 @@
     <h3>Output</h3>
     <dl class="message-properties">
         <dt>payload <span class="property-type">object</span></dt>
-        <dd>Success: <code>{ ok: true, ack: 'OK:HOME' }</code> (<code>ok</code> reflects whether
-        the socket ack itself started with <code>OK:</code>). Failure (invalid command or
-        socket error): <code>{ ok: false, error: '...' }</code> — no <code>ack</code> property.</dd>
+        <dd>Socket round-trip completed: <code>{ ok, ack }</code>, where <code>ok</code> reflects
+        whether the reply started with <code>OK:</code> — a rejection (e.g. <code>ERR:...</code>)
+        is <code>{ ok: false, ack: 'ERR:...' }</code>, with no <code>error</code> field. Invalid
+        command or a connection-level failure (no reply at all): <code>{ ok: false, error: '...' }</code>
+        — no <code>ack</code> property.</dd>
     </dl>
 
     <h3>Notes</h3>

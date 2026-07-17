@@ -15,12 +15,15 @@ and `<username>`/`<password>` with your RWS credentials.
 | | Availability |
 |---|---|
 | **Part A — RWS (HTTPS, port 443)** | Works whenever the controller is powered on and reachable — RAPID does **not** need to be running. Two specific actions (`loadmod`, `activate`) are the exception: see the callout below. |
-| **Part B — TCP Socket (port 1025)** | Only works while **RAPID is actually executing** `MainModule.mod`'s `main()` loop — that loop is what opens the socket server. If RAPID is stopped, every socket command (even `PING`) times out. This is expected, not a bug (`check-status.js` reports it as `Socket: ERROR (socket timeout)` whenever `RAPID: stopped`). |
+| **Part B — TCP Socket (port 1025, `T_ROB1`/`MainModule.mod`)** | Only works while **RAPID is actually executing** `MainModule.mod`'s `main()` loop — that loop is what opens the socket server. If RAPID is stopped, every socket command (even `PING`) times out. This is expected, not a bug (`check-status.js` reports it as `Socket: ERROR (socket timeout)` whenever `RAPID: stopped`). |
+| **Part C — TCP Socket (port 1026, `T_LED`/`BackgroundLed.mod`)** | Runs in its own `SEMISTATIC` RAPID task, separate from `T_ROB1` — keeps working even while `T_ROB1`/`MainModule.mod` is stopped. Only supports `ping`/`setled`/`resetled`/`setdo` — see below. Requires the one-time RobotStudio task setup described in `CLAUDE.md`'s "Background LED task" section. |
 
 So: status/telemetry/motor-on/upload-a-file/start-RAPID all work over RWS with RAPID
-stopped. Anything that **moves the robot, reads/writes a `PERS` variable, or touches
-the ASI LED** needs RAPID running first (Part B) — chicken-and-egg only for the very
-first `start`, which is itself a Part A (RWS) command.
+stopped. Anything that **moves the robot or reads/writes a `PERS` variable** needs
+`T_ROB1` running first (Part B) — chicken-and-egg only for the very first `start`,
+which is itself a Part A (RWS) command. The ASI LED and digital outputs (`setdo`) are
+the exception: they also work over Part C's separate port **without** `T_ROB1` running,
+via `T_LED`/`BackgroundLed.mod` — see Part C below.
 
 ---
 
@@ -253,6 +256,41 @@ This table covers `rapid/MainModule.mod` (the default). The optional
 `rapid/MainModuleEGM.mod` adds one more command, `EGMJOINT`, which switches the
 controller into a blocking EGM streaming session instead of serving the commands
 above — see the EGM section in `README.md` for that protocol and setup.
+
+---
+
+## Part C — TCP Socket commands (port 1026, `T_LED`/`BackgroundLed.mod`)
+
+A separate, optional RAPID task (see `CLAUDE.md`'s "Background LED task" section for the
+one-time RobotStudio setup) that keeps answering these same-shaped commands even while
+`T_ROB1`/`MainModule.mod` above is stopped. **JSON only — no legacy plain-text tokens
+here**, unlike Part B's `MainModule.mod` (`BackgroundLed.mod` dispatches every incoming
+line straight to its JSON parser, with no text-protocol fallback). Each line must be
+newline-terminated JSON, e.g. with `nc`/`ncat`:
+
+```bash
+printf '{"cmd":"ping"}\n' | nc <ROBOT_IP> 1026
+# -> {"status":"ok","cmd":"ping"}
+
+printf '{"cmd":"setled","val":[0,255,255,0]}\n' | nc <ROBOT_IP> 1026
+# -> {"status":"ok","cmd":"setled"}   (cyan, no blink)
+
+printf '{"cmd":"resetled"}\n' | nc <ROBOT_IP> 1026
+# -> {"status":"ok","cmd":"resetled"}
+
+printf '{"cmd":"setdo","name":"ABB_SCALABLE_IO_0_DO1","val":1}\n' | nc <ROBOT_IP> 1026
+# -> {"status":"ok","cmd":"setdo"}
+```
+
+| Command | What it does |
+|---------|-------------|
+| `{"cmd":"ping"}` | Connectivity test |
+| `{"cmd":"setled","val":[r,g,b,period]}` | Set ASI status light color (0–255 each) + hardware blink period |
+| `{"cmd":"resetled"}` | Restore ASI LED to default (solid green) |
+| `{"cmd":"setdo","name":"...","val":0\|1}` | Set a digital output by RWS signal name against the same explicit allow-list as Part B's `SETDO` (`ABB_SCALABLE_IO_0_DO1`–`DO16`, matched **case-sensitively all-caps** — no `CleanCmd`-style uppercasing on this JSON-only task) |
+
+Any other `cmd` (including `getvar`/`setvar`/motion commands — this task has no motion
+capability at all) gets `{"status":"err","cmd":"...","msg":"unsupported command"}`.
 
 ---
 

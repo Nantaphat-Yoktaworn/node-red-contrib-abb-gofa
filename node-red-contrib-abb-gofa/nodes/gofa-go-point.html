@@ -119,7 +119,8 @@
     <h3>Output</h3>
     <ul>
         <li>Success: <code>msg.payload = { ok: true, ack: "OK:...", point: {...}, moveType: "J"|"L" }</code></li>
-        <li>Point not found, invalid point data, or any other failure: <code>msg.payload = { ok: false, error: "..." }</code></li>
+        <li>Point not found, invalid point data, or a connection-level failure: <code>msg.payload = { ok: false, error: "..." }</code></li>
+        <li>Rejected socket command (robot replied but not with <code>OK:</code>): <code>msg.payload = { ok: false, ack: "...", point: {...}, moveType: "J"|"L" }</code> — no <code>error</code> field</li>
     </ul>
     <h3>Storage</h3>
     <p><b>Local</b> — looks the point up in the config node's Points File (default). <b>On-Robot</b> —

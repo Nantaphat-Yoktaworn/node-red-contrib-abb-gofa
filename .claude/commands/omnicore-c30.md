@@ -134,7 +134,7 @@ RWS `/rw/panel/opmode` returns: `auto`, `manualreduced`, `manualfull`
 
 ## RAPID Task Architecture
 
-Confirmed live via `GET /rw/rapid/tasks` — this controller runs **3 RAPID tasks**, not just
+Confirmed live via `GET /rw/rapid/tasks` — this controller runs **4 RAPID tasks**, not just
 the one you write RAPID for:
 
 | Task | Type | Purpose (inferred) |
@@ -142,6 +142,7 @@ the one you write RAPID for:
 | `T_ROB1` | normal, motion task | Your program — runs `MainModule.mod` |
 | `SC_CBC` | semistatic | Built-in, likely safety/collision-related (GoFa's "safety controller"); name uncontirmed beyond the abbreviation |
 | `T_GOFA_LED` | semistatic | Built-in — controls the ASI status light hardware. `T_ROB1`'s own `TrySetLed`/`SETLED` handler works via `SetGO` on signals (`Asi1LedRed` etc.) provided by the `GOFA_ASI_Procedures` SysMod loaded into `T_ROB1` — separate from this task |
+| `T_LED` | semistatic | This project's own task, added 2026-07-17 — runs `BackgroundLed.mod`, which survives `T_ROB1` being stopped. Originally LED-only, since generalized to also handle `setdo` (digital output writes) and a background connectivity ping (`gofa-connection-status`'s third check) — see `CLAUDE.md`'s "Background LED task" section |
 
 **Checked for a conflict with `gofa-asi-led`, none found (~23s window):** set the LED to a
 distinctive solid color via socket `SETLED`, confirmed via RWS (`Asi1LedRed/Green/Blue`
@@ -170,18 +171,19 @@ FlexPendant menu says it's "for," readable with `gofa-di-read` and subscribable 
 **Multitasking option [3114-1]**, per ABB's OmniCore C-line product manual (3HAC065034-001):
 enables running up to 20 concurrent RAPID tasks (beyond the base motion task), used for things
 like supervising signals or driving peripheral equipment in parallel with robot motion. This
-controller clearly runs 3 tasks — **resolved 2026-07-07**: `GET /rw/system` confirms
+controller clearly runs 4 tasks — **resolved 2026-07-07**: `GET /rw/system` confirms
 `3114-1 Multitasking` is genuinely installed on this controller (full options list also in the
 `abb-rws` skill's version-snapshot section), so it's installed, not just an assumption.
 
-**The 3 tasks identified live (2026-07-17)**, via `GET /rw/rapid/tasks` and
-`GET /rw/rapid/tasks/{name}`:
+**The 4 tasks identified live (2026-07-17, `T_LED` added same day)**, via `GET /rw/rapid/tasks`
+and `GET /rw/rapid/tasks/{name}`:
 
 | Task | Type | Trust | Entry point | What it is |
 |---|---|---|---|---|
 | `T_ROB1` | normal | SysFail | `main` | The motion task — `MainModule.mod`'s socket server runs here. Stopped by `POST /rw/rapid/execution/stop`. |
 | `SC_CBC` | semistatic | SysHalt | `sc_cbc_main` | No modules visible (`GET /rw/rapid/tasks/SC_CBC/modules` → empty `<ul>`). Almost certainly tied to the licensed `3043-3 SafeMove Collaborative` option ("CBC" = Collaborative Behavior Configuration) — a safety-controller-side function, hence the severe `SysHalt` trust level. |
-| `T_GOFA_LED` | semistatic | None | `GOFA_LedMain` | Runs a `GOFA_Main` `SysMod`. Almost certainly ABB's own built-in driver for the collaborative-robot status light — explains why the ASI LED signals (`Asi1LedRed`/`Green`/`Blue`/`Period`) don't expose an editable `Access Level` in RobotStudio (they're already owned by protected firmware). Confirmed genuinely protected, not just hidden: `GET /rw/rapid/tasks/T_GOFA_LED/modules/GOFA_Main/text` → `500 "Module encoded, noview or readonly"`, and its own `GET /rw/cfg/sys/CAB_TASKS/instances/T_GOFA_LED` is `rdonly: true` with an empty attribute list. **Do not attempt to read, edit, or repurpose this task/module** — see the top-level `CLAUDE.md`'s "Background LED task" section for why a *separate* new task (`BackgroundLed.mod`) is used instead.
+| `T_GOFA_LED` | semistatic | None | `GOFA_LedMain` | Runs a `GOFA_Main` `SysMod`. Almost certainly ABB's own built-in driver for the collaborative-robot status light — explains why the ASI LED signals (`Asi1LedRed`/`Green`/`Blue`/`Period`) don't expose an editable `Access Level` in RobotStudio (they're already owned by protected firmware). Confirmed genuinely protected, not just hidden: `GET /rw/rapid/tasks/T_GOFA_LED/modules/GOFA_Main/text` → `500 "Module encoded, noview or readonly"`, and its own `GET /rw/cfg/sys/CAB_TASKS/instances/T_GOFA_LED` is `rdonly: true` with an empty attribute list. **Do not attempt to read, edit, or repurpose this task/module** — see the top-level `CLAUDE.md`'s "Background LED task" section for why a *separate* new task (`BackgroundLed.mod`) is used instead. |
+| `T_LED` | semistatic | None | `main` | This project's own `BackgroundLed.mod` — originally added purely for ASI LED feedback while `T_ROB1` is stopped, since generalized (2026-07-17) to also handle `setdo` (digital output writes, allow-listed the same as `MainModule.mod`'s `SETDO`) and serve as a background connectivity health check (`gofa-connection-status`'s third check). `TrustLevel` deliberately set to the least-severe option (matching `T_GOFA_LED`'s own `trust="None"`), not the field's `SysFail` default. |
 
 **Confirmed live: `SEMISTATIC` tasks survive `POST /rw/rapid/execution/stop`, `NORMAL` doesn't.**
 Stopped `T_ROB1` via the exact same RWS call `gofa-rapid-exec`'s `stop` action uses (no motion

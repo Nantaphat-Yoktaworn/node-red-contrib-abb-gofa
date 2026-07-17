@@ -95,7 +95,10 @@
     </ul>
     <h3>Output</h3>
     <p><code>msg.payload = { ok: true, variable: "nTestVar", value: "42" }</code> on success.</p>
-    <p><code>msg.payload = { ok: false, error: "ERR:UNKNOWN_VAR..." }</code> on failure.</p>
+    <p><code>msg.payload = { ok: false, error: "ERR:SETVAR..." }</code> on failure — the JSON wire
+    protocol collapses every RAPID-side rejection reason (unknown variable, bad value, ...) into
+    this one generic reply, so the node appends a combined hint covering both possibilities
+    rather than claiming a specific cause.</p>
     <h3>Adding more variables</h3>
     <p>To expose another RAPID variable, add a matching <code>ELSEIF varname = "MYVAR"</code> block in <code>TryGetVar</code> and <code>TrySetVar</code> in <code>MainModule.mod</code>, then re-upload and reload the module.</p>
 </script>

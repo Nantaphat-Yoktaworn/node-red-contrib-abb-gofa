@@ -219,8 +219,9 @@
     all three return HTTP 403 ("Operation not allowed for current PGM state") while RAPID is
     running. Use <code>stop</code> first, then <code>loadmod</code>/<code>unloadmod</code>/
     <code>activate</code>, then <code>start</code> again (with <code>resetpp</code> in between
-    if the program pointer also needs resetting to Main). This node surfaces the RWS error's
-    own reason text and adds a hint pointing at this when it detects that specific rejection.</p>
+    if the program pointer also needs resetting to Main). This node checks the controller's
+    execution state itself before attempting the call and fails immediately with a clear
+    "RAPID is running — stop it first" error, rather than waiting for RWS to reject it.</p>
 
     <h3>Detecting a failed start (RAPID error 20055 and similar)</h3>
     <p>RWS accepts <code>POST /rw/rapid/execution/start</code> with HTTP 200 even when the

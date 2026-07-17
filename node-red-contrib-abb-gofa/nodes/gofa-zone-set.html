@@ -83,6 +83,9 @@
 <script type="text/html" data-help-name="gofa-zone-set">
     <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Sets the active motion zone (fly-by radius) on the robot via the RAPID socket server (<code>ZONE</code> command).</p>
+    <p>The properties panel has a <b>Set Zone Now</b> button that sends the same <code>ZONE</code>
+    command for the selected dropdown value directly from the editor, without deploying/
+    triggering the node at runtime.</p>
     <h3>Input</h3>
     <p><code>msg.payload</code> can be a string zone name (fine/z1/z5/z10/z20/z50/z100) to override the configured value.
     Pass <code>null</code> or omit to use the configured default.</p>

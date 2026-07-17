@@ -117,5 +117,9 @@
         <dt>ack</dt><dd>Raw ack string</dd>
         <dt>token</dt><dd>Command sent (e.g. X+10)</dd>
     </dl>
-    <p>Failure (invalid input or socket error): <code>msg.payload = { ok: false, error: "..." }</code></p>
+    <p>Invalid input (bad axis/direction/step) or a connection-level failure:
+    <code>msg.payload = { ok: false, error: "..." }</code>. A rejected socket command (robot
+    replied but not with <code>OK:</code>) instead gives the <code>{ ok: false, ack, token }</code>
+    shape above — <code>ok</code> is <code>false</code> and <code>ack</code> holds the raw
+    rejection, with no <code>error</code> field.</p>
 </script>

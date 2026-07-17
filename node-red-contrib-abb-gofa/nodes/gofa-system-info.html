@@ -78,6 +78,9 @@
 <script type="text/html" data-help-name="gofa-system-info">
     <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Reads controller identity and RobotWare version from the robot via RWS.</p>
+    <p>The properties panel fetches and displays this same info automatically when opened, with
+    a manual <b>Fetch Info</b> button to re-check — design-time only, doesn't touch the deployed
+    flow's output.</p>
     <h3>Input</h3>
     <p>Any message triggers a read. <code>msg.payload</code> is not used.</p>
     <h3>Output</h3>

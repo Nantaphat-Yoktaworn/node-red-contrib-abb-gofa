@@ -163,7 +163,7 @@
     
     <h3>Actions</h3>
     <ul>
-        <li><b>Download</b>: Reads a file from the controller. Output is a success object with <code>ok: true</code>, <code>remotePath</code>, <code>content</code> (UTF-8 or Base64 string), and <code>bytes</code>.</li>
+        <li><b>Download</b>: Reads a file from the controller. If a <b>Local path</b> is configured (or <code>msg.payload.localPath</code> is set), the file is also saved to disk on the Node-RED host. Output is a success object with <code>ok: true</code>, <code>remotePath</code>, <code>localPath</code> (the path saved to, or <code>null</code> if none was configured — preview-only), <code>content</code> (UTF-8 or Base64 string), and <code>bytes</code>.</li>
         <li><b>Upload</b>: Writes a file to the controller. Output is a success object with <code>ok: true</code>, <code>remotePath</code>, <code>bytes</code>, and <code>serverIpInjected</code>. Note: when uploading UTF-8 content and <b>Auto change IP</b> is checked, the node will automatically patch the <code>SERVER_IP</code> constant in RAPID modules to match the Node-RED server's IP.</li>
         <li><b>Delete</b>: Removes a file from the controller. Output is a success object with <code>ok: true</code>, <code>remotePath</code>, and <code>deleted: true</code>.</li>
     </ul>

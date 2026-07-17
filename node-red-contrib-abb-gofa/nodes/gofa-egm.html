@@ -124,8 +124,10 @@
     <p><code>msg.payload</code> overrides the configured Action, same as other action-style nodes
     in this palette — a bare <code>"start"</code>/<code>"stop"</code> string, or
     <code>{ action: "start" }</code> / <code>{ action: "stop" }</code>. If <code>msg.payload</code>
-    doesn't resolve to either, the node's configured Action runs (so a plain inject with an empty/
-    date payload just fires whichever action this instance is set to).</p>
+    is empty/null/a plain object with no <code>action</code> field (e.g. a plain inject with an
+    empty/date payload), the node's configured Action runs instead. A <b>non-empty string or an
+    <code>action</code> that isn't <code>"start"</code>/<code>"stop"</code> does NOT fall back</b>
+    — it's rejected with a clear error instead.</p>
 
     <h3>Output</h3>
     <p><code>msg.payload = { ok: true, joints: [...], seqno, mciState, motorsOn, convergence,

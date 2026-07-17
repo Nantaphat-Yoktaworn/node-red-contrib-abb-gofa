@@ -35,8 +35,11 @@ node-red-contrib-abb-gofa/       ← Node-RED palette (npm installable: node-red
 rapid/
   MainModule.mod                 ← RAPID socket server (must run on controller) — the default
   MainModuleEGM.mod              ← Optional sibling: adds EGM streaming support (see EGM section)
+  BackgroundLed.mod               ← Optional: separate-task background server (LED + digital-output writes), survives T_ROB1 being stopped
 flows/
   gofa_demo_flow.json            ← Demo flow — one inject per node, includes the EGM module-load + streaming demo (see EGM section)
+  setup_flow.json                ← One-click first-run setup flow
+  pickplace_sorting_flow.json    ← Pick-and-place sorting cell example
   teach_workflow_flow.json       ← Physical-button teach workflow (see below)
 MANUAL_CONTROL.md                ← Control the robot directly (curl / raw TCP), no Node-RED needed
 ```
@@ -226,9 +229,11 @@ Every GoFa node shares a single **gofa-robot** config node. Open any GoFa node �
 | Robot IP | `192.168.20.33` | Controller IP — must match Step 1 |
 | RWS Port | `443` | HTTPS port (built-in, do not change) |
 | Socket Port | `1025` | TCP port for the RAPID socket server |
+| Background Services Port | `1026` | Optional — port for `BackgroundLed.mod`'s separate task (LED + digital-output writes that survive T_ROB1 being stopped) |
 | Username | `Default User` | The user you created in Step 2 |
 | Password | *(empty)* | The password you set in Step 2 |
 | Points File | `points.json` | Saved robot positions on the Node-RED host |
+| Remote Points Path | `$HOME/Programs/gofa_points.json` | Used instead of Points File when a point node's Storage is set to On-Robot |
 
 Click **Update** → **Deploy**.
 
@@ -241,6 +246,8 @@ Click **Update** → **Deploy**.
 | Flow | What it does |
 |------|-------------|
 | `flows/gofa_demo_flow.json` | One inject per node — good for testing each feature; includes a "4 - EGM (UDP)" group that loads `MainModuleEGM.mod` and streams (see [EGM](#egm-externally-guided-motion)) |
+| `flows/setup_flow.json` | One-click first-run setup (`gofa-setup`) |
+| `flows/pickplace_sorting_flow.json` | Pick-and-place sorting cell example |
 | `flows/teach_workflow_flow.json` | Physical-button teach workflow (see below) |
 
 After importing, open the **gofa-robot** config node (click any GoFa node → pencil icon) and verify the IP and credentials match your setup.
@@ -374,11 +381,13 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | **gofa-mod-edit** | RWS | Edit a `.mod` (or any text) file on the controller's disk in the node's edit dialog — dropdown of files in `$HOME/Programs` (or a new filename), **Load from robot** / **Save to robot** buttons, `SERVER_IP` auto-synced on save; an input message re-uploads the stored content |
 | **gofa-io-list** | RWS | List all I/O signals |
 | **gofa-di-read** | RWS | Read a digital input (0 or 1) |
-| **gofa-do-write** | RWS or TCP | Write a digital output (0 or 1) — **Transport** dropdown: RWS `/set-value` (default) or Socket `SETDO` |
+| **gofa-do-write** | RWS, TCP, or Background task | Write a digital output (0 or 1) — **Transport** dropdown: RWS `/set-value` (default), Socket `SETDO` (needs T_ROB1 running), or Background task (same `SETDO`, via `BackgroundLed.mod`'s own task — works while T_ROB1 is stopped) |
 
-> **Writing a digital output needs the signal's Access Level set to `All` — unless you use the Socket transport instead.** RWS writes go through `POST /rw/iosystem/signals/{name}/set-value` — this only succeeds if the target signal's `Access` config attribute is `All` (RobotStudio: `Controller` → `Configuration` → `I/O System` → `Signal` → `Access Level`; requires a controller restart to take effect). Left at the factory default (`Rapid|LocalManual`), the write correctly fails with `403`. **The action name matters too**: the IRC5/RWS-1.0-documented `/set` path 405s unconditionally on OmniCore/RWS 2.0, regardless of Access Level — `/set-value` is the real OmniCore action (see the [405 troubleshooting entry](#rws-returns-405-method-not-allowed) below). This project has no analog I/O (`gofa-ai-read`/`gofa-ao-write` were removed) — the standard OmniCore C30/CRB 15000 combo has no native analog port; ABB's `DSQC1032` Analog Add-On module (attaches to an existing digital Scalable I/O base device) would be needed to add one.
+> **Writing a digital output needs the signal's Access Level set to `All` — unless you use the Socket or Background transport instead.** RWS writes go through `POST /rw/iosystem/signals/{name}/set-value` — this only succeeds if the target signal's `Access` config attribute is `All` (RobotStudio: `Controller` → `Configuration` → `I/O System` → `Signal` → `Access Level`; requires a controller restart to take effect). Left at the factory default (`Rapid|LocalManual`), the write correctly fails with `403`. **The action name matters too**: the IRC5/RWS-1.0-documented `/set` path 405s unconditionally on OmniCore/RWS 2.0, regardless of Access Level — `/set-value` is the real OmniCore action (see the [405 troubleshooting entry](#rws-returns-405-method-not-allowed) below). This project has no analog I/O (`gofa-ai-read`/`gofa-ao-write` were removed) — the standard OmniCore C30/CRB 15000 combo has no native analog port; ABB's `DSQC1032` Analog Add-On module (attaches to an existing digital Scalable I/O base device) would be needed to add one.
 >
 > **`gofa-do-write`'s Socket transport** sends the write over the TCP socket instead of RWS — RAPID's `SetDO` against an explicit per-signal allow-list in `MainModule.mod` (`ABB_Scalable_IO_0_DO1`–`DO16`), bypassing the Access Level restriction entirely (RAPID always has access to its own I/O). Needs RAPID actually running. **Gotcha confirmed live**: the signal name is matched **case-sensitively** on this path (RAPID's `DispatchJson`, added in the JSON socket-protocol rewrite, gets the raw name with no `CleanCmd`-style uppercasing) — `gofa-do-write.js` upper-cases the name before sending so this palette's own mixed-case default (`ABB_Scalable_IO_0_DO1`) still works; if you write your own socket call by hand, remember to upper-case the signal name yourself.
+>
+> **`gofa-do-write`'s Background task transport** is the same `SETDO` mechanism as Socket, but sent to `BackgroundLed.mod` running in its own RAPID task (`T_LED`) instead of `T_ROB1` — it keeps working even while `T_ROB1` is stopped (teach workflow, EGM session). Requires the one-time RobotStudio task setup described in `CLAUDE.md`'s "Background LED task" section.
 
 ### Real-time subscriptions
 
@@ -552,7 +561,7 @@ msg.payload  →  node property (editor)  →  built-in default
 | **gofa-rapid-var-read** | `{ task, module, variable }` | T_ROB1 / MainModule / (property) |
 | **gofa-rapid-var-write** | bare value · `{ variable, value }` | (property) |
 | **gofa-rapid-tasks** | `{ task }` — overrides which task's modules to list | T_ROB1 / (property) |
-| **gofa-do-write** | `0` or `1` (number) · `{ signal, value, transport }` — `transport`: `'rws'`/`'socket'` | signal: ABB_Scalable_IO_0_DO1, value: 0, transport: rws |
+| **gofa-do-write** | `0` or `1` (number) · `{ signal, value, transport }` — `transport`: `'rws'`/`'socket'`/`'background'` | signal: ABB_Scalable_IO_0_DO1, value: 0, transport: rws |
 | **gofa-di-read** | signal name (string) | `ABB_Scalable_IO_0_DI1` |
 | **gofa-subscribe-io** | `{ signal }` | `ABB_Scalable_IO_0_DI1` |
 | **gofa-subscribe-var** | `{ task, module, variable }` (toggles polling) | T_ROB1 / MainModule / (property) |

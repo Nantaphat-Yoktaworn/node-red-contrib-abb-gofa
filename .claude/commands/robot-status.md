@@ -6,6 +6,9 @@ report the result to the user concisely.
 1. Run `node check-status.js` from `node-red-contrib-abb-gofa/` via Bash.
    - If the user asked for more detail (RobotWare version, controller
      identity, RAPID task state, recent errors), add `--full`.
+   - `--json` for machine-readable output; `--discover` to scan the LAN for
+     controllers instead of checking a single configured IP.
+   - Exit codes: `0` OK, `1` RWS unreachable, `2` RWS OK but socket unreachable.
    - Connection defaults (IP, ports, credentials) are baked into the script
      matching CLAUDE.md's documented values; override via `GOFA_IP`,
      `GOFA_RWS_PORT`, `GOFA_SOCKET_PORT`, `GOFA_USERNAME`, `GOFA_PASSWORD`
