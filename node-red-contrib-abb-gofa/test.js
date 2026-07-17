@@ -2710,6 +2710,64 @@ await checkAsync('gofa-asi-led: sets static led color', async function() {
     assert.deepStrictEqual(calls[0], { cmd: 'setled', val: [255, 0, 0, 0] });
 });
 
+await checkAsync('gofa-asi-led: RWS transport writes the four GO signals via /set-value instead of the socket (works while RAPID is stopped)', async function() {
+    var calls = [];
+    var mockRobot = { rwsPost: function(p, body) { calls.push({ path: p, body: body }); return Promise.resolve(); } };
+    var node = new (loadNodeType('./nodes/gofa-asi-led', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', red: 0, grn: 200, blu: 200, period: 0, transport: 'rws'
+    });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.transport, 'rws');
+    assert.strictEqual(calls[0].path, '/rw/iosystem/signals/Asi1LedRed/set-value');
+    assert.strictEqual(calls[0].body, 'lvalue=0');
+    assert.strictEqual(calls[1].path, '/rw/iosystem/signals/Asi1LedGreen/set-value');
+    assert.strictEqual(calls[1].body, 'lvalue=200');
+    assert.strictEqual(calls[2].path, '/rw/iosystem/signals/Asi1LedBlue/set-value');
+    assert.strictEqual(calls[2].body, 'lvalue=200');
+    assert.strictEqual(calls[3].path, '/rw/iosystem/signals/Asi1LedPeriod/set-value');
+    assert.strictEqual(calls[3].body, 'lvalue=0');
+});
+
+await checkAsync('gofa-asi-led: RWS transport reset writes static green (0,255,0) instead of sending RESETLED', async function() {
+    var calls = [];
+    var mockRobot = { rwsPost: function(p, body) { calls.push({ path: p, body: body }); return Promise.resolve(); } };
+    var node = new (loadNodeType('./nodes/gofa-asi-led', { nodesById: { r1: mockRobot } }))({ robot: 'r1', transport: 'rws' });
+    var msg = { payload: 'reset' };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.reset, true);
+    assert.strictEqual(calls[1].path, '/rw/iosystem/signals/Asi1LedGreen/set-value');
+    assert.strictEqual(calls[1].body, 'lvalue=255');
+});
+
+await checkAsync('gofa-asi-led: msg.payload.transport overrides the configured transport at runtime', async function() {
+    var socketCalled = false, rwsCalled = false;
+    var mockRobot = {
+        socketSend: function() { socketCalled = true; return Promise.resolve('OK:SETLED'); },
+        rwsPost: function() { rwsCalled = true; return Promise.resolve(); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-asi-led', { nodesById: { r1: mockRobot } }))({ robot: 'r1', red: 255, transport: 'socket' });
+    var msg = { payload: { r: 255, transport: 'rws' } };
+    await runInput(node, msg);
+    assert.strictEqual(rwsCalled, true);
+    assert.strictEqual(socketCalled, false);
+});
+
+await checkAsync('gofa-asi-led: RWS transport counted blink sequence uses /set-value for every step', async function() {
+    var calls = [];
+    var mockRobot = { rwsPost: function(p) { calls.push(p); return Promise.resolve(); } };
+    var node = new (loadNodeType('./nodes/gofa-asi-led', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', red: 255, grn: 0, blu: 0, blinkCount: 2, blinkMs: 10, transport: 'rws'
+    });
+    var msg = { payload: {} };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.blinks, 2);
+    assert.strictEqual(calls.filter(function(p) { return p === '/rw/iosystem/signals/Asi1LedRed/set-value'; }).length, 5);
+});
+
 await checkAsync('gofa-joints: error during joints fetch sets red status and propagates error', async function() {
     var mockRobot = {
         rwsGet: function() {
@@ -3566,6 +3624,6 @@ await checkAsync('gofa-points: import still accepts a bare array payload', async
 
 fs.rmSync(tmpDir, { recursive: true, force: true });
 console.log('\n' + passed + ' passed, ' + failed + ' failed.');
-if (failed) process.exit(1);
+process.exit(failed ? 1 : 0);
 
 })();

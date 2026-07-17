@@ -18,6 +18,28 @@ function clamp(v) {
     return Math.max(0, Math.min(255, isNaN(n) ? 0 : n));
 }
 
+// Asi1LedRed/Green/Blue/Period are plain GO signals (SetGO in MainModule.mod) —
+// writable over RWS /set-value exactly like any other signal once Access Level
+// is All, same restriction as gofa-do-write. RWS works even while RAPID (and so
+// the socket server) is stopped, unlike the Socket transport below.
+function ledWrite(robot, transport, r, g, b, period) {
+    if (transport === 'rws') {
+        return robot.rwsPost('/rw/iosystem/signals/Asi1LedRed/set-value', 'lvalue=' + r)
+            .then(function() { return robot.rwsPost('/rw/iosystem/signals/Asi1LedGreen/set-value', 'lvalue=' + g); })
+            .then(function() { return robot.rwsPost('/rw/iosystem/signals/Asi1LedBlue/set-value', 'lvalue=' + b); })
+            .then(function() { return robot.rwsPost('/rw/iosystem/signals/Asi1LedPeriod/set-value', 'lvalue=' + period); });
+    }
+    return robot.socketSend({ cmd: 'setled', val: [r, g, b, period] }).then(function(ack) {
+        if (!ack.startsWith('OK:')) throw new Error('Unexpected reply: ' + ack);
+    });
+}
+function ledReset(robot, transport) {
+    if (transport === 'rws') return ledWrite(robot, transport, 0, 255, 0, 0);
+    return robot.socketSend({ cmd: 'resetled' }).then(function(ack) {
+        if (!ack.startsWith('OK:')) throw new Error('Unexpected reply: ' + ack);
+    });
+}
+
 // Resolve msg.payload + node defaults into { r, g, b, period }.
 // Returns { error: string } if the payload is invalid.
 function resolvePayload(defaults, payload) {
@@ -69,6 +91,7 @@ module.exports = function(RED) {
         this.period     = parseInt(config.period)     || 0;
         this.blinkCount = parseInt(config.blinkCount) || 0;
         this.blinkMs    = parseInt(config.blinkMs)    || 250;
+        this.transport  = config.transport || 'socket';
         var node = this;
 
         node.on('close', function(removed, done) {
@@ -102,12 +125,14 @@ module.exports = function(RED) {
                 node._activeBlinkDone = null;
             }
 
+            var transport = (msg.payload && typeof msg.payload === 'object' && msg.payload.transport !== undefined)
+                ? msg.payload.transport : node.transport;
+
             // 'reset' restores the LED to the normal RAPID-running state (static green)
             if (msg.payload === 'reset' || (msg.payload && msg.payload.action === 'reset')) {
                 node.status({ fill: 'blue', shape: 'dot', text: 'resetting...' });
-                node.robot.socketSend({ cmd: 'resetled' }).then(function(ack) {
-                    if (!ack.startsWith('OK:')) throw new Error('Unexpected reply: ' + ack);
-                    msg.payload = { ok: true, reset: true };
+                ledReset(node.robot, transport).then(function() {
+                    msg.payload = { ok: true, reset: true, transport: transport };
                     node.status({ fill: 'green', shape: 'dot', text: 'reset (green)' });
                     send(msg); done();
                 }).catch(function(err) {
@@ -146,10 +171,10 @@ module.exports = function(RED) {
                 function doBlink() {
                     if (node._blinkSession !== currentSession) return;
                     if (remaining <= 0) {
-                        node.robot.socketSend({ cmd: 'setled', val: [0, 0, 0, 0] }).then(function() {
+                        ledWrite(node.robot, transport, 0, 0, 0, 0).then(function() {
                             if (node._blinkSession !== currentSession) return;
                             node._activeBlinkDone = null;
-                            msg.payload = { ok: true, r: rv, g: gv, b: bv, blinks: blinkCount };
+                            msg.payload = { ok: true, r: rv, g: gv, b: bv, blinks: blinkCount, transport: transport };
                             node.status({ fill: 'grey', shape: 'dot', text: 'done ' + blinkCount + '\xd7' });
                             send(msg); done();
                         }).catch(function(err) {
@@ -164,14 +189,14 @@ module.exports = function(RED) {
                     }
                     var current = blinkCount - remaining + 1;
                     remaining--;
-                    node.robot.socketSend({ cmd: 'setled', val: [rv, gv, bv, 0] })
+                    ledWrite(node.robot, transport, rv, gv, bv, 0)
                         .then(function() {
                             if (node._blinkSession !== currentSession) return;
                             node.status({ fill: 'yellow', shape: 'dot', text: 'blink ' + current + '/' + blinkCount });
                             node._blinkTimer = setTimeout(function() {
                                 node._blinkTimer = null;
                                 if (node._blinkSession !== currentSession) return;
-                                node.robot.socketSend({ cmd: 'setled', val: [0, 0, 0, 0] })
+                                ledWrite(node.robot, transport, 0, 0, 0, 0)
                                     .then(function() {
                                         if (node._blinkSession !== currentSession) return;
                                         node._blinkTimer = setTimeout(function() {
@@ -207,9 +232,8 @@ module.exports = function(RED) {
             var label = 'R' + rv + ' G' + gv + ' B' + bv + (period ? ' ~' + period : '');
             node.status({ fill: 'blue', shape: 'dot', text: label });
 
-            node.robot.socketSend({ cmd: 'setled', val: [rv, gv, bv, period] }).then(function(ack) {
-                if (!ack.startsWith('OK:')) throw new Error('Unexpected reply: ' + ack);
-                msg.payload = { ok: true, r: rv, g: gv, b: bv, period: period };
+            ledWrite(node.robot, transport, rv, gv, bv, period).then(function() {
+                msg.payload = { ok: true, r: rv, g: gv, b: bv, period: period, transport: transport };
                 node.status({ fill: (rv || gv || bv) ? 'green' : 'grey', shape: 'dot', text: label });
                 send(msg); done();
             }).catch(function(err) {
@@ -225,14 +249,14 @@ module.exports = function(RED) {
 
     RED.httpAdmin.post('/gofa-asi-led/:id/set', RED.auth.needsPermission('gofa-asi-led.write'), function(req, res) {
         var robot = RED.nodes.getNode(req.params.id);
-        if (!robot || typeof robot.socketSend !== 'function') {
+        if (!robot) {
             return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
         }
         var payload = req.body.payload;
+        var transport = req.body.transport || 'socket';
 
         if (payload === 'reset' || (payload && payload.action === 'reset')) {
-            robot.socketSend({ cmd: 'resetled' }).then(function(ack) {
-                if (!ack.startsWith('OK:')) throw new Error('Unexpected reply: ' + ack);
+            ledReset(robot, transport).then(function() {
                 res.json({ ok: true, reset: true });
             }).catch(function(err) {
                 res.status(502).json({ error: err.message });
@@ -264,11 +288,11 @@ module.exports = function(RED) {
             var wait = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
             var blinkOnce = function() {
                 if (robot._ledPanelBlink !== session) return Promise.resolve();
-                if (remaining <= 0) return robot.socketSend({ cmd: 'setled', val: [0, 0, 0, 0] });
+                if (remaining <= 0) return ledWrite(robot, transport, 0, 0, 0, 0);
                 remaining--;
-                return robot.socketSend({ cmd: 'setled', val: [rv, gv, bv, 0] })
+                return ledWrite(robot, transport, rv, gv, bv, 0)
                     .then(function() { return wait(blinkMs); })
-                    .then(function() { return robot.socketSend({ cmd: 'setled', val: [0, 0, 0, 0] }); })
+                    .then(function() { return ledWrite(robot, transport, 0, 0, 0, 0); })
                     .then(function() { return wait(blinkMs); })
                     .then(blinkOnce);
             };
@@ -280,9 +304,8 @@ module.exports = function(RED) {
             return;
         }
 
-        robot.socketSend({ cmd: 'setled', val: [rv, gv, bv, result.period] })
-        .then(function(ack) {
-            if (!ack.startsWith('OK:')) throw new Error('Unexpected reply: ' + ack);
+        ledWrite(robot, transport, rv, gv, bv, result.period)
+        .then(function() {
             res.json({ ok: true, r: rv, g: gv, b: bv, period: result.period });
         }).catch(function(err) {
             res.status(502).json({ error: err.message });
