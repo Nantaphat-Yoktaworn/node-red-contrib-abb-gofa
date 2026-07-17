@@ -16,6 +16,7 @@ node-red-contrib-abb-gofa/package-lock.json
 !flows/gofa_payload_test_flow.json
 !flows/teach_workflow_flow.json
 !flows/setup_flow.json
+!flows/pickplace_sorting_flow.json
 
 # RAPID program
 !rapid/
