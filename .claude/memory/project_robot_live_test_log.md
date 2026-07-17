@@ -149,3 +149,25 @@ Verified live (robot state: `motoron`/`AUTO`/`stopped`, unchanged before/after):
 - `node mastership-test.js /rw/rapid/tasks/T_ROB1/loadmod 'modulepath=$HOME/Programs/MainModule.mod&replace=true' --hal` → `OK`, same JSON body as the raw-curl test above (`{"state":[{"name":"MainModule"}]}`)
 
 Also hit and documented a Git-Bash-specific gotcha while testing this tool itself: a bare leading `/rw/...` argument gets silently rewritten by MSYS into a Windows path (`C:/Program Files/Git/rw/...`) before Node ever sees it, producing a confusing "Request path contains unescaped characters" error with no hint that the shell mangled the arg. Fixed by requiring `MSYS_NO_PATHCONV=1` — documented in the script's own usage banner, the `/mastership-test` skill, and `CLAUDE.md` so it isn't rediscovered blind next time.
+
+---
+
+### 2026-07-17 — lead-through instantly trips `90515 Safety Controller Tool Speed violation`; resolved by a manual-mode jog, not a config or code fix
+
+User reported `gofa-leadthrough`'s `enable` action erroring every time, citing the FlexPendant's own error detail: `90515 Safety Controller Tool Speed violation... Too Speed supervision Transient_Contact_TSS was violated`.
+
+**Ruled out via live testing, in order:**
+1. **Not the Node-RED code.** `gofa-leadthrough.js`'s `enable` action only sends a socket `STOP` then `POST .../lead-through status=active` — no motion command at all.
+2. **Not "moved too fast."** User reported it tripped even with zero human touch.
+3. **Not motors-off brake release.** Scripted a live test (`createRobotClient` directly): confirmed `ctrlstate: motoron` first, then ran the exact enable sequence with no human touch — **still tripped `90515` within seconds** (fresh entry confirmed via `/rw/elog/9`), and lead-through silently reverted to `Inactive` even though the RWS POST returned `2xx`. This surfaced an "HTTP 200 lies" gap in `gofa-leadthrough.js` itself, same pattern already known from `gofa-rapid-exec`'s `start` action (see fix below) — but did not by itself explain the underlying trip.
+4. **Not the tool/TCP frame.** User confirmed tool data was already default (`0kg`, `x0 y0 z0`) — no offset to amplify wrist rotation into apparent high TCP speed.
+5. **Elog domain 9 (Safety) showed a suspicious but ultimately unrelated `Configuration parameter changed` (Admin, controller restart) at 09:36:05** sitting between two of the trip events — investigated as a lead but likely just the already-documented DO signal `Access: All` change from earlier work, not the cause (the first `90515` predates it, at 09:17:32).
+6. Checked this project's own live-test history (`project_robot_live_test_log`, this file) for any prior confirmed-working lead-through session — **found none**. So this was not necessarily a regression; may have been broken since the safety controller was first commissioned.
+
+**Actual fix (found by the user, not diagnosed via RWS): physically jog the robot a bit from the FlexPendant in Manual mode, holding the enabling ("back") device to bring motors on and drive lead-through from there once — after that one manual-mode cycle, Auto-mode lead-through (the `gofa-leadthrough` RWS path this palette uses) started working normally too.**
+
+**Working theory (unconfirmed against ABB documentation — noted as a hypothesis, not fact):** the safety controller's `Transient_Contact_TSS` speed observer may have held a stale/uninitialized reading (plausibly from one of the two controller restarts seen in the domain-0 elog that morning, 09:27:47 and 09:37:02) that only gets properly resynced by a real manual-mode motion under the physical enabling device — Auto-mode collaborative supervision alone didn't trigger that resync.
+
+**How to apply:** if `90515 Transient_Contact_TSS` trips instantly on `gofa-leadthrough` enable with zero motion and default tool data (i.e. the RWS-path diagnostics above all come back clean), don't keep chasing it as a config or code bug first — have the user jog the robot briefly in Manual mode with the enabling device held, then retry in Auto mode. Only escalate to checking the actual `Transient_Contact_TSS` limit value in RobotStudio's Safety configuration if the manual-mode jog doesn't clear it.
+
+**Real code bug found and fixed along the way (kept regardless of the root cause above):** `gofa-leadthrough.js`'s `enable` action trusted the RWS POST's `2xx` response as success, even though — confirmed live in step 3 above — the safety controller can accept the POST and then immediately revert `status` back to `Inactive`. Added `waitForLeadThroughState()` (polls `GET .../lead-through` for `status === 'Active'`, 1500ms/300ms like `gofa-rapid-exec`'s `start` polling) to both the runtime `enable` handler and the admin-panel `/toggle` endpoint, so a safety-controller rejection now correctly reports `ok:false` with a pointer to the Safety elog instead of a false `ok:true`. Two new/updated tests in `test.js` cover it.

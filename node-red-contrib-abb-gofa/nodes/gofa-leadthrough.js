@@ -1,5 +1,27 @@
 'use strict';
 var gate = require('./lib/gate');
+
+function readLeadThroughState(robot) {
+    return robot.rwsGet('/rw/motionsystem/mechunits/ROB_1/lead-through').then(function(body) {
+        return robot.parseXhtml(body, 'status');
+    });
+}
+function waitForLeadThroughState(robot, want, timeoutMs) {
+    var deadline = Date.now() + timeoutMs;
+    function poll() {
+        return readLeadThroughState(robot).then(function(state) {
+            if (state === want) return state;
+            if (Date.now() >= deadline) {
+                var err = new Error('Lead-through did not reach "' + want + '" (now "' + state + '") — check the controller Safety event log (gofa-elog, domain 9)');
+                err.leadThroughState = state;
+                throw err;
+            }
+            return new Promise(function(res) { setTimeout(res, 300); }).then(poll);
+        });
+    }
+    return poll();
+}
+
 module.exports = function(RED) {
     function GoFaLeadthroughNode(config) {
         RED.nodes.createNode(this, config);
@@ -42,6 +64,14 @@ module.exports = function(RED) {
                     return node.robot.rwsPost('/rw/motionsystem/mechunits/ROB_1/lead-through', 'status=active');
                 })
                 .then(function() {
+                    // RWS returns 2xx even when the safety controller immediately rejects
+                    // activation (e.g. a Tool Speed Supervision violation) and reverts
+                    // lead-through back to Inactive a moment later — confirmed live. Poll
+                    // the real status instead of trusting the POST response, same "HTTP 200
+                    // lies" pattern gofa-rapid-exec's start action already guards against.
+                    return waitForLeadThroughState(node.robot, 'Active', 1500);
+                })
+                .then(function() {
                     msg.payload = { ok: true };
                     node.status({ fill: 'green', shape: 'dot', text: 'enabled' });
                     send(msg); done();
@@ -54,6 +84,12 @@ module.exports = function(RED) {
             } else if (action === 'disable') {
                 node.status({ fill: 'blue', shape: 'dot', text: 'disabling...' });
                 node.robot.rwsPost('/rw/motionsystem/mechunits/ROB_1/lead-through', 'status=inactive')
+                .then(function() {
+                    // Confirmed live: the real status doesn't always flip to Inactive the
+                    // instant the POST returns 2xx (settles a beat later) — poll the same
+                    // way 'enable' does instead of trusting the response immediately.
+                    return waitForLeadThroughState(node.robot, 'Inactive', 3000);
+                })
                 .then(function() {
                     msg.payload = { ok: true };
                     node.status({ fill: 'green', shape: 'dot', text: 'disabled' });
@@ -116,6 +152,8 @@ module.exports = function(RED) {
         p.then(function() {
             var statusVal = action === 'enable' ? 'active' : 'inactive';
             return robot.rwsPost('/rw/motionsystem/mechunits/ROB_1/lead-through', 'status=' + statusVal);
+        }).then(function() {
+            return waitForLeadThroughState(robot, action === 'enable' ? 'Active' : 'Inactive', action === 'enable' ? 1500 : 3000);
         }).then(function() {
             res.json({ ok: true });
         }).catch(function(err) {

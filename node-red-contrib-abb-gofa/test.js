@@ -2461,7 +2461,9 @@ await checkAsync('gofa-leadthrough: safety STOP success triggers lead-through en
     var posted = [];
     var mockRobot = {
         socketSend: function(cmd) { sent.push(cmd); return Promise.resolve('OK:STOP'); },
-        rwsPost: function(path, body) { posted.push({ path: path, body: body }); return Promise.resolve(); }
+        rwsPost: function(path, body) { posted.push({ path: path, body: body }); return Promise.resolve(); },
+        rwsGet: function() { return Promise.resolve('<span class="status">Active</span>'); },
+        parseXhtml: parseXhtml
     };
     var node = new (loadNodeType('./nodes/gofa-leadthrough', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
     var msg = { payload: {} };
@@ -2469,6 +2471,21 @@ await checkAsync('gofa-leadthrough: safety STOP success triggers lead-through en
     assert.strictEqual(msg.payload.ok, true);
     assert.deepStrictEqual(sent, [{ cmd: 'stop' }]);
     assert.deepStrictEqual(posted, [{ path: '/rw/motionsystem/mechunits/ROB_1/lead-through', body: 'status=active' }]);
+});
+
+await checkAsync('gofa-leadthrough: POST succeeds but safety controller reverts status to Inactive -> reports ok:false', async function() {
+    var mockRobot = {
+        socketSend: function() { return Promise.resolve('OK:STOP'); },
+        rwsPost: function() { return Promise.resolve(); },
+        rwsGet: function() { return Promise.resolve('<span class="status">Inactive</span>'); },
+        parseXhtml: parseXhtml
+    };
+    var node = new (loadNodeType('./nodes/gofa-leadthrough', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = { payload: {} };
+    var err = await runInput(node, msg);
+    assert.ok(err, 'must report an error instead of a false ok:true');
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(msg.payload.error.indexOf('did not reach "Active"') >= 0, msg.payload.error);
 });
 
 await checkAsync('gofa-leadthrough: safety STOP RWS error blocks lead-through enable', async function() {
@@ -2488,7 +2505,9 @@ await checkAsync('gofa-leadthrough: safety STOP socket connection failure is swa
     var posted = [];
     var mockRobot = {
         socketSend: function() { return Promise.reject(new Error('socket closed')); },
-        rwsPost: function(path, body) { posted.push({ path: path, body: body }); return Promise.resolve(); }
+        rwsPost: function(path, body) { posted.push({ path: path, body: body }); return Promise.resolve(); },
+        rwsGet: function() { return Promise.resolve('<span class="status">Active</span>'); },
+        parseXhtml: parseXhtml
     };
     var node = new (loadNodeType('./nodes/gofa-leadthrough', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
     var msg = { payload: {} };
@@ -3161,7 +3180,9 @@ await checkAsync('gofa-leadthrough: disables manual guidance', async function() 
         rwsPost: function(path, body) {
             calls.push({ path: path, body: body });
             return Promise.resolve('');
-        }
+        },
+        rwsGet: function() { return Promise.resolve('<span class="status">Inactive</span>'); },
+        parseXhtml: parseXhtml
     };
     var node = new (loadNodeType('./nodes/gofa-leadthrough', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'disable' });
     var msg = {};
@@ -3170,6 +3191,20 @@ await checkAsync('gofa-leadthrough: disables manual guidance', async function() 
     assert.strictEqual(calls.length, 1);
     assert.strictEqual(calls[0].path, '/rw/motionsystem/mechunits/ROB_1/lead-through');
     assert.strictEqual(calls[0].body, 'status=inactive');
+});
+
+await checkAsync('gofa-leadthrough: disable POST succeeds but status stays Active -> reports ok:false', async function() {
+    var mockRobot = {
+        rwsPost: function() { return Promise.resolve(''); },
+        rwsGet: function() { return Promise.resolve('<span class="status">Active</span>'); },
+        parseXhtml: parseXhtml
+    };
+    var node = new (loadNodeType('./nodes/gofa-leadthrough', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'disable' });
+    var msg = {};
+    var err = await runInput(node, msg);
+    assert.ok(err, 'must report an error instead of a false ok:true');
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(msg.payload.error.indexOf('did not reach "Inactive"') >= 0, msg.payload.error);
 });
 
 await checkAsync('gofa-subscribe-pose: polls pose and triggers timeout loop', async function() {
@@ -3507,9 +3542,11 @@ await checkAsync('gofa-file: delete action returns 404 as ok:false, not found', 
 
 await checkAsync('gofa-leadthrough: action override via msg.payload', async function() {
     var posts = [];
-    var mockRobot = { 
+    var mockRobot = {
         socketSend: function() { return Promise.resolve('OK:'); },
-        rwsPost: function(path, body) { posts.push(body); return Promise.resolve(''); }
+        rwsPost: function(path, body) { posts.push(body); return Promise.resolve(''); },
+        rwsGet: function() { return Promise.resolve('<span class="status">Inactive</span>'); },
+        parseXhtml: parseXhtml
     };
     var node = new (loadNodeType('./nodes/gofa-leadthrough', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'enable' });
     var msg = { payload: 'disable' };
