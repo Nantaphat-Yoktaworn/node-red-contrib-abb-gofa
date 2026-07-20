@@ -962,7 +962,7 @@ rapid/BackgroundLed.mod             ← optional: separate-task LED server, surv
 flows/gofa_demo_flow.json          ← one inject per node, for testing
 flows/teach_workflow_flow.json     ← physical ASI-button teach workflow (own tab/config, see README)
 flows/watchdog_flow.json           ← self-healing socket-wedge watchdog, see "Module version handshake + watchdog flow" section
-flows/mqtt_bridge_flow.json        ← publishes state/pose/io onto MQTT topics; broker is a localhost:1883 placeholder, not live-verified
+flows/mqtt_bridge_flow.json        ← publishes state/pose/io onto MQTT topics via core mqtt out; broker layer live-verified against a local Mosquitto (localhost:1883), robot-data leg still open
 MANUAL_CONTROL.md                  ← curl/raw-TCP command reference for controlling the robot without Node-RED
 .claude/commands/                  ← skills (/abb-rws, /omnicore-c30, /crb15000, /robot-status, /mastership-test)
 .claude/memory/                    ← portable snapshot of Claude Code's project memory - read MEMORY.md first, see its README
