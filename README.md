@@ -335,7 +335,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | **gofa-jog** | TCP | Relative TCP translate (mm, base frame) or rotate (°, tool frame) |
 | **gofa-joint-jog** | TCP | Rotate single joint by ± degrees |
 | **gofa-zone-set** | TCP | Path blend zone (fine / z1 / z5 / z10 / z20 / z50 / z100) |
-| **gofa-stop-motion** | TCP | Halt motion immediately |
+| **gofa-stop-motion** | TCP | Halt motion — immediate for a jog in progress; for `HOME`/`GOTOJ`/`GOTOL`/`MOVEJ`/`MOVEL` it takes effect once the current move finishes (those stopped using `\Conc` in 2.4.2 — see CLAUDE.md) |
 | **gofa-ping** | TCP | Round-trip latency test |
 | **gofa-grip** | RWS | Digital output on/off for a gripper (same mechanism as `gofa-do-write`, with a preconfigured signal name + friendly on/off/true/false/gripon/gripoff input) |
 | **gofa-leadthrough** | TCP + RWS | Hand-guiding on/off — action `enable` (sends STOP to clear queued moves, but only if RAPID is genuinely still running — skipped if it's already stopped, avoiding a ~5s wasted timeout) or `disable` |

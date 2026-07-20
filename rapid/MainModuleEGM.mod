@@ -63,7 +63,7 @@ MODULE MainModuleEGM
     ! instead of failing mysteriously later on a command that doesn't exist
     ! yet. Bump this whenever the socket protocol changes; keep in lockstep
     ! with node-red-contrib-abb-gofa/package.json's "version".
-    CONST string MODULE_VERSION := "2.4.1";
+    CONST string MODULE_VERSION := "2.4.2";
 
     ! Persisted home pose (survives restart AND module reload). One line of
     ! 11 ;-separated numbers, same layout as a GOTO token, written by SETHOME.
@@ -82,15 +82,6 @@ MODULE MainModuleEGM
     VAR socketdev clientSocket;
     VAR string    rxStr;
 
-    VAR num concCount := 0;
-
-    PROC AddConcMove()
-        concCount := concCount + 1;
-        IF concCount >= 5 THEN
-            WaitRob \InPos;
-            concCount := 0;
-        ENDIF
-    ENDPROC
 
     ! -------------------------------------------------------
     ! MAIN - go home, then serve forever. Any socket fault
@@ -154,11 +145,10 @@ MODULE MainModuleEGM
             SocketClose clientSocket;
             RETURN;
         ENDIF
-        ! Motion error from a \Conc move surfaces here at the next sync point
-        ! (SocketReceive). Clear the path and go back to listening.
+        ! Motion error surfaces here at the next sync point (SocketReceive).
+        ! Clear the path and go back to listening.
         StopMove;
         ClearPath;
-        concCount := 0;
         StartMove;
         RETRY;
     ENDPROC
@@ -344,7 +334,6 @@ MODULE MainModuleEGM
         CASE "stop":
             StopMove;
             ClearPath;
-            concCount := 0;
             StartMove;
             SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""stop""}" + ByteToStr(10\Char));
         CASE "resetled":
@@ -390,11 +379,19 @@ MODULE MainModuleEGM
                     t.robconf := [vals{8}, vals{9}, vals{10}, vals{11}];
                     t.extax   := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
                     SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""goto""}" + ByteToStr(10\Char));
-                    AddConcMove;
+                    ! No \Conc: chained \Conc GoTo/Move instructions across
+                    ! repeated socket commands hit RAPID's advance-run \Conc
+                    ! limit (error 40631, kills the whole task) - confirmed
+                    ! live, and WaitRob \InPos-based synchronization could not
+                    ! reliably prevent it regardless of tuning. Ack is already
+                    ! sent above, so the client sees no difference; this just
+                    ! makes the task block until the move physically finishes
+                    ! before serving the next command (so STOP can no longer
+                    ! interrupt an in-progress move - only queued ones).
                     IF linear THEN
-                        MoveL \Conc, t, vGoto, fine, tGripper \WObj:=wobj1;
+                        MoveL t, vGoto, fine, tGripper \WObj:=wobj1;
                     ELSE
-                        MoveJ \Conc, t, vGoto, fine, tGripper \WObj:=wobj1;
+                        MoveJ t, vGoto, fine, tGripper \WObj:=wobj1;
                     ENDIF
                     RETURN;
                 ENDIF
@@ -405,14 +402,13 @@ MODULE MainModuleEGM
                 jt.robax := [jointVals{1}, jointVals{2}, jointVals{3}, jointVals{4}, jointVals{5}, jointVals{6}];
                 jt.extax := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
                 SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""" + cmd + """}" + ByteToStr(10\Char));
-                AddConcMove;
                 IF cmd = "movel" THEN
                     ! Straight-line TCP path to the pose those joints describe -
                     ! CalcRobT does the forward kinematics. Same singularity
                     ! caveat as gotol: the line can fault where MoveAbsJ would not.
-                    MoveL \Conc, CalcRobT(jt, tGripper \WObj:=wobj1), vGoto, zActive, tGripper \WObj:=wobj1;
+                    MoveL CalcRobT(jt, tGripper \WObj:=wobj1), vGoto, zActive, tGripper \WObj:=wobj1;
                 ELSE
-                    MoveAbsJ \Conc, jt, vGoto, zActive, tGripper \WObj:=wobj1;
+                    MoveAbsJ jt, vGoto, zActive, tGripper \WObj:=wobj1;
                 ENDIF
                 RETURN;
             ENDIF
@@ -455,7 +451,6 @@ MODULE MainModuleEGM
                         ENDTEST
                         StopMove;
                         ClearPath;
-                        concCount := 0;
                         StartMove;
                         MoveAbsJ \Conc, jt, vJog, fine, tGripper \WObj:=wobj1;
                         RETURN;
@@ -564,7 +559,6 @@ MODULE MainModuleEGM
         CASE "STOP":
             StopMove;
             ClearPath;
-            concCount := 0;
             StartMove;
             SocketSend clientSocket \Str:=("OK:STOP" + ByteToStr(10\Char));
         CASE "GRIPON":
@@ -661,7 +655,6 @@ MODULE MainModuleEGM
         p := CRobT(\Tool:=tGripper \WObj:=wobj1);
         StopMove;
         ClearPath;
-        concCount := 0;
         StartMove;
         IF rot THEN
             TEST axis
@@ -718,7 +711,6 @@ MODULE MainModuleEGM
         ENDTEST
         StopMove;
         ClearPath;
-        concCount := 0;
         StartMove;
         MoveAbsJ \Conc, jt, vJog, fine, tGripper \WObj:=wobj1;
         RETURN TRUE;
@@ -781,11 +773,10 @@ MODULE MainModuleEGM
         t.extax   := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
         ! Valid -> ack first (snappy UI), then move
         SocketSend clientSocket \Str:=("OK:GOTO" + ByteToStr(10\Char));
-        AddConcMove;
         IF linear THEN
-            MoveL \Conc, t, vGoto, fine, tGripper \WObj:=wobj1;
+            MoveL t, vGoto, fine, tGripper \WObj:=wobj1;
         ELSE
-            MoveJ \Conc, t, vGoto, fine, tGripper \WObj:=wobj1;
+            MoveJ t, vGoto, fine, tGripper \WObj:=wobj1;
         ENDIF
         RETURN TRUE;
     ENDFUNC
@@ -872,7 +863,7 @@ MODULE MainModuleEGM
     ! -------------------------------------------------------
 
     PROC rGoHome()
-        MoveJ \Conc, pHome, v200, z50, tGripper \WObj:=wobj1;
+        MoveJ pHome, v200, fine, tGripper \WObj:=wobj1;
     ENDPROC
 
     ! Absolute joint move. Token: MOVEJ<j1;j2;j3;j4;j5;j6> (degrees) for
@@ -897,11 +888,10 @@ MODULE MainModuleEGM
         jt.robax := [vals{1}, vals{2}, vals{3}, vals{4}, vals{5}, vals{6}];
         jt.extax := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
         SocketSend clientSocket \Str:=("OK:" + StrPart(cmd, 1, 5) + ByteToStr(10\Char));
-        AddConcMove;
         IF linear THEN
-            MoveL \Conc, CalcRobT(jt, tGripper \WObj:=wobj1), vGoto, zActive, tGripper \WObj:=wobj1;
+            MoveL CalcRobT(jt, tGripper \WObj:=wobj1), vGoto, zActive, tGripper \WObj:=wobj1;
         ELSE
-            MoveAbsJ \Conc, jt, vGoto, zActive, tGripper \WObj:=wobj1;
+            MoveAbsJ jt, vGoto, zActive, tGripper \WObj:=wobj1;
         ENDIF
         RETURN TRUE;
     ENDFUNC

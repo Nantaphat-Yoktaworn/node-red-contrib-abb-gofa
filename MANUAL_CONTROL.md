@@ -235,7 +235,7 @@ Send-GofaCmd "PING"
 | `SPEED50` | Set speed override 1–100% |
 | `MOVEJ<j1;..;j6>` / `MOVEL<j1;..;j6>` | Absolute joint move in degrees — MOVEJ joint-interpolated (MoveAbsJ), MOVEL straight-line TCP path to the same joint pose (added 2.1.0) |
 | `ZONE<name>` | Set path blend zone (`FINE`/`Z1`/`Z5`/`Z10`/`Z20`/`Z50`/`Z100`) |
-| `STOP` | Halt motion immediately |
+| `STOP` | Halt motion — immediate for a jog in progress; for HOME/GOTOJ/GOTOL/MOVEJ/MOVEL it only takes effect once the current move finishes (those stopped using `\Conc` in 2.4.2) |
 | `GRIPON` / `GRIPOFF` | Stub only — acks `OK:` but performs no actual I/O; kept for manual/raw-socket testing. `gofa-grip` itself uses RWS `/set-value` instead. |
 | `GETVAR:<name>` | Read a `PERS` variable — replies `VAL:<value>` or `ERR:UNKNOWN_VAR` |
 | `SETVAR:<name>:<value>` | Write a `PERS` variable — replies `OK:SETVAR`, `ERR:UNKNOWN_VAR`, or `ERR:PARSE` |
