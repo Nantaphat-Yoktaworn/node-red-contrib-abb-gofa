@@ -1,0 +1,224 @@
+[
+    {
+        "id": "c3d4e5f6a7b80000",
+        "type": "tab",
+        "label": "MQTT Bridge",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "cfg1",
+        "type": "gofa-robot",
+        "name": "ABB-GoFa-12",
+        "ip": "192.168.1.103",
+        "rwsPort": "443",
+        "socketPort": "1025",
+        "username": "NNNN",
+        "pointsFile": "points.json",
+        "remotePointsPath": ""
+    },
+    {
+        "id": "broker1",
+        "type": "mqtt-broker",
+        "name": "Local Broker",
+        "broker": "localhost",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "c3d4e5f6a7b80001",
+        "type": "comment",
+        "z": "c3d4e5f6a7b80000",
+        "name": "\"Local Broker\" points at localhost:1883 — a placeholder. Point it at your real broker (e.g. Mosquitto) before deploying. Topics: gofa/state, gofa/pose, gofa/io/<signal>. Payloads are plain objects — Node-RED's mqtt out node JSON.stringifies them automatically.",
+        "info": "",
+        "x": 480,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "c3d4e5f6a7b80002",
+        "type": "inject",
+        "z": "c3d4e5f6a7b80000",
+        "name": "Start Bridge (on deploy)",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 190,
+        "y": 240,
+        "wires": [
+            [
+                "c3d4e5f6a7b80003",
+                "c3d4e5f6a7b80004",
+                "c3d4e5f6a7b80005",
+                "c3d4e5f6a7b80006"
+            ]
+        ]
+    },
+    {
+        "id": "c3d4e5f6a7b80003",
+        "type": "gofa-subscribe-state",
+        "z": "c3d4e5f6a7b80000",
+        "name": "Subscribe: Controller State",
+        "robot": "cfg1",
+        "oneshot": false,
+        "x": 470,
+        "y": 120,
+        "wires": [
+            [
+                "c3d4e5f6a7b80007"
+            ]
+        ],
+        "outputPayload": true
+    },
+    {
+        "id": "c3d4e5f6a7b80004",
+        "type": "gofa-subscribe-pose",
+        "z": "c3d4e5f6a7b80000",
+        "name": "Subscribe: TCP Pose",
+        "robot": "cfg1",
+        "interval": "1000",
+        "x": 460,
+        "y": 200,
+        "wires": [
+            [
+                "c3d4e5f6a7b80008"
+            ]
+        ],
+        "outputPayload": true
+    },
+    {
+        "id": "c3d4e5f6a7b80005",
+        "type": "gofa-subscribe-io",
+        "z": "c3d4e5f6a7b80000",
+        "name": "Subscribe: ASI Button 1",
+        "robot": "cfg1",
+        "signal": "Asi1Button1",
+        "oneshot": false,
+        "x": 460,
+        "y": 280,
+        "wires": [
+            [
+                "c3d4e5f6a7b80009"
+            ]
+        ],
+        "outputPayload": true
+    },
+    {
+        "id": "c3d4e5f6a7b80006",
+        "type": "gofa-subscribe-io",
+        "z": "c3d4e5f6a7b80000",
+        "name": "Subscribe: ASI Button 2",
+        "robot": "cfg1",
+        "signal": "Asi1Button2",
+        "oneshot": false,
+        "x": 460,
+        "y": 360,
+        "wires": [
+            [
+                "c3d4e5f6a7b8000a"
+            ]
+        ],
+        "outputPayload": true
+    },
+    {
+        "id": "c3d4e5f6a7b80007",
+        "type": "mqtt out",
+        "z": "c3d4e5f6a7b80000",
+        "name": "Publish: gofa/state",
+        "topic": "gofa/state",
+        "qos": "0",
+        "retain": "true",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "broker1",
+        "x": 770,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "c3d4e5f6a7b80008",
+        "type": "mqtt out",
+        "z": "c3d4e5f6a7b80000",
+        "name": "Publish: gofa/pose",
+        "topic": "gofa/pose",
+        "qos": "0",
+        "retain": "true",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "broker1",
+        "x": 770,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "c3d4e5f6a7b80009",
+        "type": "mqtt out",
+        "z": "c3d4e5f6a7b80000",
+        "name": "Publish: gofa/io/Asi1Button1",
+        "topic": "gofa/io/Asi1Button1",
+        "qos": "0",
+        "retain": "true",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "broker1",
+        "x": 790,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "c3d4e5f6a7b8000a",
+        "type": "mqtt out",
+        "z": "c3d4e5f6a7b80000",
+        "name": "Publish: gofa/io/Asi1Button2",
+        "topic": "gofa/io/Asi1Button2",
+        "qos": "0",
+        "retain": "true",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "broker1",
+        "x": 790,
+        "y": 360,
+        "wires": []
+    }
+]
