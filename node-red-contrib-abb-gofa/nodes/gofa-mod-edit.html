@@ -112,6 +112,23 @@
                     .fail(function(xhr) { notifyErr(xhr, 'Save failed'); })
                     .always(function() { btn.prop('disabled', false); });
             });
+
+            $('#gofa-mod-edit-delete').on('click', function(e) {
+                e.preventDefault();
+                var id = robotId();
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+                var p = currentPath();
+                if (!p) return RED.notify('Pick a file first', 'warning');
+                if (!window.confirm('Delete ' + p + ' from the controller? This cannot be undone.')) return;
+                var btn = $(this).prop('disabled', true);
+                $.ajax({ url: 'gofa-mod-edit/' + id + '/file', type: 'DELETE', data: { path: p } })
+                    .done(function() {
+                        RED.notify('Deleted ' + p, 'success');
+                        $('#gofa-mod-edit-refresh').trigger('click');
+                    })
+                    .fail(function(xhr) { notifyErr(xhr, 'Delete failed'); })
+                    .always(function() { btn.prop('disabled', false); });
+            });
         },
         oneditsave: function() {
             var sel = $('#gofa-mod-edit-select').val();
@@ -151,6 +168,7 @@
     <div class="form-row">
         <button id="gofa-mod-edit-load" class="editor-button" style="width: auto;"><i class="fa fa-download"></i> Load from robot</button>
         <button id="gofa-mod-edit-save" class="editor-button" style="width: auto;"><i class="fa fa-upload"></i> Save to robot</button>
+        <button id="gofa-mod-edit-delete" class="editor-button" style="width: auto;"><i class="fa fa-trash"></i> Delete from robot</button>
     </div>
     <div class="form-row node-text-editor-row">
         <div style="height: 250px; min-height: 150px;" class="node-text-editor" id="node-mod-edit-editor"></div>
@@ -182,6 +200,9 @@
         <li><b>Save to robot</b> — write the editor's content to the selected path immediately
         (RWS <code>fileservice</code> PUT, same mechanism as <b>gofa-file</b> upload). No deploy
         needed to save.</li>
+        <li><b>Delete from robot</b> — remove the selected file from the controller's disk
+        (RWS <code>fileservice</code> DELETE, same mechanism as <b>gofa-file</b>'s delete action).
+        Asks for confirmation first; refreshes the file list after. No deploy needed.</li>
     </ul>
 
     <h3>Input</h3>

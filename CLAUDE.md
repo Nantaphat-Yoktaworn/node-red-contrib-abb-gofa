@@ -801,7 +801,7 @@ code path from the runtime `node.on('input', ...)` handler:
 | `gofa-rapid-var-write` | Socket | Write a RAPID PERS variable via `SETVAR:<name>:<value>` socket command |
 | `gofa-rapid-tasks` | RWS | List RAPID tasks and the modules loaded in one of them |
 | `gofa-file` | RWS | Controller filesystem: action `download` / `upload` / `delete` (delete is new in 2.0.0, uses the fileservice DELETE confirmed live 2026-07-15). Upload auto-syncs `SERVER_IP` to the config node's IP (`patchServerIp`, now in `nodes/lib/patch-server-ip.js`, no-ops on files without the constant). Bare-string payload = remotePath for download/delete, localPath for upload |
-| `gofa-mod-edit` | RWS | Edit a controller-disk file in the node's edit dialog: file dropdown ($HOME/Programs, admin endpoint `/gofa-mod-edit/:id/files`) or new filename, ace editor, Load/Save-to-robot buttons (SERVER_IP auto-synced on save); runtime input re-uploads stored content. Directory-listing parse (`parseFileList`) **confirmed live 2026-07-15**: entries are `<li class="fs-file" title="<name>">` (name in the `title` attr — the parser's first-choice path; the anchors carry the name only in `href`, with empty text), plus `fs-cdate`/`fs-mdate`/`fs-size`/`fs-readonly` spans. `fs-dir` shape still unobserved (no subdirs existed). Also confirmed live: fileservice `DELETE /fileservice/<path>` works (`204`, then `404` on GET) — first confirmed RWS file-delete in this project |
+| `gofa-mod-edit` | RWS | Edit a controller-disk file in the node's edit dialog: file dropdown ($HOME/Programs, admin endpoint `/gofa-mod-edit/:id/files`) or new filename, ace editor, Load/Save/**Delete**-from-robot buttons (SERVER_IP auto-synced on save); runtime input re-uploads stored content. Directory-listing parse (`parseFileList`) **confirmed live 2026-07-15**: entries are `<li class="fs-file" title="<name>">` (name in the `title` attr — the parser's first-choice path; the anchors carry the name only in `href`, with empty text), plus `fs-cdate`/`fs-mdate`/`fs-size`/`fs-readonly` spans. `fs-dir` shape still unobserved (no subdirs existed). Also confirmed live: fileservice `DELETE /fileservice/<path>` works (`204`, then `404` on GET) — first confirmed RWS file-delete in this project. **Delete from robot** button added 2026-07-20 (`DELETE /gofa-mod-edit/:id/file` admin endpoint, confirm dialog, refreshes the file list after) — confirmed live end-to-end via the real handler: upload → delete (`200 {ok:true,deleted:true}`) → follow-up GET `404` → repeat delete on the already-gone file correctly `404`s too |
 | `gofa-io-list` | RWS | List all I/O signals |
 | `gofa-di-read` | RWS | Read digital input |
 | `gofa-do-write` | RWS, Socket, or Background task | Write digital output; Transport dropdown — RWS `/set-value` (needs `Access: All`), Socket `SETDO` (needs RAPID/T_ROB1 running, no Access Level restriction), or Background task (same `SETDO` allow-list via `BackgroundLed.mod`, works while T_ROB1 is stopped) |
@@ -857,6 +857,84 @@ The *shipped* `gofa-robot` node default was genericized for the public npm relea
 username defaults to ABB's factory `Default User`, password has no default — so a fresh public
 install never carries this lab's creds. This repo is public: don't write the actual password
 into any tracked file; it lives in the local (non-repo) Claude memory only.
+
+## RobotStudio virtual controller (VC) workflow — doc-only guidance, NOT live-verified
+
+**Status: written from ABB's documented RWS/VC behavior and this project's own confirmed RWS
+findings, but never actually run against a live virtual controller — no VC instance was
+available in this dev environment when this section was written (2026-07-20). Treat every
+claim below as "should work per the docs," not "confirmed," until someone actually points a
+`gofa-robot` config node at a real VC and runs `check-status.js` against it.** This is
+`ideas/improvement-roadmap.md` item #4 (learning-oriented, robot-free dev/demos) — this section
+is the doc half only; the verify half is still open.
+
+**Why this should work at all**: RWS is served by the controller software itself (`robotware`),
+not the physical hardware — a Virtual Controller in RobotStudio runs the identical RobotWare
+stack this project already targets (pin the VC's RobotWare version to `7.21.0+229` to match, or
+expect the RWS-generation caveats below to shift). Nothing in `gofa-robot.js` or any node file
+assumes physical hardware; every call goes through RWS or the RAPID socket server, both of which
+a VC serves the same way a real controller does.
+
+**Connection settings — the one thing genuinely different from the physical robot**:
+- **IP**: a VC normally only listens on `127.0.0.1`/`localhost` unless RobotStudio's "Virtual
+  Controller network" is explicitly bridged to a real adapter. If Node-RED runs on the *same*
+  Windows machine as RobotStudio (the common case for this kind of robot-free dev), set the
+  `gofa-robot` config node's IP to `127.0.0.1`. If Node-RED runs elsewhere, RobotStudio's VC
+  networking needs to be configured to expose the VC on a reachable interface first — not
+  attempted here, not documented by ABB in a way this project has reviewed yet.
+- **RWS port / socket port**: unchanged — `443` and `1025` (or `1026` for `BackgroundLed.mod`),
+  same as the real robot, since these are RobotWare-level ports, not hardware-tied.
+- **`SERVER_IP` in `MainModule.mod`**: this is RAPID's own `SocketBind` address (see the
+  `SERVER_IP note` above) — for a VC it needs to be the VC's own bind address, almost certainly
+  `127.0.0.1`, not the physical robot's LAN IP. `gofa-file`'s upload/`gofa-setup`'s
+  `patchServerIp` already rewrites this to the configured `gofa-robot` IP on every upload, so
+  pointing the config node at the VC's IP should carry through automatically — unverified.
+- **Credentials**: VCs default to RobotWare's own factory defaults (`Default User` / no set
+  password, or a station-specific login configured when the VC was created) — not necessarily
+  this lab's `NNNN`/factory-default credentials. Check whatever the VC station was configured
+  with in RobotStudio's Controller tab.
+
+**Where this project's own confirmed RWS findings are expected to differ on a VC** (each one
+already independently confirmed against the real controller elsewhere in this doc — re-verify
+against the VC rather than assuming, since a VC is a different RobotWare install/config, not
+just a different network location):
+- **ASI status light (`gofa-asi-led`'s RWS/Socket/Background transports)**: the physical ASI
+  board is real hardware (see the "Background LED task" section) — a default VC station likely
+  has no ASI signals at all, so `SETLED`/`RESETLED`/the RWS transport would need either a
+  VC I/O configuration that fakes equivalent signals, or this feature simply doesn't apply on a
+  VC. Not something to "fix" — just an expected VC/real-hardware gap.
+- **EGM (`gofa-egm`/`MainModuleEGM.mod`)**: `EGMActJoint`/`EGMRunJoint` are pure RAPID/RobotWare
+  instructions and should work on a VC in principle, but the whole mechanism rides on a UDPUC
+  transmission protocol (`EGM_PC`) pointed at a real host IP:port — same VC-networking caveat as
+  above, likely harder here since it's a live UDP stream, not a request/response RWS call.
+  Timing fidelity (the ~24ms EGM frame rate this project's docs cite) is also worth treating as
+  unverified on a VC — simulated RobotWare instances are not guaranteed to hold the same
+  real-time timing a physical controller's motion core does.
+- **Digital I/O (`gofa-do-write`/`gofa-di-read`/`gofa-io-list`)**: works against whatever I/O
+  signals the VC station defines — a default GoFa 12 VC station may not include the DSQC1030
+  Scalable I/O board's `ABB_Scalable_IO_0_DI/DO*` signals unless that hardware module was added
+  to the station in RobotStudio. `SETDO`'s allow-list in `MainModule.mod`/`BackgroundLed.mod`
+  (`TrySetDo`) is hardcoded to those exact names — a VC without that I/O module configured would
+  need either the station updated to include it, or the allow-list edited to match whatever
+  signals the VC actually has.
+- **Motion / socket protocol (`GOTOJ`/`GOTOL`/`MOVEJ`/`MOVEL`/jog commands, `\Conc` behavior)**:
+  should be identical — this is pure RAPID logic with no hardware dependency, and the
+  `\Conc` queue-depth fix (2.4.2) is a RobotWare-level behavior, not a physical-controller quirk.
+  Reasonable first thing to actually verify live once a VC is available, since a mismatch here
+  would mean the fix doesn't generalize the way its writeup assumes.
+- **Multitasking (`T_LED`/`BackgroundLed.mod`)**: RobotWare Multitasking `[3114-1]` is a licensed
+  option (confirmed on the real controller via `GET /rw/system` — see the `omnicore-c30` skill);
+  a VC station needs the same option enabled in its RobotWare configuration or task-creation
+  will hit the same "RWS can't create tasks" wall documented in the "Background LED task"
+  section, this time with no RobotStudio-GUI escape hatch either (VCs are configured through the
+  same Controller tab, so the workflow should transfer, but the *licensing* needs to be present
+  in the VC's own RobotWare System Builder config, not inherited from the real controller).
+
+**Suggested first live-verification pass, when a VC is available**: `check-status.js` with
+`GOFA_IP=127.0.0.1` (and matching creds) against a freshly-created default GoFa 12 VC station,
+then `gofa-setup` for the one-click init, then basic motion (`MOVEJ`/`GOTOJ`) — that alone would
+confirm or correct most of the guesses above about what transfers unmodified vs. needs VC-side
+configuration.
 
 ## Software versions (RobotWare/controller re-confirmed live 2026-07-16 via `check-status.js --full`; Node.js/Node-RED re-confirmed against the dev machine same date; RobotStudio not reverified this pass)
 

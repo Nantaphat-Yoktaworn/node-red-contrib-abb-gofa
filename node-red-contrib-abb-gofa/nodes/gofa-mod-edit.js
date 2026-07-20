@@ -145,6 +145,20 @@ module.exports = function(RED) {
         .catch(function(err) { res.status(502).json({ error: err.message }); });
     });
 
+    RED.httpAdmin.delete('/gofa-mod-edit/:id/file', RED.auth.needsPermission('gofa-mod-edit.write'), function(req, res) {
+        var robot = getRobot(req, res);
+        if (!robot) return;
+        var p = req.query.path;
+        if (!p) return res.status(400).json({ error: 'Missing path' });
+        robot.requestRaw('DELETE', '/fileservice/' + p, null, {})
+        .then(function(r) {
+            if (r.statusCode === 404) return res.status(404).json({ error: 'File not found on controller: ' + p });
+            if (r.statusCode < 200 || r.statusCode >= 300) return res.status(502).json({ error: 'HTTP ' + r.statusCode + ' deleting ' + p });
+            res.json({ ok: true, path: p, deleted: true });
+        })
+        .catch(function(err) { res.status(502).json({ error: err.message }); });
+    });
+
     RED.httpAdmin.post('/gofa-mod-edit/:id/file', RED.auth.needsPermission('gofa-mod-edit.write'), function(req, res) {
         var robot = getRobot(req, res);
         if (!robot) return;

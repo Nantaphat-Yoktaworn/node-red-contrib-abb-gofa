@@ -51,7 +51,7 @@ function loadNodeType(modulePath, opts) {
         },
         settings: { userDir: opts.userDir || os.tmpdir() },
         util:     { cloneMessage: function(m) { return JSON.parse(JSON.stringify(m)); } },
-        httpAdmin: { get: function() {}, post: function() {} },
+        httpAdmin: { get: function() {}, post: function() {}, delete: function() {} },
         auth:      { needsPermission: function() { return function() {}; } }
     };
     require(modulePath)(fakeRED);
