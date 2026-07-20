@@ -116,6 +116,23 @@
             "T_ROB1 specifically wedged/stopped" (socket down, background up) from "whole
             controller unreachable" (both down)
         </dd>
+        <dt>moduleVersion</dt><dd>
+            <code>{ expected, socket: { version, status }, background: { version, status } }</code> —
+            <code>expected</code> is this palette's own npm version; each ping's reported
+            <code>MODULE_VERSION</code> is compared against it, <code>status</code> is
+            <code>"match"</code>, <code>"mismatch"</code>, or <code>"unknown"</code> (the ping
+            failed, or the module that answered predates this version-handshake feature and
+            reports no version at all). A mismatch on an otherwise-healthy result sets the node's
+            status to yellow instead of green
+        </dd>
+        <dt>egmActive</dt><dd>
+            mirrors the shared <code>gofa-robot</code> config node's <code>_egmActive</code> flag —
+            true while a <code>gofa-egm</code> session is streaming. An active EGM session
+            deliberately keeps <code>rws.rapid</code> at <code>"running"</code> for its whole
+            duration while closing T_ROB1's socket, the same shape as a genuine wedge; consumers
+            that treat "running but socket down" as a fault (e.g. <code>flows/watchdog_flow.json</code>)
+            must check this flag too, or they'll misdiagnose every EGM session
+        </dd>
         <dt>errors</dt><dd>array of <code>"label: message"</code> strings, one per failed check</dd>
     </dl>
     <p>A degraded/unreachable result is still a successful run of this node (it did its job:

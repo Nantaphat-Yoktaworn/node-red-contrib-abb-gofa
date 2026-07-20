@@ -1,5 +1,6 @@
 'use strict';
 var gate = require('./lib/gate');
+var PALETTE_VERSION = require('./gofa-robot').PALETTE_VERSION;
 module.exports = function(RED) {
     function GoFaConnectionStatusNode(config) {
         RED.nodes.createNode(this, config);
@@ -59,6 +60,11 @@ module.exports = function(RED) {
                 var background = find('background');
                 var rwsOk = ctrlstate.ok || opmode.ok || execution.ok || speed.ok;
 
+                var socketVersion = socket.ok ? r.getLastPingVersion() : null;
+                var socketStatus = !socket.ok || socketVersion === null ? 'unknown' : (socketVersion === PALETTE_VERSION ? 'match' : 'mismatch');
+                var backgroundVersion = background.ok ? r.getLastPingVersion(r.backgroundPort) : null;
+                var backgroundStatus = !background.ok || backgroundVersion === null ? 'unknown' : (backgroundVersion === PALETTE_VERSION ? 'match' : 'mismatch');
+
                 var payload = {
                     ok: rwsOk && socket.ok,
                     ip: r.ip,
@@ -71,6 +77,17 @@ module.exports = function(RED) {
                     },
                     socket: socket.ok ? { ok: true, rtt: socket.value } : { ok: false, error: socket.error },
                     background: background.ok ? { ok: true, rtt: background.value } : { ok: false, error: background.error },
+                    moduleVersion: {
+                        expected: PALETTE_VERSION,
+                        socket: { version: socketVersion, status: socketStatus },
+                        background: { version: backgroundVersion, status: backgroundStatus }
+                    },
+                    // An active EGM session (gofa-egm) deliberately keeps RAPID's execution
+                    // state at 'running' for the whole session while closing T_ROB1's socket —
+                    // the exact same shape as a genuine socket wedge. Consumers that treat
+                    // "running but socket down" as a fault (e.g. flows/watchdog_flow.json) must
+                    // also check this flag, or they'll misdiagnose every EGM session as wedged.
+                    egmActive: !!r._egmActive,
                     errors: results.filter(function(x) { return !x.ok; }).map(function(x) { return x.label + ': ' + x.error; })
                 };
                 msg.payload = payload;
@@ -79,7 +96,15 @@ module.exports = function(RED) {
                                 : !rwsOk     ? 'RWS unreachable'
                                 : 'socket unreachable';
                 var statusFill = payload.ok ? 'green' : (!rwsOk ? 'red' : 'yellow');
-                node.status({ fill: statusFill, shape: payload.ok ? 'dot' : 'ring', text: statusText });
+                var statusShape = payload.ok ? 'dot' : 'ring';
+
+                if (payload.ok && (socketStatus === 'mismatch' || backgroundStatus === 'mismatch')) {
+                    statusFill = 'yellow';
+                    var mismatchVersion = socketStatus === 'mismatch' ? socketVersion : backgroundVersion;
+                    statusText = 'ok, module v' + mismatchVersion + ' mismatch (expected v' + PALETTE_VERSION + ')';
+                }
+
+                node.status({ fill: statusFill, shape: statusShape, text: statusText });
 
                 send(msg); done();
             });
@@ -128,6 +153,11 @@ module.exports = function(RED) {
             var background = find('background');
             var rwsOk = ctrlstate.ok || opmode.ok || execution.ok || speed.ok;
 
+            var socketVersion = socket.ok ? robot.getLastPingVersion() : null;
+            var socketStatus = !socket.ok || socketVersion === null ? 'unknown' : (socketVersion === PALETTE_VERSION ? 'match' : 'mismatch');
+            var backgroundVersion = background.ok ? robot.getLastPingVersion(robot.backgroundPort) : null;
+            var backgroundStatus = !background.ok || backgroundVersion === null ? 'unknown' : (backgroundVersion === PALETTE_VERSION ? 'match' : 'mismatch');
+
             res.json({
                 ok: rwsOk && socket.ok,
                 ip: robot.ip,
@@ -140,6 +170,12 @@ module.exports = function(RED) {
                 },
                 socket: socket.ok ? { ok: true, rtt: socket.value } : { ok: false, error: socket.error },
                 background: background.ok ? { ok: true, rtt: background.value } : { ok: false, error: background.error },
+                moduleVersion: {
+                    expected: PALETTE_VERSION,
+                    socket: { version: socketVersion, status: socketStatus },
+                    background: { version: backgroundVersion, status: backgroundStatus }
+                },
+                egmActive: !!robot._egmActive,
                 errors: results.filter(function(x) { return !x.ok; }).map(function(x) { return x.label + ': ' + x.error; }),
                 duration: Date.now() - t0
             });

@@ -116,7 +116,7 @@
     </dl>
     <h3>Actions</h3>
     <ul>
-        <li><b>Enable</b>: First sends a <code>stop</code> over the TCP socket to clear any queued/in-flight moves (so a move already underway doesn't keep executing autonomously while hand-guiding is active), then sends <code>POST /rw/motionsystem/mechunits/ROB_1/lead-through</code>, body <code>status=active</code>. A socket-connection failure during the stop step (e.g. RAPID not running) is tolerated and does not block enabling leadthrough; any other stop failure does.</li>
+        <li><b>Enable</b>: First checks RAPID's execution state; if it's genuinely <code>running</code>, sends a <code>stop</code> over the TCP socket to clear any queued/in-flight moves (so a move already underway doesn't keep executing autonomously while hand-guiding is active) — a socket-connection failure during this step is tolerated and does not block enabling leadthrough, but any other stop failure does. If RAPID is already <code>stopped</code> (the normal case when a flow stops RAPID before enabling leadthrough, e.g. a teach workflow), this clear step is skipped entirely — there's nothing queued to clear, and T_ROB1's socket server is down anyway, so attempting it would just waste a full 5s socket timeout for no benefit. Then sends <code>POST /rw/motionsystem/mechunits/ROB_1/lead-through</code>, body <code>status=active</code>.</li>
         <li><b>Disable</b>: Sends <code>POST /rw/motionsystem/mechunits/ROB_1/lead-through</code>, body <code>status=inactive</code>.</li>
     </ul>
     <h3>Notes</h3>

@@ -204,4 +204,6 @@
         <li><code>'reset'</code>: <code>msg.payload = { ok: true, reset: true }</code></li>
         <li>Failure (any case): <code>msg.payload = { ok: false, error: "..." }</code></li>
     </ul>
+    <h3>Chaining hazard</h3>
+    <p>This node's own success output has <code>r</code>/<code>g</code>/<code>b</code> fields, which — per the <code>msg.payload</code> overrides above — this node type also accepts as a color override on its <em>next</em> invocation. Wiring one <code>gofa-asi-led</code> node's output straight into another <code>gofa-asi-led</code> node makes the second one silently repeat the first node's color instead of its own configured one, confirmed live: a white counted-blink's own output, fed straight into a node configured for a different color, re-applied the white instead. Insert a <code>change</code> node that resets <code>msg.payload</code> to <code>{}</code> between two chained <code>gofa-asi-led</code> nodes (same fix as the equivalent hazard on <code>gofa-rapid-exec</code>) — see the example in <code>flows/teach_workflow_flow.json</code>'s "Point Saved" → "Restore Teach Idle" LED sequence.</p>
 </script>

@@ -3,6 +3,7 @@ var gate = require('./lib/gate');
 var fs   = require('fs');
 var path = require('path');
 var parseXhtml    = require('./gofa-robot').parseXhtml;
+var PALETTE_VERSION = require('./gofa-robot').PALETTE_VERSION;
 var parseLiSpans  = require('./gofa-rapid-tasks').parseLiSpans;
 var patchServerIp = require('./lib/patch-server-ip');
 
@@ -139,7 +140,12 @@ module.exports = function(RED) {
                 var deadline = Date.now() + node._t.ping;
                 function ping() {
                     return r.socketSend('PING').then(function(resp) {
-                        if (resp === 'OK:PING') return 'OK';
+                        if (resp === 'OK:PING') {
+                            var ver = r.getLastPingVersion();
+                            if (ver === null) return 'OK (module version unknown — this module predates the version-handshake feature)';
+                            if (ver === PALETTE_VERSION) return 'OK (module v' + ver + ')';
+                            return 'OK — WARNING: module reports v' + ver + ', palette expects v' + PALETTE_VERSION + ' — check node-red-contrib-abb-gofa/rapid/ is in sync with the root rapid/ copies (see CLAUDE.md), then re-run setup';
+                        }
                         throw new Error('unexpected reply: ' + resp);
                     }).catch(function(err) {
                         if (Date.now() >= deadline) {
@@ -279,7 +285,12 @@ module.exports = function(RED) {
             var deadline = Date.now() + timings.ping;
             function ping() {
                 return robot.socketSend('PING').then(function(resp) {
-                    if (resp === 'OK:PING') return 'OK';
+                    if (resp === 'OK:PING') {
+                        var ver = robot.getLastPingVersion();
+                        if (ver === null) return 'OK (module version unknown — this module predates the version-handshake feature)';
+                        if (ver === PALETTE_VERSION) return 'OK (module v' + ver + ')';
+                        return 'OK — WARNING: module reports v' + ver + ', palette expects v' + PALETTE_VERSION + ' — check node-red-contrib-abb-gofa/rapid/ is in sync with the root rapid/ copies (see CLAUDE.md), then re-run setup';
+                    }
                     throw new Error('unexpected reply: ' + resp);
                 }).catch(function(err) {
                     if (Date.now() >= deadline) {

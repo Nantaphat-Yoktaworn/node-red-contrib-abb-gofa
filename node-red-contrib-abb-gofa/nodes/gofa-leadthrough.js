@@ -22,6 +22,46 @@ function waitForLeadThroughState(robot, want, timeoutMs) {
     return poll();
 }
 
+// Clears queued \Conc moves before activating lead-through — otherwise in-flight
+// moves keep executing autonomously while hand-guiding is active. Only meaningful
+// while RAPID is actually running; if it's already stopped (the normal case for
+// this palette's teach flows, which stop RAPID before enabling lead-through)
+// there's nothing queued to clear, and T_ROB1's socket server is down anyway
+// (it's part of RAPID's own main() loop) — attempting the clear there is
+// guaranteed to fail only after the full 5s socket timeout, for no benefit.
+// Confirmed live 2026-07-20: this was costing ~5s of every single `enable`
+// call in that exact sequence. Checking execstate first (a single fast RWS
+// GET, ~10ms) and skipping the clear when already stopped removes that wait
+// entirely without changing behavior for the case it actually protects
+// (RAPID still running when enable is called).
+function clearQueuedMovesIfRunning(robot) {
+    return Promise.resolve().then(function() {
+        return robot.rwsGet('/rw/rapid/execution');
+    }).then(function(body) {
+        return robot.parseXhtml(body, 'ctrlexecstate');
+    }).catch(function() {
+        return null; // state check itself failed — fall back to attempting the clear, same as before this optimization existed
+    }).then(function(execstate) {
+        if (execstate === 'stopped') return;
+        return robot.socketSend({ cmd: 'stop' })
+        .then(function(ack) {
+            if (!ack.startsWith('OK:')) {
+                throw new Error('Stop motion failed: ' + ack);
+            }
+        })
+        .catch(function(err) {
+            var isSocketError = err.message && (
+                err.message.indexOf('socket') >= 0 ||
+                err.message.indexOf('connect') >= 0 ||
+                err.message.indexOf('ECONNREFUSED') >= 0
+            );
+            if (!isSocketError) {
+                throw err;
+            }
+        });
+    });
+}
+
 module.exports = function(RED) {
     function GoFaLeadthroughNode(config) {
         RED.nodes.createNode(this, config);
@@ -40,25 +80,8 @@ module.exports = function(RED) {
             }
 
             if (action === 'enable') {
-                node.status({ fill: 'blue', shape: 'dot', text: 'stopping motion...' });
-                // Clear any queued \Conc moves before activating lead-through, otherwise
-                // in-flight moves keep executing autonomously while hand-guiding is active.
-                node.robot.socketSend({ cmd: 'stop' })
-                .then(function(ack) {
-                    if (!ack.startsWith('OK:')) {
-                        throw new Error('Stop motion failed: ' + ack);
-                    }
-                })
-                .catch(function(err) {
-                    var isSocketError = err.message && (
-                        err.message.indexOf('socket') >= 0 ||
-                        err.message.indexOf('connect') >= 0 ||
-                        err.message.indexOf('ECONNREFUSED') >= 0
-                    );
-                    if (!isSocketError) {
-                        throw err;
-                    }
-                })
+                node.status({ fill: 'blue', shape: 'dot', text: 'checking RAPID state...' });
+                clearQueuedMovesIfRunning(node.robot)
                 .then(function() {
                     node.status({ fill: 'blue', shape: 'dot', text: 'enabling...' });
                     return node.robot.rwsPost('/rw/motionsystem/mechunits/ROB_1/lead-through', 'status=active');
@@ -135,18 +158,7 @@ module.exports = function(RED) {
 
         var p = Promise.resolve();
         if (action === 'enable') {
-            p = robot.socketSend({ cmd: 'stop' })
-            .then(function(ack) {
-                if (!ack.startsWith('OK:')) throw new Error('Stop motion failed: ' + ack);
-            })
-            .catch(function(err) {
-                var isSocketError = err.message && (
-                    err.message.indexOf('socket') >= 0 ||
-                    err.message.indexOf('connect') >= 0 ||
-                    err.message.indexOf('ECONNREFUSED') >= 0
-                );
-                if (!isSocketError) throw err;
-            });
+            p = clearQueuedMovesIfRunning(robot);
         }
 
         p.then(function() {

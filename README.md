@@ -41,6 +41,7 @@ flows/
   setup_flow.json                ← One-click first-run setup flow
   pickplace_sorting_flow.json    ← Pick-and-place sorting cell example
   teach_workflow_flow.json       ← Physical-button teach workflow (see below)
+  watchdog_flow.json             ← Self-healing socket-wedge watchdog — see the "Module version handshake + watchdog flow" section in CLAUDE.md
 MANUAL_CONTROL.md                ← Control the robot directly (curl / raw TCP), no Node-RED needed
 ```
 
@@ -249,6 +250,7 @@ Click **Update** → **Deploy**.
 | `flows/setup_flow.json` | One-click first-run setup (`gofa-setup`) |
 | `flows/pickplace_sorting_flow.json` | Pick-and-place sorting cell example |
 | `flows/teach_workflow_flow.json` | Physical-button teach workflow (see below) |
+| `flows/watchdog_flow.json` | Self-healing socket-wedge watchdog — polls every 30s, auto-recovers a genuinely stuck RAPID socket, leaves teach workflow / EGM sessions alone |
 
 After importing, open the **gofa-robot** config node (click any GoFa node → pencil icon) and verify the IP and credentials match your setup.
 
@@ -268,16 +270,26 @@ that up, it assumes it and checks for it.
 
 1. **Press Button 1** — stops RAPID, confirms it actually reached the stopped state (bounded
    live poll, not a fixed guess-and-hope delay), then enables lead-through. The ASI status
-   light turns solid cyan as a physical "teach mode active" cue — no screen needed.
+   light turns solid yellow as a physical "teach mode active" cue — no screen needed. (Yellow
+   was chosen deliberately: it's the same color the safety controller's own motion-override
+   uses while the arm is actually being moved, so the LED doesn't visibly change color between
+   "idle" and "moving" during the session — one steady color throughout.)
 2. Hand-guide the arm.
 3. **Press Button 2** (any time while lead-through is active) — saves the current pose as a new
-   point, and the ASI light flashes white twice as a physical "saved" confirmation. Pressing it
-   while *not* in teach mode is safely ignored with a clear message instead of silently saving
-   an unintended pose (the LED doesn't flash in this case either — an implicit "nothing
+   point (written to the robot controller's own disk by default, not the Node-RED host's local
+   `points.json` — see `gofa-save-point`'s Storage option), and the ASI light flashes yellow
+   twice as a physical "saved" confirmation, then returns to solid yellow immediately. Pressing
+   it while *not* in teach mode is safely ignored with a clear message instead of silently
+   saving an unintended pose (the LED doesn't flash in this case either — an implicit "nothing
    happened" cue).
 4. **Press Button 1 again** — disables lead-through, resets the program pointer, restarts
    RAPID — back to exactly the state before step 1, including the ASI light resetting to its
    normal solid-green RAPID-running state.
+
+> Both button-watcher branches insert a short settle delay (2s on Button 1, 3s on Button 2)
+> between "start watching" and actually subscribing over WebSocket — on a Node-RED restart, a
+> subscribe request fired before the robot's RWS session is ready gets rejected with
+> `WebSocket upgrade rejected: HTTP 500`; the delay avoids racing that.
 
 > **LED feedback requires a one-time controller setup.** RAPID (and its socket server) is
 > stopped for the entire hand-guiding session, so the three `gofa-asi-led` nodes in this flow
@@ -306,7 +318,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | Node | Protocol | What it does |
 |------|:--------:|-------------|
 | **gofa-status** | RWS | Controller state, op-mode, speed %, RAPID exec state |
-| **gofa-connection-status** | RWS + TCP | Per-layer health check (RWS calls + socket ping reported independently) — never raises a Node-RED error on failure, so it's safe to poll on a timer |
+| **gofa-connection-status** | RWS + TCP | Per-layer health check (RWS calls + socket ping reported independently) — never raises a Node-RED error on failure, so it's safe to poll on a timer. Also reports each ping's module version vs. this palette's own, and whether a `gofa-egm` session is active |
 | **gofa-pose** | RWS | TCP position (x, y, z mm + quaternion + config flags) |
 | **gofa-joints** | RWS | All 6 joint angles in degrees |
 | **gofa-system-info** | RWS | RobotWare version, controller name/ID/MAC |
@@ -326,7 +338,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | **gofa-stop-motion** | TCP | Halt motion immediately |
 | **gofa-ping** | TCP | Round-trip latency test |
 | **gofa-grip** | RWS | Digital output on/off for a gripper (same mechanism as `gofa-do-write`, with a preconfigured signal name + friendly on/off/true/false/gripon/gripoff input) |
-| **gofa-leadthrough** | TCP + RWS | Hand-guiding on/off — action `enable` (sends STOP first, clears queued moves) or `disable` |
+| **gofa-leadthrough** | TCP + RWS | Hand-guiding on/off — action `enable` (sends STOP to clear queued moves, but only if RAPID is genuinely still running — skipped if it's already stopped, avoiding a ~5s wasted timeout) or `disable` |
 | **gofa-asi-led** | TCP | Set ASI status light RGB color (`0–255`) and blink; supports counted software blink |
 
 ### Saved points
@@ -351,7 +363,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 
 | Node | Protocol | What it does |
 |------|:--------:|-------------|
-| **gofa-setup** | RWS + TCP | One-click first-run initialization: upload the bundled `.mod` (SERVER_IP auto-synced) → load → reset PP → motors on → start → socket PING, with a per-step report. See [Quick start](#quick-start) |
+| **gofa-setup** | RWS + TCP | One-click first-run initialization: upload the bundled `.mod` (SERVER_IP auto-synced) → load → reset PP → motors on → start → socket PING (also checks the module's version against this palette's), with a per-step report. See [Quick start](#quick-start) |
 | **gofa-rapid-exec** | RWS | `start` / `stop` / `resetpp` / `loadmod` / `unloadmod` / `activate` the RAPID program |
 | **gofa-rapid-var-read** | TCP + RWS | Read a RAPID PERS variable via `GETVAR:<name>` socket command; falls back to a stale RWS module-text read if the variable isn't allow-listed |
 | **gofa-rapid-var-write** | TCP | Write a RAPID PERS variable via `SETVAR:<name>:<value>` socket command — no RWS fallback exists (see below) |

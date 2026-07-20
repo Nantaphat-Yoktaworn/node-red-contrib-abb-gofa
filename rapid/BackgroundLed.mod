@@ -51,6 +51,10 @@ MODULE BackgroundLed
     CONST string SERVER_IP       := "192.168.1.103";
     CONST num    LED_SERVER_PORT := 1026;
 
+    ! See MainModule.mod's MODULE_VERSION comment — same purpose, own value
+    ! since this task's module is uploaded/reloaded independently of T_ROB1's.
+    CONST string MODULE_VERSION  := "2.4.1";
+
     VAR socketdev ledServerSocket;
     VAR socketdev ledClientSocket;
     VAR string    rxStr;
@@ -104,7 +108,7 @@ MODULE BackgroundLed
 
         TEST cmd
         CASE "ping":
-            SocketSend ledClientSocket \Str:=("{""status"":""ok"",""cmd"":""ping""}" + ByteToStr(10\Char));
+            SocketSend ledClientSocket \Str:=("{""status"":""ok"",""cmd"":""ping"",""version"":""" + MODULE_VERSION + """}" + ByteToStr(10\Char));
         CASE "resetled":
             SetGO Asi1LedRed,    0;
             SetGO Asi1LedGreen,  255;

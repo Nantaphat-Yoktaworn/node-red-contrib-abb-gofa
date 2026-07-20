@@ -172,6 +172,13 @@ function createRobotClient(opts) {
 
     var cookie       = null;
     var loginPromise = null;
+    // Module version last reported by a "ping" JSON reply, keyed by the port
+    // it was pinged on (a controller can run different MODULE_VERSION values
+    // on T_ROB1's socket vs. the background task's socket at the same time,
+    // e.g. mid-reload). Undefined until at least one successful ping; stays
+    // undefined forever against a module older than this handshake feature
+    // (its ping reply has no "version" field at all).
+    var lastPingVersion = {};
 
     function request(method, urlPath, body, forceAuth, accept, contentType) {
         return new Promise(function(resolve, reject) {
@@ -454,6 +461,7 @@ function translateToJSON(cmd) {
                                 if (json.cmd === 'getvar') {
                                     finish(null, 'VAL:' + json.val);
                                 } else if (json.cmd === 'ping') {
+                                    lastPingVersion[port || socketPort] = json.version || null;
                                     finish(null, 'OK:PING');
                                 } else if (json.cmd === 'stop') {
                                     finish(null, 'OK:STOP');
@@ -497,10 +505,19 @@ function translateToJSON(cmd) {
         });
     }
 
+    // Returns the MODULE_VERSION string from the most recent successful ping
+    // on the given port (default: the main socket port), or null if no ping
+    // has succeeded yet on that port, or the module that answered predates
+    // this handshake feature (no "version" field in its ping reply).
+    function getLastPingVersion(port) {
+        return lastPingVersion[port || socketPort] || null;
+    }
+
     return {
         rwsGet: rwsGet, rwsPost: rwsPost, rwsPut: rwsPut, rwsPostHal: rwsPostHal,
         withMastership: withMastership, socketSend: socketSend,
-        requestRaw: requestRaw, getCookie: getCookie, logout: logout
+        requestRaw: requestRaw, getCookie: getCookie, logout: logout,
+        getLastPingVersion: getLastPingVersion
     };
 }
 
@@ -704,6 +721,7 @@ module.exports = function(RED) {
     GoFaRobotNode.prototype.requestRaw    = function(method, p, b, opts) { return this._client.requestRaw(method, p, b, opts); };
     GoFaRobotNode.prototype.getCookie     = function()     { return this._client.getCookie(); };
     GoFaRobotNode.prototype.logout        = function()     { return this._client.logout(); };
+    GoFaRobotNode.prototype.getLastPingVersion = function(port) { return this._client.getLastPingVersion(port); };
 
     GoFaRobotNode.prototype.parseXhtml = parseXhtml;
     GoFaRobotNode.prototype.gotoToken  = gotoToken;
@@ -740,3 +758,7 @@ module.exports.atomicWriteFileSync = atomicWriteFileSync;
 module.exports.fileMtimeMs         = fileMtimeMs;
 module.exports.createRobotClient   = createRobotClient;
 module.exports.discover            = discover;
+// Single source of truth for the "expected" module version in the version
+// handshake — the palette's own npm version, kept in lockstep with the
+// MODULE_VERSION constant in rapid/*.mod (see that constant's comment).
+module.exports.PALETTE_VERSION     = require('../package.json').version;

@@ -2560,6 +2560,64 @@ await checkAsync('socketSend: an explicit port argument overrides the configured
     }
 });
 
+await checkAsync('getLastPingVersion: null before any ping, then the version from the ping reply', async function() {
+    var net = require('net');
+    var server = net.createServer(function(socket) {
+        socket.on('data', function() { socket.write('{"status":"ok","cmd":"ping","version":"2.4.0"}\n'); });
+    });
+    var port = await new Promise(function(resolve) { server.listen(0, '127.0.0.1', function() { resolve(server.address().port); }); });
+    try {
+        var client = createRobotClient({ ip: '127.0.0.1', socketPort: port });
+        assert.strictEqual(client.getLastPingVersion(), null);
+        await client.socketSend('PING');
+        assert.strictEqual(client.getLastPingVersion(), '2.4.0');
+    } finally {
+        server.close();
+    }
+});
+
+await checkAsync('getLastPingVersion: stays null when the module predates the handshake (no "version" field)', async function() {
+    var net = require('net');
+    var server = net.createServer(function(socket) {
+        socket.on('data', function() { socket.write('{"status":"ok","cmd":"ping"}\n'); });
+    });
+    var port = await new Promise(function(resolve) { server.listen(0, '127.0.0.1', function() { resolve(server.address().port); }); });
+    try {
+        var client = createRobotClient({ ip: '127.0.0.1', socketPort: port });
+        await client.socketSend('PING');
+        assert.strictEqual(client.getLastPingVersion(), null);
+    } finally {
+        server.close();
+    }
+});
+
+await checkAsync('getLastPingVersion: tracked independently per port (T_ROB1 vs. background task)', async function() {
+    var net = require('net');
+    var mainServer = net.createServer(function(socket) {
+        socket.on('data', function() { socket.write('{"status":"ok","cmd":"ping","version":"2.4.0"}\n'); });
+    });
+    var bgServer = net.createServer(function(socket) {
+        socket.on('data', function() { socket.write('{"status":"ok","cmd":"ping","version":"2.3.9"}\n'); });
+    });
+    var mainPort = await new Promise(function(resolve) { mainServer.listen(0, '127.0.0.1', function() { resolve(mainServer.address().port); }); });
+    var bgPort   = await new Promise(function(resolve) { bgServer.listen(0, '127.0.0.1', function() { resolve(bgServer.address().port); }); });
+    try {
+        var client = createRobotClient({ ip: '127.0.0.1', socketPort: mainPort });
+        await client.socketSend('PING');
+        await client.socketSend({ cmd: 'ping' }, bgPort);
+        assert.strictEqual(client.getLastPingVersion(), '2.4.0');
+        assert.strictEqual(client.getLastPingVersion(bgPort), '2.3.9');
+    } finally {
+        mainServer.close();
+        bgServer.close();
+    }
+});
+
+check('gofa-robot: PALETTE_VERSION is exported and matches package.json', function() {
+    var pkg = require('./package.json');
+    assert.strictEqual(require('./nodes/gofa-robot').PALETTE_VERSION, pkg.version);
+});
+
 // ── gofa-grip ───────────────────────────────────────────────────────────────
 await checkAsync('gofa-grip: accepts valid on/off inputs', async function() {
     var posted = [];
@@ -2649,6 +2707,68 @@ await checkAsync('gofa-leadthrough: safety STOP socket connection failure is swa
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, true);
     assert.strictEqual(posted.length, 1);
+});
+
+// The real bug this guards: enable was unconditionally sending a socket 'stop'
+// to clear queued moves, even in the normal "stop RAPID, then enable
+// lead-through" sequence this palette's own teach flow uses — where T_ROB1's
+// socket server is already down (part of RAPID's own main() loop), so that
+// call was guaranteed to fail only after the full 5s socket timeout.
+// Confirmed live 2026-07-20: skipping the clear when RAPID is already
+// stopped (nothing queued to clear) removes ~5s from every enable call in
+// that exact sequence, with no change to the case it protects.
+await checkAsync('gofa-leadthrough: enable skips the socket-stop clear when RAPID is already stopped (the ~5s-timeout bug)', async function() {
+    var socketCalls = [];
+    var mockRobot = {
+        socketSend: function(cmd) { socketCalls.push(cmd); return Promise.resolve('OK:STOP'); },
+        rwsPost: function() { return Promise.resolve(); },
+        rwsGet: function(path) {
+            if (path === '/rw/rapid/execution') return Promise.resolve('<span class="ctrlexecstate">stopped</span>');
+            return Promise.resolve('<span class="status">Active</span>');
+        },
+        parseXhtml: parseXhtml
+    };
+    var node = new (loadNodeType('./nodes/gofa-leadthrough', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = { payload: {} };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.deepStrictEqual(socketCalls, [], 'socketSend must NOT be called when RAPID is already stopped — nothing queued to clear');
+});
+
+await checkAsync('gofa-leadthrough: enable still attempts the socket-stop clear when RAPID is running', async function() {
+    var socketCalls = [];
+    var mockRobot = {
+        socketSend: function(cmd) { socketCalls.push(cmd); return Promise.resolve('OK:STOP'); },
+        rwsPost: function() { return Promise.resolve(); },
+        rwsGet: function(path) {
+            if (path === '/rw/rapid/execution') return Promise.resolve('<span class="ctrlexecstate">running</span>');
+            return Promise.resolve('<span class="status">Active</span>');
+        },
+        parseXhtml: parseXhtml
+    };
+    var node = new (loadNodeType('./nodes/gofa-leadthrough', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = { payload: {} };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.deepStrictEqual(socketCalls, [{ cmd: 'stop' }], 'socketSend must still be called when RAPID is genuinely running — queued moves need clearing');
+});
+
+await checkAsync('gofa-leadthrough: enable falls back to attempting the clear if the execstate check itself fails', async function() {
+    var socketCalls = [];
+    var mockRobot = {
+        socketSend: function(cmd) { socketCalls.push(cmd); return Promise.resolve('OK:STOP'); },
+        rwsPost: function() { return Promise.resolve(); },
+        rwsGet: function(path) {
+            if (path === '/rw/rapid/execution') return Promise.reject(new Error('RWS down'));
+            return Promise.resolve('<span class="status">Active</span>');
+        },
+        parseXhtml: parseXhtml
+    };
+    var node = new (loadNodeType('./nodes/gofa-leadthrough', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = { payload: {} };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.deepStrictEqual(socketCalls, [{ cmd: 'stop' }], 'when the execstate check itself fails, fall back to the pre-optimization behavior (attempt the clear) rather than silently skipping it');
 });
 
 // ── gofa-move ───────────────────────────────────────────────────────────────
@@ -3129,7 +3249,8 @@ await checkAsync('gofa-connection-status: both RWS and socket reachable reports 
             return Promise.reject(new Error('unexpected path: ' + path));
         },
         parseXhtml: parseXhtml,
-        socketSend: function() { return Promise.resolve('OK:PING'); }
+        socketSend: function() { return Promise.resolve('OK:PING'); },
+        getLastPingVersion: function() { return null; }
     };
     var node = new (loadNodeType('./nodes/gofa-connection-status', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
     var msg = {};
@@ -3150,7 +3271,8 @@ await checkAsync('gofa-connection-status: RWS down but socket up reports ok:fals
         ip: '10.0.0.5',
         rwsGet: function() { return Promise.reject(new Error('RWS connection error')); },
         parseXhtml: parseXhtml,
-        socketSend: function() { return Promise.resolve('OK:PING'); }
+        socketSend: function() { return Promise.resolve('OK:PING'); },
+        getLastPingVersion: function() { return null; }
     };
     var node = new (loadNodeType('./nodes/gofa-connection-status', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
     var msg = {};
@@ -3199,7 +3321,8 @@ await checkAsync('gofa-connection-status: T_ROB1 socket down but background task
         socketSend: function(cmd, port) {
             if (port === 1026) return Promise.resolve('OK:PING');
             return Promise.reject(new Error('connection refused'));
-        }
+        },
+        getLastPingVersion: function() { return null; }
     };
     var node = new (loadNodeType('./nodes/gofa-connection-status', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
     var msg = {};
@@ -3210,12 +3333,113 @@ await checkAsync('gofa-connection-status: T_ROB1 socket down but background task
     assert.strictEqual(typeof msg.payload.background.rtt, 'number');
 });
 
+await checkAsync('gofa-connection-status: status match populates moduleVersion and keeps status green', async function() {
+    var realPaletteVersion = require('./nodes/gofa-robot').PALETTE_VERSION;
+    var mockRobot = {
+        ip: '10.0.0.5',
+        backgroundPort: 1026,
+        rwsGet: function() { return Promise.resolve('<span class="ctrlstate">motoron</span>'); },
+        parseXhtml: parseXhtml,
+        socketSend: function() { return Promise.resolve('OK:PING'); },
+        getLastPingVersion: function(port) { return realPaletteVersion; }
+    };
+    var node = new (loadNodeType('./nodes/gofa-connection-status', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.moduleVersion.expected, realPaletteVersion);
+    assert.strictEqual(msg.payload.moduleVersion.socket.status, 'match');
+    assert.strictEqual(msg.payload.moduleVersion.socket.version, realPaletteVersion);
+    assert.strictEqual(msg.payload.moduleVersion.background.status, 'match');
+    assert.strictEqual(msg.payload.moduleVersion.background.version, realPaletteVersion);
+    assert.ok(node.statuses.some(function(s) { return s.fill === 'green'; }));
+});
+
+await checkAsync('gofa-connection-status: status mismatch populates moduleVersion and sets yellow status', async function() {
+    var realPaletteVersion = require('./nodes/gofa-robot').PALETTE_VERSION;
+    var mockRobot = {
+        ip: '10.0.0.5',
+        backgroundPort: 1026,
+        rwsGet: function() { return Promise.resolve('<span class="ctrlstate">motoron</span>'); },
+        parseXhtml: parseXhtml,
+        socketSend: function() { return Promise.resolve('OK:PING'); },
+        getLastPingVersion: function(port) { return '2.3.1'; }
+    };
+    var node = new (loadNodeType('./nodes/gofa-connection-status', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.moduleVersion.expected, realPaletteVersion);
+    assert.strictEqual(msg.payload.moduleVersion.socket.status, 'mismatch');
+    assert.strictEqual(msg.payload.moduleVersion.socket.version, '2.3.1');
+    assert.ok(node.statuses.some(function(s) { return s.fill === 'yellow' && s.text.indexOf('mismatch') >= 0; }));
+});
+
+await checkAsync('gofa-connection-status: status unknown populates moduleVersion when ping has no version', async function() {
+    var mockRobot = {
+        ip: '10.0.0.5',
+        backgroundPort: 1026,
+        rwsGet: function() { return Promise.resolve('<span class="ctrlstate">motoron</span>'); },
+        parseXhtml: parseXhtml,
+        socketSend: function() { return Promise.resolve('OK:PING'); },
+        getLastPingVersion: function(port) { return null; }
+    };
+    var node = new (loadNodeType('./nodes/gofa-connection-status', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.moduleVersion.socket.status, 'unknown');
+    assert.strictEqual(msg.payload.moduleVersion.socket.version, null);
+});
+
+await checkAsync('gofa-connection-status: egmActive reflects robot._egmActive (false when unset)', async function() {
+    var mockRobot = {
+        ip: '10.0.0.5',
+        backgroundPort: 1026,
+        rwsGet: function() { return Promise.resolve('<span class="ctrlstate">motoron</span>'); },
+        parseXhtml: parseXhtml,
+        socketSend: function() { return Promise.resolve('OK:PING'); },
+        getLastPingVersion: function() { return null; }
+        // no _egmActive field at all — matches a robot that's never run gofa-egm
+    };
+    var node = new (loadNodeType('./nodes/gofa-connection-status', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.egmActive, false);
+});
+
+await checkAsync('gofa-connection-status: egmActive true during an active EGM session (rapid running, socket down)', async function() {
+    // Matches the real gofa-egm shape during an active session: RAPID stays 'running'
+    // (the TRAP/EGMStop design never actually stops the task) while T_ROB1's socket is
+    // closed for the session's duration — this must NOT be indistinguishable from a
+    // genuine wedge, or flows/watchdog_flow.json would misdiagnose every EGM session.
+    var mockRobot = {
+        ip: '10.0.0.5',
+        backgroundPort: 1026,
+        _egmActive: true,
+        rwsGet: function(path) {
+            if (path.indexOf('execution') >= 0) return Promise.resolve('<span class="ctrlexecstate">running</span>');
+            return Promise.resolve('<span class="ctrlstate">motoron</span>');
+        },
+        parseXhtml: parseXhtml,
+        socketSend: function(cmd, port) {
+            if (port === 1026) return Promise.resolve('OK:PING'); // background survives EGM too
+            return Promise.reject(new Error('connection refused')); // T_ROB1 socket closed during EGM
+        },
+        getLastPingVersion: function() { return null; }
+    };
+    var node = new (loadNodeType('./nodes/gofa-connection-status', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.egmActive, true);
+    assert.strictEqual(msg.payload.rws.rapid, 'running');
+    assert.strictEqual(msg.payload.socket.ok, false);
+});
+
 await checkAsync('gofa-connection-status: default outputPayload strips the result to a bare signal', async function() {
     var mockRobot = {
         ip: '10.0.0.5',
         rwsGet: function() { return Promise.resolve('<span class="ctrlstate">motoron</span>'); },
         parseXhtml: parseXhtml,
-        socketSend: function() { return Promise.resolve('OK:PING'); }
+        socketSend: function() { return Promise.resolve('OK:PING'); },
+        getLastPingVersion: function() { return null; }
     };
     var node = new (loadNodeType('./nodes/gofa-connection-status', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
     var msg = {};
@@ -3608,6 +3832,68 @@ check('rapid modules: package copies are in sync with the repo-root source of tr
     });
 });
 
+// The "Detect Wedge" function node's logic lives as a JS-source string inside
+// flows/watchdog_flow.json — no other test exercises it. Extracted and run
+// here so a future edit can't silently break the egmActive exclusion (the
+// exact bug this test guards: an active EGM session leaves rws.rapid at
+// 'running' with the socket closed, indistinguishable from a genuine wedge
+// unless egmActive is checked too).
+check('watchdog_flow.json: Detect Wedge function correctly excludes active EGM sessions', function() {
+    var flow = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'flows', 'watchdog_flow.json'), 'utf8'));
+    var node = flow.find(function(n) { return n.name === 'Detect Wedge'; });
+    assert.ok(node, 'Detect Wedge node not found in watchdog_flow.json');
+    var detectWedge = new Function('msg', node.func + '\n');
+
+    function wedgedFor(payload) {
+        var msg = { payload: payload };
+        return detectWedge(msg).wedged;
+    }
+
+    assert.strictEqual(wedgedFor({ rws: { ok: true, rapid: 'running' }, socket: { ok: false }, egmActive: false }), true,
+        'genuine wedge (running, socket down, no EGM) must be detected');
+    assert.strictEqual(wedgedFor({ rws: { ok: true, rapid: 'running' }, socket: { ok: false }, egmActive: true }), false,
+        'active EGM session must NOT be misdiagnosed as a wedge');
+    assert.strictEqual(wedgedFor({ rws: { ok: true, rapid: 'stopped' }, socket: { ok: false }, egmActive: false }), false,
+        'a legitimate stop (teach workflow, manual stop) must NOT be flagged');
+    assert.strictEqual(wedgedFor({ rws: { ok: true, rapid: 'running' }, socket: { ok: true }, egmActive: false }), false,
+        'healthy state must NOT be flagged');
+});
+
+// gofa-asi-led chaining hazard — same class of bug as gofa-rapid-exec's (see
+// its own note in CLAUDE.md), just never noticed for this node until caught
+// live 2026-07-20: its own success payload {ok, r, g, b, blinks, transport}
+// has r/g/b fields, and resolvePayload() treats ANY incoming object with
+// those fields as a color override. Chaining two gofa-asi-led nodes directly
+// (as teach_workflow_flow.json's Point-Saved blink -> Restore-Idle color
+// originally was) makes the second one silently repeat the first node's
+// color instead of its own configured one — confirmed live: a white blink's
+// own output payload, fed straight into a node configured for yellow,
+// re-applies white. Fixed with a change node clearing msg.payload between
+// them, same mitigation pattern as the gofa-rapid-exec case.
+check('gofa-asi-led: chaining hazard — one node\'s own output payload silently overrides the next node\'s configured color', function() {
+    var resolvePayload = require('./nodes/gofa-asi-led').resolvePayload;
+    var blinkNodeOwnOutput = { ok: true, r: 255, g: 255, b: 255, blinks: 2, transport: 'background' };
+    var restoreNodeDefaults = { r: 255, g: 255, b: 0, period: 0 }; // configured for yellow
+    var result = resolvePayload(restoreNodeDefaults, blinkNodeOwnOutput);
+    assert.deepStrictEqual({ r: result.r, g: result.g, b: result.b }, { r: 255, g: 255, b: 255 },
+        'a chained gofa-asi-led node\'s own output payload silently overrides the next node\'s color — this is the exact live-confirmed bug, not the desired behavior; the fix is a change node between them, not different resolvePayload logic');
+});
+
+check('teach_workflow_flow.json: a change node clears msg.payload between the Point-Saved blink LED and the Restore-Idle LED', function() {
+    var flow = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'flows', 'teach_workflow_flow.json'), 'utf8'));
+    var byId = {}; flow.forEach(function(n) { byId[n.id] = n; });
+    var blinkNode = flow.find(function(n) { return n.type === 'gofa-asi-led' && /Point Saved/.test(n.name); });
+    assert.ok(blinkNode, 'Point Saved LED node not found');
+    var nextId = blinkNode.wires[0][0];
+    var next = byId[nextId];
+    assert.strictEqual(next.type, 'change', 'the node right after the Point-Saved blink must be a change node clearing msg.payload (gofa-asi-led chaining hazard) — found "' + (next && next.type) + '" instead');
+    var clearsPayload = next.rules.some(function(r) { return r.p === 'payload' && r.pt === 'msg' && r.to === '{}'; });
+    assert.ok(clearsPayload, 'the change node must actually clear msg.payload to {}');
+    var restoreId = next.wires[0][0];
+    var restoreNode = byId[restoreId];
+    assert.strictEqual(restoreNode.type, 'gofa-asi-led', 'the change node must lead into another gofa-asi-led node');
+});
+
 // gate.js (nodes/lib/gate.js) strips msg.payload down to {_msgid} whenever a
 // node's Output payload checkbox is off — the right default for a user's own
 // flow, but wrong for THESE bundled example/demo flows, whose entire purpose
@@ -3684,7 +3970,8 @@ function makeSetupRobot(opts) {
         modules: opts.modules || [{ name: 'MainModuleEGM', type: 'ProgMod' }],
         pingOk:  opts.pingOk !== false,
         calls:   [],
-        putBody: null
+        putBody: null,
+        moduleVersion: opts.moduleVersion !== undefined ? opts.moduleVersion : require('./nodes/gofa-robot').PALETTE_VERSION
     };
     return {
         ip: '10.0.0.9',
@@ -3713,7 +4000,8 @@ function makeSetupRobot(opts) {
         socketSend: function(cmd) {
             st.calls.push('SOCK ' + cmd);
             return st.pingOk ? Promise.resolve('OK:PING') : Promise.reject(new Error('connection refused'));
-        }
+        },
+        getLastPingVersion: function() { return st.moduleVersion; }
     };
 }
 function makeSetupNode(robot, config) {
@@ -3743,6 +4031,30 @@ await checkAsync('gofa-setup: full happy path runs all 9 steps in order', async 
     assert.ok(robot._st.calls.indexOf('POST /rw/panel/ctrl-state') >= 0);
     assert.ok(robot._st.calls.indexOf('POST /rw/rapid/execution/start') >= 0);
     assert.strictEqual(robot._st.calls[robot._st.calls.length - 1], 'SOCK PING');
+});
+
+await checkAsync('gofa-setup: matching module version reports OK (module vX.Y.Z)', async function() {
+    var robot = makeSetupRobot({ exec: 'running' });
+    var node = makeSetupNode(robot);
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    var last = msg.payload.steps[msg.payload.steps.length - 1];
+    assert.strictEqual(last.name, 'socket PING');
+    assert.ok(last.detail.indexOf('OK (') === 0);
+    assert.ok(last.detail.indexOf('WARNING') === -1);
+});
+
+await checkAsync('gofa-setup: mismatched module version reports warning but remains ok:true', async function() {
+    var robot = makeSetupRobot({ exec: 'running', moduleVersion: '9.9.9' });
+    var node = makeSetupNode(robot);
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    var last = msg.payload.steps[msg.payload.steps.length - 1];
+    assert.strictEqual(last.name, 'socket PING');
+    assert.ok(last.detail.indexOf('WARNING') >= 0);
+    assert.ok(last.detail.indexOf('9.9.9') >= 0);
 });
 
 await checkAsync('gofa-setup: not in Auto mode fails at preflight with no side effects', async function() {

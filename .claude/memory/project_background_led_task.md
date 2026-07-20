@@ -99,3 +99,65 @@ Found and fixed a real gap while committing: `.gitignore` only whitelisted the t
 Full technical detail, the RobotStudio one-time setup steps, and the live-test evidence are in
 `CLAUDE.md`'s "Background LED task" section and the `omnicore-c30` skill's task-inventory table
 — both committed to the repo, not just this memory.
+
+**Follow-up, 2026-07-20 — a new chaining-hazard class found via real user report, not code
+review.** User reported the "Point Saved" white blink finishing and the LED staying stuck (first
+"off", then after a fix attempt, "stuck white") until physically moving the arm. Initial
+hypothesis (ABB's safety-controller white-transition override, per the confirmed-real behavior
+above) was WRONG — live-tested by polling `Asi1LedRed/Green/Blue` directly through the whole
+sequence, with T_ROB1 genuinely stopped (matching the real teach-mode precondition): a plain,
+unchained color write (magenta) held rock-steady for 3+ seconds with zero interference, ruling
+out any hardware/firmware fighting. The real cause: **`gofa-asi-led` has the exact same
+chaining hazard already documented for `gofa-rapid-exec`** (see that section in CLAUDE.md) — its
+own success payload `{ok, r, g, b, blinks, transport}` has `r`/`g`/`b` fields, which
+`resolvePayload()` treats as a color override on the next node. The flow had "Point Saved"
+(white blink) wired straight into "Restore Teach Idle" (configured yellow) — the second node
+silently re-applied the first node's white instead of its own yellow. Confirmed via a bare
+`resolvePayload()` call reproducing it outside any RAPID/hardware involvement at all, then
+confirmed the fix (a `change` node clearing `msg.payload` to `{}` between them) live, holding
+steady for 2+ seconds. Also fixed a separate, unrelated pre-existing bug found while in there:
+"LED: Teach Mode OFF (reset to green)" was actually configured `red:0,grn:0,blu:0` (black/off),
+not green — its name never matched its config. 2 new regression tests (a code-level
+`resolvePayload` reproduction + a structural check that a `change` node sits between the two
+`gofa-asi-led` nodes in the flow). New CLAUDE.md note added generalizing the lesson: any node
+whose success payload reuses field names its own type also accepts as an override is
+chaining-unsafe when two instances are wired back-to-back — check this proactively for any node
+type, not just after it bites.
+
+**Lesson**: when a live report doesn't match the most obvious documented explanation (safety-
+controller override), verify against raw signal polling before trusting the pattern-match — the
+actual bug here was pure JS logic, confirmable with zero robot involvement, but the initial
+hypothesis (plausible, historically well-documented) would have led to no code fix at all.
+
+**Follow-up #2, same session — the SAME lesson applied a second time, and this time the
+documented explanation WAS mostly wrong.** User asked why enabling lead-through (Button 1) shows
+white for 2-4s before yellow, and whether it's skippable. The existing CLAUDE.md text ("white
+~3s, safety controller negotiating") was itself the obvious, plausible, ALREADY-DOCUMENTED
+explanation — exactly the kind of thing that led me astray on the button-2 bug. Verified live
+instead of repeating it: instrumented `gofa-leadthrough.js`'s `enable` action step-by-step
+against the real robot. Result: **5003 of 6324ms was a doomed socket `{cmd:'stop'}` call timing
+out** (T_ROB1's socket server is down because RAPID was already stopped by the preceding flow
+step — this call only matters when RAPID is genuinely running), and only ~1300ms was real RWS
+negotiation. Also re-confirmed a completely unchained color write held steady for 3+ seconds
+with zero interference, ruling out any `T_GOFA_LED` fighting at this stage too — the earlier
+"corrupted" polling result from investigation #1 was an artifact of concurrent RWS GETs racing
+on the shared session, not real robot behavior (confirmed by re-running the same test with a
+clean, non-concurrent, sequential read pattern — single isolated write+read round-tripped
+exactly, no corruption). **Fixed**: `clearQueuedMovesIfRunning(robot)` — checks
+`/rw/rapid/execution` first (fast RWS GET), skips the socket-stop when already `'stopped'`. Live
+result: `enable` now resolves in **44ms** (was 6324ms) in the normal stop-then-enable sequence.
+3 new regression tests (skip-when-stopped, still-attempts-when-running, fallback-on-check-
+failure) — 288 tests total. **Takeaway for next time**: this project's own CLAUDE.md notes are
+themselves a source of plausible-but-unverified explanations now, not just external assumptions
+— re-verify live before trusting them when a user reports something that doesn't quite match,
+even when the doc is detailed and was itself originally "confirmed live."
+
+**Follow-up #3, same session — idle/flash colors changed from cyan/white to yellow, by
+request.** `teach_workflow_flow.json`'s "LED: Teach Mode ON" and "LED: Restore Teach Idle" now
+set solid yellow (255,255,0) instead of cyan; "LED: Point Saved" now flashes yellow twice
+instead of white. Deliberate: since yellow-while-moving always wins anyway, using yellow as the
+idle/flash color too means the LED no longer visibly changes color between "idle," "point
+saved," and "moving" states during a teach session. "LED: Teach Mode OFF" still resets to green.
+Also changed the same day: `gofa-save-point`'s "Save Taught Point" node in this flow now
+defaults to on-robot storage (`storage: "remote"`) instead of the local `points.json` on the
+Node-RED host.

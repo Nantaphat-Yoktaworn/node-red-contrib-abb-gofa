@@ -1,0 +1,407 @@
+[
+    {
+        "id": "f1d2a3c4b5e60000",
+        "type": "tab",
+        "label": "Watchdog",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "cfg1",
+        "type": "gofa-robot",
+        "name": "ABB-GoFa-12",
+        "ip": "192.168.20.33",
+        "rwsPort": "443",
+        "socketPort": "1025",
+        "username": "Default User",
+        "pointsFile": "points.json",
+        "remotePointsPath": ""
+    },
+    {
+        "id": "f1d2a3c4b5e60001",
+        "type": "inject",
+        "z": "f1d2a3c4b5e60000",
+        "name": "Watchdog Timer (30s)",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "30",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 150,
+        "y": 100,
+        "wires": [
+            [
+                "f1d2a3c4b5e60002"
+            ]
+        ]
+    },
+    {
+        "id": "f1d2a3c4b5e60002",
+        "type": "function",
+        "z": "f1d2a3c4b5e60000",
+        "name": "Skip if recovery in progress",
+        "func": "if (flow.get('watchdogRecovering')) {\n    return null;\n}\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 380,
+        "y": 100,
+        "wires": [
+            [
+                "f1d2a3c4b5e60003"
+            ]
+        ]
+    },
+    {
+        "id": "f1d2a3c4b5e60003",
+        "type": "gofa-connection-status",
+        "z": "f1d2a3c4b5e60000",
+        "name": "Poll Status",
+        "robot": "cfg1",
+        "x": 620,
+        "y": 100,
+        "wires": [
+            [
+                "f1d2a3c4b5e60004"
+            ]
+        ],
+        "outputPayload": true
+    },
+    {
+        "id": "f1d2a3c4b5e60004",
+        "type": "function",
+        "z": "f1d2a3c4b5e60000",
+        "name": "Detect Wedge",
+        "func": "var p = msg.payload;\n// An active EGM session (gofa-egm) also leaves rws.rapid at 'running' while\n// closing the socket for the session's duration - that's expected, not a\n// wedge, so it must be excluded or every EGM session gets misdiagnosed.\nvar wedged = p && p.rws && p.rws.ok && p.rws.rapid === 'running' && p.socket && p.socket.ok === false && !p.egmActive;\nmsg.wedged = !!wedged;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 850,
+        "y": 100,
+        "wires": [
+            [
+                "f1d2a3c4b5e60005"
+            ]
+        ]
+    },
+    {
+        "id": "f1d2a3c4b5e60005",
+        "type": "switch",
+        "z": "f1d2a3c4b5e60000",
+        "name": "Wedged?",
+        "property": "wedged",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "true",
+                "vt": "bool"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 1,
+        "x": 1070,
+        "y": 100,
+        "wires": [
+            [
+                "f1d2a3c4b5e60006"
+            ]
+        ]
+    },
+    {
+        "id": "f1d2a3c4b5e60006",
+        "type": "function",
+        "z": "f1d2a3c4b5e60000",
+        "name": "Set recovering flag",
+        "func": "flow.set('watchdogRecovering', true);\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1300,
+        "y": 100,
+        "wires": [
+            [
+                "f1d2a3c4b5e60007"
+            ]
+        ]
+    },
+    {
+        "id": "f1d2a3c4b5e60007",
+        "type": "gofa-elog",
+        "z": "f1d2a3c4b5e60000",
+        "name": "Capture Evidence: Elog",
+        "robot": "cfg1",
+        "domain": 0,
+        "minSeverity": 1,
+        "x": 1540,
+        "y": 100,
+        "wires": [
+            [
+                "f1d2a3c4b5e60009"
+            ]
+        ],
+        "outputPayload": true
+    },
+    {
+        "id": "f1d2a3c4b5e60009",
+        "type": "function",
+        "z": "f1d2a3c4b5e60000",
+        "name": "Stash Elog",
+        "func": "flow.set('watchdogEvidence.elog', msg.payload);\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1770,
+        "y": 100,
+        "wires": [
+            [
+                "f1d2a3c4b5e60008"
+            ]
+        ]
+    },
+    {
+        "id": "f1d2a3c4b5e60008",
+        "type": "gofa-rapid-tasks",
+        "z": "f1d2a3c4b5e60000",
+        "name": "Capture Evidence: RAPID Tasks",
+        "robot": "cfg1",
+        "task": "T_ROB1",
+        "x": 2010,
+        "y": 100,
+        "wires": [
+            [
+                "f1d2a3c4b5e6000a"
+            ]
+        ],
+        "outputPayload": true
+    },
+    {
+        "id": "f1d2a3c4b5e6000a",
+        "type": "function",
+        "z": "f1d2a3c4b5e60000",
+        "name": "Stash RAPID Tasks",
+        "func": "flow.set('watchdogEvidence.rapidTasks', msg.payload);\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 2250,
+        "y": 100,
+        "wires": [
+            [
+                "f1d2a3c4b5e6000b"
+            ]
+        ]
+    },
+    {
+        "id": "f1d2a3c4b5e6000b",
+        "type": "gofa-rapid-exec",
+        "z": "f1d2a3c4b5e60000",
+        "name": "Stop RAPID",
+        "robot": "cfg1",
+        "action": "stop",
+        "x": 2480,
+        "y": 100,
+        "wires": [
+            [
+                "f1d2a3c4b5e6000c"
+            ]
+        ],
+        "outputPayload": true
+    },
+    {
+        "id": "f1d2a3c4b5e6000c",
+        "type": "change",
+        "z": "f1d2a3c4b5e60000",
+        "name": "Clear Payload",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "{}",
+                "tot": "jsonata"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 2680,
+        "y": 100,
+        "wires": [
+            [
+                "f1d2a3c4b5e6000d"
+            ]
+        ]
+    },
+    {
+        "id": "f1d2a3c4b5e6000d",
+        "type": "gofa-rapid-exec",
+        "z": "f1d2a3c4b5e60000",
+        "name": "Reset Program Pointer",
+        "robot": "cfg1",
+        "action": "resetpp",
+        "x": 2880,
+        "y": 100,
+        "wires": [
+            [
+                "f1d2a3c4b5e6000e"
+            ]
+        ],
+        "outputPayload": true
+    },
+    {
+        "id": "f1d2a3c4b5e6000e",
+        "type": "change",
+        "z": "f1d2a3c4b5e60000",
+        "name": "Clear Payload",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "{}",
+                "tot": "jsonata"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 3080,
+        "y": 100,
+        "wires": [
+            [
+                "f1d2a3c4b5e6000f"
+            ]
+        ]
+    },
+    {
+        "id": "f1d2a3c4b5e6000f",
+        "type": "gofa-rapid-exec",
+        "z": "f1d2a3c4b5e60000",
+        "name": "Start RAPID",
+        "robot": "cfg1",
+        "action": "start",
+        "x": 3280,
+        "y": 100,
+        "wires": [
+            [
+                "f1d2a3c4b5e60010"
+            ]
+        ],
+        "outputPayload": true
+    },
+    {
+        "id": "f1d2a3c4b5e60010",
+        "type": "change",
+        "z": "f1d2a3c4b5e60000",
+        "name": "Clear Payload",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "{}",
+                "tot": "jsonata"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 3480,
+        "y": 100,
+        "wires": [
+            [
+                "f1d2a3c4b5e60011"
+            ]
+        ]
+    },
+    {
+        "id": "f1d2a3c4b5e60011",
+        "type": "gofa-connection-status",
+        "z": "f1d2a3c4b5e60000",
+        "name": "Re-check Status",
+        "robot": "cfg1",
+        "x": 3680,
+        "y": 100,
+        "wires": [
+            [
+                "f1d2a3c4b5e60012"
+            ]
+        ],
+        "outputPayload": true
+    },
+    {
+        "id": "f1d2a3c4b5e60012",
+        "type": "function",
+        "z": "f1d2a3c4b5e60000",
+        "name": "Clear flag + notify",
+        "func": "flow.set('watchdogRecovering', false);\nvar evidence = flow.get('watchdogEvidence') || {};\nmsg.payload = {\n    recoveredAt: Date.now(),\n    recoverySucceeded: !!(msg.payload && msg.payload.ok),\n    finalStatus: msg.payload,\n    evidence: evidence\n};\nflow.set('watchdogEvidence', {});\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 3900,
+        "y": 100,
+        "wires": [
+            [
+                "f1d2a3c4b5e60013"
+            ]
+        ]
+    },
+    {
+        "id": "f1d2a3c4b5e60013",
+        "type": "debug",
+        "z": "f1d2a3c4b5e60000",
+        "name": "Watchdog Recovery Result",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 4140,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "f1d2a3c4b5e60014",
+        "type": "comment",
+        "z": "f1d2a3c4b5e60000",
+        "name": "A real deployment might wire \"Watchdog Recovery Result\" into email/Slack/etc. instead of (or in addition to) the debug sidebar.",
+        "info": "",
+        "x": 4140,
+        "y": 160,
+        "wires": []
+    }
+]

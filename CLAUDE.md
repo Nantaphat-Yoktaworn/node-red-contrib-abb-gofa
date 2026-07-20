@@ -96,6 +96,8 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 
 **`gofa-rapid-exec` chaining hazard — clear `msg.payload` between two chained instances.** `gofa-rapid-exec` supports overriding its configured `action` via `msg.payload.action` (or a bare `msg.payload` string) — a deliberate, useful feature. But its own success output is `{ok:true, action:<the action it ran>}`, which has exactly that shape. Wiring one `gofa-rapid-exec` node's output straight into another (even through a passthrough `switch` gate, which doesn't alter the message) makes the second node see the first node's `action` as an override and silently repeat it instead of running its own configured action. Caught live in `flows/teach_workflow_flow.json`: `Reset Program Pointer` (action `resetpp`) wired into `Restart RAPID` (action `start`) via a `switch` gate — `Restart RAPID`'s own debug output showed `{ok:true, action:"resetpp"}`, and RAPID never actually restarted (confirmed via `gofa-status`: `rapid` stayed `stopped`). Fixed by inserting a `change` node that resets `msg.payload` to `{}` between them. This only bites when two `gofa-rapid-exec` nodes are chained with nothing in between that replaces `payload` — a `gofa-status` node in between is safe, since it always overwrites `payload` regardless of what it received.
 
+**`gofa-asi-led` has the same chaining hazard, discovered live 2026-07-20 — a different trigger than `gofa-rapid-exec`'s, easy to miss because it was never noticed until it actually bit a real flow.** Its own success output is `{ok, r, g, b, blinks, transport}`, and `resolvePayload()` treats *any* incoming object with `r`/`g`/`b` fields as a color override (the same deliberate mechanism that lets `msg.payload = {r,g,b}` set an ad-hoc color from upstream logic). Wiring one `gofa-asi-led` node's output straight into another silently makes the second one repeat the first node's color instead of its own configured one. Caught live in `flows/teach_workflow_flow.json`: the "Point Saved" white double-flash was wired straight into a "Restore Teach Idle" node configured for yellow — confirmed via direct RWS polling of `Asi1LedRed/Green/Blue` that the LED stayed white indefinitely (not a hardware/safety-controller override, not a timing issue — a bare `resolvePayload()` call with the blink node's own `{r:255,g:255,b:255,...}` output against yellow-configured defaults reproduces it exactly, and was confirmed live down to the raw signal values, both with and without the fix). Fixed the same way: a `change` node clearing `msg.payload` to `{}` between the two `gofa-asi-led` nodes. General rule for this palette: **any node whose success payload happens to reuse field names that node's own type also accepts as an override is chaining-unsafe** — check before wiring two instances of the same node type back-to-back.
+
 ## EGM (Externally Guided Motion) — optional second RAPID module
 
 **Two RAPID modules, one loaded at a time.** `rapid/MainModule.mod` (the default, everything
@@ -576,16 +578,51 @@ whatever `gofa-asi-led` sets, and this is correct, desirable behavior — not so
   `Asi1LedRed/Green/Blue` GO signal values held steady and unchanged throughout — the override
   happens at the physical-hardware level, not by rewriting the signals, so a `setled`/`SetGO`
   call always "succeeds" per its ack even while yellow is showing).
-- Our own custom color (cyan, white-flash, green) — only visible during genuinely idle,
+- Our own custom color (yellow, yellow-flash, green — see the color-choice note below) — only visible during genuinely idle,
   stationary moments, once the above two are not asserting.
 
-**Practical takeaway for the teach workflow's LED design**: don't design around forcing cyan to
-be continuously visible throughout an active lead-through session — it won't be, and shouldn't
-be, since yellow-while-moving is a real safety signal that must take priority. Treat cyan as an
-"idle within the teach session" indicator only. The white double-flash for "point saved"
-(Button 2) works reliably because a point save naturally happens while the arm is stationary
-(the user pauses hand-guiding to press the button) — confirmed live, twice, no interference from
-the white/yellow override states above.
+**Correction, 2026-07-20 — most of that "white ~3 seconds" delay was never the safety
+controller's negotiation at all; it was a real, fixable bug in `gofa-leadthrough.js` wasting a
+full 5-second socket timeout on every `enable` call.** `enable`'s first step sends a socket
+`{cmd:'stop'}` to clear queued `\Conc` moves before activating lead-through — necessary if RAPID
+is genuinely running, but this palette's own teach flow (and presumably most real usage) always
+stops RAPID *first*, so by the time `enable` runs, T_ROB1's socket server is already down (it's
+part of RAPID's own `main()` loop) and that call is guaranteed to fail, just not until the full
+`sock.setTimeout(5000)` in `gofa-robot.js` elapses. Instrumented live: **6324ms** total for
+`enable` to resolve, of which **5003ms** was purely this doomed socket call timing out, and only
+~1300ms was the genuine RWS `POST` + `waitForLeadThroughState` poll. Confirmed this wasn't a
+polling artifact either — a completely unchained, isolated color write held perfectly steady for
+3+ seconds with zero interference from any other task, ruling out `T_GOFA_LED`/`GOFA_Main`
+fighting for control at this stage. **Fixed**: a new `clearQueuedMovesIfRunning(robot)` helper
+(shared by the runtime node and the `/toggle` admin endpoint) checks `/rw/rapid/execution`'s
+`ctrlexecstate` first (a single fast RWS `GET`, ~10ms) and skips the socket-stop attempt
+entirely when it's already `'stopped'` — nothing queued to clear. If the execstate check itself
+fails, it falls back to attempting the clear (the pre-optimization behavior), so the safety
+property this step exists for is unchanged for the case it actually protects (RAPID genuinely
+running). Confirmed live end-to-end: `enable` against the real robot with RAPID stopped now
+resolves in **44ms**, down from 6324ms. This means the *remaining* white period during a real
+lead-through activation (RAPID running → enable, the one case this fix doesn't shortcut) is
+still expected and is the actual safety-controller negotiation described above — just no longer
+compounded by ~5 seconds of unrelated wasted timeout in the normal stop-then-enable sequence.
+
+**Practical takeaway for the teach workflow's LED design**: don't design around forcing a custom
+idle color to be continuously visible throughout an active lead-through session — it won't be,
+and shouldn't be, since yellow-while-moving is a real safety signal that must take priority.
+Treat whatever color the flow sets as an "idle within the teach session" indicator only. The
+"point saved" flash (Button 2) works reliably because a point save naturally happens while the
+arm is stationary (the user pauses hand-guiding to press the button) — confirmed live, twice, no
+interference from the white/yellow override states above.
+
+**Idle color changed from cyan to yellow, 2026-07-20, by request — and the point-saved flash
+changed from white to yellow the same day, also by request.** `teach_workflow_flow.json`'s "LED:
+Teach Mode ON" and "LED: Restore Teach Idle" (after a point save) both now set solid yellow
+(255,255,0) instead of cyan, and "LED: Point Saved" now flashes yellow (255,255,0) twice instead
+of white — the same color the safety controller's own motion override uses. This is a deliberate
+choice: since yellow-while-moving always wins anyway, using yellow as the idle/flash color too
+means the LED no longer visibly changes color between "idle," "point saved," and "moving" states
+during a teach session — one consistent color throughout instead of a cyan/white/yellow mix.
+"LED: Teach Mode OFF" still resets to green (0,255,0), matching the normal RAPID-running state
+elsewhere in this palette.
 
 **Node-RED side**: `gofa-robot`'s `socketSend(cmd, port)` now takes an optional port override
 (previously always used the configured `socketPort`) — confirmed live end-to-end today with a
@@ -595,6 +632,107 @@ instead of the default port. `teach_workflow_flow.json`'s three LED nodes (Teach
 Point Saved) are wired to `transport: 'background'` and now confirmed working for real.
 `gofa-do-write` gained the same `'background'` transport option later (2026-07-17) — see the
 "Generalized to a background-services task" note above.
+
+## Module version handshake + watchdog flow (added 2026-07-20)
+
+**Problem this solves**: the palette (npm package) and whichever `.mod` file is actually loaded
+on the controller are two halves of one protocol that can silently drift — the npm package gets
+updated but nobody re-runs `gofa-setup`/re-uploads the module, and some new feature then fails
+with a confusing, unrelated-looking error instead of "you're running a stale module." This was
+item #1 on `ideas/improvement-roadmap.md`. Separately, item #2 on that list (a self-healing
+watchdog for the still-unexplained socket-wedge bug — `project_socket_server_stuck_2026-07-15`
+memory) needed the connectivity-diagnostic groundwork `gofa-connection-status`'s `background`
+field already provided (2026-07-17) but never got the actual recovery *flow* built. Both shipped
+together this session since the watchdog's "did recovery work" check is the same connection
+check the version handshake extends.
+
+**Version handshake mechanism**: `MainModule.mod`, `MainModuleEGM.mod`, and `BackgroundLed.mod`
+each declare their own `CONST string MODULE_VERSION` (kept in lockstep with this package's
+`package.json` "version" — bump both together on any socket-protocol change) and now include it
+in their `ping` JSON reply: `{"status":"ok","cmd":"ping","version":"2.4.0"}`. On the Node.js
+side, `createRobotClient()`'s `socketSend()` records the reported version per-port as a side
+effect of every successful ping (`getLastPingVersion(port)` on both the raw client and
+`GoFaRobotNode`; omit `port` for the main T_ROB1 socket, pass `robot.backgroundPort` for
+`BackgroundLed.mod`'s independent version) — `null` if no ping has succeeded yet on that port, or
+if the module that replied predates this feature (no `version` field at all, not an error).
+`require('./gofa-robot').PALETTE_VERSION` is the single source of truth for the "expected"
+version, read live from `package.json` rather than duplicated as a second constant.
+
+`gofa-connection-status` surfaces this as `msg.payload.moduleVersion.{socket,background}` —
+each `{version, status}` where `status` is `'match'` / `'mismatch'` / `'unknown'` (ping failed,
+or module too old to report a version) — plus `.expected`. A `mismatch` on an otherwise-healthy
+result sets yellow status (`'ok, module vX mismatch (expected vY)'`) instead of green, without
+affecting `payload.ok` itself. `gofa-setup`'s final `socket PING` step folds the same comparison
+into that step's `detail` string (`'OK (module vX.Y.Z)'`, or a `WARNING` detail naming both
+versions and pointing at the `rapid/` sync rule elsewhere in this doc, or an "unknown" detail for
+a pre-handshake module) — informational only, never fails the step, since setup genuinely did
+succeed either way.
+
+**Confirmed live end-to-end (2026-07-20)**, driving the real node files (not curl, not a
+reimplementation) via the same fake-RED harness pattern `test.js` uses, pointed at the real robot
+instead of a mock: ran `gofa-connection-status` against the robot with `T_ROB1` legitimately
+stopped (pre-upgrade `BackgroundLed.mod` still on disk) → `moduleVersion.socket.status` and
+`.background.status` both correctly `'unknown'` (socket ping failed for the former; background
+ping succeeded but the old module reports no version, for the latter — two different reasons for
+the same status, both correct). Then ran `gofa-setup` for real: uploaded the new
+`MainModule.mod`, loaded it, motors on, started — final step reported `"OK (module v2.4.0)"`,
+confirming the match case against a freshly-uploaded module. Re-ran `gofa-connection-status`
+afterward: `socket.status` now `'match'` (v2.4.0), `background.status` still `'unknown'`
+(`BackgroundLed.mod` itself hasn't been reloaded — that needs the manual FlexPendant procedure
+documented in the "Background LED task" section above, not automatable). `BackgroundLed.mod`'s
+own `MODULE_VERSION` addition is code-complete but **not yet live-verified** — re-verify once
+that task is next reloaded via the FlexPendant procedure.
+
+**Watchdog flow (`flows/watchdog_flow.json`)**: a 30-second `inject` timer → a reentrancy-guard
+`function` node (`flow.get('watchdogRecovering')`, returns `null` to skip a tick already mid-
+recovery) → `gofa-connection-status` → a `function` node computing the actual wedge signature —
+**`rws.ok && rws.rapid === 'running' && socket.ok === false && !egmActive`** — RAPID *claiming*
+to run while its own socket server isn't answering is the specific contradiction that means
+"genuinely wedged," as opposed to a legitimate stop (teach workflow, a user-initiated stop),
+where `rws.rapid` is `'stopped'` and the socket being down is expected, not a bug. A `switch`
+node gates on that boolean; only a real wedge proceeds. On a wedge: capture evidence
+(`gofa-elog` then `gofa-rapid-tasks`, run **sequentially** — an earlier draft fanned these out in
+parallel into a shared next node, which double-fires everything downstream since two independent
+messages would each traverse the whole recovery chain; caught before landing, not a live
+incident) → recovery chain `gofa-rapid-exec` `stop` → `change` (clear `msg.payload` to `{}`) →
+`resetpp` → `change` → `start` → `change` → `gofa-connection-status` (the actual "did it work"
+check) → a final `function` node bundling the evidence + outcome into one payload and clearing
+the reentrancy flag → `debug` node (a real notification integration — email/Slack/etc. — is left
+as an obvious downstream extension point via a `comment` node, not built).
+
+**Live-tested**: the wedge-detector correctly returns `false` against the real robot with RAPID
+legitimately stopped (not a false positive) and again once healthy (`running`/`motoron`/`match`).
+The recovery chain's individual mechanics — `stop` → (cleared payload) → `resetpp` → (cleared
+payload) → `start` → recheck — were driven live via the real `gofa-rapid-exec`/
+`gofa-connection-status` node files in the exact sequence the flow uses, confirming zero
+chaining-hazard warnings (proving the `change` nodes' payload-clearing does what it's meant to)
+and a clean `running`/`motoron` end state. **Not live-tested**: the flow's actual wedge
+*trigger* path end-to-end (switch → evidence capture → recovery), since deliberately reproducing
+the real wedge bug on live hardware risks the same unresolved failure mode this feature exists to
+recover from — the decision logic and the recovery mechanics were each verified live
+independently instead. If "Too many EGM instances"-style caution is ever warranted here too:
+watch the first few real wedge events this flow handles for any surprising interaction, same as
+any first real usage of automated recovery logic.
+
+**`egmActive` exclusion — a real bug caught the day after shipping, not theoretical.** An
+active `gofa-egm` session leaves `rws.rapid` at `'running'` for the session's whole duration (the
+TRAP/`EGMStop` design in the EGM section above deliberately never stops the task) while closing
+T_ROB1's socket — the exact same `{running, socket down}` shape as a genuine wedge. The original
+version of this doc (and the flow) wrongly listed EGM sessions alongside teach-workflow as "a
+legitimate stop" — they're not: `rws.rapid` stays `'running'`, not `'stopped'`, during EGM,
+unlike a real stop. Without an exclusion, any EGM session running longer than one 30s poll
+interval would be misdiagnosed as wedged and forcibly stop/resetpp/start RAPID mid-session —
+exactly the kind of external interruption the EGM section's own TRAP design and
+resetpp-before-next-start rule exist to warn about. Fixed by adding `egmActive: !!r._egmActive`
+to `gofa-connection-status`'s payload (cheap — it's already-tracked in-memory state on the
+`gofa-robot` config node, no new RWS/socket calls) and `&& !egmActive` to the wedge condition.
+Unit-tested against the exact documented EGM shape (`rapid: 'running'`, `socket.ok: false`,
+`egmActive: true` → not wedged); `egmActive: false` confirmed live against the real robot in its
+normal (non-EGM) state — the `true` case wasn't forced live (would need `MainModuleEGM.mod`
+loaded plus a real EGM session, out of scope for this fix). Teach workflow was re-checked at the
+same time and is genuinely fine as documented: it does stop RAPID before lead-through, so
+`rws.rapid` really does go to `'stopped'`, which never matches the wedge condition regardless of
+`egmActive`.
 
 ## Interactive properties panels (2.2.0+, undocumented until 2026-07-16)
 
@@ -632,9 +770,9 @@ code path from the runtime `node.on('input', ...)` handler:
 | Node | Transport | Description |
 |------|-----------|-------------|
 | `gofa-robot` | config | Shared config: IP, RWS port 443, socket port 1025, creds, local points file, remote (on-robot) points path. Config dialog has a **Discover** button (admin endpoint `/gofa-robot/discover` → `discover()` LAN scan, verifies ABB via WWW-Authenticate realm) |
-| `gofa-setup` | RWS + Socket | One-click first-run init: preflight (must be Auto mode — RWS can't change opmode) → stop RAPID → unload conflicting MainModule/MainModuleEGM sibling → upload bundled `.mod` (SERVER_IP auto-synced) → loadmod → resetpp → motors on → start (verified by polling, HTTP 200 lies) → socket PING. Per-step `{name, ok, detail}` report; `outputPayload` defaults **true** (the report is the point). Module files read from the package's own `rapid/` dir (synced by prepack.js) |
+| `gofa-setup` | RWS + Socket | One-click first-run init: preflight (must be Auto mode — RWS can't change opmode) → stop RAPID → unload conflicting MainModule/MainModuleEGM sibling → upload bundled `.mod` (SERVER_IP auto-synced) → loadmod → resetpp → motors on → start (verified by polling, HTTP 200 lies) → socket PING (also compares the module's reported version against the palette's, warning in that step's `detail` on drift — see the "Module version handshake" note below). Per-step `{name, ok, detail}` report; `outputPayload` defaults **true** (the report is the point). Module files read from the package's own `rapid/` dir (synced by prepack.js) |
 | `gofa-status` | RWS | Reads ctrlstate, opmode, speedratio, RAPID execstate |
-| `gofa-connection-status` | RWS + Socket + Background | Checks RWS (4 calls), the T_ROB1 TCP socket ping, and the `BackgroundLed.mod` background-task ping independently — each failure is caught and reported per-layer instead of the whole node throwing on the first one down. `msg.payload.background` distinguishes "T_ROB1 specifically stopped" from "whole controller unreachable". Unlike `gofa-status`, a degraded/unreachable result is still a successful run (no Node-RED error raised), so it's safe to poll on a timer. |
+| `gofa-connection-status` | RWS + Socket + Background | Checks RWS (4 calls), the T_ROB1 TCP socket ping, and the `BackgroundLed.mod` background-task ping independently — each failure is caught and reported per-layer instead of the whole node throwing on the first one down. `msg.payload.background` distinguishes "T_ROB1 specifically stopped" from "whole controller unreachable". `msg.payload.moduleVersion` reports each ping's module version vs. the palette's own (`match`/`mismatch`/`unknown` — see the "Module version handshake" note below); a mismatch (but otherwise-healthy) result sets yellow status instead of green. `msg.payload.egmActive` mirrors `robot._egmActive` — needed so a consumer polling this node (like `flows/watchdog_flow.json`) doesn't mistake an active EGM session's `{rapid:'running', socket down}` shape for a genuine wedge. Unlike `gofa-status`, a degraded/unreachable result is still a successful run (no Node-RED error raised), so it's safe to poll on a timer — this is what `flows/watchdog_flow.json` polls. |
 | `gofa-pose` | RWS | Current TCP pose (x,y,z + quaternion + config flags) |
 | `gofa-joints` | RWS | All 6 joint angles in degrees |
 | `gofa-system-info` | RWS | RobotWare version, controller name/ID/type/MAC |
@@ -665,7 +803,7 @@ code path from the runtime `node.on('input', ...)` handler:
 | `gofa-io-list` | RWS | List all I/O signals |
 | `gofa-di-read` | RWS | Read digital input |
 | `gofa-do-write` | RWS, Socket, or Background task | Write digital output; Transport dropdown — RWS `/set-value` (needs `Access: All`), Socket `SETDO` (needs RAPID/T_ROB1 running, no Access Level restriction), or Background task (same `SETDO` allow-list via `BackgroundLed.mod`, works while T_ROB1 is stopped) |
-| `gofa-leadthrough` | Socket + RWS | Hand-guiding: action `enable` (sends socket STOP first to clear queued moves, tolerates socket-down) / `disable` (RWS only) |
+| `gofa-leadthrough` | Socket + RWS | Hand-guiding: action `enable` (checks RAPID execution state first — sends socket STOP to clear queued moves only if RAPID is genuinely running, tolerates socket-down; skips the socket call entirely when RAPID is already stopped, avoiding a ~5s wasted timeout — see the "Correction, 2026-07-20" note above) / `disable` (RWS only) |
 | `gofa-asi-led` | Socket, RWS, or Background task | Set ASI status light RGB color + counted software blink; Transport dropdown — Socket `SETLED`/`RESETLED` (needs T_ROB1 running), RWS `/set-value` (needs Access Level: All, not available on this controller's ASI board), or Background task (`BackgroundLed.mod` in its own RAPID task, works while T_ROB1 is stopped) |
 | `gofa-subscribe-state` | RWS WS | Push on every controller state change; one-shot mode polls once per inject |
 | `gofa-subscribe-io` | RWS WS | Push on every I/O signal change (real WebSocket push, confirmed live down to a single button tap); falls back to 500 ms polling only if the subscribe request itself fails; one-shot mode available |
@@ -743,6 +881,7 @@ rapid/MainModuleEGM.mod            ← optional: MainModule.mod clone + EGM mode
 rapid/BackgroundLed.mod             ← optional: separate-task LED server, survives T_ROB1 stop, see Background LED task section
 flows/gofa_demo_flow.json          ← one inject per node, for testing
 flows/teach_workflow_flow.json     ← physical ASI-button teach workflow (own tab/config, see README)
+flows/watchdog_flow.json           ← self-healing socket-wedge watchdog, see "Module version handshake + watchdog flow" section
 MANUAL_CONTROL.md                  ← curl/raw-TCP command reference for controlling the robot without Node-RED
 .claude/commands/                  ← skills (/abb-rws, /omnicore-c30, /crb15000, /robot-status, /mastership-test)
 .claude/memory/                    ← portable snapshot of Claude Code's project memory - read MEMORY.md first, see its README

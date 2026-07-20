@@ -56,7 +56,8 @@
             "bcc1ecd178fb721d",
             "99b8690d913153dd",
             "3ef8d5d15a068b65",
-            "5c6e737a1765beee"
+            "5c6e737a1765beee",
+            "d8f3c1a6e29b4750"
         ],
         "x": 24,
         "y": 59,
@@ -91,7 +92,10 @@
             "fc7fa52bcc252753",
             "c459aef903d9a4c8",
             "2ebda9c57277dc20",
-            "22da089234ab4c52"
+            "22da089234ab4c52",
+            "7c2e9b4a1d6f3850",
+            "b1e4f7a2c9d63058",
+            "9f2a7c3e5b8d1046"
         ],
         "x": 14,
         "y": 759,
@@ -764,6 +768,31 @@
         "y": 360,
         "wires": [
             [
+                "d8f3c1a6e29b4750"
+            ]
+        ]
+    },
+    {
+        "id": "d8f3c1a6e29b4750",
+        "type": "delay",
+        "z": "a17a5b075916bef6",
+        "g": "b474c6bb3eb103c2",
+        "name": "Settle Before Subscribe Button1 (2s)",
+        "pauseType": "delay",
+        "timeout": "2",
+        "timeoutUnits": "seconds",
+        "rate": "1",
+        "nbRateUnits": "1",
+        "rateUnits": "second",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": false,
+        "outputs": 1,
+        "x": 300,
+        "y": 360,
+        "wires": [
+            [
                 "0aaad16114a799e0"
             ]
         ]
@@ -847,6 +876,7 @@
         "name": "Save Taught Point",
         "robot": "cfg1",
         "pointName": "",
+        "storage": "remote",
         "x": 2000,
         "y": 860,
         "wires": [
@@ -1013,6 +1043,31 @@
         "y": 900,
         "wires": [
             [
+                "7c2e9b4a1d6f3850"
+            ]
+        ]
+    },
+    {
+        "id": "7c2e9b4a1d6f3850",
+        "type": "delay",
+        "z": "a17a5b075916bef6",
+        "g": "7fa433d560ceee6d",
+        "name": "Settle Before Subscribe Button2 (3s)",
+        "pauseType": "delay",
+        "timeout": "3",
+        "timeoutUnits": "seconds",
+        "rate": "1",
+        "nbRateUnits": "1",
+        "rateUnits": "second",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": false,
+        "outputs": 1,
+        "x": 680,
+        "y": 900,
+        "wires": [
+            [
                 "fc7fa52bcc252753"
             ]
         ]
@@ -1065,12 +1120,12 @@
         "type": "gofa-asi-led",
         "z": "a17a5b075916bef6",
         "g": "b474c6bb3eb103c2",
-        "name": "LED: Teach Mode ON (cyan)",
+        "name": "LED: Teach Mode ON (yellow)",
         "robot": "cfg1",
         "outputPayload": true,
-        "red": 0,
-        "grn": 200,
-        "blu": 200,
+        "red": 255,
+        "grn": 255,
+        "blu": 0,
         "period": 0,
         "blinkCount": 0,
         "blinkMs": 250,
@@ -1110,17 +1165,68 @@
         "type": "gofa-asi-led",
         "z": "a17a5b075916bef6",
         "g": "7fa433d560ceee6d",
-        "name": "LED: Point Saved (white flash x2)",
+        "name": "LED: Point Saved (yellow flash x2)",
         "robot": "cfg1",
         "outputPayload": true,
         "red": 255,
         "grn": 255,
-        "blu": 255,
+        "blu": 0,
         "period": 0,
         "blinkCount": 2,
         "blinkMs": 120,
         "transport": "background",
         "x": 2480,
+        "y": 800,
+        "wires": [
+            [
+                "9f2a7c3e5b8d1046"
+            ]
+        ]
+    },
+    {
+        "id": "9f2a7c3e5b8d1046",
+        "type": "change",
+        "z": "a17a5b075916bef6",
+        "g": "7fa433d560ceee6d",
+        "name": "Clear Payload (gofa-asi-led chaining hazard)",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "{}",
+                "tot": "jsonata"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 2600,
+        "y": 800,
+        "wires": [
+            [
+                "b1e4f7a2c9d63058"
+            ]
+        ]
+    },
+    {
+        "id": "b1e4f7a2c9d63058",
+        "type": "gofa-asi-led",
+        "z": "a17a5b075916bef6",
+        "g": "7fa433d560ceee6d",
+        "name": "LED: Restore Teach Idle (yellow)",
+        "robot": "cfg1",
+        "outputPayload": true,
+        "red": 255,
+        "grn": 255,
+        "blu": 0,
+        "period": 0,
+        "blinkCount": 0,
+        "blinkMs": 250,
+        "transport": "background",
+        "x": 2820,
         "y": 800,
         "wires": [
             []
@@ -1187,7 +1293,7 @@
         "robot": "cfg1",
         "outputPayload": true,
         "red": 0,
-        "grn": 0,
+        "grn": 255,
         "blu": 0,
         "period": 0,
         "blinkCount": 0,

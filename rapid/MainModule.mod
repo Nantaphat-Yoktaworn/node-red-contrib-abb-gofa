@@ -46,6 +46,13 @@ MODULE MainModule
     CONST string SERVER_IP   := "192.168.1.103";
     CONST num    SERVER_PORT  := 1025;
 
+    ! Reported in the "ping" JSON reply so the palette can detect a stale
+    ! module (uploaded via an older npm version than the one now running)
+    ! instead of failing mysteriously later on a command that doesn't exist
+    ! yet. Bump this whenever the socket protocol changes; keep in lockstep
+    ! with node-red-contrib-abb-gofa/package.json's "version".
+    CONST string MODULE_VERSION := "2.4.1";
+
     ! Persisted home pose (survives restart AND module reload). One line of
     ! 11 ;-separated numbers, same layout as a GOTO token, written by SETHOME.
     CONST string HOME_FILE   := "HOME:/Programs/gofa_home.cfg";
@@ -263,7 +270,7 @@ MODULE MainModule
 
         TEST cmd
         CASE "ping":
-            SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""ping""}" + ByteToStr(10\Char));
+            SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""ping"",""version"":""" + MODULE_VERSION + """}" + ByteToStr(10\Char));
         CASE "home":
             SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""home""}" + ByteToStr(10\Char));
             rGoHome;

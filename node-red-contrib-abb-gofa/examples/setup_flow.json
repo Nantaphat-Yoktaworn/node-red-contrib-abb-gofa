@@ -4,7 +4,17 @@
         "type": "tab",
         "label": "ABB-GoFa-12 One-Click Setup",
         "disabled": false,
-        "info": "Open the gofa-robot config node first: enter username/password and click Discover (or type the robot's IP). Deploy, then hit the inject. The setup node uploads the bundled RAPID module, loads it, resets the program pointer, turns motors on, starts RAPID, and confirms the socket server answers — the full per-step report lands in the debug sidebar. Requires the controller to be in Auto mode (FlexPendant)."
+        "info": "See the \"PREREQUISITES\" comment node on the canvas before running this — a RobotStudio-side one-time step (create a Remote Start/Stop user) and the controller being in Auto mode are both required and neither can be automated from here. Once those are done: open the gofa-robot config node, enter username/password and click Discover (or type the robot's IP), Deploy, then hit the inject. The setup node uploads the bundled RAPID module, loads it, resets the program pointer, turns motors on, starts RAPID, and confirms the socket server answers — the full per-step report lands in the debug sidebar."
+    },
+    {
+        "id": "setupnote1",
+        "type": "comment",
+        "z": "setuptab1",
+        "name": "PREREQUISITES — do this before running",
+        "info": "1. RobotStudio (one-time, not automatable): create a user with Remote Start + Remote Stop grants. Controller tab -> Authenticate as admin -> Edit User Accounts -> Role tab -> Add Role -> enable Remote Start + Remote Stop -> User tab -> assign that role to a user (new or existing). The built-in Admin account cannot start/stop RAPID remotely, so gofa-setup will fail without this. Full walkthrough: README.md section 2.\n\n2. Controller must be in Auto mode on the FlexPendant before you run this flow. RWS cannot switch operating modes -- gofa-setup fails fast at its 'preflight' step if it isn't.\n\n3. Config node (below): enter the username/password from step 1, then click Discover (or type the robot's IP directly) and Deploy.\n\n4. Optional: the gofa-setup node's Module field defaults to MainModule -- change it to MainModuleEGM if you want EGM (Externally Guided Motion) support instead.\n\nOnce all four are done, hit the inject.",
+        "x": 190,
+        "y": 40,
+        "wires": []
     },
     {
         "id": "setupcfg1",

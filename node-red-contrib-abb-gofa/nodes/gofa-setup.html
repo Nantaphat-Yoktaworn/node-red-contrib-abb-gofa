@@ -129,7 +129,11 @@
         granted automatically)</li>
         <li><b>motors on</b>, <b>start RAPID</b> (verified — RWS reports 200 even
         for a rejected start)</li>
-        <li><b>socket PING</b> — confirms the RAPID socket server is answering</li>
+        <li><b>socket PING</b> — confirms the RAPID socket server is answering, and compares the
+        module's reported <code>MODULE_VERSION</code> against this palette's own npm version;
+        a mismatch is noted in the step's <code>detail</code> text (e.g. after editing
+        <code>rapid/*.mod</code> without also bumping <code>MODULE_VERSION</code> to match) but
+        does not fail the step — setup genuinely did succeed either way</li>
     </ol>
 
     <h3>Output</h3>
