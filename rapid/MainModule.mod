@@ -25,6 +25,17 @@ MODULE MainModule
     ! paths rewrite it to the robot's IP automatically.
     ! -------------------------------------------------------
 
+    ! ponytail: tGripper is UNUSED as of 2026-07-21 - no tool is physically
+    ! mounted, so every motion instruction below now targets tool0 (RAPID's
+    ! built-in empty-flange tool) instead of this placeholder [0,0,100] TCP
+    ! offset / 1kg mass, which matched nothing real. That placeholder also
+    ! disagreed with gofa-pose/gofa-save-point's RWS reads (already tool0/
+    ! wobj0-relative), so leaving it active would have meant a saved point
+    ! replays ~100mm off from where it was captured, not just a load-data
+    ! safety gap. Upgrade path: once a real gripper is mounted, run
+    ! LoadIdentify (or otherwise measure the real mass/CoG/inertia/TCP
+    ! offset), populate the values below, then switch the tool argument on
+    ! every motion instruction back from tool0 to tGripper.
     PERS tooldata tGripper := [TRUE, [[0,0,0],[1,0,0,0]], [1,[0,0,100],[1,0,0,0],0,0,0]];
     PERS wobjdata wobj1    := [FALSE, TRUE, "", [[0,0,0],[1,0,0,0]], [[0,0,0],[1,0,0,0]]];
     PERS zonedata zActive  := [FALSE, 10, 15, 15, 1.5, 15, 1.5];
@@ -51,7 +62,7 @@ MODULE MainModule
     ! instead of failing mysteriously later on a command that doesn't exist
     ! yet. Bump this whenever the socket protocol changes; keep in lockstep
     ! with node-red-contrib-abb-gofa/package.json's "version".
-    CONST string MODULE_VERSION := "2.4.2";
+    CONST string MODULE_VERSION := "2.4.5";
 
     ! Persisted home pose (survives restart AND module reload). One line of
     ! 11 ;-separated numbers, same layout as a GOTO token, written by SETHOME.
@@ -264,7 +275,7 @@ MODULE MainModule
             SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""home""}" + ByteToStr(10\Char));
             rGoHome;
         CASE "sethome":
-            pHome := CRobT(\Tool:=tGripper \WObj:=wobj1);
+            pHome := CRobT(\Tool:=tool0 \WObj:=wobj1);
             SaveHome;
             SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""sethome""}" + ByteToStr(10\Char));
         CASE "stop":
@@ -325,9 +336,9 @@ MODULE MainModule
                     ! before serving the next command (so STOP can no longer
                     ! interrupt an in-progress move - only queued ones).
                     IF linear THEN
-                        MoveL t, vGoto, fine, tGripper \WObj:=wobj1;
+                        MoveL t, vGoto, fine, tool0 \WObj:=wobj1;
                     ELSE
-                        MoveJ t, vGoto, fine, tGripper \WObj:=wobj1;
+                        MoveJ t, vGoto, fine, tool0 \WObj:=wobj1;
                     ENDIF
                     RETURN;
                 ENDIF
@@ -342,9 +353,9 @@ MODULE MainModule
                     ! Straight-line TCP path to the pose those joints describe -
                     ! CalcRobT does the forward kinematics. Same singularity
                     ! caveat as gotol: the line can fault where MoveAbsJ would not.
-                    MoveL CalcRobT(jt, tGripper \WObj:=wobj1), vGoto, zActive, tGripper \WObj:=wobj1;
+                    MoveL CalcRobT(jt, tool0 \WObj:=wobj1), vGoto, zActive, tool0 \WObj:=wobj1;
                 ELSE
-                    MoveAbsJ jt, vGoto, zActive, tGripper \WObj:=wobj1;
+                    MoveAbsJ jt, vGoto, zActive, tool0 \WObj:=wobj1;
                 ENDIF
                 RETURN;
             ENDIF
@@ -384,7 +395,7 @@ MODULE MainModule
                         StopMove;
                         ClearPath;
                         StartMove;
-                        MoveAbsJ \Conc, jt, vJog, fine, tGripper \WObj:=wobj1;
+                        MoveAbsJ \Conc, jt, vJog, fine, tool0 \WObj:=wobj1;
                         RETURN;
                     ENDIF
                 ENDIF
@@ -483,7 +494,7 @@ MODULE MainModule
             rGoHome;
         CASE "SETHOME":
             ! Redefine HOME as the current pose and persist it (survives restart/reload)
-            pHome := CRobT(\Tool:=tGripper \WObj:=wobj1);
+            pHome := CRobT(\Tool:=tool0 \WObj:=wobj1);
             SaveHome;
             SocketSend clientSocket \Str:=("OK:" + cmd + ByteToStr(10\Char));
         CASE "PING":
@@ -584,21 +595,21 @@ MODULE MainModule
     ! the socket server alive if the target is unreachable / hits a limit.
     PROC JogMove(string axis, num val, bool rot)
         VAR robtarget p;
-        p := CRobT(\Tool:=tGripper \WObj:=wobj1);
+        p := CRobT(\Tool:=tool0 \WObj:=wobj1);
         StopMove;
         ClearPath;
         StartMove;
         IF rot THEN
             TEST axis
-            CASE "X": MoveJ \Conc, RelTool(p, 0, 0, 0 \Rx:=val), vJog, fine, tGripper \WObj:=wobj1;
-            CASE "Y": MoveJ \Conc, RelTool(p, 0, 0, 0 \Ry:=val), vJog, fine, tGripper \WObj:=wobj1;
-            CASE "Z": MoveJ \Conc, RelTool(p, 0, 0, 0 \Rz:=val), vJog, fine, tGripper \WObj:=wobj1;
+            CASE "X": MoveJ \Conc, RelTool(p, 0, 0, 0 \Rx:=val), vJog, fine, tool0 \WObj:=wobj1;
+            CASE "Y": MoveJ \Conc, RelTool(p, 0, 0, 0 \Ry:=val), vJog, fine, tool0 \WObj:=wobj1;
+            CASE "Z": MoveJ \Conc, RelTool(p, 0, 0, 0 \Rz:=val), vJog, fine, tool0 \WObj:=wobj1;
             ENDTEST
         ELSE
             TEST axis
-            CASE "X": MoveJ \Conc, Offs(p, val, 0, 0), vJog, fine, tGripper \WObj:=wobj1;
-            CASE "Y": MoveJ \Conc, Offs(p, 0, val, 0), vJog, fine, tGripper \WObj:=wobj1;
-            CASE "Z": MoveJ \Conc, Offs(p, 0, 0, val), vJog, fine, tGripper \WObj:=wobj1;
+            CASE "X": MoveJ \Conc, Offs(p, val, 0, 0), vJog, fine, tool0 \WObj:=wobj1;
+            CASE "Y": MoveJ \Conc, Offs(p, 0, val, 0), vJog, fine, tool0 \WObj:=wobj1;
+            CASE "Z": MoveJ \Conc, Offs(p, 0, 0, val), vJog, fine, tool0 \WObj:=wobj1;
             ENDTEST
         ENDIF
     ENDPROC
@@ -644,7 +655,7 @@ MODULE MainModule
         StopMove;
         ClearPath;
         StartMove;
-        MoveAbsJ \Conc, jt, vJog, fine, tGripper \WObj:=wobj1;
+        MoveAbsJ \Conc, jt, vJog, fine, tool0 \WObj:=wobj1;
         RETURN TRUE;
     ENDFUNC
 
@@ -706,9 +717,9 @@ MODULE MainModule
         ! Valid -> ack first (snappy UI), then move
         SocketSend clientSocket \Str:=("OK:GOTO" + ByteToStr(10\Char));
         IF linear THEN
-            MoveL t, vGoto, fine, tGripper \WObj:=wobj1;
+            MoveL t, vGoto, fine, tool0 \WObj:=wobj1;
         ELSE
-            MoveJ t, vGoto, fine, tGripper \WObj:=wobj1;
+            MoveJ t, vGoto, fine, tool0 \WObj:=wobj1;
         ENDIF
         RETURN TRUE;
     ENDFUNC
@@ -795,7 +806,7 @@ MODULE MainModule
     ! -------------------------------------------------------
 
     PROC rGoHome()
-        MoveJ pHome, v200, fine, tGripper \WObj:=wobj1;
+        MoveJ pHome, v200, fine, tool0 \WObj:=wobj1;
     ENDPROC
 
     ! Absolute joint move. Token: MOVEJ<j1;j2;j3;j4;j5;j6> (degrees) for
@@ -821,9 +832,9 @@ MODULE MainModule
         jt.extax := [9E9, 9E9, 9E9, 9E9, 9E9, 9E9];
         SocketSend clientSocket \Str:=("OK:" + StrPart(cmd, 1, 5) + ByteToStr(10\Char));
         IF linear THEN
-            MoveL CalcRobT(jt, tGripper \WObj:=wobj1), vGoto, zActive, tGripper \WObj:=wobj1;
+            MoveL CalcRobT(jt, tool0 \WObj:=wobj1), vGoto, zActive, tool0 \WObj:=wobj1;
         ELSE
-            MoveAbsJ jt, vGoto, zActive, tGripper \WObj:=wobj1;
+            MoveAbsJ jt, vGoto, zActive, tool0 \WObj:=wobj1;
         ENDIF
         RETURN TRUE;
     ENDFUNC

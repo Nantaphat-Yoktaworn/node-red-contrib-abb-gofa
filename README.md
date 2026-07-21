@@ -486,10 +486,14 @@ needs a firewall rule on the Node-RED host allowing inbound UDP on that port.
 
 > **Caution — tool load data:** per ABB's EGM Application Manual, the robot should have correct
 > tool load data (`LoadIdentify`) before starting EGM — incorrect load data can cause servo
-> torque overruns or safety halts when EGM issues fast corrections. `MainModuleEGM.mod`'s
-> `tGripper` currently uses an unverified placeholder mass (1 kg); confirm it matches your
-> actual end-of-arm tooling (or run `LoadIdentify`) before relying on EGM with real tooling
-> attached.
+> torque overruns or safety halts when EGM issues fast corrections. As of 2026-07-21, with no
+> tool physically mounted, `MainModuleEGM.mod`/`MainModule.mod` both target `tool0` (RAPID's
+> built-in empty-flange tool) instead of the placeholder `tGripper` tooldata, so there's no
+> false load data to worry about right now. `tGripper` is still declared, unused, as a
+> placeholder — once a real gripper is mounted, run `LoadIdentify` (or otherwise measure its
+> real mass/CoG/inertia/TCP offset), populate `tGripper` with the real values, and switch the
+> tool argument in both `.mod` files back from `tool0` to `tGripper` before relying on EGM (or
+> any motion) with that tooling attached.
 
 #### Input / output
 

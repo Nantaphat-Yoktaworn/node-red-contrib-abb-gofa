@@ -365,14 +365,38 @@ baseline (converged again) → `stop` (succeeded via the code path, no manual in
 physical motion and the ASI LED (magenta while streaming, green after stop, via
 `BackgroundLed.mod`) both independently confirmed by a human watching the robot.
 
-**Tool load data caution (from ABB's EGM Application Manual, not yet acted on):** the manual
-states the robot must have correct tool load data (`LoadIdentify`) before starting EGM —
-incorrect load data can cause servo torque overruns or safety halts when EGM issues fast
-corrections. `MainModuleEGM.mod`'s `tGripper` currently declares an unverified placeholder
-mass (1 kg); `LoadIdentify` has never been run against this robot's actual end-of-arm tooling.
-Not hit live yet (all EGM testing so far has been small-amplitude joint corrections with no
-tooling attached), but run `LoadIdentify` (or otherwise confirm `tGripper`'s load data is
-accurate) before relying on EGM with real tooling mounted.
+**Tool load data caution — ADDRESSED 2026-07-21 for the current no-tool state; still open for
+whenever a real gripper is mounted.** ABB's EGM Application Manual states the robot must have
+correct tool load data (`LoadIdentify`) before starting EGM — incorrect load data can cause
+servo torque overruns or safety halts when EGM issues fast corrections. `LoadIdentify` itself
+can't be run with nothing physically mounted (it works by moving the robot through
+characterization moves and reading back motor torque/current to solve for the mass/CoG/inertia
+of whatever's actually attached — there's nothing to measure on a bare flange). What *was*
+fixable now: `MainModule.mod`/`MainModuleEGM.mod` both used the placeholder `tGripper` tooldata
+(`[0,0,100]` TCP offset, 1kg mass) as the active tool for **every** motion instruction, not just
+EGM — confirmed by grepping both files, ~20 call sites each (`MoveJ`/`MoveL`/`MoveAbsJ`/`CRobT`/
+`CalcRobT`). That's a real mismatch, not just an EGM-specific safety gap: `gofa-pose`/
+`gofa-save-point`/`gofa-subscribe-pose` all read position via RWS `tool=tool0&wobj=wobj0`
+(unrelated to RAPID's active tool), so a point saved via those nodes and replayed via `GOTOJ`/
+`MOVEJ` would land ~100mm off from where it was captured — `tGripper`'s TCP offset applied on
+replay but not on the original read. Both `.mod` files now target RAPID's built-in `tool0`
+(empty flange, zero mass) for all motion instead; `tGripper` stays declared, unused, as a
+placeholder — see the `ponytail:` comment above its declaration in both files. **Upgrade path**:
+once a real gripper is mounted, run `LoadIdentify` (or otherwise measure the real mass/CoG/
+inertia/TCP offset), populate `tGripper`'s literal values, and switch the tool argument on every
+motion instruction in both files back from `tool0` to `tGripper`.
+
+**Deployed and confirmed live, 2026-07-21**: the controller was running `MainModuleEGM.mod`
+(not the plain `MainModule.mod`), so that's the one pushed via `gofa-setup`'s own upload → unload
+sibling → load → resetpp → motors on → start → PING sequence (driven against the real robot,
+same fake-RED-harness pattern used elsewhere in this project for standalone live tests).
+Verified by reading the module text back off the controller afterward (`GET .../modules/
+MainModuleEGM/text` → `file-path` → `GET /fileservice/<path>`): 0 `tGripper` tool-argument uses,
+19 `tool0` uses, placeholder comment present. `check-status.js` confirmed RAPID `running`,
+motors `motoron`, socket healthy post-deploy. `MODULE_VERSION` bumped to 2.4.5 in all three
+`.mod` files (kept in lockstep with `package.json`, same convention as the 2.4.2 bump above,
+even though `BackgroundLed.mod`'s own content didn't change) and redeployed live so the
+controller's `ping` reply matches.
 
 Full design history and the reasoning behind the two-module decision: see the
 `project_egm_node_red_integration_plan` memory and its linked plan file.

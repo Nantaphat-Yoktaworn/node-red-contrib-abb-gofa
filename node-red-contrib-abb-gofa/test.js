@@ -3520,7 +3520,7 @@ check('translateToJSON: legacy MOVEL token maps to movel cmd', function() {
         var mod = fs2.readFileSync(f, 'utf8');
         assert.ok(mod.indexOf('CASE "movej", "movel":') >= 0, f + ' missing JSON movel case');
         assert.ok(mod.indexOf('= "MOVEL"') >= 0, f + ' missing legacy MOVEL token');
-        assert.ok(mod.indexOf('CalcRobT(jt, tGripper') >= 0, f + ' missing CalcRobT linear path');
+        assert.ok(mod.indexOf('CalcRobT(jt, tool0') >= 0, f + ' missing CalcRobT linear path');
     });
 });
 
