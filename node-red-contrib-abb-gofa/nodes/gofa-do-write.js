@@ -1,5 +1,6 @@
 'use strict';
 var gate = require('./lib/gate');
+var parseSignalList = require('./lib/list-signals');
 module.exports = function(RED) {
     function GoFaDoWriteNode(config) {
         RED.nodes.createNode(this, config);
@@ -115,6 +116,20 @@ module.exports = function(RED) {
 
         writePromise.then(function() {
             res.json({ ok: true, signal: signal, value: value, transport: transport });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
+
+    RED.httpAdmin.get('/gofa-do-write/:id/signals', RED.auth.needsPermission('gofa-do-write.read'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsGet !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        robot.rwsGet('/rw/iosystem/signals')
+        .then(function(body) {
+            var signals = parseSignalList(body).filter(function(s) { return s.type === 'DO'; });
+            res.json({ ok: true, signals: signals });
         }).catch(function(err) {
             res.status(502).json({ error: err.message });
         });

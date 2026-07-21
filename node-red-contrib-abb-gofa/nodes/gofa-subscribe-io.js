@@ -1,6 +1,7 @@
 'use strict';
 var gate = require('./lib/gate');
 var WS = require('./lib/ws');
+var parseSignalList = require('./lib/list-signals');
 
 module.exports = function(RED) {
     function GoFaSubscribeIoNode(config) {
@@ -187,4 +188,17 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType('gofa-subscribe-io', GoFaSubscribeIoNode);
+
+    RED.httpAdmin.get('/gofa-subscribe-io/:id/signals', RED.auth.needsPermission('gofa-subscribe-io.read'), function(req, res) {
+        var robot = RED.nodes.getNode(req.params.id);
+        if (!robot || typeof robot.rwsGet !== 'function') {
+            return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
+        }
+        robot.rwsGet('/rw/iosystem/signals')
+        .then(function(body) {
+            res.json({ ok: true, signals: parseSignalList(body) });
+        }).catch(function(err) {
+            res.status(502).json({ error: err.message });
+        });
+    });
 };

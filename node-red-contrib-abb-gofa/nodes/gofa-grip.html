@@ -75,11 +75,37 @@
             }
             $('#gofa-grip-close').on('click', function(e) { e.preventDefault(); triggerGrip('on'); });
             $('#gofa-grip-open').on('click', function(e) { e.preventDefault(); triggerGrip('off'); });
-            
+
             $('#node-input-signal').on('change', function() {
                 updateState();
             });
+
+            function populateSignalDropdown() {
+                var id = robotId();
+                var sel = $('#node-input-signalSelect');
+                sel.empty().append($('<option>', { value: '', text: 'Other (type below)' }));
+                if (!id) return;
+                $.getJSON('gofa-grip/' + id + '/signals')
+                    .done(function(data) {
+                        var current = $('#node-input-signal').val();
+                        sel.empty().append($('<option>', { value: '', text: 'Other (type below)' }));
+                        (data.signals || []).forEach(function(s) {
+                            sel.append($('<option>', { value: s.name, text: s.name }));
+                        });
+                        if (current && (data.signals || []).some(function(s) { return s.name === current; })) {
+                            sel.val(current);
+                        }
+                    });
+            }
+            $('#node-input-signalSelect').on('change', function() {
+                var v = $(this).val();
+                if (v) {
+                    $('#node-input-signal').val(v).trigger('change');
+                }
+            });
+            $('#node-input-robot').on('change', populateSignalDropdown);
             // Initial load
+            populateSignalDropdown();
             updateState();
         }
     });
@@ -95,6 +121,10 @@
             <option value="on">ON — close gripper</option>
             <option value="off">OFF — open gripper</option>
         </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-signalSelect"><i class="fa fa-list"></i> Known Signals</label>
+        <select id="node-input-signalSelect" style="width:70%"></select>
     </div>
     <div class="form-row">
         <label for="node-input-signal"><i class="fa fa-plug"></i> DO Signal</label>
@@ -120,6 +150,7 @@
 <script type="text/html" data-help-name="gofa-grip">
     <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Controls a digital output signal for a gripper via RWS (<code>POST /rw/iosystem/signals/{signal}/set-value</code>). The signal's <code>Access Level</code> must be set to <code>All</code> in the controller's I/O configuration for this to work.</p>
+    <p>The <b>Known Signals</b> dropdown lists live DO signals from the controller — pick one to fill the DO Signal field, or leave it on "Other (type below)" and type a name manually as before.</p>
     <h3>Input</h3>
     <p><code>msg.payload</code> can be:</p>
     <ul>

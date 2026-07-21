@@ -1,5 +1,6 @@
 'use strict';
 var gate = require('./lib/gate');
+var parseSignalList = require('./lib/list-signals');
 module.exports = function(RED) {
     function GoFaIoListNode(config) {
         RED.nodes.createNode(this, config);
@@ -19,27 +20,7 @@ module.exports = function(RED) {
 
             node.robot.rwsGet('/rw/iosystem/signals')
             .then(function(body) {
-                var signals = [];
-                var liRegex = /<li class="ios-signal-li"[^>]*>([\s\S]*?)<\/li>/g;
-                var spanRegex = /<span class="([^"]+)"[^>]*>([^<]*)<\/span>/g;
-                var liMatch;
-
-                while ((liMatch = liRegex.exec(body)) !== null) {
-                    var inner = liMatch[1];
-                    var item  = {};
-                    var spanMatch;
-                    spanRegex.lastIndex = 0;
-                    while ((spanMatch = spanRegex.exec(inner)) !== null) {
-                        var cls = spanMatch[1];
-                        var val = spanMatch[2].trim();
-                        if (cls === 'name'   || cls === 'type' || cls === 'lvalue') {
-                            item[cls] = val;
-                        }
-                    }
-                    if (item.name) {
-                        signals.push(item);
-                    }
-                }
+                var signals = parseSignalList(body);
 
                 if (filterType) {
                     signals = signals.filter(function(s) {
@@ -69,27 +50,7 @@ module.exports = function(RED) {
         var filterType = (req.query.type || '').toUpperCase();
         robot.rwsGet('/rw/iosystem/signals')
         .then(function(body) {
-            var signals = [];
-            var liRegex = /<li class="ios-signal-li"[^>]*>([\s\S]*?)<\/li>/g;
-            var spanRegex = /<span class="([^"]+)"[^>]*>([^<]*)<\/span>/g;
-            var liMatch;
-
-            while ((liMatch = liRegex.exec(body)) !== null) {
-                var inner = liMatch[1];
-                var item  = {};
-                var spanMatch;
-                spanRegex.lastIndex = 0;
-                while ((spanMatch = spanRegex.exec(inner)) !== null) {
-                    var cls = spanMatch[1];
-                    var val = spanMatch[2].trim();
-                    if (cls === 'name'   || cls === 'type' || cls === 'lvalue') {
-                        item[cls] = val;
-                    }
-                }
-                if (item.name) {
-                    signals.push(item);
-                }
-            }
+            var signals = parseSignalList(body);
 
             if (filterType) {
                 signals = signals.filter(function(s) {

@@ -10,13 +10,48 @@
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || this.signal || 'Subscribe IO'; },
-        paletteLabel: 'Subscribe IO'
+        paletteLabel: 'Subscribe IO',
+        oneditprepare: function() {
+            function robotId() {
+                var v = $('#node-input-robot').val();
+                return (v && v !== '_ADD_') ? v : null;
+            }
+            function populateSignalDropdown() {
+                var id = robotId();
+                var sel = $('#node-input-signalSelect');
+                sel.empty().append($('<option>', { value: '', text: 'Other (type below)' }));
+                if (!id) return;
+                $.getJSON('gofa-subscribe-io/' + id + '/signals')
+                    .done(function(data) {
+                        var current = $('#node-input-signal').val();
+                        sel.empty().append($('<option>', { value: '', text: 'Other (type below)' }));
+                        (data.signals || []).forEach(function(s) {
+                            sel.append($('<option>', { value: s.name, text: s.name + (s.type ? ' (' + s.type + ')' : '') }));
+                        });
+                        if (current && (data.signals || []).some(function(s) { return s.name === current; })) {
+                            sel.val(current);
+                        }
+                    });
+            }
+            $('#node-input-signalSelect').on('change', function() {
+                var v = $(this).val();
+                if (v) {
+                    $('#node-input-signal').val(v).trigger('change');
+                }
+            });
+            $('#node-input-robot').on('change', populateSignalDropdown);
+            populateSignalDropdown();
+        }
     });
 </script>
 <script type="text/html" data-template-name="gofa-subscribe-io">
     <div class="form-row">
         <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
         <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-signalSelect"><i class="fa fa-list"></i> Known Signals</label>
+        <select id="node-input-signalSelect" style="width:70%"></select>
     </div>
     <div class="form-row">
         <label for="node-input-signal"><i class="fa fa-bolt"></i> Signal</label>
@@ -40,6 +75,7 @@
 <script type="text/html" data-help-name="gofa-subscribe-io">
     <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Reads or monitors an I/O signal via RWS.</p>
+    <p>The <b>Known Signals</b> dropdown lists every live signal from the controller (any type) — pick one to fill the Signal field, or leave it on "Other (type below)" and type a name manually as before.</p>
     <h3>Input</h3>
     <p>Send any message to trigger. Pass <code>msg.payload.signal</code> to override the configured signal name at runtime.</p>
     <h3>Output <code>msg.payload</code></h3>

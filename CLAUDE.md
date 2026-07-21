@@ -769,6 +769,30 @@ code path from the runtime `node.on('input', ...)` handler:
   needed most defeats the point. Only **Start** is gated on the polled status (server-side also
   rejects a second concurrent start regardless, so this is redundant, not load-bearing).
 
+## Known Signals dropdown (2026-07-21)
+
+`gofa-di-read`, `gofa-do-write`, `gofa-grip`, and `gofa-subscribe-io` each have a **Known
+Signals** `<select>` above their existing free-text Signal field, populated live from
+`GET /rw/iosystem/signals` via a new per-node admin route (`RED.httpAdmin.get('/gofa-<node>/:id/signals', ...)`,
+same `RED.auth.needsPermission`-gated pattern as the "Interactive properties panels" routes
+above). The first option is always **`Other (type below)`** (empty value) — selecting it is a
+no-op, leaving the text field exactly as before; picking a real signal just copies its name into
+that same text field, which stays fully editable either way. `gofa-di-read` filters to `DI`,
+`gofa-do-write`/`gofa-grip` filter to `DO`, `gofa-subscribe-io` shows every signal type
+unfiltered (it can monitor any of them, including the ASI buttons). The XHTML `<li
+class="ios-signal-li">` parsing (previously duplicated twice inside `gofa-io-list.js`) was
+extracted into a shared `nodes/lib/list-signals.js` helper, which all five of these routes/nodes
+now use — `gofa-io-list.js` itself was refactored to call it too, confirmed behavior-preserving
+by its existing test.
+
+**Race-condition fix, found by an agy second-opinion review before this shipped**: the dropdown
+is re-populated on every Robot-field change, and the original version only cleared the `<select>`
+once, synchronously, before kicking off the `$.getJSON` fetch — not again when the response
+landed. Two overlapping populate calls (e.g. switching the Robot dropdown twice before the first
+fetch resolves) could each append their own signal list into the same, already-populated
+`<select>`, producing duplicate options. Fixed by re-clearing the list inside `.done()` too, so
+whichever response lands last always rebuilds from a clean slate regardless of ordering.
+
 ## Nodes (43 total)
 
 | Node | Transport | Description |
@@ -786,7 +810,7 @@ code path from the runtime `node.on('input', ...)` handler:
 | `gofa-movej` | Socket | Absolute joint move; Move type dropdown Joint (MoveAbsJ, default) / Linear (CalcRobT + MoveL) — displayed as "Move Joints", type id unchanged for compat |
 | `gofa-jog` | Socket | Cartesian jog (X/Y/Z ± mm or RX/RY/RZ ± °) |
 | `gofa-joint-jog` | Socket | Single joint jog |
-| `gofa-grip` | RWS | Named DO signal on/off via `/set-value` (needs `Access: All` on that signal) |
+| `gofa-grip` | RWS | Named DO signal on/off via `/set-value` (needs `Access: All` on that signal); editor has a Known Signals dropdown (DO-filtered, see above) alongside the free-text field |
 | `gofa-zone-set` | Socket | Set path blend zone |
 | `gofa-speed-set` | Socket | Speed override % via `SpeedRefresh` (no mastership needed) |
 | `gofa-stop-motion` | Socket | Halt motion — immediate for a jog in progress, but only takes effect after the current move finishes for `HOME`/`GOTOJ`/`GOTOL`/`MOVEJ`/`MOVEL` since 2.4.2 (see the `\Conc` queue-depth crash note above) |
@@ -805,12 +829,12 @@ code path from the runtime `node.on('input', ...)` handler:
 | `gofa-file` | RWS | Controller filesystem: action `download` / `upload` / `delete` (delete is new in 2.0.0, uses the fileservice DELETE confirmed live 2026-07-15). Upload auto-syncs `SERVER_IP` to the config node's IP (`patchServerIp`, now in `nodes/lib/patch-server-ip.js`, no-ops on files without the constant). Bare-string payload = remotePath for download/delete, localPath for upload |
 | `gofa-mod-edit` | RWS | Edit a controller-disk file in the node's edit dialog: file dropdown ($HOME/Programs, admin endpoint `/gofa-mod-edit/:id/files`) or new filename, ace editor, Load/Save/**Delete**-from-robot buttons (SERVER_IP auto-synced on save); runtime input re-uploads stored content. Directory-listing parse (`parseFileList`) **confirmed live 2026-07-15**: entries are `<li class="fs-file" title="<name>">` (name in the `title` attr — the parser's first-choice path; the anchors carry the name only in `href`, with empty text), plus `fs-cdate`/`fs-mdate`/`fs-size`/`fs-readonly` spans. `fs-dir` shape still unobserved (no subdirs existed). Also confirmed live: fileservice `DELETE /fileservice/<path>` works (`204`, then `404` on GET) — first confirmed RWS file-delete in this project. **Delete from robot** button added 2026-07-20 (`DELETE /gofa-mod-edit/:id/file` admin endpoint, confirm dialog, refreshes the file list after) — confirmed live end-to-end via the real handler: upload → delete (`200 {ok:true,deleted:true}`) → follow-up GET `404` → repeat delete on the already-gone file correctly `404`s too |
 | `gofa-io-list` | RWS | List all I/O signals |
-| `gofa-di-read` | RWS | Read digital input |
-| `gofa-do-write` | RWS, Socket, or Background task | Write digital output; Transport dropdown — RWS `/set-value` (needs `Access: All`), Socket `SETDO` (needs RAPID/T_ROB1 running, no Access Level restriction), or Background task (same `SETDO` allow-list via `BackgroundLed.mod`, works while T_ROB1 is stopped) |
+| `gofa-di-read` | RWS | Read digital input; editor has a Known Signals dropdown (DI-filtered, see above) alongside the free-text field |
+| `gofa-do-write` | RWS, Socket, or Background task | Write digital output; Transport dropdown — RWS `/set-value` (needs `Access: All`), Socket `SETDO` (needs RAPID/T_ROB1 running, no Access Level restriction), or Background task (same `SETDO` allow-list via `BackgroundLed.mod`, works while T_ROB1 is stopped); editor has a Known Signals dropdown (DO-filtered, see above) alongside the free-text field |
 | `gofa-leadthrough` | Socket + RWS | Hand-guiding: action `enable` (checks RAPID execution state first — sends socket STOP to clear queued moves only if RAPID is genuinely running, tolerates socket-down; skips the socket call entirely when RAPID is already stopped, avoiding a ~5s wasted timeout — see the "Correction, 2026-07-20" note above) / `disable` (RWS only) |
 | `gofa-asi-led` | Socket, RWS, or Background task | Set ASI status light RGB color + counted software blink; Transport dropdown — Socket `SETLED`/`RESETLED` (needs T_ROB1 running), RWS `/set-value` (needs Access Level: All, not available on this controller's ASI board), or Background task (`BackgroundLed.mod` in its own RAPID task, works while T_ROB1 is stopped) |
 | `gofa-subscribe-state` | RWS WS | Push on every controller state change; one-shot mode polls once per inject |
-| `gofa-subscribe-io` | RWS WS | Push on every I/O signal change (real WebSocket push, confirmed live down to a single button tap); falls back to 500 ms polling only if the subscribe request itself fails; one-shot mode available |
+| `gofa-subscribe-io` | RWS WS | Push on every I/O signal change (real WebSocket push, confirmed live down to a single button tap); falls back to 500 ms polling only if the subscribe request itself fails; one-shot mode available; editor has a Known Signals dropdown (unfiltered, see above) alongside the free-text field |
 | `gofa-subscribe-var` | RWS poll | Poll a RAPID variable on an interval; toggles on/off per inject |
 | `gofa-subscribe-pose` | RWS poll | Poll TCP position on an interval; toggles on/off per inject |
 | `gofa-subscribe-elog` | RWS WS | Push new controller event log entries in real time (bare `/rw/elog/<domain>` subscription — no `;suffix`, unlike other subscribe nodes; the push only carries a `seqnum` reference, so the node fetches the full entry before emitting); same Domain + Min Severity filters as `gofa-elog` |

@@ -46,11 +46,36 @@
                         btn.prop('disabled', false);
                     });
             }
+            function populateSignalDropdown() {
+                var id = robotId();
+                var sel = $('#node-input-signalSelect');
+                sel.empty().append($('<option>', { value: '', text: 'Other (type below)' }));
+                if (!id) return;
+                $.getJSON('gofa-di-read/' + id + '/signals')
+                    .done(function(data) {
+                        var current = $('#node-input-signal').val();
+                        sel.empty().append($('<option>', { value: '', text: 'Other (type below)' }));
+                        (data.signals || []).forEach(function(s) {
+                            sel.append($('<option>', { value: s.name, text: s.name }));
+                        });
+                        if (current && (data.signals || []).some(function(s) { return s.name === current; })) {
+                            sel.val(current);
+                        }
+                    });
+            }
+            $('#node-input-signalSelect').on('change', function() {
+                var v = $(this).val();
+                if (v) {
+                    $('#node-input-signal').val(v).trigger('change');
+                }
+            });
+            $('#node-input-robot').on('change', populateSignalDropdown);
             $('#gofa-di-fetch').on('click', function(e) {
                 e.preventDefault();
                 fetchDiValue();
             });
             // Initial load
+            populateSignalDropdown();
             fetchDiValue();
         }
     });
@@ -59,6 +84,10 @@
     <div class="form-row">
         <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
         <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-signalSelect"><i class="fa fa-list"></i> Known Signals</label>
+        <select id="node-input-signalSelect" style="width:70%"></select>
     </div>
     <div class="form-row">
         <label for="node-input-signal"><i class="fa fa-bolt"></i> Signal</label>
@@ -85,6 +114,7 @@
 <script type="text/html" data-help-name="gofa-di-read">
     <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p>Reads a digital input (DI) signal from the ABB GoFa controller via RWS.</p>
+    <p>The <b>Known Signals</b> dropdown lists live DI signals from the controller — pick one to fill the Signal field, or leave it on "Other (type below)" and type a name manually as before.</p>
     <h3>Input</h3>
     <p><code>msg.payload</code> can be:</p>
     <ul>

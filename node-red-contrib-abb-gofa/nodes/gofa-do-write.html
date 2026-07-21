@@ -77,11 +77,37 @@
             }
             $('#gofa-do-set-high').on('click', function(e) { e.preventDefault(); writeDo(1); });
             $('#gofa-do-set-low').on('click', function(e) { e.preventDefault(); writeDo(0); });
-            
+
             $('#node-input-signal').on('change', function() {
                 updateState();
             });
+
+            function populateSignalDropdown() {
+                var id = robotId();
+                var sel = $('#node-input-signalSelect');
+                sel.empty().append($('<option>', { value: '', text: 'Other (type below)' }));
+                if (!id) return;
+                $.getJSON('gofa-do-write/' + id + '/signals')
+                    .done(function(data) {
+                        var current = $('#node-input-signal').val();
+                        sel.empty().append($('<option>', { value: '', text: 'Other (type below)' }));
+                        (data.signals || []).forEach(function(s) {
+                            sel.append($('<option>', { value: s.name, text: s.name }));
+                        });
+                        if (current && (data.signals || []).some(function(s) { return s.name === current; })) {
+                            sel.val(current);
+                        }
+                    });
+            }
+            $('#node-input-signalSelect').on('change', function() {
+                var v = $(this).val();
+                if (v) {
+                    $('#node-input-signal').val(v).trigger('change');
+                }
+            });
+            $('#node-input-robot').on('change', populateSignalDropdown);
             // Initial load
+            populateSignalDropdown();
             updateState();
         }
     });
@@ -95,6 +121,10 @@
     <div class="form-row">
         <label for="node-input-robot"><i class="fa fa-server"></i> Robot</label>
         <input type="text" id="node-input-robot">
+    </div>
+    <div class="form-row">
+        <label for="node-input-signalSelect"><i class="fa fa-list"></i> Known Signals</label>
+        <select id="node-input-signalSelect" style="width:70%"></select>
     </div>
     <div class="form-row">
         <label for="node-input-signal"><i class="fa fa-bolt"></i> Signal</label>
@@ -132,6 +162,7 @@
 <script type="text/html" data-help-name="gofa-do-write">
     <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
     <p><b>⚠ Requires external I/O module.</b> Digital output signals (DO) do not exist on the base OmniCore C30 — an expansion I/O module must be fitted and configured. Without it, this node returns HTTP 404.</p>
+    <p>The <b>Known Signals</b> dropdown lists live DO signals from the controller — pick one to fill the Signal field, or leave it on "Other (type below)" and type a name manually as before.</p>
     <p>Writes a digital output (DO) signal on the ABB GoFa controller, via one of three transports:</p>
     <ul>
         <li><b>RWS</b> (default) — <code>POST /rw/iosystem/signals/{name}/set-value</code>. Requires the signal's <code>Access Level</code> to be set to <code>All</code> in RobotStudio (<code>Controller</code> → <code>Configuration</code> → <code>I/O System</code> → <code>Signal</code>; needs a controller restart). Left at the factory default, RWS correctly rejects the write with <code>403</code>.</li>
