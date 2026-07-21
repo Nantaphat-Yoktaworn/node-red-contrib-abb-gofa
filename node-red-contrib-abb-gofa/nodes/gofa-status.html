@@ -80,7 +80,9 @@
         <dt>ok</dt><dd>true</dd>
         <dt>ctrlstate</dt><dd>motoron | guardstop | emergencystop | sysfail</dd>
         <dt>opmode</dt><dd>AUTO | MANR</dd>
-        <dt>speed</dt><dd>Speed override 0-100</dd>
+        <dt>speed</dt><dd>FlexPendant/production-window speed override 0-100 (RWS <code>speedratio</code>) — a
+        separate value from <b>gofa-speed-set</b>'s override (RAPID <code>VelSet</code>); reading this does
+        not confirm what gofa-speed-set last set, see CLAUDE.md's <code>SPEED</code>/<code>SpeedRefresh</code> note</dd>
         <dt>rapid</dt><dd>running | stopped</dd>
     </dl>
     <p>Failure: <code>msg.payload = { ok: false, error: "..." }</code></p>

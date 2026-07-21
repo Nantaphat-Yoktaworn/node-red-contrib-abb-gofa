@@ -152,7 +152,11 @@ Returns: `204 No Content` on success
 
 > **This project's `gofa-speed-set` does NOT use this RWS endpoint** — it goes through the
 > custom TCP socket protocol instead (`robot.socketSend({ cmd: 'speed', val: speed })`, RAPID's
-> `SpeedRefresh`), which needs no mastership at all. This RWS path is documented here as part of
+> `VelSet`, not `SpeedRefresh` — see CLAUDE.md's `SPEED`/`SpeedRefresh` note for why), which needs
+> no mastership at all. **This `speedratio` RWS value and `gofa-speed-set`'s override are two
+> separate, independent values, confirmed live 2026-07-21** — reading this endpoint never
+> confirms what `gofa-speed-set` last set; use `gofa-speed-set`'s own Read action
+> (`getspeed`/`C_MOTSET.vel.oride`) for that instead. This RWS path is documented here as part of
 > the general API reference, not as how this project sets speed.
 
 #### POST /rw/panel/ctrl-state

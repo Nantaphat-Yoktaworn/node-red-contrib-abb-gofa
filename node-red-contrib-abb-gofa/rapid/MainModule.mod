@@ -62,7 +62,7 @@ MODULE MainModule
     ! instead of failing mysteriously later on a command that doesn't exist
     ! yet. Bump this whenever the socket protocol changes; keep in lockstep
     ! with node-red-contrib-abb-gofa/package.json's "version".
-    CONST string MODULE_VERSION := "2.4.6";
+    CONST string MODULE_VERSION := "2.4.7";
 
     ! Persisted home pose (survives restart AND module reload). One line of
     ! 11 ;-separated numbers, same layout as a GOTO token, written by SETHOME.
@@ -498,6 +498,7 @@ MODULE MainModule
     PROC Dispatch(string raw)
         VAR string cmd;
         VAR string rawclean;
+        VAR num speedVal;
         rawclean := StripCtrl(raw);
         cmd := CleanCmd(raw);
         ! Ack first (snappy UI), then run the move. If the command is
@@ -513,6 +514,10 @@ MODULE MainModule
             SocketSend clientSocket \Str:=("OK:" + cmd + ByteToStr(10\Char));
         CASE "PING":
             SocketSend clientSocket \Str:=("OK:PING" + ByteToStr(10\Char));
+        CASE "GETSPEED":
+            ! Reads C_MOTSET.vel.oride -- the current VelSet override set by SPEEDnn (below).
+            speedVal := C_MOTSET.vel.oride;
+            SocketSend clientSocket \Str:=("VAL:" + NumToStr(speedVal, 2) + ByteToStr(10\Char));
         CASE "STOP":
             StopMove;
             ClearPath;
@@ -674,7 +679,9 @@ MODULE MainModule
     ENDFUNC
 
     ! Set the speed override (scales every move). Token: SPEEDnn (1..100).
-    ! Uses SpeedRefresh so it takes effect immediately, no mastership needed.
+    ! Uses VelSet, not SpeedRefresh -- confirmed live 2026-07-21 that SpeedRefresh only
+    ! updates an ALREADY-EXECUTING move, so calling it here (before the next move even
+    ! starts) has no real effect; see the JSON "speed" case above for the same fix.
     ! Returns FALSE (-> caller sends ERR) if it isn't a valid speed token.
     FUNC bool TrySpeed(string cmd)
         VAR num n;
@@ -684,7 +691,7 @@ MODULE MainModule
         IF StrPart(cmd, 1, 5) <> "SPEED" RETURN FALSE;
         IF NOT StrToVal(StrPart(cmd, 6, n - 5), spd) RETURN FALSE;
         IF spd < 1 OR spd > 100 RETURN FALSE;
-        SpeedRefresh spd;
+        VelSet spd, 5000;
         SocketSend clientSocket \Str:=("OK:" + cmd + ByteToStr(10\Char));
         RETURN TRUE;
     ENDFUNC

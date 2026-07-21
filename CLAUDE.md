@@ -45,7 +45,8 @@ The table below is the **logical command surface** most Node-RED nodes actually 
 | `X+20` / `Y-10` / `Z+5` | Translate TCP ±mm in base frame (max 50 mm) |
 | `RX+5` / `RY-10` / `RZ+15` | Rotate TCP ±° in tool frame (max 30°) |
 | `J1+10` / `J3-5` | Jog single joint ±° (max 30°, joints 1–6) |
-| `SPEED50` | Set speed override 1–100% |
+| `SPEED50` | Set speed override 1–100% via `VelSet` (not `SpeedRefresh` — see the `SPEED`/`SpeedRefresh` note below) |
+| `GETSPEED` | Read the current override back (`C_MOTSET.vel.oride`); replies `VAL:<value>` |
 | `MOVEJ<j1;..;j6>` / `MOVEL<j1;..;j6>` | Absolute joint move in degrees — MOVEJ = MoveAbsJ (joint-interpolated), MOVEL = straight-line TCP path to the same joint pose (CalcRobT forward kinematics + MoveL, added 2.1.0; same singularity caveat as GOTOL) |
 | `ZONE<name>` | Set path blend zone (FINE / Z1 / Z5 / Z10 / Z20 / Z50 / Z100) |
 | `STOP` | Halt motion — immediately for a jog (still `\Conc`), but only *after* the current move finishes for `HOME`/`GOTOJ`/`GOTOL`/`MOVEJ`/`MOVEL` (no longer `\Conc` as of 2.4.2 — see the "\Conc queue-depth crash" note below) |
@@ -155,6 +156,27 @@ Both `MainModule.mod` and `MainModuleEGM.mod` carry the identical fix (kept in l
 doc's own sync rule); only `MainModuleEGM.mod` was live-deployed and tested this session (it's
 what the controller was already running) — `MainModule.mod`'s copy is byte-identical in this
 region but its own live compile/deploy wasn't separately re-verified.
+
+**Follow-up review pass, same day, bumped to 2.4.7 — found the identical `SpeedRefresh` bug
+still alive in a second, separate code path.** After 2.4.6 was published to npm, a repo-wide
+audit (`grep -rn SpeedRefresh`) turned up `TrySpeed` — the **legacy plain-text protocol**
+handler for the raw `SPEEDnn` token (`Dispatch`/`CleanCmd`, used for manual telnet/curl testing
+per `MANUAL_CONTROL.md`, completely separate from `DispatchJson`'s `"speed"` case fixed above)
+— still called `SpeedRefresh spd;`, unfixed. **This never affected `gofa-speed-set` or any
+Node-RED usage** — `gofa-robot.js`'s `translateToJSON()` always converts a `SPEEDnn` string to
+the JSON `{cmd:'speed'}` form before it reaches the socket, so the Node-RED palette never
+actually invokes `TrySpeed` — but it was still live, shipped, and documented as working in
+`MANUAL_CONTROL.md`'s manual-testing table, so it got the same `VelSet spd, 5000;` fix. Also
+added a `GETSPEED` case to the legacy `Dispatch` (mirroring the JSON `getspeed` command, same
+`C_MOTSET.vel.oride` read) — `MANUAL_CONTROL.md`'s table only documents commands that genuinely
+work via raw `nc`/telnet, so `GETSPEED` needed a real legacy-text implementation, not just a doc
+mention. **Confirmed live via a raw TCP script (bypassing the JSON layer and the Node-RED node
+code entirely, i.e. exactly what `MANUAL_CONTROL.md` tells a manual tester to do)**: `SPEED37` →
+`GETSPEED` → `VAL:37.00` → `SPEED100` → `GETSPEED` → `VAL:100.00`. Same repo-wide audit also
+added a doc clarification to `gofa-status`/`gofa-connection-status`'s help text (their `speed`
+field reads RWS `speedratio`, the FlexPendant value — same "these are two different things"
+caveat as everywhere else in this note) and corrected `.claude/commands/abb-rws.md`'s API
+reference, which still said `gofa-speed-set` used `SpeedRefresh`.
 
 **`\Conc` queue-depth crash, fixed 2026-07-20 — a real production bug, not a one-off.** User report: `pickplace_sorting_flow.json` worked once, then RAPID error **40631** ("Too many move instructions in sequence with concurrent RAPID program execution") on the second cycle, stopping `T_ROB1` (and its own socket server with it — full `gofa-setup` redeploy needed to recover, not just `resetpp`). Every chained motion instruction (`HOME`, `GOTOJ`/`GOTOL`, `MOVEJ`/`MOVEL`) used RAPID's `\Conc` switch so the ack could return before the physical move finished; a helper `PROC AddConcMove()` was meant to call `WaitRob \InPos` periodically to keep the RAPID-internal `\Conc` queue-depth limit from being exceeded. **Five independent live-tested fixes all failed at the identical move** (same failure point regardless of zone type, sync threshold, an off-by-one in the counter, syncing on literally every move, or agy's ABB-informed `WaitTime 0.1` + `WaitRob \InPos` fix) — including with 5mm test moves between two points sharing an identical `robconf` (ruling out kinematics/singularity entirely) and with request pacing from 0s to 4s apart (ruling out a client-side race). That level of consistency across five structurally different sync strategies meant `WaitRob \InPos`, called from a helper `PROC`, simply wasn't resetting whatever RAPID actually tracks for this limit — not a tuning problem. **Fix, confirmed live (20/20 clean cycles after, vs. 100% failure by move 7 before)**: removed `\Conc` entirely from `rGoHome`, `TryGoTo`, `TryMoveJ`, and the JSON `goto`/`movej`/`movel` handlers, in both `MainModule.mod` and `MainModuleEGM.mod`. The ack is already sent before the move runs, so this is invisible to Node-RED — RAPID just finishes each move before serving the next socket command instead of racing ahead. The now-fully-unused `AddConcMove`/`concCount` machinery was deleted. Jog commands (`X±`/`Y±`/`Z±`/`RX±`/`RY±`/`RZ±`/`J1-6±`, the JSON `jog`/`jointjog` cases) were untouched — each already does a full `StopMove`/`ClearPath`/`StartMove` reset before its own single `\Conc` move, so they were never exposed to this bug and can still be interrupted mid-move by `STOP`. **Trade-off, deliberately accepted**: `STOP`/`gofa-stop-motion` can no longer interrupt an already-executing `HOME`/`GOTOJ`/`GOTOL`/`MOVEJ`/`MOVEL` — it now only cancels a move that hasn't started yet, taking effect once the current one finishes. The safety controller's own hardware e-stop is completely independent of this software layer either way. Bumped to 2.4.2 (`MODULE_VERSION` in all three `.mod` files, kept in lockstep with `package.json` per the version-handshake rule, even though `BackgroundLed.mod`'s own content didn't change — it tracks the palette version as a single number for drift detection, not its own independent history).
 

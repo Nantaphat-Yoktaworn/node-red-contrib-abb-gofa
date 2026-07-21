@@ -101,7 +101,10 @@
         <dt>ip</dt><dd>the configured robot IP being checked</dd>
         <dt>rws</dt><dd>
             <code>{ ok, motors, mode, rapid, speed }</code> — <code>ok</code> is true if at least
-            one of the four RWS calls succeeded; fields for calls that failed are <code>null</code>
+            one of the four RWS calls succeeded; fields for calls that failed are <code>null</code>.
+            <code>speed</code> is the FlexPendant/production-window override (RWS
+            <code>speedratio</code>) — a separate value from <b>gofa-speed-set</b>'s override
+            (RAPID <code>VelSet</code>), see CLAUDE.md's <code>SPEED</code>/<code>SpeedRefresh</code> note
         </dd>
         <dt>socket</dt><dd>
             <code>{ ok: true, rtt }</code> on success (round-trip time in ms), or

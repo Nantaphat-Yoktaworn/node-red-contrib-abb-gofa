@@ -48,7 +48,8 @@ curl -sk $AUTH -H "Accept: application/xhtml+xml;v=2.0" "https://$IP/rw/panel/ct
 # Operating mode: AUTO / manualreduced / manualfull
 curl -sk $AUTH -H "Accept: application/xhtml+xml;v=2.0" "https://$IP/rw/panel/opmode"
 
-# Speed override, 0-100
+# FlexPendant/production-window speed override, 0-100 (a SEPARATE value from the
+# socket SPEED/GETSPEED commands below, which use RAPID's VelSet instead — see CLAUDE.md)
 curl -sk $AUTH -H "Accept: application/xhtml+xml;v=2.0" "https://$IP/rw/panel/speedratio"
 
 # RAPID execution state: running / stopped
@@ -232,7 +233,8 @@ Send-GofaCmd "PING"
 | `X+20` / `Y-10` / `Z+5` | Translate TCP ±mm in base frame (max 50 mm) |
 | `RX+5` / `RY-10` / `RZ+15` | Rotate TCP ±° in tool frame (max 30°) |
 | `J1+10` / `J3-5` | Jog single joint ±° (max 30°, joints 1–6) |
-| `SPEED50` | Set speed override 1–100% |
+| `SPEED50` | Set speed override 1–100% via RAPID's `VelSet` (not `SpeedRefresh` — see CLAUDE.md's `SPEED`/`SpeedRefresh` note) |
+| `GETSPEED` | Read the current override back (`C_MOTSET.vel.oride`) — replies `VAL:<value>` |
 | `MOVEJ<j1;..;j6>` / `MOVEL<j1;..;j6>` | Absolute joint move in degrees — MOVEJ joint-interpolated (MoveAbsJ), MOVEL straight-line TCP path to the same joint pose (added 2.1.0) |
 | `ZONE<name>` | Set path blend zone (`FINE`/`Z1`/`Z5`/`Z10`/`Z20`/`Z50`/`Z100`) |
 | `STOP` | Halt motion — immediate for a jog in progress; for HOME/GOTOJ/GOTOL/MOVEJ/MOVEL it only takes effect once the current move finishes (those stopped using `\Conc` in 2.4.2) |
