@@ -521,7 +521,9 @@
             "128225c4a4d600c6",
             "94fe4d2d0b721143",
             "5429677fabe5d3e4",
-            "8c0f52ef41a5de81"
+            "8c0f52ef41a5de81",
+            "aa29f273b40d8291",
+            "bc93e819fa24785b"
         ],
         "x": 1864,
         "y": 1316,
@@ -2692,7 +2694,7 @@
         "type": "debug",
         "z": "a520b411b857ec3c",
         "g": "7f67148b43e52842",
-        "name": "{ ok, speed:75 }",
+        "name": "{ ok, action, speed }",
         "active": true,
         "tosidebar": true,
         "console": false,
@@ -5004,6 +5006,39 @@
         "targetType": "msg",
         "x": 1195,
         "y": 2720,
+        "wires": []
+    },
+    {
+        "id": "aa29f273b40d8291",
+        "type": "gofa-speed-set",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
+        "name": "Read Speed",
+        "robot": "cfg1",
+        "action": "read",
+        "x": 2650,
+        "y": 1452,
+        "wires": [
+            [
+                "bc93e819fa24785b"
+            ]
+        ],
+        "outputPayload": true
+    },
+    {
+        "id": "bc93e819fa24785b",
+        "type": "debug",
+        "z": "a520b411b857ec3c",
+        "g": "7f67148b43e52842",
+        "name": "{ ok, action:'read', speed }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 2885,
+        "y": 1452,
         "wires": []
     }
 ]
