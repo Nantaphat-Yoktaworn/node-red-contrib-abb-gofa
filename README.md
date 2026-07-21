@@ -141,18 +141,18 @@ The built-in `Admin` account cannot start or stop RAPID remotely. You need to cr
 
 ### Create a role and assign it to the user
 
-4. Click **Authenticate** in the ribbon and log in with an admin account — UAS edits require this first
-
-   *(If you don't see **Edit User Accounts**: try right-clicking the controller name in the left panel → look for Authorization or User Accounts)*
-
+4. **Controller** tab → **Authenticate** → log in with an admin account — UAS edits require this first
 5. Click **Edit User Accounts**
-6. In the **Role** tab → click **Add Role**
-7. Set a role name (e.g. `RemoteControl`) → leave the rest as-is → in the **Grants** / **Permissions** list, enable:
+6. **Roles** tab → either click **Add Role** to create a new one, or select an existing role and
+   click **Edit Role** to modify it
+7. Set a role name (e.g. `RemoteControl`) → leave the rest as-is → in the **Grants** /
+   **Permissions** list, check:
    - ✅ **Remote Start** (allows `start` action via RWS)
    - ✅ **Remote Stop** (allows `stop` and `resetpp` actions via RWS)
    - ✅ All other grants you want (read-only operations work without grants)
-8. Switch to the **User** tab → either change an existing user's role to the one you just created, or click **Add User** to create a new user (e.g. `nodeuser` with a password of your choice) and assign it the new role
-9. Click **OK** → **Apply**
+8. **Apply**
+9. Switch to the **Users** tab → either change an existing user's role to the one you just created, or click **Add User** to create a new user (e.g. `nodeuser` with a password of your choice) and assign it the new role
+10. Click **OK** → **Apply**
 
 > **What about `resetpp`?** It requires edit mastership in addition to Remote Stop — the palette handles this automatically using `/rw/mastership/edit/request`.
 
@@ -482,10 +482,11 @@ hanging.
 
 #### One-time controller setup (RobotStudio, not done by any node)
 
-A UDPUC transmission protocol named `EGM_PC`: **Controller** → **Configuration** →
-**Communication** → **Transmission Protocol** → Add — `Name: EGM_PC`, `Type: UDPUC`,
-`Remote Address:` the Node-RED host's IP on the robot's subnet, `Remote Port: 6510` (must match
-`gofa-egm`'s configured UDP Port). **Requires a controller restart to take effect.** Also
+A UDP Unicast Device named `EGM_PC`: **Controller** → **Configuration** → **Communication** →
+**UDP Unicast Device** → right-click → **New UDP Unicast Device...** — `Name: EGM_PC`,
+`Type: UDPUC`, `Remote Address:` the Node-RED host's IP on the robot's subnet,
+`Remote Port Number: 6510` (must match `gofa-egm`'s configured UDP Port), `Local Port Number: 0`.
+**Requires a controller restart to take effect.** Also
 needs a firewall rule on the Node-RED host allowing inbound UDP on that port.
 
 > **`EGM_PC`'s Remote Address drifts the same way the robot's own IP does** (see
@@ -556,30 +557,40 @@ returns `405`), only RobotStudio can create one. This is genuinely a one-time, m
 RobotStudio-side step, not a gap in the node.
 
 **Prerequisite**: RobotWare Multitasking `[3114-1]` licensed on the controller (check RobotStudio
-→ **Controller** → **Configuration** → **System** → **Options**, or `GET /rw/system` over RWS).
+→ **Controller** → **Installation** → **Modify Installation** → look for it under **Options**,
+or `GET /rw/system` over RWS).
 
 **One-time setup:**
 
 1. **Upload `BackgroundLed.mod`** — add a `gofa-file` node (action **upload**), point its Local
    Path at the bundled `rapid/BackgroundLed.mod`. This auto-syncs `SERVER_IP` the same way
    `gofa-setup`/`gofa-file` already do for `MainModule.mod`.
-2. **RobotStudio → Controller tab → Configuration → Controller topic → Task** → add a new task
-   instance, name it exactly `T_LED` (this name is hardcoded — `gofa-robot`'s **Background
-   Services Port** config field talks to whichever task is listening on that port, but the task
-   itself must be named `T_LED` for the FlexPendant-side reload steps below to apply).
-3. Set **Type** to `SEMISTATIC` — it starts automatically at power-up and, unlike a `NORMAL` task
-   like `T_ROB1`, is not part of the normal RWS/FlexPendant Program Start/Stop cycle (that's the
-   entire point — it needs to survive `T_ROB1` being stopped).
-4. **Set `TrustLevel` to the least-severe option offered** (commonly labeled `NoSafety`), **not**
-   the field's own default. A brand-new task defaults to the same trust level as `T_ROB1`'s real
-   motion task — meaning an unhandled error in this small LED/IO utility task would otherwise be
-   treated as a full system failure, which is disproportionate for what it does.
-5. Assign `BackgroundLed.mod` to this new task — **not** `T_ROB1` (loading it there would
-   collide with `MainModule.mod`'s own `PROC main()`, the same "Global routine name main
-   ambiguous" conflict as loading both `MainModule` and `MainModuleEGM` at once).
-6. **Restart the controller.**
+2. **RobotStudio → Controller tab → Configuration → Controller → Task → right-click → New
+   Task** — opens an **Instance Editor** dialog. Set:
+   - **Task**: `T_LED` (this name is hardcoded — `gofa-robot`'s **Background Services Port**
+     config field talks to whichever task is listening on that port, but the task itself must
+     be named `T_LED` for the FlexPendant-side reload steps below to apply)
+   - **Type**: `Semistatic` — starts automatically at power-up and, unlike a `Normal` task like
+     `T_ROB1`, is not part of the normal RWS/FlexPendant Program Start/Stop cycle (that's the
+     entire point — it needs to survive `T_ROB1` being stopped)
+   - **Main Entry**: `main` (default — leave as-is)
+   - **TrustLevel**: `No Safety`, **not** the field's own default. A brand-new task defaults to
+     the same trust level as `T_ROB1`'s real motion task — meaning an unhandled error in this
+     small LED/IO utility task would otherwise be treated as a full system failure, which is
+     disproportionate for what it does.
+   - Everything else (**Task in Foreground**, **Check Unsolved References**, **Use Mechanical
+     Unit Group**, **Hidden**, **RMQ Type**/**Mode**, etc.) can stay at its default.
+   - **OK**.
+3. **Restart the controller.** Required before `T_LED` shows up as a selectable task anywhere
+   else (FlexPendant, RWS) — it won't appear until after this restart.
+4. **Load `BackgroundLed.mod` into `T_LED`** — on the FlexPendant: ABB menu → **Program
+   Editor** → task selector (top) → switch to **T_LED** → **File** → **Load Module...** →
+   `$HOME/Programs/BackgroundLed.mod` (already uploaded in step 1) → confirm. Load it into
+   `T_LED` specifically, **not** `T_ROB1` (that would collide with `MainModule.mod`'s own
+   `PROC main()`, the same "Global routine name main ambiguous" conflict as loading both
+   `MainModule` and `MainModuleEGM` at once).
 
-After the restart, verify with a `gofa-do-write` node set to the **Background task** transport
+After loading the module, verify with a `gofa-do-write` node set to the **Background task** transport
 (or `gofa-asi-led` set the same way) — a successful write confirms `T_LED` is up and answering.
 
 **Updating `BackgroundLed.mod` later** (after this initial setup, e.g. after editing it) needs a
@@ -757,10 +768,10 @@ whichever module you don't want, **before** `loadmod`-ing the other. See
 ### `gofa-egm` `start` succeeds but no motion / "No EGM frames received within 2s"
 
 `OK:EGMJOINT` came back and the UDP socket bound fine, but zero frames arrive from the
-controller. Almost always a stale `EGM_PC` transmission-protocol config — its **Remote
+controller. Almost always a stale `EGM_PC` UDP Unicast Device config — its **Remote
 Address** must be the Node-RED host's *current* IP, which drifts the same way the robot's own
 IP does. Check it in RobotStudio (**Controller** → **Configuration** → **Communication** →
-**Transmission Protocol** → `EGM_PC`) and restart the controller after fixing it. Also
+**UDP Unicast Device** → `EGM_PC`) and restart the controller after fixing it. Also
 double-check the firewall rule for inbound UDP on the configured port.
 
 ### `gofa-egm` `start` fails with "bind EADDRINUSE 0.0.0.0:6510" (fixed — for older versions)

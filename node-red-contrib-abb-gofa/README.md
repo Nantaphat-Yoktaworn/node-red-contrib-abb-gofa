@@ -152,11 +152,12 @@ every other node in this package depends on — while `gofa-egm` is streaming, `
 means the default `MainModule.mod` — and everything that depends on it — is completely
 unaffected by this feature; it's not merged into the file every other node already relies on.
 
-**One-time controller setup**, not done by any node: a UDPUC transmission protocol named
-`EGM_PC` (RobotStudio → Controller → Configuration → Communication → Transmission Protocol;
-Remote Address = the Node-RED host's IP on the robot's subnet, Remote Port = the `gofa-egm`
-node's configured UDP port, default `6510`; requires a controller restart), and — on the
-Node-RED host — a firewall rule allowing inbound UDP on that port.
+**One-time controller setup**, not done by any node: a UDP Unicast Device named
+`EGM_PC` (RobotStudio → Controller → Configuration → Communication → UDP Unicast Device →
+right-click → New UDP Unicast Device...; Remote Address = the Node-RED host's IP on the robot's
+subnet, Remote Port Number = the `gofa-egm` node's configured UDP port, default `6510`, Local
+Port Number = `0`; requires a controller restart), and — on the Node-RED host — a firewall rule
+allowing inbound UDP on that port.
 
 **Caution — tool load data:** per ABB's EGM Application Manual, the robot should have correct
 tool load data (`LoadIdentify`) before starting EGM — incorrect load data can cause servo

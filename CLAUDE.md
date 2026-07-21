@@ -313,11 +313,12 @@ unit tests pass, including two new ones for this (`gofa-egm: a DIFFERENT node in
 the socket a Start instance opened`, `gofa-egm: start() releases the orphaned controller-side
 session if EGMJOINT acked but the UDP bind fails`).
 
-**Prerequisites (one-time, not automatable from Node-RED)**: a UDPUC transmission protocol
-named `EGM_PC` (RobotStudio → Controller → Configuration → Communication → Transmission
-Protocol; Remote Address = the Node-RED host's IP on the robot's subnet, Remote Port =
-`gofa-egm`'s configured UDP port, default 6510; needs a controller restart), and a firewall
-rule on the Node-RED host allowing inbound UDP on that port. **The Remote Address drifts the
+**Prerequisites (one-time, not automatable from Node-RED)**: a UDP Unicast Device named
+`EGM_PC` (RobotStudio → Controller → Configuration → Communication → UDP Unicast Device →
+right-click → New UDP Unicast Device...; Remote Address = the Node-RED host's IP on the
+robot's subnet, Remote Port Number = `gofa-egm`'s configured UDP port (default 6510), Local
+Port Number = 0; needs a controller restart), and a firewall rule on the Node-RED host allowing
+inbound UDP on that port. **The Remote Address drifts the
 same way the robot's own IP does** (see the robot-IP-drift note elsewhere in this doc) —
 confirmed live: `start` bound UDP fine and got `OK:EGMJOINT`, but zero frames ever arrived and
 RAPID hung indefinitely (see the mode-exit correction — nothing timed out on its own), because
