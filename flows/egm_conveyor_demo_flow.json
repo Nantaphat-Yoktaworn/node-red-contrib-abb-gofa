@@ -1,0 +1,318 @@
+[
+    {
+        "id": "0eba8ed68c247c78",
+        "type": "tab",
+        "label": "EGM Conveyor Demo",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "58217b1b5fa9cc20",
+        "type": "group",
+        "z": "0eba8ed68c247c78",
+        "name": "EGM Conveyor Tracking (simulated target)",
+        "style": {
+            "stroke": "#3d6aa8",
+            "stroke-opacity": "1",
+            "fill": "#e8eef8",
+            "fill-opacity": "0.5",
+            "label": true,
+            "label-position": "nw",
+            "color": "#3d6aa8"
+        },
+        "nodes": [
+            "5e6f9265fd4e665d",
+            "4531324e93f69259",
+            "b4685595b39f8bc4",
+            "9160196cf5cb025a",
+            "166b545b70e407fd",
+            "ed2b78ac09084590",
+            "fa47d70f8d788c74",
+            "296a65d2ba00224b",
+            "7bd4afea5484c42c",
+            "45c13583eacdf055",
+            "e77f03dcbc442c5b",
+            "705e19749ecabe0f",
+            "86920e7283591fdb",
+            "db878bef5bc12f6c"
+        ],
+        "x": 180,
+        "y": 20,
+        "w": 1340,
+        "h": 380
+    },
+    {
+        "id": "cfg1",
+        "type": "gofa-robot",
+        "name": "ABB-GoFa-12",
+        "ip": "192.168.1.103",
+        "rwsPort": "443",
+        "socketPort": "1025",
+        "username": "NNNN",
+        "pointsFile": "points.json",
+        "remotePointsPath": ""
+    },
+    {
+        "id": "5e6f9265fd4e665d",
+        "type": "comment",
+        "z": "0eba8ed68c247c78",
+        "g": "58217b1b5fa9cc20",
+        "name": "EGM conveyor-tracking demo (simulated target, no real conveyor/encoder)",
+        "info": "Demonstrates the EGM streaming pattern used for real-world conveyor tracking: a moving target position is fed continuously into the robot's active motion at high rate (~24ms frames), instead of one-shot MoveJ/MoveL commands that top out around 100-500ms latency. In production this target would come from a belt encoder or vision system; here the \"Simulated conveyor position\" function node fakes that feed with a smooth sweep, so the wiring shown is exactly what you would keep if you swapped in a real sensor - only that one function node would change.\n\nPrerequisite: MainModuleEGM.mod must already be loaded on T_ROB1 (not the default MainModule.mod) - see the README's \"Loading MainModuleEGM.mod\" section. gofa-egm's start action fails with a clear error if the wrong module is loaded, rather than hanging.\n\nNote on the MOVEJ fallback wire below: in this demo the target generator only runs while an EGM session is already streaming (it is driven by gofa-egm's own telemetry), so gofa-egm-move's fallback output (EGM not active) never actually fires here - it is wired to show the pattern gofa-egm-move is designed for, not something this specific demo exercises. A real integration where some other trigger can fire whether or not EGM happens to be running (e.g. a \"go to this point\" button) is what would actually use it.\n\nConfirmed live 2026-07-21 (GoFa 12 / OmniCore C30): driven via the real gofa-egm.js/gofa-egm-move.js node files (fake-RED harness pointed at the live robot, same pattern used elsewhere in this project) with joint 5 (wrist bend) instead of joint 6 (wrist roll, chosen for this flow since it is hard to see visually and barely moves the end-effector) - 20s / 3+ sweep cycles, real closed-loop convergence in the telemetry (joint 5 smoothly tracking a moving target oscillating +-7deg around baseline), clean graceful stop. Hit one real environment issue along the way, not a flow bug: EGM_PC's Remote Address was stale (the same drift gotcha documented in the EGM section above) - fixed in RobotStudio + a controller restart, then the identical test ran clean.",
+        "x": 480,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "4531324e93f69259",
+        "type": "inject",
+        "z": "0eba8ed68c247c78",
+        "g": "58217b1b5fa9cc20",
+        "name": "Start EGM",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 220,
+        "y": 140,
+        "wires": [
+            [
+                "9160196cf5cb025a"
+            ]
+        ]
+    },
+    {
+        "id": "b4685595b39f8bc4",
+        "type": "inject",
+        "z": "0eba8ed68c247c78",
+        "g": "58217b1b5fa9cc20",
+        "name": "Stop EGM",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 220,
+        "y": 380,
+        "wires": [
+            [
+                "ed2b78ac09084590"
+            ]
+        ]
+    },
+    {
+        "id": "9160196cf5cb025a",
+        "type": "function",
+        "z": "0eba8ed68c247c78",
+        "g": "58217b1b5fa9cc20",
+        "name": "Reset simulated conveyor baseline",
+        "func": "// Clears the shared flow-context baseline BEFORE each Start EGM press, so\n// the conveyor-simulator function always re-captures a fresh baseline from\n// wherever the robot actually is right now. Without this, pressing Start,\n// Stop, jogging the robot elsewhere, then Start again would keep computing\n// targets relative to the OLD baseline - EGMActJoint sets the correction\n// range's center to the robot's CURRENT position at each new session, so a\n// stale baseline could compute a target outside the +-10deg egm_minmax\n// range and fault the session.\nflow.set('egmConvBaseline', undefined);\nflow.set('egmConvStart', undefined);\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 340,
+        "y": 140,
+        "wires": [
+            [
+                "166b545b70e407fd"
+            ]
+        ]
+    },
+    {
+        "id": "166b545b70e407fd",
+        "type": "gofa-egm",
+        "z": "0eba8ed68c247c78",
+        "g": "58217b1b5fa9cc20",
+        "name": "Start EGM session",
+        "robot": "cfg1",
+        "action": "start",
+        "udpPort": 6510,
+        "throttleMs": 100,
+        "x": 580,
+        "y": 140,
+        "wires": [
+            [
+                "fa47d70f8d788c74",
+                "7bd4afea5484c42c"
+            ]
+        ],
+        "outputPayload": true
+    },
+    {
+        "id": "ed2b78ac09084590",
+        "type": "gofa-egm",
+        "z": "0eba8ed68c247c78",
+        "g": "58217b1b5fa9cc20",
+        "name": "Stop EGM session",
+        "robot": "cfg1",
+        "action": "stop",
+        "udpPort": 6510,
+        "throttleMs": 100,
+        "x": 460,
+        "y": 380,
+        "wires": [
+            [
+                "296a65d2ba00224b"
+            ]
+        ],
+        "outputPayload": true
+    },
+    {
+        "id": "fa47d70f8d788c74",
+        "type": "debug",
+        "z": "0eba8ed68c247c78",
+        "g": "58217b1b5fa9cc20",
+        "name": "raw telemetry { joints, seqno, ... }",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 880,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "296a65d2ba00224b",
+        "type": "debug",
+        "z": "0eba8ed68c247c78",
+        "g": "58217b1b5fa9cc20",
+        "name": "EGM stopped",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 700,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "7bd4afea5484c42c",
+        "type": "function",
+        "z": "0eba8ed68c247c78",
+        "g": "58217b1b5fa9cc20",
+        "name": "Simulated conveyor position -> joint 5 target + pick-window flag",
+        "func": "// Stands in for a real belt encoder / vision feed: every throttled EGM\n// telemetry frame (fed straight into this node's input), recompute where\n// the simulated \"part on the conveyor\" currently is and offset joint 5\n// (wrist bend) to track it - chosen over joint 6 (wrist roll) because it\n// produces a visible arc at the end-effector instead of a hard-to-see\n// roll-in-place, while still only being a small motion. Stays well inside\n// the +-10deg egm_minmax correction range set in MainModuleEGM.mod's\n// RunEgmJoint. A real integration would replace ONLY this function's body\n// with a read of the actual encoder/vision position - everything\n// downstream (output 1 into gofa-egm-move) is unchanged.\n//\n// Baseline is flow-scoped (not node-scoped) context, cleared by the\n// \"Reset simulated conveyor baseline\" node right before every Start EGM\n// press - so it's always freshly captured from the CURRENT position at\n// session start, never stale from a previous session.\nvar joints = msg.payload && msg.payload.joints;\nif (!Array.isArray(joints) || joints.length !== 6) return [null, null];\n\nif (flow.get('egmConvBaseline') === undefined) {\n    flow.set('egmConvBaseline', joints);\n    flow.set('egmConvStart', Date.now());\n}\n\nvar baseline = flow.get('egmConvBaseline');\nvar elapsed = (Date.now() - flow.get('egmConvStart')) / 1000;\n\n// One simulated \"part\" every 6s, smooth sweep +-7deg (inside the +-10deg\n// clamp) rather than a hard reset - a real encoder position doesn't jump,\n// so neither should this stand-in.\nvar period = 6;\nvar amplitudeDeg = 7;\nvar offsetDeg = amplitudeDeg * Math.sin(2 * Math.PI * elapsed / period);\n\nvar target = baseline.slice();\ntarget[4] = target[4] + offsetDeg;\n\n// Pick window: the simulated part is \"in reach\" near the sweep's center\n// crossing (ascending) - illustrates where you'd trigger a real gofa-grip\n// call in a production conveyor cell. No gripper is mounted on this robot,\n// so this only reports the window, it doesn't fire a real grip.\nvar inPickWindow = Math.abs(offsetDeg) < 0.75;\n\nvar moveMsg = { payload: target };\nvar statusMsg = { payload: { inPickWindow: inPickWindow, offsetDeg: Math.round(offsetDeg * 100) / 100 } };\nreturn [moveMsg, statusMsg];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 620,
+        "y": 200,
+        "wires": [
+            [
+                "45c13583eacdf055"
+            ],
+            [
+                "db878bef5bc12f6c"
+            ]
+        ]
+    },
+    {
+        "id": "45c13583eacdf055",
+        "type": "gofa-egm-move",
+        "z": "0eba8ed68c247c78",
+        "g": "58217b1b5fa9cc20",
+        "name": "",
+        "robot": "cfg1",
+        "x": 920,
+        "y": 180,
+        "wires": [
+            [
+                "e77f03dcbc442c5b"
+            ],
+            [
+                "705e19749ecabe0f"
+            ]
+        ],
+        "outputPayload": true
+    },
+    {
+        "id": "e77f03dcbc442c5b",
+        "type": "debug",
+        "z": "0eba8ed68c247c78",
+        "g": "58217b1b5fa9cc20",
+        "name": "target sent (EGM active)",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 1180,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "705e19749ecabe0f",
+        "type": "gofa-movej",
+        "z": "0eba8ed68c247c78",
+        "g": "58217b1b5fa9cc20",
+        "name": "Fallback: MOVEJ (EGM not active, never fires in this demo - see comment)",
+        "robot": "cfg1",
+        "joints": "[0,0,85,0,0,0]",
+        "x": 1180,
+        "y": 220,
+        "wires": [
+            [
+                "86920e7283591fdb"
+            ]
+        ],
+        "outputPayload": true
+    },
+    {
+        "id": "86920e7283591fdb",
+        "type": "debug",
+        "z": "0eba8ed68c247c78",
+        "g": "58217b1b5fa9cc20",
+        "name": "{ ok, joints } (fallback move result)",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 1440,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "db878bef5bc12f6c",
+        "type": "debug",
+        "z": "0eba8ed68c247c78",
+        "g": "58217b1b5fa9cc20",
+        "name": "pick window status (illustrative only, no gripper mounted)",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 940,
+        "y": 260,
+        "wires": []
+    }
+]

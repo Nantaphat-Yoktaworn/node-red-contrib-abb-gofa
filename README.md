@@ -42,6 +42,8 @@ flows/
   pickplace_sorting_flow.json    ← Pick-and-place sorting cell example
   teach_workflow_flow.json       ← Physical-button teach workflow (see below)
   watchdog_flow.json             ← Self-healing socket-wedge watchdog — see the "Module version handshake + watchdog flow" section in CLAUDE.md
+  mqtt_bridge_flow.json          ← Publishes state/pose/io onto MQTT topics via core mqtt out nodes
+  egm_conveyor_demo_flow.json    ← EGM conveyor-tracking demo (simulated target — see EGM section)
 MANUAL_CONTROL.md                ← Control the robot directly (curl / raw TCP), no Node-RED needed
 ```
 
@@ -260,6 +262,8 @@ Click **Update** → **Deploy**.
 | `flows/pickplace_sorting_flow.json` | Pick-and-place sorting cell example |
 | `flows/teach_workflow_flow.json` | Physical-button teach workflow (see below) |
 | `flows/watchdog_flow.json` | Self-healing socket-wedge watchdog — polls every 30s, auto-recovers a genuinely stuck RAPID socket, leaves teach workflow / EGM sessions alone |
+| `flows/mqtt_bridge_flow.json` | Publishes state/pose/io onto MQTT topics via core `mqtt out` nodes |
+| `flows/egm_conveyor_demo_flow.json` | EGM conveyor-tracking demo — a simulated moving target (no real conveyor/encoder) streamed into an active EGM session, illustrating the real-world pattern; requires `MainModuleEGM.mod` loaded (see [EGM](#egm-externally-guided-motion)) |
 
 After importing, open the **gofa-robot** config node (click any GoFa node → pencil icon) and verify the IP and credentials match your setup.
 
@@ -473,9 +477,9 @@ sequence, either direction:
 5. `gofa-rapid-exec` → `resetpp`
 6. `gofa-rapid-exec` → `start`
 
-The "0 - Load MainModuleEGM.mod" group inside the "4 - EGM (UDP)" group of
-`flows/gofa_demo_flow.json` wires this exact sequence up as a ready-made sub-flow (with `change`
-nodes clearing `msg.payload` between chained `gofa-rapid-exec` nodes — see the chaining note in
+There's no ready-made sub-flow for this sequence in `flows/gofa_demo_flow.json` — wire the six
+steps above by hand with a `gofa-rapid-exec`/`gofa-file` node each (with `change` nodes clearing
+`msg.payload` between chained `gofa-rapid-exec` nodes — see the chaining note in
 [msg.payload conventions](#msgpayload-conventions)). If the wrong module ends up loaded anyway,
 `gofa-egm`'s `start` action fails with a clear "load MainModuleEGM.mod first" error instead of
 hanging.
