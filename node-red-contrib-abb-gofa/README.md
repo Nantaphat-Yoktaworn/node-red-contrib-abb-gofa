@@ -87,7 +87,7 @@ needed just to silence output. Check it to get the full `msg.payload` described 
 | `gofa-jog` | Socket | Cartesian jog (±mm / ±°) |
 | `gofa-joint-jog` | Socket | Single-joint jog |
 | `gofa-zone-set` | Socket | Path blend zone (FINE…Z100) |
-| `gofa-speed-set` | Socket | Speed override % |
+| `gofa-speed-set` | Socket | Speed override via `VelSet` — set or read current (`C_MOTSET.vel.oride`); see CLAUDE.md for why `SpeedRefresh` doesn't work here |
 | `gofa-stop-motion` | Socket | Motion halt — immediate for a jog; for HOME/GOTOJ/GOTOL/MOVEJ/MOVEL it takes effect once the current move finishes (no longer `\Conc` as of 2.4.2) |
 | `gofa-ping` | Socket | Connectivity test with round-trip time |
 | `gofa-grip` | RWS | Digital output on/off (gripper-style) |

@@ -80,6 +80,82 @@ Ack is sent **before** the motion starts. RAPID error handler (StopMove/ClearPat
 
 **GOTOJ/GOTOL note**: bare `GOTO<11 nums>` (no `J`/`L` letter) is still accepted by `TryGoTo` as an alias for `GOTOJ`, for backward compatibility. `gofa-go-point` and `gofa-sequencer` always send the explicit `J`/`L` form based on their "Move type" dropdown. `MoveJ` (joint-interpolated) is the more predictable/reliable choice — RAPID has freedom in how each axis gets there, so it won't fault or slow drastically near a singularity — and is therefore the default at every fallback point: `gotoToken(t, moveType)` in `gofa-robot.js` maps anything other than exactly `'L'` to `'J'`, and both nodes' config defaults are `'J'`. `MoveL` follows a straight line to the target and can hit singularities or joint limits along that line that `MoveJ` would route around, so it's opt-in, not a safer default.
 
+**`SPEED`/`SpeedRefresh` note — `gofa-speed-set` and RWS `speedratio` are two SEPARATE
+multiplicative overrides, confirmed live 2026-07-21, correcting an earlier wrong claim in this
+doc.** This project previously described `gofa-speed-set`'s `SpeedRefresh` call as "the same as
+the speed slider on the FlexPendant." Confirmed false via a live round-trip: `gofa-speed-set`
+Set(40) → `SpeedRefresh 40` acked `OK:SPEED` → an immediate RWS read of `GET
+/rw/panel/speedratio` still reported `100`. Per ABB's own RAPID reference and community forum
+discussion, `SpeedRefresh` and the FlexPendant/production-window override (what `speedratio`
+reports) are independent factors — actual motion speed is roughly `programmed speed ×
+FlexPendant override% × SpeedRefresh override%`, not one value under two names. Practical
+implications: **there is no known RWS-readable value for `SpeedRefresh`'s own override** — the
+`gofa-speed-set` "Read" action (added 2026-07-21) reads `speedratio` only, which is a real, useful
+value on its own (the operator's dial position) but can never be used to confirm a prior `Set`
+call took effect; confirming that needs watching actual motion speed, not an RWS read. Both
+values remain global/controller-wide either way — `SpeedRefresh` still affects every subsequent
+move from any flow or node, same caution as before, just via a different mechanism than
+previously documented.
+
+**Follow-up, same day — `SpeedRefresh` called from the idle socket handler (i.e. every real
+`gofa-speed-set` Set call today) shows NO measurable effect on real motion duration when timed
+live. Treat `gofa-speed-set` as unproven to actually control speed, pending a redesign.** Method:
+since `MOVEJ`/`MOVEL` are blocking (no `\Conc`, 2.4.2) and the ack is sent before the move runs,
+a single command's own round-trip isn't a valid timing signal — but RAPID can't accept the
+*next* connection until the current blocking move finishes, so the next command's round-trip
+measures the *previous* move's real duration. Timed a 30° out-and-back `MOVEJ` on joint 6 (same
+low-risk axis prior EGM tests used) via the real `gofa-speed-set`/`gofa-movej` node code: at
+`SpeedRefresh 100` the move took ~487–492ms; at `SpeedRefresh 10` the same move took ~372ms —
+essentially flat, not the ~10x slowdown a working override would produce, and if anything
+backwards. This matches ABB's own documented semantics (RAPID technical reference + community
+forum, see the note above): `SpeedRefresh` updates the override for a movement *already in
+progress* — calling it from an idle handler, before the next move even starts, likely does
+nothing because there's no active motion for it to refresh at that moment. **A second,
+higher-contrast run (100% vs 5%) was contaminated by what looks like independent concurrent
+activity on the same robot** — a genuine "Corner path failure" elog entry (domain 5/Motion,
+`/MainModuleEGM/DispatchJson/MoveAbsJ/422`) and a steady stream of `T_ROB1`/`T_LED` "Socket
+error... closed by remote host" entries appeared in exactly that test's time window, consistent
+with another already-deployed flow (e.g. `watchdog_flow.json`'s 30s poll) or user session hitting
+the robot concurrently — not something the test script alone would produce. That run's numbers
+are unreliable and were discarded; the first, clean run's flat/backwards result stands as the
+evidence. Robot was confirmed to settle back at its exact starting joint values and to stay
+`motoron`/`AUTO`/`running` throughout, both times — no safety issue, just data worth distrusting
+in the contaminated run.
+
+**RESOLVED same day — `gofa-speed-set` now uses `VelSet` instead of `SpeedRefresh`, confirmed
+live to actually control real motion speed. Bumped to 2.4.6.** `MainModule.mod`/
+`MainModuleEGM.mod`'s `"speed"` JSON case now calls `VelSet speedVal, 5000;` instead of
+`SpeedRefresh speedVal;` — per ABB's own RAPID reference, `VelSet` changes the *programmed*
+velocity, persisting to every subsequent motion instruction until changed again (unlike
+`SpeedRefresh`, which only updates an already-in-progress move). The `5000` second argument is a
+generously high absolute TCP-speed cap (mm/s) — above any `v_tcp` this project's `vGoto`/`vJog`
+ever specify — so it never becomes the binding constraint; only the override% matters, the same
+role `SpeedRefresh`'s single argument was meant to play. **Live-verified with the same
+before/after-move timing method as the `SpeedRefresh` test above**: a 30° out-and-back `MOVEJ` on
+joint 6 took ~37ms total at 100% override vs. ~2216ms at 5% — a **60x** difference, unambiguous
+real scaling (a working override only needed to show ~20x). Robot settled back at its exact
+starting joint values both times, `motoron`/`AUTO`/`running` throughout.
+
+A new `"getspeed"` JSON case (`gofa-speed-set`'s Read action now uses this instead of RWS
+`speedratio`) reads `C_MOTSET.vel.oride` — the predefined system data holding `VelSet`'s current
+override — and replies `VAL:<n>` same as `GETVAR`. **First attempt used `CMotSet` (no
+underscore) and failed to compile** (`resetpp` → `HTTP 400`, elog `40160 "Errors in RAPID
+program"`, no line-level detail available over RWS) — bisected by removing just the `getspeed`
+case and redeploying: `VelSet`-only compiled clean, confirming the fault was isolated to that one
+identifier. Retried with `C_MOTSET` (underscore) per multiple independent web sources — compiled
+and deployed clean. Live-verified the full Set→Read round trip via the real `gofa-speed-set` node
+code: Set 37 → Read 37, Set 63 (via `msg.payload.speed` object-form override) → Read 63, restore
+Set 100 → Read 100, every pair matching exactly (an isolated single earlier read momentarily
+showed a stale `37` before any of this test's own `Set` calls ran — never reproduced again across
+three independent follow-up reads, consistent with the same kind of external concurrent activity
+already documented above, not a bug in this mechanism). Ended the session with the override
+confirmed back at `100` and the robot `motoron`/`AUTO`/`running`.
+
+Both `MainModule.mod` and `MainModuleEGM.mod` carry the identical fix (kept in lockstep per this
+doc's own sync rule); only `MainModuleEGM.mod` was live-deployed and tested this session (it's
+what the controller was already running) — `MainModule.mod`'s copy is byte-identical in this
+region but its own live compile/deploy wasn't separately re-verified.
+
 **`\Conc` queue-depth crash, fixed 2026-07-20 — a real production bug, not a one-off.** User report: `pickplace_sorting_flow.json` worked once, then RAPID error **40631** ("Too many move instructions in sequence with concurrent RAPID program execution") on the second cycle, stopping `T_ROB1` (and its own socket server with it — full `gofa-setup` redeploy needed to recover, not just `resetpp`). Every chained motion instruction (`HOME`, `GOTOJ`/`GOTOL`, `MOVEJ`/`MOVEL`) used RAPID's `\Conc` switch so the ack could return before the physical move finished; a helper `PROC AddConcMove()` was meant to call `WaitRob \InPos` periodically to keep the RAPID-internal `\Conc` queue-depth limit from being exceeded. **Five independent live-tested fixes all failed at the identical move** (same failure point regardless of zone type, sync threshold, an off-by-one in the counter, syncing on literally every move, or agy's ABB-informed `WaitTime 0.1` + `WaitRob \InPos` fix) — including with 5mm test moves between two points sharing an identical `robconf` (ruling out kinematics/singularity entirely) and with request pacing from 0s to 4s apart (ruling out a client-side race). That level of consistency across five structurally different sync strategies meant `WaitRob \InPos`, called from a helper `PROC`, simply wasn't resetting whatever RAPID actually tracks for this limit — not a tuning problem. **Fix, confirmed live (20/20 clean cycles after, vs. 100% failure by move 7 before)**: removed `\Conc` entirely from `rGoHome`, `TryGoTo`, `TryMoveJ`, and the JSON `goto`/`movej`/`movel` handlers, in both `MainModule.mod` and `MainModuleEGM.mod`. The ack is already sent before the move runs, so this is invisible to Node-RED — RAPID just finishes each move before serving the next socket command instead of racing ahead. The now-fully-unused `AddConcMove`/`concCount` machinery was deleted. Jog commands (`X±`/`Y±`/`Z±`/`RX±`/`RY±`/`RZ±`/`J1-6±`, the JSON `jog`/`jointjog` cases) were untouched — each already does a full `StopMove`/`ClearPath`/`StartMove` reset before its own single `\Conc` move, so they were never exposed to this bug and can still be interrupted mid-move by `STOP`. **Trade-off, deliberately accepted**: `STOP`/`gofa-stop-motion` can no longer interrupt an already-executing `HOME`/`GOTOJ`/`GOTOL`/`MOVEJ`/`MOVEL` — it now only cancels a move that hasn't started yet, taking effect once the current one finishes. The safety controller's own hardware e-stop is completely independent of this software layer either way. Bumped to 2.4.2 (`MODULE_VERSION` in all three `.mod` files, kept in lockstep with `package.json` per the version-handshake rule, even though `BackgroundLed.mod`'s own content didn't change — it tracks the palette version as a single number for drift detection, not its own independent history).
 
 **RAPID start note**: `POST /rw/rapid/execution/start` returns HTTP 200 even when the controller immediately rejects the start (e.g. RAPID error 20055, "program must start in Motor On state") — the rejection isn't surfaced as an HTTP error, so a naive implementation reports `{ ok: true }` for a start that never ran. `gofa-rapid-exec` guards against this for the `start` action only: it reads `/rw/panel/ctrl-state` first and fails fast if motors aren't on, then polls `/rw/rapid/execution` (`ctrlexecstate`) for up to 1.5s after the POST to confirm it actually reached `running`. `stop`/`resetpp` don't have this silent-rejection failure mode and aren't checked.
@@ -837,7 +913,7 @@ whichever response lands last always rebuilds from a clean slate regardless of o
 | `gofa-joint-jog` | Socket | Single joint jog |
 | `gofa-grip` | RWS | Named DO signal on/off via `/set-value` (needs `Access: All` on that signal); editor has a Known Signals dropdown (DO-filtered, see above) alongside the free-text field |
 | `gofa-zone-set` | Socket | Set path blend zone |
-| `gofa-speed-set` | Socket | Speed override % via `SpeedRefresh` (no mastership needed) |
+| `gofa-speed-set` | Socket | Global speed override via RAPID's `VelSet` (not `SpeedRefresh` — see the `SPEED`/`SpeedRefresh` note above for why); Action dropdown — Set (`speed` cmd) or Read current (`getspeed` cmd, reads `C_MOTSET.vel.oride`, genuinely reflects Set). Neither needs mastership; both need RAPID running. `msg.payload` accepts `{speed}`/`{action}` object-form overrides, matching the rest of the palette's override convention. **Chaining hazard**: its own `{ok, action, speed}` output can be misread as another instance's `action` override — same class as `gofa-rapid-exec`/`gofa-asi-led` |
 | `gofa-stop-motion` | Socket | Halt motion — immediate for a jog in progress, but only takes effect after the current move finishes for `HOME`/`GOTOJ`/`GOTOL`/`MOVEJ`/`MOVEL` since 2.4.2 (see the `\Conc` queue-depth crash note above) |
 | `gofa-ping` | Socket | Connectivity test, measures round-trip time |
 | `gofa-save-point` | RWS + disk/RWS | Read pose via RWS, save as named point in `points.json` (Local) or a JSON file on the robot's own disk (On-Robot) |

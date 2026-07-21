@@ -3562,6 +3562,44 @@ await checkAsync('gofa-speed-set: sets speed and respects clamping', async funct
     assert.deepStrictEqual(calls[0], { cmd: 'speed', val: 100 });
 });
 
+await checkAsync('gofa-speed-set: accepts object-form msg.payload.speed', async function() {
+    var calls = [];
+    var mockRobot = {
+        socketSend: function(cmd) {
+            calls.push(cmd);
+            return Promise.resolve('OK:SPEED');
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-speed-set', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', speed: 50
+    });
+    var msg = { payload: { speed: 75 } };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.speed, 75);
+    assert.deepStrictEqual(calls[0], { cmd: 'speed', val: 75 });
+});
+
+await checkAsync('gofa-speed-set: read action reads the VelSet override via the getspeed socket command', async function() {
+    var socketCalls = [];
+    var mockRobot = {
+        socketSend: function(cmd) {
+            socketCalls.push(cmd);
+            assert.deepStrictEqual(cmd, { cmd: 'getspeed' });
+            return Promise.resolve('VAL:42');
+        }
+    };
+    var node = new (loadNodeType('./nodes/gofa-speed-set', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', action: 'read'
+    });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.action, 'read');
+    assert.strictEqual(msg.payload.speed, 42);
+    assert.strictEqual(socketCalls.length, 1);
+});
+
 await checkAsync('gofa-stop-motion: halts robot motion', async function() {
     var calls = [];
     var mockRobot = {

@@ -62,7 +62,7 @@ MODULE MainModule
     ! instead of failing mysteriously later on a command that doesn't exist
     ! yet. Bump this whenever the socket protocol changes; keep in lockstep
     ! with node-red-contrib-abb-gofa/package.json's "version".
-    CONST string MODULE_VERSION := "2.4.5";
+    CONST string MODULE_VERSION := "2.4.6";
 
     ! Persisted home pose (survives restart AND module reload). One line of
     ! 11 ;-separated numbers, same layout as a GOTO token, written by SETHOME.
@@ -290,14 +290,28 @@ MODULE MainModule
             SetGO Asi1LedPeriod, 0;
             SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""resetled""}" + ByteToStr(10\Char));
         CASE "speed":
+            ! VelSet (not SpeedRefresh) — confirmed live 2026-07-21 that SpeedRefresh only
+            ! updates the override for a movement ALREADY IN PROGRESS (per ABB's own RAPID
+            ! reference), so calling it here, before the next move even starts, measurably did
+            ! nothing to real motion speed. VelSet changes the PROGRAMMED velocity, persisting
+            ! to every subsequent motion instruction until changed again — what this command was
+            ! always meant to do. Second arg (5000) is a generously high absolute TCP-speed cap
+            ! (matches the "high ceiling" value already used in vGoto/vJog's own v_leax field) so
+            ! it never becomes the binding constraint — only the override% actually matters.
             IF GetJsonNumVal(json, "val", speedVal) THEN
                 IF speedVal >= 1 AND speedVal <= 100 THEN
-                    SpeedRefresh speedVal;
+                    VelSet speedVal, 5000;
                     SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""speed""}" + ByteToStr(10\Char));
                     RETURN;
                 ENDIF
             ENDIF
             SocketSend clientSocket \Str:=("{""status"":""err"",""cmd"":""speed"",""msg"":""invalid speed""}" + ByteToStr(10\Char));
+        CASE "getspeed":
+            ! Reads C_MOTSET.vel.oride, the predefined system data holding the CURRENT velocity
+            ! override — unlike SpeedRefresh's override (nowhere readable), VelSet's override is
+            ! exposed this way, so this can confirm what "speed" (above) actually set.
+            speedVal := C_MOTSET.vel.oride;
+            SocketSend clientSocket \Str:=("{""status"":""ok"",""cmd"":""getspeed"",""val"":""" + NumToStr(speedVal, 2) + """}" + ByteToStr(10\Char));
         CASE "zone":
             IF GetJsonStringVal(json, "val", zoneName) THEN
                 TEST zoneName

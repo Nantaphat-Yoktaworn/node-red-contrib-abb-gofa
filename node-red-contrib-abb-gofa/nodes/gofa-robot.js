@@ -458,7 +458,7 @@ function translateToJSON(cmd) {
                         try {
                             var json = JSON.parse(rawResp);
                             if (json.status === 'ok') {
-                                if (json.cmd === 'getvar') {
+                                if (json.cmd === 'getvar' || json.cmd === 'getspeed') {
                                     finish(null, 'VAL:' + json.val);
                                 } else if (json.cmd === 'ping') {
                                     lastPingVersion[port || socketPort] = json.version || null;

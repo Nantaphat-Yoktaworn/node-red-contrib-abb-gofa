@@ -3,12 +3,13 @@
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
             outputPayload: { value: false },
-            name:  { value: '' },
-            robot: { value: '', type: 'gofa-robot', required: true },
-            speed: { value: 50, validate: RED.validators.number() }
+            name:   { value: '' },
+            robot:  { value: '', type: 'gofa-robot', required: true },
+            action: { value: 'set' },
+            speed:  { value: 50, validate: RED.validators.number() }
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
-        label: function() { return this.name || ('Speed ' + this.speed + '%'); },
+        label: function() { return this.name || (this.action === 'read' ? 'Speed Read' : 'Speed ' + this.speed + '%'); },
         paletteLabel: 'Speed Set',
         oneditprepare: function() {
             var node = this;
@@ -16,6 +17,36 @@
                 var v = $('#node-input-robot').val();
                 return (v && v !== '_ADD_') ? v : null;
             }
+
+            function toggleFields() {
+                $('#node-speed-field').toggle($('#node-input-action').val() === 'set');
+            }
+            $('#node-input-action').on('change', toggleFields);
+            toggleFields();
+
+            function readSpeed() {
+                var id = robotId();
+                if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
+
+                var btn = $('#gofa-speed-read-btn').prop('disabled', true);
+                RED.notify('Reading current speed override...', 'info');
+
+                $.getJSON('gofa-speed-set/' + id + '/read')
+                    .done(function(data) {
+                        RED.notify('Current speed override: ' + data.speed + '%', 'success');
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to read speed';
+                        RED.notify(err, 'error');
+                    })
+                    .always(function() {
+                        btn.prop('disabled', false);
+                    });
+            }
+            $('#gofa-speed-read-btn').on('click', function(e) {
+                e.preventDefault();
+                readSpeed();
+            });
 
             function applySpeed() {
                 var id = robotId();
@@ -60,11 +91,19 @@
         <input type="text" id="node-input-robot">
     </div>
     <div class="form-row">
+        <label for="node-input-action"><i class="fa fa-play"></i> Action</label>
+        <select id="node-input-action" style="width:70%">
+            <option value="set">Set</option>
+            <option value="read">Read current</option>
+        </select>
+    </div>
+    <div class="form-row" id="node-speed-field">
         <label for="node-input-speed"><i class="fa fa-tachometer"></i> Speed %</label>
         <input type="number" id="node-input-speed" min="1" max="100" placeholder="50">
     </div>
     <div class="form-row">
-        <button id="gofa-speed-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-tachometer"></i> Set Speed Now</button>
+        <button id="gofa-speed-btn" class="editor-button" style="width: 48%; font-weight: bold;"><i class="fa fa-tachometer"></i> Set Speed Now</button>
+        <button id="gofa-speed-read-btn" class="editor-button" style="width: 48%; font-weight: bold;"><i class="fa fa-refresh"></i> Read Current</button>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
@@ -77,19 +116,41 @@
 </script>
 <script type="text/html" data-help-name="gofa-speed-set">
     <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
-    <p>Sets the robot speed override percentage (1–100) via the RAPID socket server (TCP port
-    1025, RAPID's <code>SpeedRefresh</code> instruction — no mastership needed).</p>
+    <p><b>Set</b> action: sets a speed override percentage (1–100) via the RAPID socket server
+    (TCP port 1025, RAPID's <code>VelSet</code> instruction — no mastership needed, RAPID must be
+    running). <b>Read current</b> action: reads the same override back
+    (<code>CMotSet.vel.oride</code>, via the socket's <code>getspeed</code> command), also no
+    mastership needed.</p>
     <h3>Input</h3>
     <p><code>msg.payload</code> can be:</p>
     <ul>
-        <li>A number, or a non-empty string parseable as a number — used directly as the speed percentage</li>
-        <li><code>null</code> / not set / any other type (including an object) — uses the configured default</li>
+        <li>A number, or a non-empty string parseable as a number — used directly as the speed percentage (Set)</li>
+        <li>An object — <code>{ speed: 75 }</code> and/or <code>{ action: 'read' }</code> override the node's configured speed/action</li>
+        <li><code>null</code> / not set / any other type — uses the configured default</li>
     </ul>
     <p>Values outside 1–100 are clamped with a warning.</p>
     <h3>Output</h3>
-    <p><code>msg.payload = { ok: true, speed: 75 }</code> on success.</p>
-    <p><code>msg.payload = { ok: false, error: "..." }</code> on failure.</p>
-    <h3>Notes</h3>
-    <p>This sets the global speed override on the controller, the same as the
-    speed slider on the FlexPendant — RAPID must be running for this node to work.</p>
+    <p><code>msg.payload = { ok: true, action: 'set', speed: 75 }</code> or
+    <code>{ ok: true, action: 'read', speed: 75 }</code> on success.</p>
+    <p><code>msg.payload = { ok: false, error: "...", action: "..." }</code> on failure.</p>
+    <h3>History — why this uses VelSet, not SpeedRefresh</h3>
+    <p>Earlier versions of this node called RAPID's <code>SpeedRefresh</code> instruction, and
+    Read used to hit RWS's <code>GET /rw/panel/speedratio</code> (the separate FlexPendant/
+    production-window dial). Both were wrong, confirmed live 2026-07-21: timing a real move
+    showed <code>SpeedRefresh</code>, called before a move starts (as this node always does),
+    has no measurable effect — per ABB's own RAPID reference, it only updates the override for a
+    movement <em>already in progress</em>. <code>VelSet</code> changes the <em>programmed</em>
+    velocity instead, persisting to every subsequent motion instruction until changed again —
+    live-timing confirmed this actually scales real move duration. <code>speedratio</code> was
+    also the wrong read target (a genuinely separate, multiplicative value from either
+    instruction) — <code>getspeed</code>/<code>CMotSet.vel.oride</code> reads what
+    <code>VelSet</code> itself just wrote, so Read now actually confirms Set.</p>
+    <p>This is still a <b>global</b> override on the controller — it affects every subsequent
+    move from <em>any</em> flow or node on this robot, not just whatever's wired downstream of
+    this node. Two flows setting speed independently will interfere with each other.</p>
+    <p>This node's own success output, <code>{ ok: true, action: '...', speed: ... }</code>, has
+    the same shape its own <code>msg.payload.action</code> override reads from — wiring one
+    gofa-speed-set node straight into another will silently repeat the <em>first</em> node's
+    action instead of running its own configured one. Insert a <code>change</code> node clearing
+    <code>msg.payload</code> between chained instances if that's not intended.</p>
 </script>
