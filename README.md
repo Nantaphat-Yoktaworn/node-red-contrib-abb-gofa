@@ -54,8 +54,9 @@ MANUAL_CONTROL.md                ← Control the robot directly (curl / raw TCP)
 - Node-RED v3+ (tested on 5.0.1)
 - Node.js v18+ (tested on v22.9.0)
 - RobotStudio (free) — needed once for user permission setup, and again if you ever need to change an I/O signal's Access Level (tested with RobotStudio 2026.2)
+- **Optional:** RobotWare Multitasking `[3114-1]` — only if you want the [Background task](#background-task-backgroundledmod--t_led) (teach workflow's LED feedback while `T_ROB1` is stopped, `gofa-do-write`/`gofa-asi-led`'s Background transport, `gofa-connection-status`'s background health check). Nothing else in this palette needs it.
 
-No extra RobotWare options required. RWS (Robot Web Services) is built into every OmniCore controller. An I/O expansion board (e.g. DSQC1030 Scalable I/O) is only needed if you want general-purpose digital I/O beyond the built-in safety/system signals — see [Files and I/O](#files-and-io).
+No extra RobotWare options required for the base feature set. RWS (Robot Web Services) is built into every OmniCore controller. An I/O expansion board (e.g. DSQC1030 Scalable I/O) is only needed if you want general-purpose digital I/O beyond the built-in safety/system signals — see [Files and I/O](#files-and-io).
 
 ---
 
@@ -73,6 +74,14 @@ No extra RobotWare options required. RWS (Robot Web Services) is built into ever
 > program pointer, turns motors on, starts RAPID, and confirms the socket server answers —
 > with a per-step report so a failure tells you exactly what to fix. The manual steps below
 > remain as the reference for doing any of it by hand.
+>
+> **Scope: `gofa-setup` only sets up `T_ROB1` (the `MainModule`/`MainModuleEGM` pair).** Every
+> RWS-only and TCP-socket node works after this. If you also plan to use the
+> [teach workflow](#teach-workflow-physical-asi-buttons), or `gofa-do-write`/`gofa-asi-led`'s
+> **Background task** transport, or `gofa-connection-status`'s background health check, those
+> need the separate, one-time [Background task setup](#background-task-backgroundledmod--t_led)
+> below — `gofa-setup` doesn't touch it, and can't: creating a new RAPID task isn't possible
+> over RWS at all (confirmed — see that section).
 
 1. [Set your robot's IP address](#1-set-your-robot-ip) (if different from `192.168.20.33`)
 2. [Create an RWS user with Remote Start/Stop permission](#2-create-an-rws-user-robotstudio)
@@ -296,7 +305,8 @@ that up, it assumes it and checks for it.
 > use the `background` transport — `BackgroundLed.mod` running in its own RAPID task, alongside
 > `T_ROB1`, so it keeps answering even while `T_ROB1` is stopped. This needs `BackgroundLed.mod`
 > uploaded and assigned to a second task (RobotWare Multitasking) before the lights will work —
-> see `CLAUDE.md`'s "Background LED task" section for the exact one-time RobotStudio steps.
+> see [Background task](#background-task-backgroundledmod--t_led) below for the exact one-time
+> RobotStudio steps.
 
 Every press re-reads live robot state (`gofa-status`) to decide what to do rather than trusting
 an internal flag, so it's self-healing across a Node-RED restart mid-session. Every multi-step
@@ -363,7 +373,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 
 | Node | Protocol | What it does |
 |------|:--------:|-------------|
-| **gofa-setup** | RWS + TCP | One-click first-run initialization: upload the bundled `.mod` (SERVER_IP auto-synced) → load → reset PP → motors on → start → socket PING (also checks the module's version against this palette's), with a per-step report. See [Quick start](#quick-start) |
+| **gofa-setup** | RWS + TCP | One-click first-run initialization for `T_ROB1` only: upload the bundled `.mod` (SERVER_IP auto-synced) → load → reset PP → motors on → start → socket PING (also checks the module's version against this palette's), with a per-step report. Does **not** set up the [Background task](#background-task-backgroundledmod--t_led) — that's a separate, one-time, RobotStudio-only step. See [Quick start](#quick-start) |
 | **gofa-rapid-exec** | RWS | `start` / `stop` / `resetpp` / `loadmod` / `unloadmod` / `activate` the RAPID program |
 | **gofa-rapid-var-read** | TCP + RWS | Read a RAPID PERS variable via `GETVAR:<name>` socket command; falls back to a stale RWS module-text read if the variable isn't allow-listed |
 | **gofa-rapid-var-write** | TCP | Write a RAPID PERS variable via `SETVAR:<name>:<value>` socket command — no RWS fallback exists (see below) |
@@ -399,7 +409,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 >
 > **`gofa-do-write`'s Socket transport** sends the write over the TCP socket instead of RWS — RAPID's `SetDO` against an explicit per-signal allow-list in `MainModule.mod` (`ABB_Scalable_IO_0_DO1`–`DO16`), bypassing the Access Level restriction entirely (RAPID always has access to its own I/O). Needs RAPID actually running. **Gotcha confirmed live**: the signal name is matched **case-sensitively** on this path (RAPID's `DispatchJson`, added in the JSON socket-protocol rewrite, gets the raw name with no `CleanCmd`-style uppercasing) — `gofa-do-write.js` upper-cases the name before sending so this palette's own mixed-case default (`ABB_Scalable_IO_0_DO1`) still works; if you write your own socket call by hand, remember to upper-case the signal name yourself.
 >
-> **`gofa-do-write`'s Background task transport** is the same `SETDO` mechanism as Socket, but sent to `BackgroundLed.mod` running in its own RAPID task (`T_LED`) instead of `T_ROB1` — it keeps working even while `T_ROB1` is stopped (teach workflow, EGM session). Requires the one-time RobotStudio task setup described in `CLAUDE.md`'s "Background LED task" section.
+> **`gofa-do-write`'s Background task transport** is the same `SETDO` mechanism as Socket, but sent to `BackgroundLed.mod` running in its own RAPID task (`T_LED`) instead of `T_ROB1` — it keeps working even while `T_ROB1` is stopped (teach workflow, EGM session). Requires the one-time RobotStudio task setup in [Background task](#background-task-backgroundledmod--t_led) below.
 
 ### Real-time subscriptions
 
@@ -521,6 +531,67 @@ doesn't risk leaking controller-side EGM resources the way an external task-leve
 While a session is active, every other socket-based node (`gofa-jog`, `gofa-go-point`, etc.)
 fails fast ("connection refused") instead of hanging — the TCP server is genuinely down for
 that duration, same as any other time `MainModule.mod`'s socket server isn't running.
+
+---
+
+## Background task (`BackgroundLed.mod` / `T_LED`)
+
+**What this unlocks.** The [teach workflow](#teach-workflow-physical-asi-buttons) stops all of
+`T_ROB1` (not just motion) before hand-guiding — which also kills `MainModule.mod`'s TCP socket
+server, since it's part of `T_ROB1`'s own program loop. That would normally mean no LED feedback,
+no digital-output writes, and no way to tell "T_ROB1 is intentionally stopped" from "the whole
+controller is unreachable" during that window. `BackgroundLed.mod` fixes this by running a small,
+separate RAPID module in its **own** RAPID task (`T_LED`) — one that keeps answering even while
+`T_ROB1` is fully stopped. It's what backs:
+
+- `gofa-asi-led`'s and `gofa-do-write`'s **Background task** transport option
+- The teach workflow's LED feedback (all three of its `gofa-asi-led` nodes use this transport)
+- `gofa-connection-status`'s `background` field, which is what lets a watchdog flow tell "`T_ROB1`
+  specifically wedged/stopped" apart from "controller unreachable"
+
+**Not required for anything else** — every other node in this palette works fine without it.
+`gofa-setup` does not set this up, and **can't**: creating a brand-new RAPID task is not possible
+over RWS at all (tested thoroughly — every documented and undocumented endpoint shape for it
+returns `405`), only RobotStudio can create one. This is genuinely a one-time, manual,
+RobotStudio-side step, not a gap in the node.
+
+**Prerequisite**: RobotWare Multitasking `[3114-1]` licensed on the controller (check RobotStudio
+→ **Controller** → **Configuration** → **System** → **Options**, or `GET /rw/system` over RWS).
+
+**One-time setup:**
+
+1. **Upload `BackgroundLed.mod`** — add a `gofa-file` node (action **upload**), point its Local
+   Path at the bundled `rapid/BackgroundLed.mod`. This auto-syncs `SERVER_IP` the same way
+   `gofa-setup`/`gofa-file` already do for `MainModule.mod`.
+2. **RobotStudio → Controller tab → Configuration → Controller topic → Task** → add a new task
+   instance, name it exactly `T_LED` (this name is hardcoded — `gofa-robot`'s **Background
+   Services Port** config field talks to whichever task is listening on that port, but the task
+   itself must be named `T_LED` for the FlexPendant-side reload steps below to apply).
+3. Set **Type** to `SEMISTATIC` — it starts automatically at power-up and, unlike a `NORMAL` task
+   like `T_ROB1`, is not part of the normal RWS/FlexPendant Program Start/Stop cycle (that's the
+   entire point — it needs to survive `T_ROB1` being stopped).
+4. **Set `TrustLevel` to the least-severe option offered** (commonly labeled `NoSafety`), **not**
+   the field's own default. A brand-new task defaults to the same trust level as `T_ROB1`'s real
+   motion task — meaning an unhandled error in this small LED/IO utility task would otherwise be
+   treated as a full system failure, which is disproportionate for what it does.
+5. Assign `BackgroundLed.mod` to this new task — **not** `T_ROB1` (loading it there would
+   collide with `MainModule.mod`'s own `PROC main()`, the same "Global routine name main
+   ambiguous" conflict as loading both `MainModule` and `MainModuleEGM` at once).
+6. **Restart the controller.**
+
+After the restart, verify with a `gofa-do-write` node set to the **Background task** transport
+(or `gofa-asi-led` set the same way) — a successful write confirms `T_LED` is up and answering.
+
+**Updating `BackgroundLed.mod` later** (after this initial setup, e.g. after editing it) needs a
+different procedure than the first-time load above, because `T_LED` being `SEMISTATIC` means it
+isn't stopped by the normal RWS `execution/stop` call `loadmod` requires. In short: on the
+FlexPendant, enable **Execution menu → "Handle static and semi-static tasks the same way as
+normal task regarding start/stop"** (Manual mode only), **Stop** (now stops both tasks), load the
+updated module directly via **Program Editor → task selector → `T_LED` → File → Load Module...**
+(RWS `loadmod` doesn't work here even with this setting on — the FlexPendant itself holds edit
+mastership while actively driving the controller), **Replace**, restart both tasks, then
+**uncheck that Execution-menu setting again** — leaving it on means every future ordinary RAPID
+stop (including the teach workflow's) also stops `T_LED`, defeating the reason it exists.
 
 ---
 

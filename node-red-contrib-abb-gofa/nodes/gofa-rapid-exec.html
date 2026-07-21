@@ -223,6 +223,19 @@
     execution state itself before attempting the call and fails immediately with a clear
     "RAPID is running — stop it first" error, rather than waiting for RWS to reject it.</p>
 
+    <h3>Chaining hazard — wiring two of these nodes back-to-back</h3>
+    <p>This node's own success output, <code>{ ok: true, action: '...' }</code>, has exactly the
+    shape its own <code>msg.payload.action</code> override reads from. Wiring one
+    <code>gofa-rapid-exec</code> node's output straight into another (even through a
+    passthrough node that doesn't alter the message) makes the second node silently repeat the
+    <em>first</em> node's action instead of running its own configured one — e.g. a
+    <code>resetpp</code> node feeding a <code>start</code> node ends up repeating
+    <code>resetpp</code> and never actually starting RAPID. This node warns
+    (<code>node.warn</code>) when it detects an incoming payload shaped like another
+    <code>gofa-rapid-exec</code>'s output, but doesn't block it — the override is a deliberate,
+    useful feature on its own. If chaining two instances, insert a <code>change</code> node
+    between them to reset <code>msg.payload</code> to <code>{}</code>.</p>
+
     <h3>Detecting a failed start (RAPID error 20055 and similar)</h3>
     <p>RWS accepts <code>POST /rw/rapid/execution/start</code> with HTTP 200 even when the
     controller then immediately rejects it — e.g. RAPID error <b>20055</b> ("program must

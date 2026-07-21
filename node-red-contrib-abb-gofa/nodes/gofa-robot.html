@@ -110,7 +110,11 @@
 </script>
 <script type="text/html" data-help-name="gofa-robot">
     <p>Connection settings for ABB-GoFa-12. Shared by all GoFa nodes.</p>
-    <p>The RWS session cookie is shared across all nodes — only one login per restart, respecting the 70-session limit.</p>
+    <p>The RWS session cookie is shared across all nodes — only one login per restart. The
+    controller allows up to 70 RWS sessions total, but that drops to 19 once any WebSocket
+    subscription is active (e.g. a <code>gofa-subscribe-io</code>/<code>-state</code>/<code>-elog</code>
+    node) — repeated redeploys without a clean logout can leak sessions toward that lower limit
+    and eventually lock out the FlexPendant with "too many device login".</p>
     <p>Points file is loaded at startup and kept in memory; all changes are persisted immediately.</p>
     <p><b>Remote Points Path</b> — used instead of the local Points File when a point node's
     <em>Storage</em> is set to <b>On-Robot</b>. A plain JSON file on the robot controller's own

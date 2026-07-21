@@ -9,8 +9,12 @@ module.exports = function(RED) {
             send = gate(config, send);
             if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
             node.robot._seqStop = true;
-            // Abort the in-progress \Conc move immediately so the robot doesn't
-            // finish the current move + full dwell before the flag is checked.
+            // Since 2.4.2's \Conc removal, socket 'stop' no longer interrupts a move
+            // already executing (HOME/GOTOJ/GOTOL/MOVEJ/MOVEL) - it only cancels one
+            // that hasn't started yet. So this stops the sequence from advancing past
+            // the current step, but that step's own move still runs to completion;
+            // the _seqStop flag (checked at the top of each runStep) is what actually
+            // prevents the next step from starting.
             node.robot.socketSend({ cmd: 'stop' }).catch(function() {});
             msg.payload = { ok: true, message: 'stop requested' };
             node.status({ fill: 'yellow', shape: 'ring', text: 'stop sent' });

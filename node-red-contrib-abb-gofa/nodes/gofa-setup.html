@@ -110,9 +110,14 @@
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-setup">
-    <p>One-click first-run initialization. Send any message to run the whole
-    bring-up sequence; when it finishes the robot is running the bundled RAPID
-    socket-server module and every other node in this palette is ready to use.</p>
+    <p>One-click first-run initialization for <b>T_ROB1</b> only. Send any message to run the
+    whole bring-up sequence; when it finishes the robot is running the bundled RAPID
+    socket-server module and every RWS-only and TCP-socket node in this palette is ready to use.</p>
+    <p><b>Does not set up the Background task</b> (<code>BackgroundLed.mod</code> / <code>T_LED</code>) —
+    needed only for the teach workflow's LED feedback, <code>gofa-do-write</code>/<code>gofa-asi-led</code>'s
+    Background transport, and <code>gofa-connection-status</code>'s background health check. That's a
+    separate, one-time, RobotStudio-only step (creating a new RAPID task isn't possible over RWS
+    at all) — see the README's "Background task" section.</p>
 
     <h3>Steps (in order, stops at the first failure)</h3>
     <ol>
@@ -151,6 +156,10 @@
         robot config dialog to find its IP)</li>
         <li>For <code>MainModuleEGM</code>: the <code>EGM_PC</code> UDPUC transmission
         protocol configured (see the EGM docs)</li>
+        <li>For the Background task features (teach workflow LED feedback, Background-transport
+        writes, background health check) — <b>not covered by this node</b>: a separate <code>T_LED</code>
+        RAPID task with <code>BackgroundLed.mod</code> loaded, created once in RobotStudio (see
+        the README's "Background task" section)</li>
     </ul>
     <p><b>Output payload</b> is checked by default for this node — the per-step
     report is its main value. Uncheck to fire a bare signal instead.</p>

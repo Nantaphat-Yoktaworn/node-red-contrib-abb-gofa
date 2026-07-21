@@ -39,7 +39,7 @@ npm install node-red-contrib-abb-gofa
 
 (or **Menu → Manage palette → Install** inside the Node-RED editor.)
 
-Restart Node-RED — a `gofa-robot` config node and 42 `gofa-*` nodes appear under the **GoFa** category.
+Restart Node-RED — a `gofa-robot` config node and 43 `gofa-*` nodes appear under the **GoFa** category.
 
 ## Controller setup (once)
 
@@ -76,7 +76,7 @@ needed just to silence output. Check it to get the full `msg.payload` described 
 |------|-----------|-------------|
 | `gofa-robot` | config | Shared connection settings (IP, ports, credentials, points storage) |
 | `gofa-status` | RWS | Controller state, operating mode, speed ratio, RAPID execution state |
-| `gofa-connection-status` | RWS + Socket | Checks RWS and the TCP socket server independently — reachable? reply time? — without assuming either one already works |
+| `gofa-connection-status` | RWS + Socket + Background | Checks RWS, the TCP socket server, and the [Background task](#background-task-optional) independently — reachable? reply time? — without assuming any one already works; also reports each layer's module version and whether an EGM session is active |
 | `gofa-pose` | RWS | Current TCP pose (position + quaternion + config flags) |
 | `gofa-joints` | RWS | All 6 joint angles |
 | `gofa-system-info` | RWS | RobotWare version, controller identity |
@@ -94,16 +94,16 @@ needed just to silence output. Check it to get the full `msg.payload` described 
 | `gofa-save-point` / `gofa-go-point` / `gofa-point-list` / `gofa-delete-point` | mixed | Teach & replay named points, stored locally or on the robot's own disk |
 | `gofa-points` | disk | Bulk export/import of the point list (action: export / import — import **replaces** the whole list) |
 | `gofa-sequencer` / `gofa-stop-seq` | Socket | Visit saved points in order (dwell, loops, ping-pong) / stop the sequence |
-| `gofa-setup` | RWS + Socket | One-click first-run init: upload the bundled RAPID module (SERVER_IP auto-synced), load, reset PP, motors on, start, verify socket — with a per-step report |
+| `gofa-setup` | RWS + Socket | One-click first-run init for `T_ROB1` only: upload the bundled RAPID module (SERVER_IP auto-synced), load, reset PP, motors on, start, verify socket — with a per-step report. Does not set up the [Background task](#background-task-optional) |
 | `gofa-rapid-exec` | RWS | Start / stop / reset-PP / load / unload / activate RAPID program |
 | `gofa-rapid-var-read` / `gofa-rapid-var-write` | Socket | Read/write RAPID PERS variables |
 | `gofa-rapid-tasks` | RWS | List RAPID tasks and modules |
 | `gofa-file` | RWS | Upload / download / delete controller files (action dropdown; upload auto-syncs `SERVER_IP`) |
 | `gofa-mod-edit` | RWS | Edit a `.mod` (or any text) file on the controller's disk right in the node's edit dialog — pick a file in `$HOME/Programs` (or name a new one), Load/Save to robot, `SERVER_IP` auto-synced |
 | `gofa-io-list` / `gofa-di-read` | RWS | List signals, read inputs |
-| `gofa-do-write` | RWS or Socket | Write outputs — Transport dropdown: RWS `/set-value` (default, needs `Access: All`) or Socket `SETDO` (needs RAPID running) |
+| `gofa-do-write` | RWS, Socket, or Background | Write outputs — Transport dropdown: RWS `/set-value` (default, needs `Access: All`), Socket `SETDO` (needs RAPID running), or [Background task](#background-task-optional) (works while `T_ROB1` is stopped) |
 | `gofa-leadthrough` | Socket + RWS | Hand-guiding (lead-through) on/off (action: enable / disable) |
-| `gofa-asi-led` | Socket | Arm status-light color and blink |
+| `gofa-asi-led` | Socket, RWS, or Background | Arm status-light color and blink — Transport dropdown, same three options as `gofa-do-write` above |
 | `gofa-subscribe-state` / `gofa-subscribe-io` | RWS WebSocket | Push on controller-state / I/O-signal changes |
 | `gofa-subscribe-var` / `gofa-subscribe-pose` | RWS poll | Poll a RAPID variable / TCP pose on an interval |
 | `gofa-subscribe-elog` | RWS WebSocket | Push new event log entries in real time; same Domain/Min Severity filters as `gofa-elog` |
@@ -160,9 +160,23 @@ Node-RED host — a firewall rule allowing inbound UDP on that port.
 
 **Caution — tool load data:** per ABB's EGM Application Manual, the robot should have correct
 tool load data (`LoadIdentify`) before starting EGM — incorrect load data can cause servo
-torque overruns or safety halts when EGM issues fast corrections. `MainModuleEGM.mod`'s
-`tGripper` currently uses an unverified placeholder mass (1 kg); confirm it matches your actual
-end-of-arm tooling (or run `LoadIdentify`) before relying on EGM with real tooling attached.
+torque overruns or safety halts when EGM issues fast corrections. With no tool physically
+mounted, `MainModuleEGM.mod`/`MainModule.mod` both target `tool0` (RAPID's built-in empty-flange
+tool) rather than a placeholder tooldata, so there's no false load data to worry about right now.
+Once a real gripper is mounted, run `LoadIdentify` (or otherwise measure its real mass/CoG/
+inertia/TCP offset) and update both `.mod` files to use it before relying on EGM (or any motion)
+with that tooling attached.
+
+## Background task (optional)
+
+Not required for anything above — every node in this package works without it. It exists to keep
+LED feedback and digital-output writes working during a hand-guiding session (or any other time
+`T_ROB1` is stopped), by running a small second RAPID module (`rapid/BackgroundLed.mod`) in its
+own task. It backs the **Background** transport option on `gofa-do-write`/`gofa-asi-led`, and the
+`background` field on `gofa-connection-status`. Setting it up needs one manual, one-time
+RobotStudio step (creating a new RAPID task isn't possible over RWS at all) — see the
+[GitHub README's "Background task" section](https://github.com/Nantaphat-Yoktaworn/node-red-contrib-abb-gofa#background-task-backgroundledmod--t_led)
+for the exact steps.
 
 Full node help (input/output shapes, config) is in the Node-RED sidebar for `gofa-egm` and
 `gofa-egm-move`.

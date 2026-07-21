@@ -62,8 +62,16 @@
 </script>
 <script type="text/html" data-help-name="gofa-stop-motion">
     <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
-    <p>Sends a <code>STOP</code> command to immediately halt robot motion via the RAPID socket server.</p>
-    <p>The RAPID program calls <code>StopMove\Quick</code> and <code>ClearPath</code>, and sets a flag so the next queued motion is skipped.</p>
+    <p>Sends a <code>STOP</code> command via the RAPID socket server — RAPID calls
+    <code>StopMove</code>, <code>ClearPath</code>, <code>StartMove</code>.</p>
+    <p><b>Since 2.4.2, this only cancels a queued move that hasn't started yet — it does not
+    interrupt a <code>HOME</code>/<code>GOTOJ</code>/<code>GOTOL</code>/<code>MOVEJ</code>/
+    <code>MOVEL</code> that's already executing</b> (removing <code>\Conc</code> from those
+    instructions, to fix a RAPID queue-depth crash, meant giving up mid-move interruption as a
+    trade-off — see the "\Conc queue-depth crash" note in <code>CLAUDE.md</code>). A jog
+    (<code>X±</code>/<code>Y±</code>/<code>Z±</code>/<code>RX±</code>/<code>RY±</code>/
+    <code>RZ±</code>/<code>J1-6±</code>) is still interrupted immediately — each jog does its own
+    full stop/clear/restart before a single move, so it was never exposed to that crash.</p>
     <h3>Input</h3>
     <p>Any message triggers the stop. <code>msg.payload</code> is ignored.</p>
     <h3>Output</h3>

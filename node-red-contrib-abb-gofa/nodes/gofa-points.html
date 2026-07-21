@@ -123,7 +123,7 @@
     </ul>
 
     <h3>Output</h3>
-    <p>Returns a success object with <code>ok: true</code>, the <code>count</code> of points, and either the <code>points</code> array (on export) or <code>loadedFrom</code> path (on import).</p>
+    <p>Returns a success object with <code>ok: true</code>, the <code>count</code> of points, and either the <code>points</code> array (on export) or <code>loadedFrom</code> path (on import). Export also adds <code>savedTo</code> (the file path) when a file path was given — omitted if the export was in-memory only (no path).</p>
 
     <h3>Notes</h3>
     <p>Points are stored on the Node-RED host (not on the controller). <b>Security Note:</b> Like the Node-RED core file node, this node allows reading/writing to arbitrary file paths specified by the incoming payload.</p>

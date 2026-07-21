@@ -16,7 +16,7 @@ and `<username>`/`<password>` with your RWS credentials.
 |---|---|
 | **Part A — RWS (HTTPS, port 443)** | Works whenever the controller is powered on and reachable — RAPID does **not** need to be running. Two specific actions (`loadmod`, `activate`) are the exception: see the callout below. |
 | **Part B — TCP Socket (port 1025, `T_ROB1`/`MainModule.mod`)** | Only works while **RAPID is actually executing** `MainModule.mod`'s `main()` loop — that loop is what opens the socket server. If RAPID is stopped, every socket command (even `PING`) times out. This is expected, not a bug (`check-status.js` reports it as `Socket: ERROR (socket timeout)` whenever `RAPID: stopped`). |
-| **Part C — TCP Socket (port 1026, `T_LED`/`BackgroundLed.mod`)** | Runs in its own `SEMISTATIC` RAPID task, separate from `T_ROB1` — keeps working even while `T_ROB1`/`MainModule.mod` is stopped. Only supports `ping`/`setled`/`resetled`/`setdo` — see below. Requires the one-time RobotStudio task setup described in `CLAUDE.md`'s "Background LED task" section. |
+| **Part C — TCP Socket (port 1026, `T_LED`/`BackgroundLed.mod`)** | Runs in its own `SEMISTATIC` RAPID task, separate from `T_ROB1` — keeps working even while `T_ROB1`/`MainModule.mod` is stopped. Only supports `ping`/`setled`/`resetled`/`setdo` — see below. Requires the one-time RobotStudio task setup described in `README.md`'s ["Background task" section](README.md#background-task-backgroundledmod--t_led). |
 
 So: status/telemetry/motor-on/upload-a-file/start-RAPID all work over RWS with RAPID
 stopped. Anything that **moves the robot or reads/writes a `PERS` variable** needs
@@ -261,8 +261,8 @@ above — see the EGM section in `README.md` for that protocol and setup.
 
 ## Part C — TCP Socket commands (port 1026, `T_LED`/`BackgroundLed.mod`)
 
-A separate, optional RAPID task (see `CLAUDE.md`'s "Background LED task" section for the
-one-time RobotStudio setup) that keeps answering these same-shaped commands even while
+A separate, optional RAPID task (see `README.md`'s ["Background task" section](README.md#background-task-backgroundledmod--t_led)
+for the one-time RobotStudio setup) that keeps answering these same-shaped commands even while
 `T_ROB1`/`MainModule.mod` above is stopped. **JSON only — no legacy plain-text tokens
 here**, unlike Part B's `MainModule.mod` (`BackgroundLed.mod` dispatches every incoming
 line straight to its JSON parser, with no text-protocol fallback). Each line must be
@@ -270,7 +270,10 @@ newline-terminated JSON, e.g. with `nc`/`ncat`:
 
 ```bash
 printf '{"cmd":"ping"}\n' | nc <ROBOT_IP> 1026
-# -> {"status":"ok","cmd":"ping"}
+# -> {"status":"ok","cmd":"ping","version":"2.4.5"}
+# "version" is MODULE_VERSION from the .mod file — the palette compares it to its own
+# npm version to detect a stale module; only present on the JSON wire form, not the
+# plain-text "PING" -> "OK:PING" reply Part B's table above shows.
 
 printf '{"cmd":"setled","val":[0,255,255,0]}\n' | nc <ROBOT_IP> 1026
 # -> {"status":"ok","cmd":"setled"}   (cyan, no blink)
