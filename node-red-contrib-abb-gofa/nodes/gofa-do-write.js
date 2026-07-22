@@ -1,4 +1,5 @@
 'use strict';
+var requireAdminAuth = require('./lib/require-admin-auth');
 var gate = require('./lib/gate');
 var parseSignalList = require('./lib/list-signals');
 module.exports = function(RED) {
@@ -88,7 +89,7 @@ module.exports = function(RED) {
         });
     });
 
-    RED.httpAdmin.post('/gofa-do-write/:id/write', RED.auth.needsPermission('gofa-do-write.write'), function(req, res) {
+    RED.httpAdmin.post('/gofa-do-write/:id/write', requireAdminAuth(RED, 'gofa-do-write.write'), function(req, res) {
         var robot = RED.nodes.getNode(req.params.id);
         if (!robot) {
             return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });

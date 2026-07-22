@@ -1,4 +1,5 @@
 'use strict';
+var requireAdminAuth = require('./lib/require-admin-auth');
 var gate = require('./lib/gate');
 module.exports = function(RED) {
     function GoFaRapidExecNode(config) {
@@ -218,7 +219,7 @@ module.exports = function(RED) {
         });
     });
 
-    RED.httpAdmin.post('/gofa-rapid-exec/:id/action', RED.auth.needsPermission('gofa-rapid-exec.write'), function(req, res) {
+    RED.httpAdmin.post('/gofa-rapid-exec/:id/action', requireAdminAuth(RED, 'gofa-rapid-exec.write'), function(req, res) {
         var robot = RED.nodes.getNode(req.params.id);
         if (!robot || typeof robot.rwsPost !== 'function') {
             return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });

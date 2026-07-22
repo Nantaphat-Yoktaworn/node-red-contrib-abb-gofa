@@ -1,4 +1,5 @@
 'use strict';
+var requireAdminAuth = require('./lib/require-admin-auth');
 var gate = require('./lib/gate');
 module.exports = function(RED) {
     var VALID_ZONES = ['fine','z1','z5','z10','z20','z50','z100'];
@@ -44,7 +45,7 @@ module.exports = function(RED) {
     }
     RED.nodes.registerType('gofa-zone-set', GoFaZoneSetNode);
 
-    RED.httpAdmin.post('/gofa-zone-set/:id/set', RED.auth.needsPermission('gofa-zone-set.write'), function(req, res) {
+    RED.httpAdmin.post('/gofa-zone-set/:id/set', requireAdminAuth(RED, 'gofa-zone-set.write'), function(req, res) {
         var robot = RED.nodes.getNode(req.params.id);
         if (!robot || typeof robot.socketSend !== 'function') {
             return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });

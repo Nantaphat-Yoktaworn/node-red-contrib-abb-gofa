@@ -878,11 +878,20 @@ code path from the runtime `node.on('input', ...)` handler:
 - **It never calls the node's own `send()`.** Clicking a panel button moves the robot (or reads
   live state) for real, but nothing propagates to whatever is wired to that node's output, even
   in a deployed flow — the two code paths (admin endpoint vs. `on('input')`) don't intersect.
-- Every route is gated with `RED.auth.needsPermission('gofa-<node>.read'|'write')`, but on a
-  Node-RED instance with no `adminAuth` configured, that grants nothing — any client that can
-  reach the editor's admin HTTP port can trigger these actions with a bare request, browser
-  `confirm()` dialogs notwithstanding (those are UI-only, not a server-side check). See the
-  README's Safety and security section.
+- Read-only routes (`.read`, all GET) are gated with `RED.auth.needsPermission('gofa-<node>.read')`,
+  which grants nothing when no `adminAuth` is configured — but they only read. **State-changing
+  routes (`.write`, all POST — the 23 motion/motor/IO/RAPID-write endpoints) are gated with
+  `requireAdminAuth(RED, 'gofa-<node>.write')` (`nodes/lib/require-admin-auth.js`) as of 2.4.10,
+  not the bare `needsPermission`.** That wrapper: delegates to `needsPermission` when `adminAuth`
+  IS configured (unchanged behavior); returns **403** when it is NOT, so an unauthenticated
+  editor port can no longer trigger motion via a bare request (the old hole — browser `confirm()`
+  dialogs were UI-only, never a server-side check). Escape hatch for cells relying on network
+  isolation instead of `adminAuth`: the `gofa-robot` config node's **Allow insecure live control**
+  checkbox (`robot.allowInsecureLiveControl`) makes the wrapper fall through to `next()` even with
+  no `adminAuth`. The `.read`/`.write` split maps exactly to GET/POST here, so the rule is simply
+  "every `.write` endpoint is guarded" — confirmed by a repo-wide grep when this shipped. Deployed
+  flows are unaffected (they use `node.on('input')`, never the admin endpoints). See the README's
+  Safety and security section.
 - Cross-node shared state (`gofa-sequencer`'s `robot._seqRunning`/`_seqStop`) is genuinely
   shared between the panel's admin-endpoint run and a deployed flow's runtime run of the *same*
   node type on the *same* robot config node — starting one from the panel while the other is

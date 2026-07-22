@@ -1,4 +1,5 @@
 'use strict';
+var requireAdminAuth = require('./lib/require-admin-auth');
 var gate = require('./lib/gate');
 var patchServerIp = require('./lib/patch-server-ip');
 
@@ -145,7 +146,7 @@ module.exports = function(RED) {
         .catch(function(err) { res.status(502).json({ error: err.message }); });
     });
 
-    RED.httpAdmin.delete('/gofa-mod-edit/:id/file', RED.auth.needsPermission('gofa-mod-edit.write'), function(req, res) {
+    RED.httpAdmin.delete('/gofa-mod-edit/:id/file', requireAdminAuth(RED, 'gofa-mod-edit.write'), function(req, res) {
         var robot = getRobot(req, res);
         if (!robot) return;
         var p = req.query.path;
@@ -159,7 +160,7 @@ module.exports = function(RED) {
         .catch(function(err) { res.status(502).json({ error: err.message }); });
     });
 
-    RED.httpAdmin.post('/gofa-mod-edit/:id/file', RED.auth.needsPermission('gofa-mod-edit.write'), function(req, res) {
+    RED.httpAdmin.post('/gofa-mod-edit/:id/file', requireAdminAuth(RED, 'gofa-mod-edit.write'), function(req, res) {
         var robot = getRobot(req, res);
         if (!robot) return;
         readJsonBody(req)

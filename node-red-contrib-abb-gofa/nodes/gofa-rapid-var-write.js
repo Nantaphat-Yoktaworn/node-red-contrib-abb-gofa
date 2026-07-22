@@ -1,4 +1,5 @@
 'use strict';
+var requireAdminAuth = require('./lib/require-admin-auth');
 var gate = require('./lib/gate');
 module.exports = function(RED) {
     function GoFaRapidVarWriteNode(config) {
@@ -74,7 +75,7 @@ module.exports = function(RED) {
     }
     RED.nodes.registerType('gofa-rapid-var-write', GoFaRapidVarWriteNode);
 
-    RED.httpAdmin.post('/gofa-rapid-var-write/:id/write', RED.auth.needsPermission('gofa-rapid-var-write.write'), function(req, res) {
+    RED.httpAdmin.post('/gofa-rapid-var-write/:id/write', requireAdminAuth(RED, 'gofa-rapid-var-write.write'), function(req, res) {
         var robot = RED.nodes.getNode(req.params.id);
         if (!robot || typeof robot.socketSend !== 'function') {
             return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });

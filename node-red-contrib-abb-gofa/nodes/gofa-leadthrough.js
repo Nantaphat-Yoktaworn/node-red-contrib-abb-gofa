@@ -1,4 +1,5 @@
 'use strict';
+var requireAdminAuth = require('./lib/require-admin-auth');
 var gate = require('./lib/gate');
 
 function readLeadThroughState(robot) {
@@ -146,7 +147,7 @@ module.exports = function(RED) {
         });
     });
 
-    RED.httpAdmin.post('/gofa-leadthrough/:id/toggle', RED.auth.needsPermission('gofa-leadthrough.write'), function(req, res) {
+    RED.httpAdmin.post('/gofa-leadthrough/:id/toggle', requireAdminAuth(RED, 'gofa-leadthrough.write'), function(req, res) {
         var robot = RED.nodes.getNode(req.params.id);
         if (!robot || typeof robot.rwsPost !== 'function') {
             return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });

@@ -1,4 +1,5 @@
 'use strict';
+var requireAdminAuth = require('./lib/require-admin-auth');
 var gate = require('./lib/gate');
 var fs = require('fs');
 module.exports = function(RED) {
@@ -97,7 +98,7 @@ module.exports = function(RED) {
     }
     RED.nodes.registerType('gofa-points', GoFaPointsNode);
 
-    RED.httpAdmin.post('/gofa-points/:id/test', RED.auth.needsPermission('gofa-points.write'), function(req, res) {
+    RED.httpAdmin.post('/gofa-points/:id/test', requireAdminAuth(RED, 'gofa-points.write'), function(req, res) {
         var robot = RED.nodes.getNode(req.params.id);
         if (!robot) {
             return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });

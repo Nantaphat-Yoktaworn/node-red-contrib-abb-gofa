@@ -10,7 +10,8 @@
             username:    { value: 'Default User' },
             pointsFile:  { value: 'points.json' },
             remotePointsPath: { value: '$HOME/Programs/gofa_points.json' },
-            jointLimits: { value: '' }
+            jointLimits: { value: '' },
+            allowInsecureLiveControl: { value: false }
         },
         credentials: { password: { type: 'password' } },
         icon: 'gofa.svg',
@@ -113,6 +114,11 @@
         <input type="text" id="node-config-input-jointLimits" placeholder="[[-270,270],[-180,180],[-225,85],[-180,180],[-180,180],[-270,270]]">
         <span style="color:#888;font-size:0.85em;margin-left:6px">optional — leave blank for CRB 15000-12 defaults; JSON array of 6 [min,max] pairs (deg) to enforce tighter cell axis limits</span>
     </div>
+    <div class="form-row">
+        <label for="node-config-input-allowInsecureLiveControl" style="width:auto"><i class="fa fa-unlock-alt"></i> Allow insecure live control</label>
+        <input type="checkbox" id="node-config-input-allowInsecureLiveControl" style="display:inline-block; width:auto; vertical-align:top;">
+        <span style="color:#888;font-size:0.85em;margin-left:6px">only tick if this Node-RED has no adminAuth but is protected by network isolation — see help</span>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-robot">
     <p>Connection settings for ABB-GoFa-12. Shared by all GoFa nodes.</p>
@@ -138,4 +144,13 @@
     restricted axis range). An invalid value is ignored (a warning is logged) and the defaults
     are used. Does not apply to Cartesian moves (<b>gofa-go-point</b>), which would need inverse
     kinematics to know the joint angles.</p>
+    <p><b>Allow insecure live control</b> — the interactive buttons in every node's edit dialog
+    ("Jog Now", "Move Joints Now", "Motors On", …) call admin HTTP endpoints that move the robot.
+    Node-RED only authenticates those endpoints when <b>adminAuth</b> is configured; without it,
+    anyone who can reach the editor port can trigger motion. For safety, these endpoints are
+    <b>refused (403) when adminAuth is not configured</b>. Tick this box only if this Node-RED
+    instance has no adminAuth but is genuinely protected another way (an isolated cell network,
+    firewall, or reverse proxy) — it re-enables the editor motion buttons at your own risk.
+    Deployed flows are never affected by this setting (they don't use the admin endpoints);
+    configuring adminAuth is the recommended option.</p>
 </script>

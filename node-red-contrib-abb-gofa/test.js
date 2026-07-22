@@ -245,6 +245,33 @@ check('gofa-robot: jointLimits defaults to CRB 15000-12, valid override applies,
     var bad = new Ctor({ pointsFile: path.join(tmpDir, 'jl-3.json'), jointLimits: 'garbage' });
     assert.deepStrictEqual(bad.jointLimits, robot.JOINT_LIMITS);
 });
+check('requireAdminAuth: 403 without adminAuth; allows with override or with adminAuth', function() {
+    var requireAdminAuth = require('./nodes/lib/require-admin-auth');
+    function makeRes() {
+        return { code: null, body: null,
+            status: function(c) { this.code = c; return this; },
+            json: function(b) { this.body = b; return this; } };
+    }
+    // no adminAuth, no override node → 403, never calls next()
+    var RED1 = { settings: {}, auth: { needsPermission: function() { return function() { throw new Error('must not delegate'); }; } }, nodes: { getNode: function() { return null; } } };
+    var res1 = makeRes(), nexted1 = false;
+    requireAdminAuth(RED1, 'x.write')({ params: { id: 'r1' } }, res1, function() { nexted1 = true; });
+    assert.strictEqual(res1.code, 403);
+    assert.strictEqual(nexted1, false);
+    // no adminAuth, but config node has the override → next()
+    var RED2 = { settings: {}, auth: { needsPermission: function() { return function() {}; } }, nodes: { getNode: function() { return { allowInsecureLiveControl: true }; } } };
+    var res2 = makeRes(), nexted2 = false;
+    requireAdminAuth(RED2, 'x.write')({ params: { id: 'r1' } }, res2, function() { nexted2 = true; });
+    assert.strictEqual(nexted2, true);
+    assert.strictEqual(res2.code, null);
+    // adminAuth configured → delegates to RED.auth.needsPermission middleware
+    var delegated = false;
+    var RED3 = { settings: { adminAuth: {} }, auth: { needsPermission: function() { return function(req, res, next) { delegated = true; next(); }; } }, nodes: { getNode: function() { return null; } } };
+    var res3 = makeRes(), nexted3 = false;
+    requireAdminAuth(RED3, 'x.write')({ params: { id: 'r1' } }, res3, function() { nexted3 = true; });
+    assert.strictEqual(delegated, true);
+    assert.strictEqual(nexted3, true);
+});
 check('gofa-robot: addPoint persists to disk', function() {
     var f = path.join(tmpDir, 'points-3.json');
     var node = makeRobotNode(f);

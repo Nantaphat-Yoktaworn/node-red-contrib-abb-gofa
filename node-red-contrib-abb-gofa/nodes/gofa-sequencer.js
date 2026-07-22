@@ -1,4 +1,5 @@
 'use strict';
+var requireAdminAuth = require('./lib/require-admin-auth');
 var gate = require('./lib/gate');
 var resolveMoveType = require('./gofa-robot').resolveMoveType;
 module.exports = function(RED) {
@@ -139,7 +140,7 @@ module.exports = function(RED) {
         res.json({ running: !!robot._seqRunning });
     });
 
-    RED.httpAdmin.post('/gofa-sequencer/:id/stop', RED.auth.needsPermission('gofa-sequencer.write'), function(req, res) {
+    RED.httpAdmin.post('/gofa-sequencer/:id/stop', requireAdminAuth(RED, 'gofa-sequencer.write'), function(req, res) {
         var robot = RED.nodes.getNode(req.params.id);
         if (!robot || typeof robot.socketSend !== 'function') {
             return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
@@ -152,7 +153,7 @@ module.exports = function(RED) {
         });
     });
 
-    RED.httpAdmin.post('/gofa-sequencer/:id/start', RED.auth.needsPermission('gofa-sequencer.write'), function(req, res) {
+    RED.httpAdmin.post('/gofa-sequencer/:id/start', requireAdminAuth(RED, 'gofa-sequencer.write'), function(req, res) {
         var robot = RED.nodes.getNode(req.params.id);
         if (!robot || typeof robot.socketSend !== 'function') {
             return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });

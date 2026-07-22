@@ -590,6 +590,11 @@ module.exports = function(RED) {
         this.pointsFile = config.pointsFile || path.join(RED.settings.userDir || '.', 'points.json');
         this.remotePointsPath = config.remotePointsPath || '$HOME/Programs/gofa_points.json';
 
+        // Escape hatch for the editor live-control guard (nodes/lib/require-admin-auth.js):
+        // when Node-RED has no adminAuth, the editor motion buttons are refused (403)
+        // unless this is ticked — for cells protected by network isolation instead.
+        this.allowInsecureLiveControl = !!config.allowInsecureLiveControl;
+
         // Optional per-robot soft joint limits (advanced/calibration knob). Empty
         // = the CRB 15000-12 hardware defaults; a malformed override warns and
         // also falls back to defaults rather than silently disabling the check.
