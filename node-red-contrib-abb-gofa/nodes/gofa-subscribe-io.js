@@ -77,61 +77,73 @@ module.exports = function(RED) {
             node.status({ fill: 'yellow', shape: 'ring', text: signal + ' connecting' });
 
             var subscribeBody = 'resources=1&1=' + encodeURIComponent(resourcePath) + '&1-p=' + priority;
-            robot.requestRaw('POST', '/subscription', subscribeBody, {
-                contentType: 'application/x-www-form-urlencoded;v=2.0'
-            }).then(function(res) {
-                if (res.statusCode !== 201) throw new Error('Subscription failed: HTTP ' + res.statusCode);
-                // Use the cookie from THIS subscribe response, not a separate robot.getCookie()
-                // re-fetch — the shared session cookie can be overwritten by another node's
-                // concurrent request in between, causing the WS upgrade to use the wrong
-                // session and fail (confirmed live: two subscribe-io nodes starting together).
-                return { location: res.headers.location, cookie: res.cookie };
-            }).then(function(sub) {
-                if (node._stopped) {
-                    // Node was closed while the subscribe POST was still in flight — close() already
-                    // ran and couldn't clean this up (node._pollkey was still null at that time).
-                    // Best-effort delete the now-orphaned subscription ourselves.
-                    var pk = sub.location.split('/poll/').pop();
-                    node.robot.requestRaw('DELETE', '/subscription/' + pk, null, {}).catch(function(){});
-                    return;
-                }
-                node._pollkey = sub.location.split('/poll/').pop();
-                node._wsTimer = setTimeout(function() {
-                    node._wsTimer = null;
-                    if (node._stopped) return;
-                    var ws = new WS(sub.location, ['rws_subscription'], {
-                        rejectUnauthorized: false,
-                        headers: { Cookie: sub.cookie || '' }
+            var performSubscribe = function() {
+                return robot.requestRaw('POST', '/subscription', subscribeBody, {
+                    contentType: 'application/x-www-form-urlencoded;v=2.0'
+                }).then(function(res) {
+                    if (res.statusCode !== 201) throw new Error('Subscription failed: HTTP ' + res.statusCode);
+                    // Use the cookie from THIS subscribe response, not a separate robot.getCookie()
+                    // re-fetch — the shared session cookie can be overwritten by another node's
+                    // concurrent request in between, causing the WS upgrade to use the wrong
+                    // session and fail (confirmed live: two subscribe-io nodes starting together).
+                    return { location: res.headers.location, cookie: res.cookie };
+                }).then(function(sub) {
+                    if (node._stopped) {
+                        // Node was closed while the subscribe POST was still in flight — close() already
+                        // ran and couldn't clean this up (node._pollkey was still null at that time).
+                        // Best-effort delete the now-orphaned subscription ourselves.
+                        var pk = sub.location.split('/poll/').pop();
+                        return node.robot.requestRaw('DELETE', '/subscription/' + pk, null, {}).catch(function(){});
+                    }
+                    node._pollkey = sub.location.split('/poll/').pop();
+                    return new Promise(function(resolve) {
+                        node._wsTimer = setTimeout(function() {
+                            node._wsTimer = null;
+                            if (node._stopped) { resolve(); return; }
+                            var ws = new WS(sub.location, ['rws_subscription'], {
+                                rejectUnauthorized: false,
+                                headers: { Cookie: sub.cookie || '' }
+                            });
+                            node._ws = ws;
+                            ws.on('open', function() {
+                                node.status({ fill: 'green', shape: 'dot', text: signal + ' connected' });
+                                resolve();
+                            });
+                            ws.on('message', function(data) {
+                                var str = data.toString();
+                                var m = str.match(/class="lvalue">([^<]+)</);
+                                if (m) {
+                                    var value = parseInt(m[1].trim());
+                                    node.status({ fill: 'green', shape: 'dot', text: signal + '=' + value });
+                                    node.send({ payload: { ok: true, signal: signal, value: value, source: 'ws' } });
+                                }
+                            });
+                            ws.on('error', function(err) {
+                                node.warn('GoFa WebSocket subscription error: ' + err.message);
+                                resolve();
+                            });
+                            ws.on('close', function() {
+                                resolve();
+                                if (node._ws) {
+                                    node._ws = null;
+                                    if (!node._stopped) {
+                                        node.status({ fill: 'yellow', shape: 'ring', text: signal + ' reconnecting...' });
+                                        setTimeout(function() { if (!node._stopped) startSubscription(signal); }, 3000);
+                                    } else {
+                                        node.status({ fill: 'grey', shape: 'ring', text: signal + ' disconnected' });
+                                    }
+                                }
+                            });
+                        }, 100);
                     });
-                    node._ws = ws;
-                    ws.on('open', function() {
-                        node.status({ fill: 'green', shape: 'dot', text: signal + ' connected' });
-                    });
-                    ws.on('message', function(data) {
-                        var str = data.toString();
-                        var m = str.match(/class="lvalue">([^<]+)</);
-                        if (m) {
-                            var value = parseInt(m[1].trim());
-                            node.status({ fill: 'green', shape: 'dot', text: signal + '=' + value });
-                            node.send({ payload: { ok: true, signal: signal, value: value, source: 'ws' } });
-                        }
-                    });
-                    ws.on('error', function(err) {
-                        node.warn('GoFa WebSocket subscription error: ' + err.message);
-                    });
-                    ws.on('close', function() {
-                        if (node._ws) {
-                            node._ws = null;
-                            if (!node._stopped) {
-                                node.status({ fill: 'yellow', shape: 'ring', text: signal + ' reconnecting...' });
-                                setTimeout(function() { if (!node._stopped) startSubscription(signal); }, 3000);
-                            } else {
-                                node.status({ fill: 'grey', shape: 'ring', text: signal + ' disconnected' });
-                            }
-                        }
-                    });
-                }, 100);
-            }).catch(function(err) {
+                });
+            };
+
+            var subscribePromise = typeof robot.queueSubscription === 'function'
+                ? robot.queueSubscription(performSubscribe)
+                : performSubscribe();
+
+            subscribePromise.catch(function(err) {
                 if (/HTTP 400/.test(err.message)) {
                     startPolling(signal);
                 } else {

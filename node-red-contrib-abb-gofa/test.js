@@ -1985,6 +1985,55 @@ await checkAsync('createRobotClient: logout is a no-op when no session was ever 
         assert.strictEqual(hit, false, 'logout must not make any HTTP request if no session cookie exists');
     } finally { server.close(); }
 });
+// Root-cause fix for a live-confirmed bug: two subscribe nodes (gofa-subscribe-io/-state/-elog)
+// sharing one gofa-robot session both firing POST /subscription within milliseconds of each
+// other (e.g. two auto-injects at flow-deploy time) got a real HTTP 500 from the controller on
+// one of them -- not signal-specific, reproduced with 3 different signals across 2 pairings.
+// queueSubscription() serializes subscription-creation attempts on a given robot client so the
+// controller never sees two in flight at once, without blocking already-open subscriptions.
+await checkAsync('createRobotClient: queueSubscription runs a second queued attempt only after the first settles (success or failure)', async function() {
+    var client = createRobotClient({ ip: '127.0.0.1', rwsPort: 1, socketPort: 1025, username: 'u', password: 'p' });
+    var order = [];
+    var releaseFirst;
+    var first = new Promise(function(resolve) { releaseFirst = resolve; });
+
+    var p1 = client.queueSubscription(function() {
+        order.push('1-start');
+        return first.then(function() { order.push('1-end'); throw new Error('first failed'); });
+    });
+    var p2 = client.queueSubscription(function() {
+        order.push('2-start');
+        return Promise.resolve('ok');
+    });
+
+    await flush();
+    assert.deepStrictEqual(order, ['1-start'], 'second attempt must not start while the first is still pending');
+
+    releaseFirst();
+    await p1.catch(function() {});
+    await p2;
+    assert.deepStrictEqual(order, ['1-start', '1-end', '2-start'],
+        'second attempt must only start after the first settles, even though the first REJECTED');
+});
+await checkAsync('gofa-subscribe-io: routes subscription creation through robot.queueSubscription when the robot exposes it', async function() {
+    var queueCalls = 0;
+    var mockRobot = {
+        queueSubscription: function(fn) { queueCalls++; return fn(); },
+        requestRaw: function(method, p) {
+            if (method === 'POST' && p === '/subscription') {
+                return Promise.resolve({ statusCode: 400, headers: {}, body: Buffer.from('') });
+            }
+            return Promise.reject(new Error('unexpected requestRaw ' + method + ' ' + p));
+        },
+        getCookie: function() { return Promise.resolve('cookie=abc'); },
+        rwsGet: function() { return Promise.resolve('<span class="lvalue">1</span>'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-subscribe-io', { nodesById: { r1: mockRobot } }))({ robot: 'r1', signal: 'Asi1Button1' });
+    await runInput(node, {});
+    await flush();
+    assert.strictEqual(queueCalls, 1, 'must go through robot.queueSubscription, not call requestRaw directly, when it is available');
+    clearInterval(node._pollTimer);
+});
 await checkAsync('gofa-robot: node close calls logout and invokes done()', async function() {
     var mock = makeMockRwsServer();
     var port = await mock.listen();

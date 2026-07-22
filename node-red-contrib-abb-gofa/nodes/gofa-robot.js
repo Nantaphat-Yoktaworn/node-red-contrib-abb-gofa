@@ -179,6 +179,13 @@ function createRobotClient(opts) {
     // undefined forever against a module older than this handshake feature
     // (its ping reply has no "version" field at all).
     var lastPingVersion = {};
+    var subscriptionQueue = Promise.resolve();
+
+    function queueSubscription(fn) {
+        var promise = subscriptionQueue.then(fn);
+        subscriptionQueue = promise.then(function() {}, function() {});
+        return promise;
+    }
 
     function request(method, urlPath, body, forceAuth, accept, contentType) {
         return new Promise(function(resolve, reject) {
@@ -517,7 +524,8 @@ function translateToJSON(cmd) {
         rwsGet: rwsGet, rwsPost: rwsPost, rwsPut: rwsPut, rwsPostHal: rwsPostHal,
         withMastership: withMastership, socketSend: socketSend,
         requestRaw: requestRaw, getCookie: getCookie, logout: logout,
-        getLastPingVersion: getLastPingVersion
+        getLastPingVersion: getLastPingVersion,
+        queueSubscription: queueSubscription
     };
 }
 
@@ -722,6 +730,7 @@ module.exports = function(RED) {
     GoFaRobotNode.prototype.getCookie     = function()     { return this._client.getCookie(); };
     GoFaRobotNode.prototype.logout        = function()     { return this._client.logout(); };
     GoFaRobotNode.prototype.getLastPingVersion = function(port) { return this._client.getLastPingVersion(port); };
+    GoFaRobotNode.prototype.queueSubscription = function(fn) { return this._client.queueSubscription(fn); };
 
     GoFaRobotNode.prototype.parseXhtml = parseXhtml;
     GoFaRobotNode.prototype.gotoToken  = gotoToken;
