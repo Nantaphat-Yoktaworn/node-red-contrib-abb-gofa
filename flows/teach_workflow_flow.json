@@ -768,31 +768,6 @@
         "y": 360,
         "wires": [
             [
-                "d8f3c1a6e29b4750"
-            ]
-        ]
-    },
-    {
-        "id": "d8f3c1a6e29b4750",
-        "type": "delay",
-        "z": "a17a5b075916bef6",
-        "g": "b474c6bb3eb103c2",
-        "name": "Settle Before Subscribe Button1 (2s)",
-        "pauseType": "delay",
-        "timeout": "2",
-        "timeoutUnits": "seconds",
-        "rate": "1",
-        "nbRateUnits": "1",
-        "rateUnits": "second",
-        "randomFirst": "1",
-        "randomLast": "5",
-        "randomUnits": "seconds",
-        "drop": false,
-        "outputs": 1,
-        "x": 300,
-        "y": 360,
-        "wires": [
-            [
                 "0aaad16114a799e0"
             ]
         ]
@@ -1040,31 +1015,6 @@
         "payload": "",
         "payloadType": "date",
         "x": 560,
-        "y": 900,
-        "wires": [
-            [
-                "7c2e9b4a1d6f3850"
-            ]
-        ]
-    },
-    {
-        "id": "7c2e9b4a1d6f3850",
-        "type": "delay",
-        "z": "a17a5b075916bef6",
-        "g": "7fa433d560ceee6d",
-        "name": "Settle Before Subscribe Button2 (3s)",
-        "pauseType": "delay",
-        "timeout": "3",
-        "timeoutUnits": "seconds",
-        "rate": "1",
-        "nbRateUnits": "1",
-        "rateUnits": "second",
-        "randomFirst": "1",
-        "randomLast": "5",
-        "randomUnits": "seconds",
-        "drop": false,
-        "outputs": 1,
-        "x": 680,
         "y": 900,
         "wires": [
             [
