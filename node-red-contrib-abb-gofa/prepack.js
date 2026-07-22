@@ -16,7 +16,9 @@ for (const f of fs.readdirSync('../flows').filter(f => f.endsWith('.json'))) {
         // has drifted across several subnets already (192.168.20.x, 192.168.1.x),
         // and a subnet-specific regex silently stops genericizing the moment it
         // drifts again, leaking this lab's real current IP into the public package.
-        .replace(/"ip":\s*"[^"]*"/g, '"ip": "192.168.20.33"');
+        // Genericized to ABB's neutral service-port default (matches gofa-robot's
+        // own config default), not any address this lab has actually used.
+        .replace(/"ip":\s*"[^"]*"/g, '"ip": "192.168.125.1"');
     fs.writeFileSync('examples/' + f, text);
 }
 console.log('prepack: synced rapid/*.mod and examples/ from repo root');

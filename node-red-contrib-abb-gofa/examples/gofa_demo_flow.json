@@ -4725,7 +4725,7 @@
         "id": "cfg1",
         "type": "gofa-robot",
         "name": "ABB-GoFa-12",
-        "ip": "192.168.20.33",
+        "ip": "192.168.125.1",
         "rwsPort": "443",
         "socketPort": "1025",
         "username": "Default User",
