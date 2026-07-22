@@ -3919,6 +3919,23 @@ check('rapid modules: package copies are in sync with the repo-root source of tr
     });
 });
 
+// The version handshake (gofa-connection-status / gofa-setup) compares each
+// module's MODULE_VERSION against package.json's version (read live via
+// PALETTE_VERSION). If a release bumps package.json but not the .mod files,
+// every correctly-set-up controller falsely reports a "module mismatch". This
+// pins them in lockstep so that drift fails the suite instead of shipping.
+check('rapid modules: MODULE_VERSION matches package.json (version handshake lockstep)', function() {
+    var pkgVersion = require('./package.json').version;
+    ['MainModule.mod', 'MainModuleEGM.mod', 'BackgroundLed.mod'].forEach(function(f) {
+        var text = fs.readFileSync(path.join(__dirname, 'rapid', f), 'utf8');
+        var m = /MODULE_VERSION\s*:=\s*"([^"]+)"/.exec(text);
+        assert.ok(m, f + ' has no MODULE_VERSION constant');
+        assert.strictEqual(m[1], pkgVersion,
+            f + ' MODULE_VERSION "' + m[1] + '" != package.json "' + pkgVersion +
+            '" — bump it (all three .mod + package.json stay in lockstep)');
+    });
+});
+
 // The "Detect Wedge" function node's logic lives as a JS-source string inside
 // flows/watchdog_flow.json — no other test exercises it. Extracted and run
 // here so a future edit can't silently break the egmActive exclusion (the
