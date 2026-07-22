@@ -7,7 +7,9 @@ const path  = require('path');
 const os    = require('os');
 
 function parseXhtml(body, cls) {
-    var m = body.match(new RegExp('class="' + cls + '">([^<]+)<'));
+    // [^<]* (not +) so a legitimately-empty value (class="x"></span>) returns
+    // '' instead of null — null still means "class not present at all".
+    var m = body.match(new RegExp('class="' + cls + '">([^<]*)<'));
     return m ? m[1].trim() : null;
 }
 
@@ -493,7 +495,7 @@ function translateToJSON(cmd) {
                                 } else if (json.cmd === 'egmjoint') {
                                     finish(null, 'OK:EGMJOINT');
                                 } else {
-                                    finish(null, 'OK:' + json.cmd.toUpperCase());
+                                    finish(null, 'OK:' + (json.cmd || 'UNKNOWN').toUpperCase());
                                 }
                             } else {
                                 finish(null, 'ERR:' + (json.cmd || 'UNKNOWN').toUpperCase());
@@ -532,7 +534,7 @@ function translateToJSON(cmd) {
 module.exports = function(RED) {
     function GoFaRobotNode(config) {
         RED.nodes.createNode(this, config);
-        this.ip         = config.ip         || '192.168.20.33';
+        this.ip         = config.ip         || '192.168.125.1';
         this.rwsPort    = parseInt(config.rwsPort)    || 443;
         this.socketPort = parseInt(config.socketPort) || 1025;
         this.backgroundPort = parseInt(config.backgroundPort) || 1026;
