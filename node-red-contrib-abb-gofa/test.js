@@ -3790,6 +3790,25 @@ await checkAsync('gofa-stop-motion: immediate mode (default) = RWS stop -> reset
     assert.ok(pings >= 1);               // waited for the serve loop to come back
 });
 
+await checkAsync('gofa-stop-motion: immediate mode reports ok when a concurrent stop won the race (403) but the socket recovered', async function() {
+    // Losing the controller's execution-orchestration lock (a 2nd gofa-stop-motion
+    // or gofa-rapid-exec) 403s our stop — but the winner stops+restarts the
+    // program, so the serve loop comes back and we should NOT report failure.
+    var mockRobot = {
+        rwsPost: function(path) {
+            if (path.indexOf('/stop') >= 0) return Promise.reject(new Error('HTTP 403 Orchestration already active'));
+            return Promise.resolve('');
+        },
+        withMastership: function(fn) { return fn(); },
+        socketSend: function() { return Promise.resolve('OK:PING'); }   // serve loop is back
+    };
+    var node = new (loadNodeType('./nodes/gofa-stop-motion', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.mode, 'immediate');
+});
+
 await checkAsync('gofa-ping: calculates latency rtt', async function() {
     var calls = [];
     var mockRobot = {

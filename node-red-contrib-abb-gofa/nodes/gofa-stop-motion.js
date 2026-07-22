@@ -17,10 +17,22 @@ module.exports = function(RED) {
     // tried live and rejected: it halts the arm but the aborted MoveAbsJ never
     // returns, hanging the serve loop (see ideas/issue-3-midmove-stop-plan.md).
     function immediateStop(robot) {
+        // The real success criterion is "the serve loop is back", not "every RWS
+        // call in the sequence returned 2xx". A concurrent execution-control
+        // operation (a second gofa-stop-motion, or gofa-rapid-exec) can win the
+        // controller's execution-orchestration lock and 403 one of our calls
+        // ("Orchestration already active") — but it is itself stopping+restarting
+        // the program, so the robot still ends stopped and healthy. Confirmed
+        // live: two concurrent immediate stops leave rapid=running/motoron. So we
+        // remember any sequence error but let waitForSocket be the verdict —
+        // swallow the error if the socket comes back, surface it only if it does not.
+        var seqErr = null;
         return robot.rwsPost('/rw/rapid/execution/stop', STOP_BODY)
             .then(function() { return robot.withMastership(function() { return robot.rwsPost('/rw/rapid/execution/resetpp', ''); }); })
             .then(function() { return robot.rwsPost('/rw/rapid/execution/start', START_BODY); })
-            .then(function() { return waitForSocket(robot, 8000); });
+            .catch(function(err) { seqErr = err; })
+            .then(function() { return waitForSocket(robot, 10000); })
+            .catch(function(err) { throw seqErr || err; });
     }
 
     // Poll the socket PING until the serve loop is back (proof start actually
