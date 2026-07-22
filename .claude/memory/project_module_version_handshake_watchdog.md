@@ -104,9 +104,8 @@ workflow genuinely sets `rapid: 'stopped'`; EGM doesn't). Fixed: `gofa-connectio
 reports `egmActive: !!r._egmActive` (cheap, no new calls), watchdog's wedge condition gained
 `&& !egmActive`. Unit-tested against the exact EGM shape; `egmActive: false` live-confirmed
 against the real robot's normal state (the `true` case not forced live — needs
-`MainModuleEGM.mod` loaded + a real session, judged out of scope for this fix).
+`MainModuleEGM.mod` loaded + a real session, judged out of scope for this fix). 3 new tests,
+286 passing total.
 
 See also: [[project_background_services_task]] for the diagnostic groundwork this built on,
-[[project_socket_server_stuck_2026-07-15]] for the original unresolved wedge bug this targets,
-and [[project_background_led_task]] for the subsequent chaining-hazard and lead-through-timeout
-fixes found the same day while using this feature.
+[[project_socket_server_stuck_2026-07-15]] for the original unresolved wedge bug this targets.

@@ -17,6 +17,7 @@
 - [Docs/help-text audit 2026-07-17](project_docs_audit_2026-07-17.md) — agy-parallelized 43-node + 5-doc audit (same day, later session); real bugs found incl. a silent flows/↔examples/ sync gap (now has a permanent drift test); removed JSON_SOCKET_TRANSITION.md (see docs-audit-2026-07-16 below) + a stale todo draft, with user sign-off
 - [Module version handshake + watchdog](project_module_version_handshake_watchdog.md) — DONE + live-verified 2026-07-20, bumped to 2.4.0; agy-delegated (2 real bugs caught in review: 1 Claude transcription slip, 1 flow double-fire design bug); egmActive exclusion added after gofa-egm sessions were found to match the wedge signature
 - [agy advisory output needs verify-after-apply](feedback_agy_advisory_output_needs_line_by_line_apply.md) — hand-transcribing agy's advisory text output is its own bug-injection point; run node -c + require() smoke test after applying, not just after reviewing the draft
+- [\Conc queue-depth crash fix](project_conc_queue_depth_crash_fix.md) — DONE + live-verified 2026-07-20, bumped to 2.4.2; RAPID 40631 on chained HOME/GOTOJ fixed by removing \Conc (5 sync-tuning attempts all failed identically first); STOP no longer interrupts an in-progress chained move
 
 Older memories preserved only in this snapshot (pruned from live memory but still referenced by CLAUDE.md and the skills):
 
@@ -39,4 +40,4 @@ Older memories preserved only in this snapshot (pruned from live memory but stil
 - [OmniCore AppStudio investigation](reference_omnicore_appstudio_investigation.md) — persistent FlexPendant dashboard ruled out for now, needs RobotStudio GUI step, not RWS-drivable
 - [IP discovery deferred](project_ip_discovery_deferred.md) — check-status.js IP auto-discovery: design sketched and deferred at the time; since built (check-status.js --discover, gofa-robot Discover button)
 
-Note: this robot's real RWS/admin credentials live only in local (non-repo) Claude memory — deliberately never copied here since this repo is public. (Snapshot last synced from live memory: 2026-07-20, after the module-version-handshake/watchdog-flow session — added the module-version-handshake and agy-transcription-verify memories, and updated the background-led-task memory with the chaining-hazard and lead-through-timeout follow-ups from the same day.)
+Note: this robot's real RWS/admin credentials live only in local (non-repo) Claude memory — deliberately never copied here since this repo is public. (Snapshot last synced from live memory: 2026-07-22 — added the \Conc queue-depth crash fix memory, and refreshed background-led-task, egm-node-red-integration-plan, and module-version-handshake-watchdog with their latest content from live memory.)

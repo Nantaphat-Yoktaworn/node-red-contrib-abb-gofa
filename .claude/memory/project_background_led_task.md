@@ -151,13 +151,3 @@ failure) — 288 tests total. **Takeaway for next time**: this project's own CLA
 themselves a source of plausible-but-unverified explanations now, not just external assumptions
 — re-verify live before trusting them when a user reports something that doesn't quite match,
 even when the doc is detailed and was itself originally "confirmed live."
-
-**Follow-up #3, same session — idle/flash colors changed from cyan/white to yellow, by
-request.** `teach_workflow_flow.json`'s "LED: Teach Mode ON" and "LED: Restore Teach Idle" now
-set solid yellow (255,255,0) instead of cyan; "LED: Point Saved" now flashes yellow twice
-instead of white. Deliberate: since yellow-while-moving always wins anyway, using yellow as the
-idle/flash color too means the LED no longer visibly changes color between "idle," "point
-saved," and "moving" states during a teach session. "LED: Teach Mode OFF" still resets to green.
-Also changed the same day: `gofa-save-point`'s "Save Taught Point" node in this flow now
-defaults to on-robot storage (`storage: "remote"`) instead of the local `points.json` on the
-Node-RED host.

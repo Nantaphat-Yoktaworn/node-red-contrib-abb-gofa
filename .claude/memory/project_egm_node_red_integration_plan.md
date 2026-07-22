@@ -5,6 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 2fe0fd58-9b96-4052-b0d4-0f8dffaf0354
+  modified: 2026-07-21T04:27:39.823Z
 ---
 
 **Status: IMPLEMENTED, PUBLISHED, FULLY LIVE-VERIFIED — no known open bugs** (2026-07-09,
@@ -110,13 +111,17 @@ unload-before-loadmod requirement if any new module variant is added. `ABB_Scala
 is reserved as the EGM graceful-stop trigger signal — don't reuse it for something else without
 updating both `MainModuleEGM.mod` and `gofa-egm.js`.
 
-**Open caution, not yet acted on (found 2026-07-09 cross-checking `C:\Users\anapa\nnnn\note\`'s
-EGM manual):** ABB's manual requires correct tool load data (`LoadIdentify`) before EGM use —
-wrong load data can cause servo torque overruns/safety halts under EGM's fast corrections.
-`MainModuleEGM.mod`'s `tGripper` has an unverified placeholder mass (1kg), never run through
-`LoadIdentify`. Not hit live yet (testing so far has been small-amplitude, no tooling
-attached). Documented as a caution in `CLAUDE.md`, both READMEs, and `gofa-egm.html` — actually
-running `LoadIdentify` is still outstanding if real tooling gets attached.
+**ADDRESSED 2026-07-21 for the current no-tool state (found 2026-07-09 cross-checking
+`C:\Users\anapa\nnnn\note\`'s EGM manual):** ABB's manual requires correct tool load data
+(`LoadIdentify`) before EGM use — wrong load data can cause servo torque overruns/safety halts
+under EGM's fast corrections. `LoadIdentify` itself needs a physical tool mounted to measure
+anything, so it stayed undoable — but the placeholder `tGripper` tooldata turned out to be the
+active tool for every motion instruction in **both** `MainModule.mod` and `MainModuleEGM.mod`
+(not EGM-only as originally scoped), and it disagreed with `gofa-pose`/`gofa-save-point`'s
+`tool0`-relative RWS reads, meaning any saved point would replay ~100mm off. Fixed by switching
+both `.mod` files to `tool0` for all motion; `tGripper` stays declared as a placeholder for
+whenever a real gripper is mounted (`LoadIdentify` it then, and switch both files back). See the
+"Tool load data caution" section in `CLAUDE.md`.
 
 **Also 2026-07-09**: `C:\Users\anapa\nnnn\note\Node_RED_ABB_GoFa_Project_Analysis.md` (an
 external reference note, not part of this repo) was found stale — described the old
