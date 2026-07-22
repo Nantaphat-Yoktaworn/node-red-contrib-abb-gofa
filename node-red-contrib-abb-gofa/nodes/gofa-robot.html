@@ -115,9 +115,11 @@
         <span style="color:#888;font-size:0.85em;margin-left:6px">optional — leave blank for CRB 15000-12 defaults; JSON array of 6 [min,max] pairs (deg) to enforce tighter cell axis limits</span>
     </div>
     <div class="form-row">
-        <label for="node-config-input-allowInsecureLiveControl" style="width:auto"><i class="fa fa-unlock-alt"></i> Allow insecure live control</label>
         <input type="checkbox" id="node-config-input-allowInsecureLiveControl" style="display:inline-block; width:auto; vertical-align:top;">
-        <span style="color:#888;font-size:0.85em;margin-left:6px">only tick if this Node-RED has no adminAuth but is protected by network isolation — see help</span>
+        <label for="node-config-input-allowInsecureLiveControl" style="width:auto;"><i class="fa fa-unlock-alt"></i> Allow insecure live control</label>
+    </div>
+    <div class="form-row">
+        <label style="width:auto; padding-left:20px; color:#aaa; font-size:0.85em">only tick if this Node-RED has no adminAuth but is protected by network isolation (firewall/isolated cell) — see help</label>
     </div>
 </script>
 <script type="text/html" data-help-name="gofa-robot">
