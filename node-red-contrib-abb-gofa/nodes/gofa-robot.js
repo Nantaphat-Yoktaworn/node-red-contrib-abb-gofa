@@ -31,6 +31,22 @@ function resolveMoveType(v, fallback) {
     return (v === 'L' || v === 'J') ? v : fallback;
 }
 
+// Version-handshake compatibility: a module and the palette are compatible if
+// their major.minor match. Patch releases (2.4.x) never change the socket
+// protocol — they're bumped in lockstep purely for provenance — so a module
+// left at 2.4.9 against a 2.4.10 palette should read as "match" and NOT nag the
+// user to re-flash. Only a major/minor bump signals a real protocol change.
+// Returns false if either version is missing/unparseable.
+function versionMajorMinor(v) {
+    if (typeof v !== 'string') return null;
+    var m = /^(\d+)\.(\d+)/.exec(v);
+    return m ? m[1] + '.' + m[2] : null;
+}
+function versionsCompatible(a, b) {
+    var ma = versionMajorMinor(a);
+    return ma !== null && ma === versionMajorMinor(b);
+}
+
 // CRB 15000-12/1.27 (GoFa 12) per-axis working range in degrees — [min, max]
 // for J1..J6, from ABB product manual 3HAC077389-001. These are the TRUE
 // hardware limits, so validating an absolute joint move against them only
@@ -823,6 +839,7 @@ module.exports.parseXhtml          = parseXhtml;
 module.exports.gotoToken           = gotoToken;
 module.exports.gotoObj             = gotoObj;
 module.exports.resolveMoveType     = resolveMoveType;
+module.exports.versionsCompatible  = versionsCompatible;
 module.exports.JOINT_LIMITS        = JOINT_LIMITS;
 module.exports.parseJointLimits    = parseJointLimits;
 module.exports.validateJoints      = validateJoints;

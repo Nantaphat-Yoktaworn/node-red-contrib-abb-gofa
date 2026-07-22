@@ -791,7 +791,19 @@ version, read live from `package.json` rather than duplicated as a second consta
 each `{version, status}` where `status` is `'match'` / `'mismatch'` / `'unknown'` (ping failed,
 or module too old to report a version) — plus `.expected`. A `mismatch` on an otherwise-healthy
 result sets yellow status (`'ok, module vX mismatch (expected vY)'`) instead of green, without
-affecting `payload.ok` itself. `gofa-setup`'s final `socket PING` step folds the same comparison
+affecting `payload.ok` itself.
+
+**The runtime comparison is major.minor only, not exact (added 2.4.11).** `versionsCompatible(a, b)`
+in `gofa-robot.js` (exported, used by both `gofa-connection-status` and `gofa-setup`) treats two
+versions as a `match` when their `major.minor` agree — a module left at `2.4.9` against a `2.4.10`
+palette reports `match`, not `mismatch`. Rationale: patch releases never change the socket protocol
+(they're bumped in lockstep purely for provenance), so a patch skew doesn't warrant nagging the
+user to re-flash; only a **major/minor** bump signals a real protocol change worth flagging. This
+is deliberately looser than the `test.js` lockstep check, which still asserts the shipped module's
+`MODULE_VERSION` string equals `package.json` **exactly** — that's repo hygiene (a freshly-shipped
+module must report the current version), a separate concern from how tolerant the *runtime* health
+check is. Net effect: `MODULE_VERSION` is still bumped on every release, but users no longer see a
+false `mismatch` warning after a patch upgrade they haven't re-flashed for. `gofa-setup`'s final `socket PING` step folds the same comparison
 into that step's `detail` string (`'OK (module vX.Y.Z)'`, or a `WARNING` detail naming both
 versions and pointing at the `rapid/` sync rule elsewhere in this doc, or an "unknown" detail for
 a pre-handshake module) — informational only, never fails the step, since setup genuinely did

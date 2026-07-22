@@ -1,6 +1,7 @@
 'use strict';
 var gate = require('./lib/gate');
 var PALETTE_VERSION = require('./gofa-robot').PALETTE_VERSION;
+var versionsCompatible = require('./gofa-robot').versionsCompatible;
 module.exports = function(RED) {
     function GoFaConnectionStatusNode(config) {
         RED.nodes.createNode(this, config);
@@ -61,9 +62,9 @@ module.exports = function(RED) {
                 var rwsOk = ctrlstate.ok || opmode.ok || execution.ok || speed.ok;
 
                 var socketVersion = socket.ok ? r.getLastPingVersion() : null;
-                var socketStatus = !socket.ok || socketVersion === null ? 'unknown' : (socketVersion === PALETTE_VERSION ? 'match' : 'mismatch');
+                var socketStatus = !socket.ok || socketVersion === null ? 'unknown' : (versionsCompatible(socketVersion, PALETTE_VERSION) ? 'match' : 'mismatch');
                 var backgroundVersion = background.ok ? r.getLastPingVersion(r.backgroundPort) : null;
-                var backgroundStatus = !background.ok || backgroundVersion === null ? 'unknown' : (backgroundVersion === PALETTE_VERSION ? 'match' : 'mismatch');
+                var backgroundStatus = !background.ok || backgroundVersion === null ? 'unknown' : (versionsCompatible(backgroundVersion, PALETTE_VERSION) ? 'match' : 'mismatch');
 
                 var payload = {
                     ok: rwsOk && socket.ok,
@@ -154,9 +155,9 @@ module.exports = function(RED) {
             var rwsOk = ctrlstate.ok || opmode.ok || execution.ok || speed.ok;
 
             var socketVersion = socket.ok ? robot.getLastPingVersion() : null;
-            var socketStatus = !socket.ok || socketVersion === null ? 'unknown' : (socketVersion === PALETTE_VERSION ? 'match' : 'mismatch');
+            var socketStatus = !socket.ok || socketVersion === null ? 'unknown' : (versionsCompatible(socketVersion, PALETTE_VERSION) ? 'match' : 'mismatch');
             var backgroundVersion = background.ok ? robot.getLastPingVersion(robot.backgroundPort) : null;
-            var backgroundStatus = !background.ok || backgroundVersion === null ? 'unknown' : (backgroundVersion === PALETTE_VERSION ? 'match' : 'mismatch');
+            var backgroundStatus = !background.ok || backgroundVersion === null ? 'unknown' : (versionsCompatible(backgroundVersion, PALETTE_VERSION) ? 'match' : 'mismatch');
 
             res.json({
                 ok: rwsOk && socket.ok,

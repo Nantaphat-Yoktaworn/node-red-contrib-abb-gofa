@@ -272,6 +272,17 @@ check('requireAdminAuth: 403 without adminAuth; allows with override or with adm
     assert.strictEqual(delegated, true);
     assert.strictEqual(nexted3, true);
 });
+check('versionsCompatible: matches on major.minor (patch differences are compatible)', function() {
+    var vc = require('./nodes/gofa-robot').versionsCompatible;
+    assert.strictEqual(vc('2.4.9', '2.4.10'), true);   // patch differs → still compatible
+    assert.strictEqual(vc('2.4.0', '2.4.99'), true);
+    assert.strictEqual(vc('2.4.10', '2.4.10'), true);
+    assert.strictEqual(vc('2.3.9', '2.4.0'), false);   // minor differs → not compatible
+    assert.strictEqual(vc('2.4.1', '3.4.1'), false);   // major differs → not compatible
+    assert.strictEqual(vc(null, '2.4.10'), false);
+    assert.strictEqual(vc('garbage', '2.4.10'), false);
+    assert.strictEqual(vc('2.4.10', undefined), false);
+});
 check('gofa-robot: addPoint persists to disk', function() {
     var f = path.join(tmpDir, 'points-3.json');
     var node = makeRobotNode(f);
@@ -4257,6 +4268,21 @@ await checkAsync('gofa-setup: mismatched module version reports warning but rema
     assert.strictEqual(last.name, 'socket PING');
     assert.ok(last.detail.indexOf('WARNING') >= 0);
     assert.ok(last.detail.indexOf('9.9.9') >= 0);
+});
+
+await checkAsync('gofa-setup: a patch-only module version difference reports OK, not a warning', async function() {
+    // PALETTE_VERSION is 2.4.x; a module left at an earlier 2.4 patch is protocol-
+    // compatible (major.minor match) and must NOT nag the user to re-flash.
+    var pkgV = require('./package.json').version;
+    var patchOld = pkgV.replace(/^(\d+\.\d+)\.\d+$/, '$1.0');
+    var robot = makeSetupRobot({ exec: 'running', moduleVersion: patchOld });
+    var node = makeSetupNode(robot);
+    var msg = {};
+    await runInput(node, msg);
+    var last = msg.payload.steps[msg.payload.steps.length - 1];
+    assert.strictEqual(last.name, 'socket PING');
+    assert.ok(last.detail.indexOf('OK (') === 0, 'expected OK, got: ' + last.detail);
+    assert.ok(last.detail.indexOf('WARNING') === -1);
 });
 
 await checkAsync('gofa-setup: not in Auto mode fails at preflight with no side effects', async function() {

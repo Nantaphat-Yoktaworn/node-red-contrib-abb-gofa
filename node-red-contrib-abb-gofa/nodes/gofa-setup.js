@@ -5,6 +5,7 @@ var fs   = require('fs');
 var path = require('path');
 var parseXhtml    = require('./gofa-robot').parseXhtml;
 var PALETTE_VERSION = require('./gofa-robot').PALETTE_VERSION;
+var versionsCompatible = require('./gofa-robot').versionsCompatible;
 var parseLiSpans  = require('./gofa-rapid-tasks').parseLiSpans;
 var patchServerIp = require('./lib/patch-server-ip');
 
@@ -144,7 +145,7 @@ module.exports = function(RED) {
                         if (resp === 'OK:PING') {
                             var ver = r.getLastPingVersion();
                             if (ver === null) return 'OK (module version unknown — this module predates the version-handshake feature)';
-                            if (ver === PALETTE_VERSION) return 'OK (module v' + ver + ')';
+                            if (versionsCompatible(ver, PALETTE_VERSION)) return 'OK (module v' + ver + ')';
                             return 'OK — WARNING: module reports v' + ver + ', palette expects v' + PALETTE_VERSION + ' — check node-red-contrib-abb-gofa/rapid/ is in sync with the root rapid/ copies (see CLAUDE.md), then re-run setup';
                         }
                         throw new Error('unexpected reply: ' + resp);
