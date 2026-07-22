@@ -42,7 +42,7 @@ var cfg = {
     ip:         process.env.GOFA_IP         || '192.168.1.103',
     rwsPort:    parseInt(process.env.GOFA_RWS_PORT)    || 443,
     socketPort: parseInt(process.env.GOFA_SOCKET_PORT) || 1025,
-    username:   process.env.GOFA_USERNAME   || 'NNNN',
+    username:   process.env.GOFA_USERNAME   || 'Admin',
     password:   process.env.GOFA_PASSWORD   || 'robotics'  // ABB factory default
 };
 
