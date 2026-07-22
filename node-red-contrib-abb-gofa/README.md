@@ -88,7 +88,7 @@ needed just to silence output. Check it to get the full `msg.payload` described 
 | `gofa-joint-jog` | Socket | Single-joint jog |
 | `gofa-zone-set` | Socket | Path blend zone (FINE…Z100) |
 | `gofa-speed-set` | Socket | Speed override via `VelSet` — set or read current (`C_MOTSET.vel.oride`); see CLAUDE.md for why `SpeedRefresh` doesn't work here |
-| `gofa-stop-motion` | Socket | Motion halt — immediate for a jog; for HOME/GOTOJ/GOTOL/MOVEJ/MOVEL it takes effect once the current move finishes (no longer `\Conc` as of 2.4.2) |
+| `gofa-stop-motion` | RWS + Socket | Motion halt. **Mode**: `immediate` (default) halts an in-progress HOME/GOTOJ/GOTOL/MOVEJ/MOVEL now via an RWS execution-stop + auto resetPP/start (arm stays put, socket recovers; needs Auto + motors on); `queued` is the legacy socket STOP that only cancels a not-yet-started move |
 | `gofa-ping` | Socket | Connectivity test with round-trip time |
 | `gofa-grip` | RWS | Digital output on/off (gripper-style) |
 | `gofa-save-point` / `gofa-go-point` / `gofa-point-list` / `gofa-delete-point` | mixed | Teach & replay named points, stored locally or on the robot's own disk |

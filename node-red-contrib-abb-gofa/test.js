@@ -3758,20 +3758,36 @@ await checkAsync('gofa-speed-set: read action reads the VelSet override via the 
     assert.strictEqual(socketCalls.length, 1);
 });
 
-await checkAsync('gofa-stop-motion: halts robot motion', async function() {
+await checkAsync('gofa-stop-motion: queued mode sends the socket STOP', async function() {
     var calls = [];
     var mockRobot = {
-        socketSend: function(cmd) {
-            calls.push(cmd);
-            return Promise.resolve('OK:STOP');
-        }
+        socketSend: function(cmd) { calls.push(cmd); return Promise.resolve('OK:STOP'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-stop-motion', { nodesById: { r1: mockRobot } }))({ robot: 'r1', mode: 'queued' });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.mode, 'queued');
+    assert.deepStrictEqual(calls, [{ cmd: 'stop' }]);
+});
+
+await checkAsync('gofa-stop-motion: immediate mode (default) = RWS stop -> resetpp -> start -> socket back', async function() {
+    var rwsCalls = [], mastership = 0, pings = 0;
+    var mockRobot = {
+        rwsPost: function(path, body) { rwsCalls.push(path); return Promise.resolve(''); },
+        withMastership: function(fn) { mastership++; return fn(); },
+        socketSend: function(cmd) { pings++; return Promise.resolve('OK:PING'); }
     };
     var node = new (loadNodeType('./nodes/gofa-stop-motion', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
     var msg = {};
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, true);
-    assert.strictEqual(calls.length, 1);
-    assert.deepStrictEqual(calls[0], { cmd: 'stop' });
+    assert.strictEqual(msg.payload.mode, 'immediate');
+    // stop, resetpp (under mastership), start — in order — then a ping to confirm the socket
+    assert.deepStrictEqual(rwsCalls, [
+        '/rw/rapid/execution/stop', '/rw/rapid/execution/resetpp', '/rw/rapid/execution/start']);
+    assert.strictEqual(mastership, 1);   // resetpp acquired edit mastership
+    assert.ok(pings >= 1);               // waited for the serve loop to come back
 });
 
 await checkAsync('gofa-ping: calculates latency rtt', async function() {

@@ -4,7 +4,8 @@
         defaults: {
             outputPayload: { value: false },
             name:  { value: '' },
-            robot: { value: '', type: 'gofa-robot', required: true }
+            robot: { value: '', type: 'gofa-robot', required: true },
+            mode:  { value: 'immediate' }
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() { return this.name || 'Stop Motion'; },
@@ -23,7 +24,9 @@
                 RED.notify('Sending STOP command to robot...', 'info');
                 $.ajax({
                     url: 'gofa-stop-motion/' + id + '/stop',
-                    type: 'POST'
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ mode: $('#node-input-mode').val() || 'immediate' })
                 })
                     .done(function() {
                         RED.notify('Robot stopped successfully', 'success');
@@ -49,6 +52,13 @@
         <input type="text" id="node-input-robot">
     </div>
     <div class="form-row">
+        <label for="node-input-mode"><i class="fa fa-stop-circle"></i> Stop mode</label>
+        <select id="node-input-mode">
+            <option value="immediate">Immediate — halt an in-progress move now (RWS stop + auto-restart)</option>
+            <option value="queued">Queued — socket STOP, takes effect after the current move</option>
+        </select>
+    </div>
+    <div class="form-row">
         <button id="gofa-stop-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-stop"></i> STOP MOTION IMMEDIATELY</button>
     </div>
     <div class="form-row">
@@ -62,19 +72,29 @@
 </script>
 <script type="text/html" data-help-name="gofa-stop-motion">
     <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
-    <p>Sends a <code>STOP</code> command via the RAPID socket server — RAPID calls
-    <code>StopMove</code>, <code>ClearPath</code>, <code>StartMove</code>.</p>
-    <p><b>Since 2.4.2, this only cancels a queued move that hasn't started yet — it does not
-    interrupt a <code>HOME</code>/<code>GOTOJ</code>/<code>GOTOL</code>/<code>MOVEJ</code>/
-    <code>MOVEL</code> that's already executing</b> (removing <code>\Conc</code> from those
-    instructions, to fix a RAPID queue-depth crash, meant giving up mid-move interruption as a
-    trade-off — see the "\Conc queue-depth crash" note in <code>CLAUDE.md</code>). A jog
-    (<code>X±</code>/<code>Y±</code>/<code>Z±</code>/<code>RX±</code>/<code>RY±</code>/
-    <code>RZ±</code>/<code>J1-6±</code>) is still interrupted immediately — each jog does its own
-    full stop/clear/restart before a single move, so it was never exposed to that crash.</p>
+    <h3>Stop mode</h3>
+    <ul>
+        <li><b>Immediate</b> (default) — halts an in-progress
+        <code>HOME</code>/<code>GOTOJ</code>/<code>GOTOL</code>/<code>MOVEJ</code>/<code>MOVEL</code>
+        <em>right away</em> using an RWS execution-stop, then automatically
+        <code>resetPP</code> + <code>start</code>s to bring the socket server back. The arm halts
+        where it is and stays there (it does <b>not</b> move to home); the controller program
+        restarts underneath (~1–2&nbsp;s), after which it's ready for the next command. Needs the
+        controller in <b>Auto with motors on</b> (required to restart). Does not need any
+        particular module version.</li>
+        <li><b>Queued</b> — the legacy socket <code>STOP</code> (<code>StopMove</code>/
+        <code>ClearPath</code>/<code>StartMove</code>). Doesn't restart the program, but the serve
+        loop can't process it until the current blocking move finishes, so it only cancels a move
+        that hasn't started yet (or halts a jog).</li>
+    </ul>
+    <p>A jog (<code>X±</code>/<code>J1-6±</code>/…) is halted immediately by either mode.
+    Neither mode is a safety function — the safety controller and physical e-stop are the only
+    real safety layer.</p>
     <h3>Input</h3>
-    <p>Any message triggers the stop. <code>msg.payload</code> is ignored.</p>
+    <p>Any message triggers the stop. A bare <code>msg.payload</code> of <code>"immediate"</code>
+    or <code>"queued"</code> (or <code>msg.payload.mode</code>) overrides the configured mode;
+    any other payload is ignored and the configured mode is used.</p>
     <h3>Output</h3>
-    <p><code>msg.payload = { ok: true }</code> on success.</p>
-    <p><code>msg.payload = { ok: false, error: "..." }</code> on failure.</p>
+    <p><code>msg.payload = { ok: true, mode }</code> on success.</p>
+    <p><code>msg.payload = { ok: false, error: "...", mode }</code> on failure.</p>
 </script>

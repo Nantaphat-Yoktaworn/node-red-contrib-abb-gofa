@@ -74,7 +74,7 @@ MODULE MainModuleEGM
     ! instead of failing mysteriously later on a command that doesn't exist
     ! yet. Bump this whenever the socket protocol changes; keep in lockstep
     ! with node-red-contrib-abb-gofa/package.json's "version".
-    CONST string MODULE_VERSION := "2.4.11";
+    CONST string MODULE_VERSION := "2.4.12";
 
     ! Persisted home pose (survives restart AND module reload). One line of
     ! 11 ;-separated numbers, same layout as a GOTO token, written by SETHOME.
@@ -92,7 +92,6 @@ MODULE MainModuleEGM
     VAR socketdev serverSocket;
     VAR socketdev clientSocket;
     VAR string    rxStr;
-
 
     ! -------------------------------------------------------
     ! MAIN - go home, then serve forever. Any socket fault

@@ -53,7 +53,7 @@ MODULE BackgroundLed
 
     ! See MainModule.mod's MODULE_VERSION comment — same purpose, own value
     ! since this task's module is uploaded/reloaded independently of T_ROB1's.
-    CONST string MODULE_VERSION  := "2.4.11";
+    CONST string MODULE_VERSION  := "2.4.12";
 
     VAR socketdev ledServerSocket;
     VAR socketdev ledClientSocket;

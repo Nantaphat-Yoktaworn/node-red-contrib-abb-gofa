@@ -237,7 +237,7 @@ Send-GofaCmd "PING"
 | `GETSPEED` | Read the current override back (`C_MOTSET.vel.oride`) — replies `VAL:<value>` |
 | `MOVEJ<j1;..;j6>` / `MOVEL<j1;..;j6>` | Absolute joint move in degrees — MOVEJ joint-interpolated (MoveAbsJ), MOVEL straight-line TCP path to the same joint pose (added 2.1.0). **Note:** the raw socket does **no** soft-limit check — an out-of-range value here faults RAPID (the ERROR handler recovers the socket server). The `gofa-movej` node validates against per-axis limits first; that guard is node-side only, not in RAPID. |
 | `ZONE<name>` | Set path blend zone (`FINE`/`Z1`/`Z5`/`Z10`/`Z20`/`Z50`/`Z100`) |
-| `STOP` | Halt motion — immediate for a jog in progress; for HOME/GOTOJ/GOTOL/MOVEJ/MOVEL it only takes effect once the current move finishes (those stopped using `\Conc` in 2.4.2) |
+| `STOP` | Halt motion — immediate for a jog in progress; for HOME/GOTOJ/GOTOL/MOVEJ/MOVEL this socket `STOP` only takes effect once the current move finishes (those stopped using `\Conc` in 2.4.2). To halt an in-progress move, use an RWS execution-stop instead (`POST /rw/rapid/execution/stop` body `stopmode=stop&usetsp=normal`), then `resetpp` + `start` to bring the socket server back — this is what `gofa-stop-motion`'s `immediate` mode does |
 | `GRIPON` / `GRIPOFF` | Stub only — acks `OK:` but performs no actual I/O; kept for manual/raw-socket testing. `gofa-grip` itself uses RWS `/set-value` instead. |
 | `GETVAR:<name>` | Read a `PERS` variable — replies `VAL:<value>` or `ERR:UNKNOWN_VAR` |
 | `SETVAR:<name>:<value>` | Write a `PERS` variable — replies `OK:SETVAR`, `ERR:UNKNOWN_VAR`, or `ERR:PARSE` |
