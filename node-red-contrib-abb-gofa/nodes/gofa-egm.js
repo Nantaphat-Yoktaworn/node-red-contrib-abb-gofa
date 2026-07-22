@@ -17,13 +17,17 @@ var STOP_SIGNAL = 'ABB_Scalable_IO_0_DO16';
 // this fallback, an RWS rejection here leaves the session permanently stuck
 // mid-EGMRunJoint with no way to trigger the graceful-stop TRAP — confirmed
 // live during this feature's own EGM verification session.
+// Resolves with which transport actually wrote the signal ('rws' or
+// 'socket') so callers can report it for debugging which path was used.
 function setStopSignal(robot, val) {
     return robot.rwsPost('/rw/iosystem/signals/' + STOP_SIGNAL + '/set-value', 'lvalue=' + val)
+        .then(function() { return 'rws'; })
         .catch(function(err) {
             if (!robot.backgroundPort || typeof robot.socketSend !== 'function') throw err;
             return robot.socketSend({ cmd: 'setdo', name: STOP_SIGNAL.toUpperCase(), val: val }, robot.backgroundPort)
                 .then(function(reply) {
                     if (!/^OK:SETDO/.test(reply)) throw err;
+                    return 'socket';
                 });
         });
 }
@@ -406,8 +410,10 @@ module.exports = function(RED) {
             if (!node.robot) { node.status({ fill: 'grey', shape: 'ring', text: 'stopped' }); return Promise.resolve(); }
             node.status({ fill: 'yellow', shape: 'ring', text: 'exiting EGM mode...' });
 
+            var stopSignalSource;
             return setStopSignal(node.robot, 1)
-                .then(function() {
+                .then(function(source) {
+                    stopSignalSource = source;
                     return waitForTcpBack(15000).finally(function() {
                         return setStopSignal(node.robot, 0).catch(function() {});
                     });
@@ -415,6 +421,7 @@ module.exports = function(RED) {
                 .then(function() {
                     node.status({ fill: 'grey', shape: 'ring', text: 'stopped' });
                     ledBackground(node.robot, { cmd: 'resetled' });
+                    return stopSignalSource;
                 });
         }
 
@@ -434,7 +441,11 @@ module.exports = function(RED) {
                 return;
             }
             if (action === 'stop') {
-                stop().then(function() { done(); }).catch(function(err) {
+                stop().then(function(source) {
+                    msg.payload = { ok: true, source: source };
+                    send(msg);
+                    done();
+                }).catch(function(err) {
                     node.status({ fill: 'red', shape: 'ring', text: 'stop error' });
                     node.error('gofa-egm: failed to cleanly exit EGM mode: ' + err.message, msg);
                     done(err);
