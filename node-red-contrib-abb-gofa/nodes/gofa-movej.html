@@ -113,7 +113,13 @@
     </ul>
     <p><code>msg.moveType</code> (<code>"J"</code>/<code>"L"</code>) also overrides the
     configured Move type; anything other than exactly <code>"L"</code> resolves to Joint.</p>
+    <h3>Joint limits</h3>
+    <p>Before sending, each target angle is checked against the robot config node's
+    <b>Joint Limits</b> (the CRB 15000-12 hardware working range by default). An out-of-range
+    target returns a clean error — <code>{ ok: false, error, joint, value, min, max }</code> —
+    and does <b>not</b> move the robot, instead of provoking a RAPID motion fault. Tighten the
+    limits on the <b>gofa-robot</b> config node for a cell with a restricted axis range.</p>
     <h3>Output</h3>
     <p><code>msg.payload = { ok: true, joints: [j1..j6], moveType: "J"|"L" }</code> on success.</p>
-    <p><code>msg.payload = { ok: false, error: "..." }</code> on failure.</p>
+    <p><code>msg.payload = { ok: false, error: "..." }</code> on failure (bad input, joint limit, or robot error).</p>
 </script>

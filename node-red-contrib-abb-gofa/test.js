@@ -234,6 +234,17 @@ check('gofa-robot: addPoint rejects duplicate names', function() {
     var res = node.addPoint('pick1', { x: 2 });
     assert.ok(res.error);
 });
+check('gofa-robot: jointLimits defaults to CRB 15000-12, valid override applies, invalid falls back', function() {
+    var Ctor = loadNodeType('./nodes/gofa-robot');
+    var def = new Ctor({ pointsFile: path.join(tmpDir, 'jl-1.json') });
+    assert.deepStrictEqual(def.jointLimits, robot.JOINT_LIMITS);
+    var ov = new Ctor({ pointsFile: path.join(tmpDir, 'jl-2.json'),
+        jointLimits: '[[-90,90],[-90,90],[-90,90],[-90,90],[-90,90],[-90,90]]' });
+    assert.deepStrictEqual(ov.jointLimits[0], [-90, 90]);
+    // malformed → keep defaults (never silently disable the check)
+    var bad = new Ctor({ pointsFile: path.join(tmpDir, 'jl-3.json'), jointLimits: 'garbage' });
+    assert.deepStrictEqual(bad.jointLimits, robot.JOINT_LIMITS);
+});
 check('gofa-robot: addPoint persists to disk', function() {
     var f = path.join(tmpDir, 'points-3.json');
     var node = makeRobotNode(f);
@@ -3557,6 +3568,66 @@ await checkAsync('gofa-movej: Move type L sends movel; msg.moveType overrides co
     var msg3 = { payload: { j1: 1, j2: 2, j3: 3, j4: 4, j5: 5, j6: 6, moveType: 'L' } };
     await runInput(node3, msg3);
     assert.strictEqual(calls[2].cmd, 'movel');
+});
+
+check('validateJoints: in-range passes, each out-of-range axis is named (asymmetric J3)', function() {
+    var vj = require('./nodes/gofa-robot').validateJoints;
+    assert.strictEqual(vj([0, 0, 0, 0, 0, 0]).ok, true);
+    // CRB 15000-12 extremes are exactly on the boundary → still ok
+    assert.strictEqual(vj([270, 180, 85, 180, 180, 270]).ok, true);
+    assert.strictEqual(vj([-270, -180, -225, -180, -180, -270]).ok, true);
+    // J1 over +270
+    var r1 = vj([271, 0, 0, 0, 0, 0]);
+    assert.strictEqual(r1.ok, false); assert.strictEqual(r1.joint, 1); assert.strictEqual(r1.max, 270);
+    // J3 asymmetric: +86 exceeds +85 even though -200 would be legal
+    var r3 = vj([0, 0, 86, 0, 0, 0]);
+    assert.strictEqual(r3.ok, false); assert.strictEqual(r3.joint, 3); assert.strictEqual(r3.max, 85);
+    assert.strictEqual(vj([0, 0, -225, 0, 0, 0]).ok, true);   // J3 lower bound ok
+    assert.strictEqual(vj([0, 0, -226, 0, 0, 0]).joint, 3);   // just past it
+    // explicit tighter override wins
+    var rov = vj([20, 0, 0, 0, 0, 0], [[-10, 10], [-10, 10], [-10, 10], [-10, 10], [-10, 10], [-10, 10]]);
+    assert.strictEqual(rov.ok, false); assert.strictEqual(rov.joint, 1); assert.strictEqual(rov.max, 10);
+});
+
+check('parseJointLimits: empty→null, valid→limits, malformed→error', function() {
+    var pjl = require('./nodes/gofa-robot').parseJointLimits;
+    assert.strictEqual(pjl(''), null);
+    assert.strictEqual(pjl('   '), null);
+    assert.strictEqual(pjl(undefined), null);
+    assert.deepStrictEqual(pjl('[[-10,10],[-10,10],[-10,10],[-10,10],[-10,10],[-10,10]]').limits[0], [-10, 10]);
+    assert.ok(pjl('not json').error);
+    assert.ok(pjl('[[-10,10]]').error);                       // wrong length
+    assert.ok(pjl('[[10,-10],[0,0],[0,0],[0,0],[0,0],[0,0]]').error); // min > max
+});
+
+await checkAsync('gofa-movej: out-of-range joint is rejected with a clean error, no socket send', async function() {
+    var calls = [];
+    var mockRobot = { socketSend: function(cmd) { calls.push(cmd); return Promise.resolve('OK:MOVEJ'); } };
+    var node = new (loadNodeType('./nodes/gofa-movej', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', joints: '[0,0,100,0,0,0]'   // J3 = 100 > +85 limit
+    });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.strictEqual(msg.payload.joint, 3);
+    assert.ok(/outside its limit/.test(msg.payload.error));
+    assert.strictEqual(calls.length, 0);   // never reached the robot
+});
+
+await checkAsync('gofa-movej: a tighter per-robot Joint Limits override is enforced', async function() {
+    var calls = [];
+    var mockRobot = {
+        jointLimits: [[-10, 10], [-10, 10], [-10, 10], [-10, 10], [-10, 10], [-10, 10]],
+        socketSend: function(cmd) { calls.push(cmd); return Promise.resolve('OK:MOVEJ'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-movej', { nodesById: { r1: mockRobot } }))({
+        robot: 'r1', joints: '[20,0,0,0,0,0]'   // within hardware range, outside the override
+    });
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.strictEqual(msg.payload.joint, 1);
+    assert.strictEqual(calls.length, 0);
 });
 
 check('translateToJSON: legacy MOVEL token maps to movel cmd', function() {

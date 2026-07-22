@@ -235,7 +235,7 @@ Send-GofaCmd "PING"
 | `J1+10` / `J3-5` | Jog single joint ±° (max 30°, joints 1–6) |
 | `SPEED50` | Set speed override 1–100% via RAPID's `VelSet` (not `SpeedRefresh` — see CLAUDE.md's `SPEED`/`SpeedRefresh` note) |
 | `GETSPEED` | Read the current override back (`C_MOTSET.vel.oride`) — replies `VAL:<value>` |
-| `MOVEJ<j1;..;j6>` / `MOVEL<j1;..;j6>` | Absolute joint move in degrees — MOVEJ joint-interpolated (MoveAbsJ), MOVEL straight-line TCP path to the same joint pose (added 2.1.0) |
+| `MOVEJ<j1;..;j6>` / `MOVEL<j1;..;j6>` | Absolute joint move in degrees — MOVEJ joint-interpolated (MoveAbsJ), MOVEL straight-line TCP path to the same joint pose (added 2.1.0). **Note:** the raw socket does **no** soft-limit check — an out-of-range value here faults RAPID (the ERROR handler recovers the socket server). The `gofa-movej` node validates against per-axis limits first; that guard is node-side only, not in RAPID. |
 | `ZONE<name>` | Set path blend zone (`FINE`/`Z1`/`Z5`/`Z10`/`Z20`/`Z50`/`Z100`) |
 | `STOP` | Halt motion — immediate for a jog in progress; for HOME/GOTOJ/GOTOL/MOVEJ/MOVEL it only takes effect once the current move finishes (those stopped using `\Conc` in 2.4.2) |
 | `GRIPON` / `GRIPOFF` | Stub only — acks `OK:` but performs no actual I/O; kept for manual/raw-socket testing. `gofa-grip` itself uses RWS `/set-value` instead. |

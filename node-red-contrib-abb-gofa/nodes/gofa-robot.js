@@ -31,6 +31,50 @@ function resolveMoveType(v, fallback) {
     return (v === 'L' || v === 'J') ? v : fallback;
 }
 
+// CRB 15000-12/1.27 (GoFa 12) per-axis working range in degrees — [min, max]
+// for J1..J6, from ABB product manual 3HAC077389-001. These are the TRUE
+// hardware limits, so validating an absolute joint move against them only
+// rejects targets RAPID's MoveAbsJ would fault on anyway — it never blocks a
+// move the robot could actually reach. A cell with tighter software axis
+// limits (RobotStudio) can override per gofa-robot config; see parseJointLimits.
+var JOINT_LIMITS = [[-270, 270], [-180, 180], [-225, 85], [-180, 180], [-180, 180], [-270, 270]];
+
+// Parse an optional per-robot joint-limits override (a JSON string from config,
+// or an already-parsed array). Returns { limits } on success, { error } if
+// present-but-malformed, or null if absent (caller falls back to JOINT_LIMITS).
+function parseJointLimits(raw) {
+    if (raw === undefined || raw === null) return null;
+    if (typeof raw === 'string') {
+        if (raw.trim() === '') return null;
+        try { raw = JSON.parse(raw); } catch (e) { return { error: 'not valid JSON' }; }
+    }
+    if (!Array.isArray(raw) || raw.length !== 6) return { error: 'must be a 6-element array of [min,max] pairs' };
+    for (var i = 0; i < 6; i++) {
+        var p = raw[i];
+        if (!Array.isArray(p) || p.length !== 2 ||
+            typeof p[0] !== 'number' || typeof p[1] !== 'number' ||
+            !isFinite(p[0]) || !isFinite(p[1]) || p[0] > p[1]) {
+            return { error: 'axis ' + (i + 1) + ' must be [min, max] with min <= max' };
+        }
+    }
+    return { limits: raw };
+}
+
+// Soft-limit check for an absolute 6-joint move (degrees). Returns { ok: true }
+// or { ok: false, joint, value, min, max } naming the first out-of-range axis.
+// Fail-fast so a bad target returns a clean error instead of provoking a RAPID
+// motion fault. Does NOT apply to Cartesian moves (gofa-go-point) — those would
+// need inverse kinematics to know the joint angles, which isn't available here.
+function validateJoints(joints, limits) {
+    limits = limits || JOINT_LIMITS;
+    for (var i = 0; i < 6; i++) {
+        if (joints[i] < limits[i][0] || joints[i] > limits[i][1]) {
+            return { ok: false, joint: i + 1, value: joints[i], min: limits[i][0], max: limits[i][1] };
+        }
+    }
+    return { ok: true };
+}
+
 // Shared by addPoint() (local, sync) and remoteAddPoint() (on-robot, async) —
 // auto-names "Point N" when blank, rejects a name that's already taken.
 function resolvePointName(name, existingPoints) {
@@ -546,6 +590,15 @@ module.exports = function(RED) {
         this.pointsFile = config.pointsFile || path.join(RED.settings.userDir || '.', 'points.json');
         this.remotePointsPath = config.remotePointsPath || '$HOME/Programs/gofa_points.json';
 
+        // Optional per-robot soft joint limits (advanced/calibration knob). Empty
+        // = the CRB 15000-12 hardware defaults; a malformed override warns and
+        // also falls back to defaults rather than silently disabling the check.
+        var lim = parseJointLimits(config.jointLimits);
+        if (lim && lim.error) {
+            this.warn('gofa-robot: ignoring invalid Joint Limits (' + lim.error + ') — using CRB 15000-12 defaults');
+        }
+        this.jointLimits = (lim && lim.limits) ? lim.limits : JOINT_LIMITS;
+
         this._client = createRobotClient({
             ip: this.ip, rwsPort: this.rwsPort, socketPort: this.socketPort,
             username: this.username, password: this.password
@@ -765,6 +818,9 @@ module.exports.parseXhtml          = parseXhtml;
 module.exports.gotoToken           = gotoToken;
 module.exports.gotoObj             = gotoObj;
 module.exports.resolveMoveType     = resolveMoveType;
+module.exports.JOINT_LIMITS        = JOINT_LIMITS;
+module.exports.parseJointLimits    = parseJointLimits;
+module.exports.validateJoints      = validateJoints;
 module.exports.atomicWriteFileSync = atomicWriteFileSync;
 module.exports.fileMtimeMs         = fileMtimeMs;
 module.exports.createRobotClient   = createRobotClient;

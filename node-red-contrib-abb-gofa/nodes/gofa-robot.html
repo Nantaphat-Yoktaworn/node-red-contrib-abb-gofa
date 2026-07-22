@@ -9,7 +9,8 @@
             backgroundPort: { value: '1026' },
             username:    { value: 'Default User' },
             pointsFile:  { value: 'points.json' },
-            remotePointsPath: { value: '$HOME/Programs/gofa_points.json' }
+            remotePointsPath: { value: '$HOME/Programs/gofa_points.json' },
+            jointLimits: { value: '' }
         },
         credentials: { password: { type: 'password' } },
         icon: 'gofa.svg',
@@ -74,7 +75,7 @@
     <div class="form-row" style="display: flex; align-items: center;">
         <label for="node-config-input-ip" style="margin-bottom: 0;"><i class="fa fa-globe"></i> Robot IP</label>
         <div style="flex-grow: 1; display: flex;">
-            <input type="text" id="node-config-input-ip" placeholder="192.168.20.33" style="flex-grow: 1; width: auto; margin-right: 5px;">
+            <input type="text" id="node-config-input-ip" placeholder="192.168.125.1" style="flex-grow: 1; width: auto; margin-right: 5px;">
             <button id="node-config-discover-ip" class="editor-button" style="width: auto; white-space: nowrap;"><i class="fa fa-search"></i> Discover</button>
         </div>
     </div>
@@ -107,6 +108,11 @@
         <label for="node-config-input-remotePointsPath"><i class="fa fa-globe"></i> Remote Points Path</label>
         <input type="text" id="node-config-input-remotePointsPath" placeholder="$HOME/Programs/gofa_points.json">
     </div>
+    <div class="form-row">
+        <label for="node-config-input-jointLimits"><i class="fa fa-shield"></i> Joint Limits</label>
+        <input type="text" id="node-config-input-jointLimits" placeholder="[[-270,270],[-180,180],[-225,85],[-180,180],[-180,180],[-270,270]]">
+        <span style="color:#888;font-size:0.85em;margin-left:6px">optional — leave blank for CRB 15000-12 defaults; JSON array of 6 [min,max] pairs (deg) to enforce tighter cell axis limits</span>
+    </div>
 </script>
 <script type="text/html" data-help-name="gofa-robot">
     <p>Connection settings for ABB-GoFa-12. Shared by all GoFa nodes.</p>
@@ -124,4 +130,12 @@
     check: a save re-fetches the remote file right before writing and warns (doesn't block) if
     it changed since it was last read — doesn't fully close the race, but turns a previously
     silent overwrite into a visible warning, fine for a human-paced "teach a point" workflow.</p>
+    <p><b>Joint Limits</b> — soft per-axis limits (degrees) that <b>gofa-movej</b> checks before
+    sending an absolute joint move, so an out-of-range target returns a clean error instead of
+    faulting RAPID. Leave blank to use the CRB 15000-12 hardware working range
+    (<code>[[-270,270],[-180,180],[-225,85],[-180,180],[-180,180],[-270,270]]</code>). Set a JSON
+    array of six <code>[min,max]</code> pairs to enforce tighter limits (e.g. a cell with a
+    restricted axis range). An invalid value is ignored (a warning is logged) and the defaults
+    are used. Does not apply to Cartesian moves (<b>gofa-go-point</b>), which would need inverse
+    kinematics to know the joint angles.</p>
 </script>

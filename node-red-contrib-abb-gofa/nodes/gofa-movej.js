@@ -1,6 +1,8 @@
 'use strict';
 var gate = require('./lib/gate');
-var resolveMoveType = require('./gofa-robot').resolveMoveType;
+var gofaRobot = require('./gofa-robot');
+var resolveMoveType = gofaRobot.resolveMoveType;
+var validateJoints = gofaRobot.validateJoints;
 module.exports = function(RED) {
     function GoFaMoveJNode(config) {
         RED.nodes.createNode(this, config);
@@ -57,6 +59,18 @@ module.exports = function(RED) {
                 send(msg); return done();
             }
 
+            // Soft joint-limit check (fail fast with a clean error instead of a
+            // RAPID motion fault). Limits come from the robot config node
+            // (CRB 15000-12 hardware defaults unless overridden).
+            var jchk = validateJoints(nums, node.robot.jointLimits);
+            if (!jchk.ok) {
+                var jerr = 'Joint ' + jchk.joint + ' = ' + jchk.value + '° is outside its limit [' + jchk.min + ', ' + jchk.max + ']';
+                msg.payload = { ok: false, error: jerr, joint: jchk.joint, value: jchk.value, min: jchk.min, max: jchk.max };
+                node.error(jerr, msg);
+                node.status({ fill: 'red', shape: 'ring', text: 'joint ' + jchk.joint + ' out of range' });
+                send(msg); return done();
+            }
+
             // Move type: J = MoveAbsJ (joint-interpolated, default, most reliable),
             // L = straight-line TCP path to the pose those joints describe (the
             // RAPID server does the forward kinematics via CalcRobT). Same
@@ -108,6 +122,13 @@ module.exports = function(RED) {
         var nums = j.map(function(v) { return parseFloat(v); });
         if (nums.some(function(v) { return isNaN(v); })) {
             return res.status(400).json({ error: 'joints contains non-numeric values' });
+        }
+
+        var jchk = validateJoints(nums, robot.jointLimits);
+        if (!jchk.ok) {
+            return res.status(400).json({ error: 'Joint ' + jchk.joint + ' = ' + jchk.value +
+                '° is outside its limit [' + jchk.min + ', ' + jchk.max + ']',
+                joint: jchk.joint, value: jchk.value, min: jchk.min, max: jchk.max });
         }
 
         var cmdName = moveType === 'L' ? 'movel' : 'movej';

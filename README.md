@@ -345,7 +345,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | **gofa-motor** | RWS | Motors on / off |
 | **gofa-speed-set** | TCP | Speed override 1–100% |
 | **gofa-move** | TCP | HOME (go to home) or SETHOME (save current pose as home) |
-| **gofa-movej** | TCP | Absolute joint move `[j1..j6]` degrees ("Move Joints") — Move type: Joint (default) or Linear straight-line TCP path |
+| **gofa-movej** | TCP | Absolute joint move `[j1..j6]` degrees ("Move Joints") — Move type: Joint (default) or Linear straight-line TCP path. Validates each target angle against the robot's Joint Limits before sending (see note below) |
 | **gofa-jog** | TCP | Relative TCP translate (mm, base frame) or rotate (°, tool frame) |
 | **gofa-joint-jog** | TCP | Rotate single joint by ± degrees |
 | **gofa-zone-set** | TCP | Path blend zone (fine / z1 / z5 / z10 / z20 / z50 / z100) |
@@ -372,6 +372,8 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 > This was originally going to live inside `MainModule.mod`/RAPID itself, but RAPID's `string` type has a hard 80-character limit (see the move-type note below) that a growing list of named points would quickly exceed — storing it as a file managed entirely over RWS sidesteps that completely, since it's plain HTTP with no RAPID `string` involved.
 
 > **Move type — Joint (MoveJ) vs Linear (MoveL):** `gofa-go-point` and `gofa-sequencer` let you pick how the robot reaches a saved point. **Joint (MoveJ)** is joint-interpolated and is the default whenever a move type isn't set or an invalid value is passed — it's the more predictable/reliable choice because RAPID has freedom in how each axis gets there, so it won't fault or slow drastically near a singularity. **Linear (MoveL)** forces a straight-line TCP path, which is useful for a controlled approach/retract near a workpiece but can hit a singularity or joint limit along that line even when both endpoints are fine on their own.
+
+> **Joint soft limits:** `gofa-movej` checks every absolute-joint target against per-axis soft limits before sending, so an out-of-range value returns a clean error (`{ ok: false, error, joint, value, min, max }`) and never reaches the robot — instead of provoking a RAPID motion fault. Limits are configured on the **gofa-robot** config node's optional **Joint Limits** field and default to the CRB 15000-12/1.27 hardware working range (J1 ±270°, J2 ±180°, J3 −225°/+85°, J4 ±180°, J5 ±180°, J6 ±270°). Set a JSON array of six `[min, max]` pairs to enforce tighter limits for a cell with a restricted axis range. This applies to absolute joint moves only — Cartesian moves (`gofa-go-point`) can't be joint-limit-checked node-side without inverse kinematics and still rely on RAPID's own fault handling.
 
 ### RAPID program control
 
