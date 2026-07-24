@@ -1,9 +1,12 @@
 # OmniCore C30 Type A — Controller Reference
 
-Sources: Product manual 3HAC089064-001 Rev F; Product specification 3HAC065034-001 Rev W
+Sources: Product manual 3HAC089064-001 Rev F — full text at
+`nnnn/note/3HAC089064-001_OmniCore_C30_Type_A_Detailed_Product_Manual.md` (the authoritative
+source for this skill as of 2026-07-24; supersedes the shorter product-spec doc previously
+relied on for anything the two disagree on); Product specification 3HAC065034-001 Rev W
 (OmniCore C line); Application Manual "Controller Software" 3HAC066554 and System Parameters
 3HAC065041 (from the local RobotStudio doc package `ABB.RobotWareDoc.OmniCore-7.10`); live
-queries against the controller itself.  
+queries against the controller itself.
 Used with: ABB GoFa CRB 15000 in this project
 
 ---
@@ -21,10 +24,11 @@ Compact OmniCore C-line controller. Runs **RobotWare 7**. Integrates motion cont
 | Width | 449 mm | 509 mm |
 | Depth | 443.5 mm | 513.5 mm |
 | Height (with foot) | 191 mm | 193 mm |
+| Height (without foot) | 175 mm | 177 mm |
 | Weight (standard) | 25 kg | — |
 | Weight (CRB 15000) | 20 kg | — |
 
-IP20 cabinet interior. FlexPendant is IP65.
+IP20 cabinet interior. FlexPendant is IP65. Weight excludes any mounting kits.
 
 ---
 
@@ -90,7 +94,26 @@ The drive unit for CRB 15000 is located **inside the manipulator**, not in the c
 | K5.1 | Scalable I/O | Baseline on CRB 15000 variant |
 | K7 | Connected Services Gateway | 3G cellular (baseline), wired Ethernet (option) |
 
-Network ports on Ethernet switch panel: **WAN**, **LAN**, **MGMT**. RWS is accessed via the LAN port.
+Network ports on Ethernet switch panel: **WAN**, **LAN**, **MGMT**, plus an unlabeled
+**ETHERNET SWITCH** (silkscreened "I/O") port. Per the full detailed product manual
+(`3HAC089064-001`, §3.5.8 "Ethernet networks on OmniCore", confirmed by reading the actual PDF
+text, not the shorter product-spec doc this skill was originally built from):
+
+| Port | Network segment | Manual's stated purpose |
+|------|------------------|--------------------------|
+| **WAN** | Public Network | "Intended for connecting the robot controller to a factory wide industrial network." |
+| **LAN** (LAN3 on C90XT/V-line) | I/O Network | "Intended for connecting the robot controller to a factory wide industrial network **isolated from WAN**" — a second, isolated factory-network segment, not "the local/RWS port." |
+| **MGMT** | Private Network | ABB service personnel only, single client at a time — never more than one, per the manual's own warning. |
+| **ETHERNET SWITCH** ("I/O") | Private Network | ABB Scalable I/O + local process equipment. |
+| **ABB Ability™** | Ability Network | Internet/ABB Ability cloud connection. |
+
+Both WAN and LAN are legitimate factory-network connection points — WAN is the primary "Public
+Network," LAN is a secondary segment kept isolated from it, not an internet-vs-local split.
+**On this project's actual physical setup, the Node-RED host has always been wired to the
+controller's WAN port, not LAN, for the entire project's history**, and RWS + the RAPID socket
+(same cable/port) work fine over it — consistent with WAN being the general-purpose
+factory-network port per the manual, not RobotStudio-only as an earlier version of this doc
+implied.
 
 ---
 

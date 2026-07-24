@@ -18,6 +18,7 @@
 - [Module version handshake + watchdog](project_module_version_handshake_watchdog.md) — DONE + live-verified 2026-07-20, bumped to 2.4.0; agy-delegated (2 real bugs caught in review: 1 Claude transcription slip, 1 flow double-fire design bug); egmActive exclusion added after gofa-egm sessions were found to match the wedge signature
 - [agy advisory output needs verify-after-apply](feedback_agy_advisory_output_needs_line_by_line_apply.md) — hand-transcribing agy's advisory text output is its own bug-injection point; run node -c + require() smoke test after applying, not just after reviewing the draft
 - [\Conc queue-depth crash fix](project_conc_queue_depth_crash_fix.md) — DONE + live-verified 2026-07-20, bumped to 2.4.2; RAPID 40631 on chained HOME/GOTOJ fixed by removing \Conc (5 sync-tuning attempts all failed identically first); STOP no longer interrupts an in-progress chained move
+- [WAN port actual wiring](project_wan_port_actual_wiring.md) — 2026-07-24: this lab has always connected via the controller's WAN port, not LAN; corrected against the full manual (WAN = general factory-network port, LAN = a second isolated factory segment, neither is "the local/RWS port")
 
 Older memories preserved only in this snapshot (pruned from live memory but still referenced by CLAUDE.md and the skills):
 
@@ -34,7 +35,7 @@ Older memories preserved only in this snapshot (pruned from live memory but stil
 - [DSQC1030 Scalable I/O addressing](reference_dsqc1030_scalable_io_addressing.md) — no rotary switches; IP is software-set in RobotStudio, range 192.168.125.100-129
 - [Search vendor docs before "confirmed impossible"](feedback_search_vendor_docs_before_confirmed_impossible.md) — repeated identical 405s isn't proof; web-search ABB forums before declaring an RWS endpoint dead
 - [Software version snapshot](project_software_version_snapshot.md) — RobotWare 7.21.0+229, RWS 2.0, RobotStudio 2026.2 (26.2.11700.0), confirmed live 2026-07-07; Node.js/Node-RED corrected 2026-07-16 (see docs audit)
-- [OmniCore Ethernet Switch section](reference_omnicore_ethernet_switch_section.md) — separate 5-port (X1-X5) switch on back panel, distinct from WAN/LAN/MGMT; no RWS/RAPID API, not a node candidate
+- [OmniCore Ethernet Switch section](reference_omnicore_ethernet_switch_section.md) — CORRECTED 2026-07-24: it's a single port (Private Network, Scalable I/O), not a 5-port X1-X5 block — that claim didn't hold up against the full manual; no RWS/RAPID API, not a node candidate
 - [Robot IP drift](reference_robot_ip_drift.md) — controller IP changes often (even twice in one day); always re-check via /robot-status, never trust a recorded IP
 - [StopMove \Quick unsupported](feedback_stopmove_quick_unsupported.md) — fails RAPID consistency check on this controller despite being in ABB's docs; use plain StopMove
 - [OmniCore AppStudio investigation](reference_omnicore_appstudio_investigation.md) — persistent FlexPendant dashboard ruled out for now, needs RobotStudio GUI step, not RWS-drivable
@@ -45,3 +46,5 @@ Older memories preserved only in this snapshot (pruned from live memory but stil
 - [Source/transport reporting audit](project_source_transport_reporting_audit_2026-07-22.md) — DONE, pushed (81007d3); only gofa-egm.js's stop() needed a fix (no output payload at all before), subscribe-io/rapid-var-read already reported source
 
 Note: this robot's real RWS/admin credentials live only in local (non-repo) Claude memory — deliberately never copied here since this repo is public. (Snapshot last synced from live memory: 2026-07-22 — added the two agy feedback memories + the WS-subscription-queue and source/transport-reporting audit memories from live. NOT synced into memory this session: the 2026-07-22 code-review work that shipped 2.4.8→2.4.12 [joint soft-limits, secure-by-default admin endpoints, version-handshake major.minor, mid-move STOP via RWS-stop] — that's recorded in CLAUDE.md, git history, and ideas/*.md instead of as memory entries. The controller's own IP default in code moved to 192.168.125.1 this session.)
+
+2026-07-24: added `project_wan_port_actual_wiring.md` and corrected `reference_omnicore_ethernet_switch_section.md`, both against the full official manual text (`nnnn/note/3HAC089064-001_OmniCore_C30_Type_A_Detailed_Product_Manual.md`); `.claude/commands/omnicore-c30.md` updated in step (Connectors section: full WAN/LAN/MGMT/I/O/ABB Ability role table, without-foot height values).
