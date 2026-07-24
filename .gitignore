@@ -18,6 +18,7 @@ node-red-contrib-abb-gofa/package-lock.json
 !flows/watchdog_flow.json
 !flows/mqtt_bridge_flow.json
 !flows/egm_conveyor_demo_flow.json
+!flows/brake_check_reminder_flow.json
 
 # RAPID program
 !rapid/

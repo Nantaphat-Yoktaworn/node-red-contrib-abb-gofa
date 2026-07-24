@@ -1,0 +1,169 @@
+[
+    {
+        "id": "bc00tab0000000000",
+        "type": "tab",
+        "label": "Brake Check Reminder",
+        "disabled": false,
+        "info": "Detects ABB's own elog warning code 90543 (\"Cyclic Brake Check needs to be done\", domain 9/Safety, severity warning) — read-only detection, does not trigger the check itself. See the \"Limitation\" comment node on the canvas before relying on this for anything beyond a nudge."
+    },
+    {
+        "id": "bc01cfg0000000000",
+        "type": "gofa-robot",
+        "name": "ABB-GoFa-12",
+        "ip": "192.168.125.1",
+        "rwsPort": "443",
+        "socketPort": "1025",
+        "username": "Default User",
+        "pointsFile": "points.json",
+        "remotePointsPath": ""
+    },
+    {
+        "id": "bc02inj0000000000",
+        "type": "inject",
+        "z": "bc00tab0000000000",
+        "name": "Check Now + Every 6h",
+        "props": [
+            { "p": "payload" }
+        ],
+        "repeat": "21600",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 170,
+        "y": 120,
+        "wires": [
+            [
+                "bc03elg0000000000",
+                "bc10sub0000000000"
+            ]
+        ]
+    },
+    {
+        "id": "bc03elg0000000000",
+        "type": "gofa-elog",
+        "z": "bc00tab0000000000",
+        "name": "Poll Safety Elog",
+        "robot": "bc01cfg0000000000",
+        "domain": 9,
+        "minSeverity": 2,
+        "count": 50,
+        "x": 420,
+        "y": 120,
+        "wires": [
+            [
+                "bc04fn00000000000"
+            ]
+        ],
+        "outputPayload": true
+    },
+    {
+        "id": "bc04fn00000000000",
+        "type": "function",
+        "z": "bc00tab0000000000",
+        "name": "Find Brake Check Warning",
+        "func": "// Elog code 90543 (domain 9/Safety) = \"Cyclic Brake Check needs to be done\".\n// This only tells us whether that warning has been LOGGED recently - the\n// safety controller appears to (re-)log it at controller/RAPID start, not\n// continuously - see the Limitation comment on this canvas.\nfunction toDate(ts) { return new Date(String(ts).replace(' T ', 'T')); }\nvar entries = (msg.payload && msg.payload.entries) || [];\nvar matches = entries.filter(function(e) { return e.code === '90543'; });\nmatches.sort(function(a, b) { return toDate(b.tstamp) - toDate(a.tstamp); });\nvar last = matches[0] || null;\nmsg.payload = {\n    ok: true,\n    warningLogged: !!last,\n    lastWarning: last,\n    checkedAt: new Date().toISOString()\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 680,
+        "y": 120,
+        "wires": [
+            [
+                "bc05dbg0000000000"
+            ]
+        ]
+    },
+    {
+        "id": "bc05dbg0000000000",
+        "type": "debug",
+        "z": "bc00tab0000000000",
+        "name": "Brake Check Status",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 940,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "bc06com0000000000",
+        "type": "comment",
+        "z": "bc00tab0000000000",
+        "name": "A real deployment might wire \"Brake Check Status\" into email/Slack/etc. when warningLogged is true, instead of (or in addition to) the debug sidebar.",
+        "info": "",
+        "x": 940,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "bc07com0000000000",
+        "type": "comment",
+        "z": "bc00tab0000000000",
+        "name": "Limitation",
+        "info": "This flow only detects whether ABB's own \"Cyclic Brake Check needs to be done\" warning (elog code 90543, domain 9/Safety) has been logged - it does not trigger the Cyclic Brake Check itself, and it cannot sense the check's live/current status. Per the CRB 15000 manual (3HAC077389), the check must run every 8-48 hours or the holding-brake safety rating degrades from PL d to PL c.\n\nConfirmed live 2026-07-24: the safety controller appears to (re-)log this warning when it re-evaluates at controller/RAPID start, not continuously while running. That means: (1) the periodic \"Poll Safety Elog\" branch is re-reading history, not sensing a live status - if the robot runs for weeks without a restart, a newly-overdue condition may not produce a fresh log entry to catch; (2) the \"Watch for New Warnings\" subscribe branch only pushes entries logged AFTER it subscribes (same change-only behavior documented for every other gofa-subscribe-* node in this project) - it will not surface a warning that was already logged before the flow started.\n\nActually triggering the Cyclic Brake Check remotely (a RAPID service routine, per the CRB 15000 manual) is out of scope for this flow - it needs the SafeMove Application manual (3HAC066559) to get the RAPID mechanism right, plus a supervised live test since it involves real robot motion.",
+        "x": 170,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "bc10sub0000000000",
+        "type": "gofa-subscribe-elog",
+        "z": "bc00tab0000000000",
+        "name": "Watch for New Warnings",
+        "robot": "bc01cfg0000000000",
+        "domain": 9,
+        "minSeverity": 2,
+        "x": 430,
+        "y": 260,
+        "wires": [
+            [
+                "bc11fn00000000000"
+            ]
+        ],
+        "outputPayload": true
+    },
+    {
+        "id": "bc11fn00000000000",
+        "type": "function",
+        "z": "bc00tab0000000000",
+        "name": "Filter for Code 90543",
+        "func": "var entry = msg.payload && msg.payload.entry;\nif (!entry || entry.code !== '90543') return null;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 690,
+        "y": 260,
+        "wires": [
+            [
+                "bc12dbg0000000000"
+            ]
+        ]
+    },
+    {
+        "id": "bc12dbg0000000000",
+        "type": "debug",
+        "z": "bc00tab0000000000",
+        "name": "New Brake Check Warning (live)",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 970,
+        "y": 260,
+        "wires": []
+    }
+]

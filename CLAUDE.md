@@ -883,6 +883,64 @@ same time and is genuinely fine as documented: it does stop RAPID before lead-th
 `rws.rapid` really does go to `'stopped'`, which never matches the wedge condition regardless of
 `egmActive`.
 
+## Cyclic Brake Check reminder flow (added 2026-07-24)
+
+**Problem this solves**: the CRB 15000 manual (`3HAC077389`) requires the Cyclic Brake Check
+(CBC) to run every 8–48 hours, or the holding-brake safety rating degrades from PL d to PL c
+(see the `crb15000` skill's Safety section). Nothing in this palette tracked that requirement —
+found while reviewing ABB's own manuals this session, and confirmed **currently true on this
+lab's own robot**: `GET /rw/elog/9` (domain 9/Safety) already had three real, live entries titled
+"Cyclic Brake Check needs to be done" (elog code `90543`, severity warning), most recently from
+this morning's controller boot.
+
+**`flows/brake_check_reminder_flow.json`**: pure detection, built entirely from existing nodes —
+no new `.js`/`.mod` code, since `gofa-elog`/`gofa-subscribe-elog` already expose `code` in their
+output and already have Domain + Min Severity filters (see the "Elog domain vs. severity note"
+above).
+- **Poll branch** (fires once on deploy, then every 6h): `gofa-elog` (Domain: Safety, Min
+  Severity: Warning, count 50) → a `function` node filtering `entries` for `code === '90543'`,
+  sorting by `tstamp` descending, and reporting `{ok, warningLogged, lastWarning, checkedAt}` →
+  `debug` + a `comment` extension point (same pattern as `watchdog_flow.json`'s notification
+  placeholder).
+- **Subscribe branch**: `gofa-subscribe-elog` (same Domain/Severity filter) → a `function` node
+  passing through only `code === '90543'` entries → `debug`, for catching any *new* occurrence
+  live going forward.
+
+**Read-only by design — does not trigger the Cyclic Brake Check itself.** The CRB 15000 manual
+says the check is "run in the application" (i.e. a RAPID-callable routine), which means it's
+*plausibly* automatable via a new RAPID socket command the same way `SETLED`/`SETDO` are — but
+that needs the SafeMove Application manual (`3HAC066559`, referenced by name but not yet read in
+this project) to get the RAPID setup/syntax right, plus a supervised live test since it's a
+real-motion safety routine. Deliberately out of scope for this pass; the flow's own "Limitation"
+comment node states this.
+
+**A real, documented limitation, not glossed over**: the warning appears to be (re-)logged by
+the safety controller when it re-evaluates at controller/RAPID start, not continuously while
+running (inferred from the three timestamps lining up with known boot/restart events, not from
+ABB documentation — worth re-confirming if this is ever revisited). That means: the poll branch
+is re-reading history, not sensing a live status — a newly-overdue condition on a robot that
+runs for weeks without restarting might not produce a fresh log entry to catch. The subscribe
+branch only pushes entries logged *after* it subscribes, same "change-only, no initial snapshot"
+behavior every other `gofa-subscribe-*` node in this palette already has (see the note earlier
+in this doc) — it will not surface a warning that was already logged before the flow started.
+
+**Confirmed live 2026-07-24**, driving the real `gofa-elog`/`gofa-subscribe-elog` node files
+(not curl, not a reimplementation — the flow's own function-node source strings, executed
+verbatim) against the real robot via the same fake-RED harness pattern `test.js` uses:
+poll branch correctly found all 3 real `90543` entries and picked the most recent
+(`2026-07-24 08:52:56`, matching this morning's boot); subscribe branch connected cleanly
+(yellow→green, zero errors) and was torn down cleanly afterward (confirmed via a follow-up
+`GET /subscription` showing no orphaned subscription left on the controller).
+
+**Same-session cleanup**: while checking this, found `flows/egm_conveyor_demo_flow.json`,
+`gofa_demo_flow.json`, `mqtt_bridge_flow.json`, `pickplace_sorting_flow.json`,
+`teach_workflow_flow.json`, and `watchdog_flow.json` all still had `username: "NNNN"` baked into
+their `gofa-robot` config node — stale since the `NNNN` account was deleted from the controller
+2026-07-22 (see the `user_robot_credentials` memory). Any of these would have 401'd if deployed
+as-is. Fixed to `"Admin"` (the current real account) in all six; the npm-shipped `examples/`
+copies were already correctly genericized to `"Default User"` and didn't need touching (that's
+the one intentional `flows/`-vs-`examples/` difference the drift test allows).
+
 ## Interactive properties panels (2.2.0+, undocumented until 2026-07-16)
 
 Since 2.2.0, every non-config node's properties dialog has live-action buttons/live-read
@@ -1143,6 +1201,7 @@ flows/gofa_demo_flow.json          ← one inject per node, for testing
 flows/teach_workflow_flow.json     ← physical ASI-button teach workflow (own tab/config, see README)
 flows/watchdog_flow.json           ← self-healing socket-wedge watchdog, see "Module version handshake + watchdog flow" section
 flows/mqtt_bridge_flow.json        ← publishes state/pose/io onto MQTT topics via core mqtt out; fully live-verified end-to-end against a local Mosquitto (localhost:1883) and the real robot
+flows/brake_check_reminder_flow.json ← detects ABB's own "Cyclic Brake Check needs to be done" elog warning (code 90543), see "Cyclic Brake Check reminder flow" section
 MANUAL_CONTROL.md                  ← curl/raw-TCP command reference for controlling the robot without Node-RED
 .claude/commands/                  ← skills (/abb-rws, /omnicore-c30, /crb15000, /robot-status, /mastership-test)
 .claude/memory/                    ← portable snapshot of Claude Code's project memory - read MEMORY.md first, see its README

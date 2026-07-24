@@ -20,6 +20,7 @@
 - [\Conc queue-depth crash fix](project_conc_queue_depth_crash_fix.md) — DONE + live-verified 2026-07-20, bumped to 2.4.2; RAPID 40631 on chained HOME/GOTOJ fixed by removing \Conc (5 sync-tuning attempts all failed identically first); STOP no longer interrupts an in-progress chained move
 - [WAN port actual wiring](project_wan_port_actual_wiring.md) — 2026-07-24: this lab has always connected via the controller's WAN port, not LAN; corrected against the full manual (WAN = general factory-network port, LAN = a second isolated factory segment, neither is "the local/RWS port")
 - [Option presence checks 2026-07-24](project_option_presence_checks_2026-07-24.md) — Robot Control Mate NOT present, Collaborative Speed Control add-in + Force control Standard for GoFa both present; Force Control needed a live compile-test (loadmod a real instruction) since it's absent from the options list despite being licensed — reusable method documented in the abb-rws skill
+- [Brake check reminder flow](project_brake_check_reminder_flow.md) — flows/brake_check_reminder_flow.json, DONE + live-tested 2026-07-24, detects real elog code 90543, read-only by design; also fixed stale NNNN→Admin username in 6 example flows
 
 Older memories preserved only in this snapshot (pruned from live memory but still referenced by CLAUDE.md and the skills):
 

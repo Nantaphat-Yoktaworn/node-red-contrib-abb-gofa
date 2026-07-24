@@ -48,7 +48,7 @@
         "ip": "192.168.1.103",
         "rwsPort": "443",
         "socketPort": "1025",
-        "username": "NNNN",
+        "username": "Admin",
         "pointsFile": "points.json",
         "remotePointsPath": ""
     },
