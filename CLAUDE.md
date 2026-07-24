@@ -770,6 +770,78 @@ Point Saved) are wired to `transport: 'background'` and now confirmed working fo
 `gofa-do-write` gained the same `'background'` transport option later (2026-07-17) — see the
 "Generalized to a background-services task" note above.
 
+**Remote reload — the manual FlexPendant procedure above is no longer needed for every update,
+only the very first one (added 2026-07-24, bumped to 2.4.13).** Previously, `T_LED` being
+SEMISTATIC (the whole point — surviving `T_ROB1` stops) also meant it was the one task in this
+palette RWS couldn't remotely stop, so reloading `BackgroundLed.mod` always needed physical
+FlexPendant access. Fixed with the same `ISignalDO`→`TRAP` self-stop pattern already proven for
+EGM's graceful stop (`TrapEgmStop`/`EGMStop` in `MainModuleEGM.mod`): `BackgroundLed.mod` now
+declares `TRAP TrapLedStop` (body: plain `Stop;`) connected via `CONNECT`/`ISignalDO` on a new
+dedicated signal, **`ABB_Scalable_IO_0_DO15`** — deliberately not `DO16` (EGM's own stop signal
+on `T_ROB1`; since digital I/O is global/task-independent, sharing it would make an EGM stop
+also kill `T_LED`). A `ledStopConnected` `VAR bool` guards the `CONNECT` call (re-`CONNECT`ing an
+already-connected `intnum` is a fatal RAPID error 40166 — caught by an agy second-opinion review
+before this shipped, not discovered live).
+
+**Three genuinely new, live-confirmed mechanics, none obvious from ABB's docs** (community forum
+research got close but didn't cover this project's exact case — see below):
+1. **`T_LED`'s `loadmod` requires the GLOBAL `/rw/rapid/execution` state to be stopped, not just
+   `T_LED`'s own per-task `excstate`** — same rule already documented for `T_ROB1`'s own
+   `loadmod`, just not obviously also true for a completely different task until tested live
+   (first end-to-end run 403'd here: `Operation not allowed for current PGM state`). This means
+   `gofa-setup`'s `T_LED` reload sub-chain (stop → upload → `loadmod` → `resetpp`) must run
+   **before** `T_ROB1`'s own `motors on`/`start RAPID` steps, not after — the whole controller's
+   RAPID execution is still stopped at that point in the existing sequence.
+2. **`resetpp` does NOT move `T_LED` from `stopped` to `ready` by itself — `loadmod` does.**
+   Isolated live: a bare `resetpp` on an already-stopped `T_LED` left it at `stopped`; the
+   following `loadmod` call is what produced `excstate: ready`. Kept `resetpp` in the sequence
+   anyway (defensive, matches `T_ROB1`'s own proven order, near-zero cost) per an agy review
+   finding that `Stop` (called from a TRAP) resumes execution *inside the TRAP* on a bare
+   "continue", not fresh at `main()` — only an explicit `resetpp` (or, as it turns out, `loadmod`
+   replacing the module entirely) genuinely resets that state.
+3. **Bringing a `ready` `T_LED` to `started` sometimes needs a SECOND identical
+   `execution/start` call** — confirmed live twice, independently. The first call after `resetpp`
+   left it bouncing back to `stopped` instead of advancing; an immediately-following, byte-identical
+   second call then reached `started` cleanly. `alltaskbytsp=true` (tried first, by analogy with
+   the already-confirmed `usetsp=alltsk` stop parameter) was **not** the fix — it made no
+   difference either way, and a plain `alltaskbytsp=false` (the same body `T_ROB1`'s own restart
+   already sends) is what actually works, just sometimes twice. None of this is explained in
+   ABB's own docs (confirmed via community forum search — even `alltaskbytsp`'s existence is
+   undocumented, "the meaning of those parameters is not explained" per a 2024 forum reply) — it's
+   empirical, from live testing on this controller (RobotWare 7.21.0+229), not derived from
+   written ABB semantics.
+
+**`gofa-setup` now reloads both `T_ROB1` and `T_LED` in one call** (`nodes/gofa-setup.js`'s
+`prepareLed()`/`finishLed()`, shared between the runtime node and the admin endpoint — the one
+piece of new logic in this file NOT duplicated between the two, unlike the rest of the file's
+existing convention, since the retry/ordering subtlety was worth getting right exactly once).
+Step order: `preflight` → `stop RAPID` → `unload conflicting module` → `upload MainModule.mod` →
+`load module` → `reset program pointer` → **`stop T_LED` → `upload BackgroundLed.mod` → `load
+module into T_LED` → `reset T_LED program pointer`** → `motors on` → `start RAPID` → `socket
+PING` → **`confirm T_LED started` → `ping T_LED (background port)`**. The confirm step reuses
+`T_ROB1`'s own `start RAPID` call rather than issuing a redundant one, and only fires the one
+retry kick (mechanic #3 above) if `T_LED` hasn't reached `started` shortly after. **Best-effort
+by design** — any `T_LED`-side failure is recorded in the step report but never fails the overall
+run (`T_ROB1` motion setup succeeding is the priority); a task-not-found (`T_LED` never set up)
+skips the whole sub-chain cleanly with no error, so this is safe to run against a controller that
+never got the one-time RobotStudio `T_LED` setup at all.
+
+**One-time prerequisites, same category as the RobotStudio task-creation step above** (neither
+automatable from Node-RED): the manual FlexPendant procedure once, to get this TRAP-enabled
+`BackgroundLed.mod` version loaded in the first place (bootstrap-only — every update after this
+one is fully remote); and `ABB_Scalable_IO_0_DO15`'s Access Level set to `All` in RobotStudio
+(same one-time, controller-restart-required step already needed for any other RWS-write-driven
+signal in this palette, e.g. `gofa-do-write`'s default transport).
+
+**Confirmed live end-to-end 2026-07-24** (GoFa 12 / OmniCore C30, RobotWare 7.21.0+229), driving
+the real `gofa-setup.js` node (both the runtime `on('input')` path and the `/gofa-setup/:id/start`
+admin endpoint separately) against the real robot: all 15 steps `ok:true` in a single call,
+finishing with `T_LED` needing the predicted second `start` kick both times tested, and
+`gofa-connection-status` afterward showing `moduleVersion.socket`/`.background` both `match` at
+`2.4.13`. `MODULE_VERSION` bumped to `2.4.13` in lockstep across all three `.mod` files and
+`package.json`, per this project's usual convention, even though `MainModule.mod`/
+`MainModuleEGM.mod`'s own content didn't change this time.
+
 ## Module version handshake + watchdog flow (added 2026-07-20)
 
 **Problem this solves**: the palette (npm package) and whichever `.mod` file is actually loaded
@@ -1010,7 +1082,7 @@ whichever response lands last always rebuilds from a clean slate regardless of o
 | Node | Transport | Description |
 |------|-----------|-------------|
 | `gofa-robot` | config | Shared config: IP, RWS port 443, socket port 1025, creds, local points file, remote (on-robot) points path, optional per-axis **Joint Limits** override (see the joint soft-limit note below). Config dialog has a **Discover** button (admin endpoint `/gofa-robot/discover` → `discover()` LAN scan, verifies ABB via WWW-Authenticate realm) |
-| `gofa-setup` | RWS + Socket | One-click first-run init: preflight (must be Auto mode — RWS can't change opmode) → stop RAPID → unload conflicting MainModule/MainModuleEGM sibling → upload bundled `.mod` (SERVER_IP auto-synced) → loadmod → resetpp → motors on → start (verified by polling, HTTP 200 lies) → socket PING (also compares the module's reported version against the palette's, warning in that step's `detail` on drift — see the "Module version handshake" note below). Per-step `{name, ok, detail}` report; `outputPayload` defaults **true** (the report is the point). Module files read from the package's own `rapid/` dir (synced by prepack.js) |
+| `gofa-setup` | RWS + Socket | One-click first-run init: preflight (must be Auto mode — RWS can't change opmode) → stop RAPID → unload conflicting MainModule/MainModuleEGM sibling → upload bundled `.mod` (SERVER_IP auto-synced) → loadmod → resetpp → **reload T_LED/BackgroundLed.mod if present** (stop via DO15 TRAP → upload → loadmod → resetpp, best-effort/non-fatal — see "Background LED task" section) → motors on → start (verified by polling, HTTP 200 lies) → socket PING (also compares the module's reported version against the palette's, warning in that step's `detail` on drift — see the "Module version handshake" note below) → **confirm T_LED started → ping T_LED**. Per-step `{name, ok, detail}` report; `outputPayload` defaults **true** (the report is the point). Module files read from the package's own `rapid/` dir (synced by prepack.js) |
 | `gofa-status` | RWS | Reads ctrlstate, opmode, speedratio, RAPID execstate |
 | `gofa-connection-status` | RWS + Socket + Background | Checks RWS (4 calls), the T_ROB1 TCP socket ping, and the `BackgroundLed.mod` background-task ping independently — each failure is caught and reported per-layer instead of the whole node throwing on the first one down. `msg.payload.background` distinguishes "T_ROB1 specifically stopped" from "whole controller unreachable". `msg.payload.moduleVersion` reports each ping's module version vs. the palette's own (`match`/`mismatch`/`unknown` — see the "Module version handshake" note below); a mismatch (but otherwise-healthy) result sets yellow status instead of green. `msg.payload.egmActive` mirrors `robot._egmActive` — needed so a consumer polling this node (like `flows/watchdog_flow.json`) doesn't mistake an active EGM session's `{rapid:'running', socket down}` shape for a genuine wedge. Unlike `gofa-status`, a degraded/unreachable result is still a successful run (no Node-RED error raised), so it's safe to poll on a timer — this is what `flows/watchdog_flow.json` polls. |
 | `gofa-pose` | RWS | Current TCP pose (x,y,z + quaternion + config flags) |

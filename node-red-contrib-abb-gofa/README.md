@@ -94,7 +94,7 @@ needed just to silence output. Check it to get the full `msg.payload` described 
 | `gofa-save-point` / `gofa-go-point` / `gofa-point-list` / `gofa-delete-point` | mixed | Teach & replay named points, stored locally or on the robot's own disk |
 | `gofa-points` | disk | Bulk export/import of the point list (action: export / import — import **replaces** the whole list) |
 | `gofa-sequencer` / `gofa-stop-seq` | Socket | Visit saved points in order (dwell, loops, ping-pong) / stop the sequence |
-| `gofa-setup` | RWS + Socket | One-click first-run init for `T_ROB1` only: upload the bundled RAPID module (SERVER_IP auto-synced), load, reset PP, motors on, start, verify socket — with a per-step report. Does not set up the [Background task](#background-task-optional) |
+| `gofa-setup` | RWS + Socket | One-click first-run init for `T_ROB1`: upload the bundled RAPID module (SERVER_IP auto-synced), load, reset PP, motors on, start, verify socket — with a per-step report. **Also reloads `T_LED`/`BackgroundLed.mod` if that task already exists**, best-effort. Cannot *create* the `T_LED` task itself — see the [Background task](#background-task-optional) section below for that one-time step |
 | `gofa-rapid-exec` | RWS | Start / stop / reset-PP / load / unload / activate RAPID program |
 | `gofa-rapid-var-read` / `gofa-rapid-var-write` | Socket | Read/write RAPID PERS variables |
 | `gofa-rapid-tasks` | RWS | List RAPID tasks and modules |
@@ -177,7 +177,8 @@ own task. It backs the **Background** transport option on `gofa-do-write`/`gofa-
 `background` field on `gofa-connection-status`. Setting it up needs one manual, one-time
 RobotStudio step (creating a new RAPID task isn't possible over RWS at all) — see the
 [GitHub README's "Background task" section](https://github.com/Nantaphat-Yoktaworn/node-red-contrib-abb-gofa#background-task-backgroundledmod--t_led)
-for the exact steps.
+for the exact steps. After that one-time setup, `gofa-setup` reloads `BackgroundLed.mod`
+automatically on every run, right alongside `T_ROB1` — no further manual steps needed.
 
 Full node help (input/output shapes, config) is in the Node-RED sidebar for `gofa-egm` and
 `gofa-egm-move`.

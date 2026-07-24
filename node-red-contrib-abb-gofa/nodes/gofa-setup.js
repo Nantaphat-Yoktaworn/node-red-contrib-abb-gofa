@@ -9,6 +9,170 @@ var versionsCompatible = require('./gofa-robot').versionsCompatible;
 var parseLiSpans  = require('./gofa-rapid-tasks').parseLiSpans;
 var patchServerIp = require('./lib/patch-server-ip');
 
+// T_LED (BackgroundLed.mod) reload — see the "Background LED task" section of
+// CLAUDE.md. Unlike T_ROB1, T_LED is SEMISTATIC and not part of any RWS
+// task-group stop/start action (confirmed live — usetsp=alltsk is accepted
+// but is a no-op against it), so it needs its own dedicated stop signal
+// watched by a TRAP in BackgroundLed.mod (added alongside this feature).
+// DO15 is dedicated to this — deliberately not DO16 (gofa-egm's EGM
+// graceful-stop signal on T_ROB1; sharing it would make an EGM stop also
+// kill T_LED, since digital I/O is global/task-independent).
+var LED_TASK         = 'T_LED';
+var LED_STOP_SIGNAL  = 'ABB_Scalable_IO_0_DO15';
+var LED_MODULE_PATH  = '$HOME/Programs/BackgroundLed.mod';
+var LED_MODULE_LOCAL = path.join(__dirname, '..', 'rapid', 'BackgroundLed.mod');
+
+// Shared by both the runtime node and the admin endpoint below (unlike the
+// rest of this file, which duplicates its whole step chain between the two —
+// this piece has a retry/interleaving subtlety worth getting right exactly
+// once). Both callers have the same shape robot client (rwsGet/rwsPost/
+// rwsPostHal/rwsPut/withMastership/socketSend/getLastPingVersion/ip/
+// backgroundPort) and the same {poll,stop,motoron,start,ping} timings object.
+//
+// Split in two because of a real ordering constraint confirmed live: T_LED's
+// loadmod 403s ("Operation not allowed for current PGM state") unless the
+// GLOBAL /rw/rapid/execution state is stopped — same rule already documented
+// for T_ROB1's own loadmod, just not obviously also true for a totally
+// different task. So prepareLed() (stop/upload/loadmod/resetpp) must run
+// BEFORE T_ROB1's own "start RAPID" step, not after — the caller wires it in
+// between "reset program pointer" and "motors on". finishLed() (confirm +
+// ping) runs after T_ROB1's own start, reusing that single execution/start
+// call rather than issuing a redundant one — except confirmed live (twice)
+// that T_LED sometimes needs a SECOND identical execution/start call to
+// actually reach excstate 'started' after sitting 'ready' from loadmod; the
+// first call alone left it bouncing to 'stopped' instead of advancing. Not
+// explained by ABB's docs (same as alltaskbytsp itself) — empirical, so
+// finishLed() polls once, and only issues that one retry kick if needed.
+function prepareLed(r, steps, timings, onStatus) {
+    function pushStep(name, ok, detail) { steps.push({ name: name, ok: ok, detail: detail || null }); }
+    function readLedExec() {
+        return r.rwsGet('/rw/rapid/tasks').then(function(body) {
+            var led = parseLiSpans(body, 'rap-task-li', ['name', 'excstate'])
+                .filter(function(t) { return t.name === LED_TASK; })[0];
+            return led ? led.excstate : null;
+        });
+    }
+    function waitForLed(want, timeoutMs) {
+        var deadline = Date.now() + timeoutMs;
+        function poll() {
+            return readLedExec().then(function(state) {
+                if (state === want) return state;
+                if (Date.now() >= deadline) throw new Error('T_LED did not reach "' + want + '" (still "' + state + '")');
+                return new Promise(function(res) { setTimeout(res, timings.poll); }).then(poll);
+            });
+        }
+        return poll();
+    }
+    var ledCurrent = null;
+    function ledStep(name, fn) {
+        return function(prev) {
+            ledCurrent = name;
+            if (onStatus) onStatus({ fill: 'blue', shape: 'dot', text: name + '…' });
+            return Promise.resolve(prev).then(fn).then(function(detail) {
+                pushStep(name, true, detail);
+            });
+        };
+    }
+    return readLedExec().then(function(excstate) {
+        if (excstate === null) {
+            pushStep('T_LED reload', true, 'T_LED task not found — skipping (see CLAUDE.md Background LED task section for one-time RobotStudio setup)');
+            return { present: false, readLedExec: readLedExec };
+        }
+        return Promise.resolve()
+        .then(ledStep('stop T_LED', function() {
+            return r.rwsPost('/rw/iosystem/signals/' + LED_STOP_SIGNAL + '/set-value', 'lvalue=1')
+                .then(function() { return waitForLed('stopped', timings.stop); })
+                .then(function() {
+                    return r.rwsPost('/rw/iosystem/signals/' + LED_STOP_SIGNAL + '/set-value', 'lvalue=0').catch(function() {});
+                })
+                .then(function() { return 'stopped'; });
+        }))
+        .then(ledStep('upload BackgroundLed.mod', function() {
+            var text;
+            try { text = fs.readFileSync(LED_MODULE_LOCAL, 'utf8'); }
+            catch (e) { throw new Error('bundled module file missing (' + LED_MODULE_LOCAL + '): ' + e.message); }
+            var patched = patchServerIp(text, r.ip);
+            return r.rwsPut('/fileservice/' + LED_MODULE_PATH, Buffer.from(patched.text, 'utf8'), 'text/plain;v=2.0')
+                .then(function() { return Buffer.byteLength(patched.text) + 'B, SERVER_IP → ' + r.ip; });
+        }))
+        .then(ledStep('load module into T_LED', function() {
+            return r.withMastership(function() {
+                return r.rwsPostHal('/rw/rapid/tasks/' + LED_TASK + '/loadmod', 'modulepath=' + encodeURIComponent(LED_MODULE_PATH) + '&replace=true');
+            }).then(function(result) {
+                try { return 'loaded ' + JSON.parse(result).state[0].name; }
+                catch (e) { return 'loaded'; }
+            });
+        }))
+        .then(ledStep('reset T_LED program pointer', function() {
+            return r.withMastership(function() {
+                return r.rwsPost('/rw/rapid/execution/resetpp', '');
+            });
+        }))
+        .then(function() { return { present: true, readLedExec: readLedExec }; })
+        .catch(function(err) {
+            pushStep(ledCurrent, false, err.message);
+            return { present: false, readLedExec: readLedExec };
+        });
+    }).catch(function(err) {
+        pushStep('T_LED reload', false, 'could not check for T_LED task: ' + err.message);
+        return { present: false, readLedExec: readLedExec };
+    });
+}
+
+// Runs after T_ROB1's own "start RAPID" step. No-ops if prepareLed() found
+// no T_LED task or already failed. Reuses the fact that T_ROB1's start call
+// already happened — only issues its OWN execution/start call as a fallback
+// retry if T_LED hasn't reached 'started' shortly after.
+function finishLed(r, steps, timings, prep) {
+    if (!prep || !prep.present) return Promise.resolve();
+    function pushStep(name, ok, detail) { steps.push({ name: name, ok: ok, detail: detail || null }); }
+    function waitForLed(want, timeoutMs) {
+        var deadline = Date.now() + timeoutMs;
+        function poll() {
+            return prep.readLedExec().then(function(state) {
+                if (state === want) return state;
+                if (Date.now() >= deadline) throw new Error('T_LED did not reach "' + want + '" (still "' + state + '")');
+                return new Promise(function(res) { setTimeout(res, timings.poll); }).then(poll);
+            });
+        }
+        return poll();
+    }
+    return waitForLed('started', timings.stop)
+        .then(function() { pushStep('confirm T_LED started', true, 'started'); })
+        .catch(function() {
+            // confirmed live (twice): sometimes needs one more identical kick
+            return r.rwsPost('/rw/rapid/execution/start',
+                'regain=continue&execmode=continue&cycle=forever&condition=none&stopatbp=disabled&alltaskbytsp=false')
+                .then(function() { return waitForLed('started', timings.stop); })
+                .then(function() { pushStep('confirm T_LED started', true, 'started (needed a second start call)'); })
+                .catch(function(err) {
+                    pushStep('confirm T_LED started', false, err.message + ' — restart T_LED manually via the FlexPendant Execution-menu procedure (see CLAUDE.md)');
+                });
+        })
+        .then(function() {
+            var last = steps[steps.length - 1];
+            if (!last.ok) return; // don't bother pinging if it never came up
+            var deadline = Date.now() + timings.ping;
+            function ping() {
+                return r.socketSend('PING', r.backgroundPort).then(function(resp) {
+                    if (resp !== 'OK:PING') throw new Error('unexpected reply: ' + resp);
+                    var ver = r.getLastPingVersion(r.backgroundPort);
+                    var detail = ver === null ? 'OK (module version unknown)'
+                        : versionsCompatible(ver, PALETTE_VERSION) ? 'OK (module v' + ver + ')'
+                        : 'OK — WARNING: module reports v' + ver + ', palette expects v' + PALETTE_VERSION;
+                    pushStep('ping T_LED (background port)', true, detail);
+                }).catch(function(err) {
+                    if (Date.now() >= deadline) {
+                        pushStep('ping T_LED (background port)', false, 'background socket not answering (' + err.message + ')');
+                        return;
+                    }
+                    return new Promise(function(res) { setTimeout(res, 500); }).then(ping);
+                });
+            }
+            return ping();
+        });
+}
+
 // One-click first-run initialization: preflight → stop RAPID → unload the
 // conflicting sibling module → upload the bundled .mod (SERVER_IP auto-synced
 // to the config node's IP) → loadmod → resetpp → motors on → start (verified,
@@ -38,6 +202,7 @@ module.exports = function(RED) {
             var localPath  = path.join(__dirname, '..', 'rapid', moduleName + '.mod');
             var steps      = [];
             var current    = null;
+            var ledPrep    = null;
 
             function step(name, fn) {
                 return function(prev) {
@@ -117,6 +282,14 @@ module.exports = function(RED) {
                     return r.rwsPost('/rw/rapid/execution/resetpp', '');
                 });
             }))
+            .then(function() {
+                // T_LED's own loadmod needs the GLOBAL RAPID execution state stopped
+                // (confirmed live — same rule as T_ROB1's loadmod), so this must run
+                // here, before "motors on"/"start RAPID" below, not after.
+                return prepareLed(r, steps, node._t, node.status).then(function(prep) {
+                    ledPrep = prep;
+                });
+            })
             .then(step('motors on', function() {
                 return readCtrl().then(function(state) {
                     if (state === 'motoron') return 'already on';
@@ -159,6 +332,12 @@ module.exports = function(RED) {
                 return ping();
             }))
             .then(function() {
+                // Best-effort — failures here are recorded in `steps` but never fail
+                // the overall run; T_ROB1 motion setup above succeeding is the
+                // priority. See CLAUDE.md's "Background LED task" section.
+                return finishLed(r, steps, node._t, ledPrep);
+            })
+            .then(function() {
                 node._running = false;
                 msg.payload = { ok: true, module: moduleName, task: task, steps: steps };
                 node.status({ fill: 'green', shape: 'dot', text: 'ready' });
@@ -188,6 +367,7 @@ module.exports = function(RED) {
         var localPath  = path.join(__dirname, '..', 'rapid', moduleName + '.mod');
         var steps      = [];
         var current    = null;
+        var ledPrep    = null;
         var timings = { poll: 300, stop: 5000, motoron: 8000, start: 3000, ping: 8000 };
 
         function step(name, fn) {
@@ -263,6 +443,11 @@ module.exports = function(RED) {
                 return robot.rwsPost('/rw/rapid/execution/resetpp', '');
             });
         }))
+        .then(function() {
+            return prepareLed(robot, steps, timings, null).then(function(prep) {
+                ledPrep = prep;
+            });
+        })
         .then(step('motors on', function() {
             return readCtrl().then(function(state) {
                 if (state === 'motoron') return 'already on';
@@ -303,6 +488,11 @@ module.exports = function(RED) {
             }
             return ping();
         }))
+        .then(function() {
+            // Best-effort — see the runtime node's identical call above for the
+            // full rationale (CLAUDE.md's "Background LED task" section).
+            return finishLed(robot, steps, timings, ledPrep);
+        })
         .then(function() {
             res.json({ ok: true, module: moduleName, task: task, steps: steps });
         })

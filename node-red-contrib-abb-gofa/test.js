@@ -4219,15 +4219,24 @@ function makeSetupRobot(opts) {
         pingOk:  opts.pingOk !== false,
         calls:   [],
         putBody: null,
-        moduleVersion: opts.moduleVersion !== undefined ? opts.moduleVersion : require('./nodes/gofa-robot').PALETTE_VERSION
+        moduleVersion: opts.moduleVersion !== undefined ? opts.moduleVersion : require('./nodes/gofa-robot').PALETTE_VERSION,
+        ledTask:      !!opts.ledTask,
+        ledExec:      opts.ledTask ? 'started' : null,
+        ledPingOk:    opts.ledPingOk !== false,
+        ledStartCalls: 0
     };
     return {
         ip: '10.0.0.9',
+        backgroundPort: 1026,
         _st: st,
         rwsGet: function(p) {
             if (p === '/rw/panel/opmode')     return Promise.resolve('<span class="opmode">' + st.opmode + '</span>');
             if (p === '/rw/panel/ctrl-state') return Promise.resolve('<span class="ctrlstate">' + st.ctrl + '</span>');
             if (p === '/rw/rapid/execution')  return Promise.resolve('<span class="ctrlexecstate">' + st.exec + '</span>');
+            if (p === '/rw/rapid/tasks') {
+                if (!st.ledTask) return Promise.resolve('');
+                return Promise.resolve('<li class="rap-task-li" title="T_LED"><span class="name">T_LED</span><span class="excstate">' + st.ledExec + '</span></li>');
+            }
             if (p.indexOf('/modules') >= 0) {
                 return Promise.resolve(st.modules.map(function(m) {
                     return '<li class="rap-module-info-li"><span class="name">' + m.name + '</span><span class="type">' + m.type + '</span></li>';
@@ -4238,15 +4247,42 @@ function makeSetupRobot(opts) {
         rwsPost: function(p, b) {
             st.calls.push('POST ' + p);
             if (p === '/rw/rapid/execution/stop')  st.exec = 'stopped';
-            if (p === '/rw/rapid/execution/start' && !opts.startFails) st.exec = 'running';
+            // Confirmed live: resetpp does NOT move T_LED to 'ready' by itself (loadmod
+            // does, see rwsPostHal below) — kept as a defensive no-op step in
+            // gofa-setup.js anyway (agy's TRAP-resume-state finding), so no mock effect.
+            // A plain execution/start (alltaskbytsp doesn't matter) moves an already-
+            // 'ready' T_LED to 'started', but confirmed live TWICE that this sometimes
+            // needs a second identical call (the first can leave it bouncing back to
+            // 'stopped' instead of advancing) — simulated here via ledStartCalls.
+            if (p === '/rw/rapid/execution/start') {
+                if (!opts.startFails) st.exec = 'running';
+                if (st.ledExec === 'ready' && !opts.ledRestartFails) {
+                    st.ledStartCalls++;
+                    if (st.ledStartCalls >= 2) st.ledExec = 'started';
+                }
+            }
             if (p === '/rw/panel/ctrl-state')      st.ctrl = 'motoron';
+            if (p === '/rw/iosystem/signals/ABB_Scalable_IO_0_DO15/set-value' && b === 'lvalue=1') st.ledExec = 'stopped';
             return Promise.resolve('');
         },
-        rwsPostHal: function(p, b) { st.calls.push('HAL ' + p + ' ' + b); return Promise.resolve(''); },
+        rwsPostHal: function(p, b) {
+            st.calls.push('HAL ' + p + ' ' + b);
+            // Confirmed live: T_LED's loadmod 403s unless the GLOBAL RAPID execution
+            // state is stopped — same rule already true for T_ROB1's own loadmod, just
+            // not obviously also true for a different task until tested live.
+            if (p.indexOf('/tasks/T_LED/loadmod') >= 0) {
+                if (st.exec !== 'stopped') {
+                    return Promise.reject(new Error('HTTP 403 ' + p + ' — Operation not allowed for current PGM state'));
+                }
+                if (st.ledExec === 'stopped') st.ledExec = 'ready';
+            }
+            return Promise.resolve('');
+        },
         rwsPut: function(p, b, ct) { st.calls.push('PUT ' + p + ' ' + ct); st.putBody = b.toString(); return Promise.resolve(''); },
         withMastership: function(fn) { return fn(); },
-        socketSend: function(cmd) {
-            st.calls.push('SOCK ' + cmd);
+        socketSend: function(cmd, port) {
+            st.calls.push('SOCK ' + cmd + (port ? '@' + port : ''));
+            if (port === 1026) return st.ledPingOk ? Promise.resolve('OK:PING') : Promise.reject(new Error('connection refused'));
             return st.pingOk ? Promise.resolve('OK:PING') : Promise.reject(new Error('connection refused'));
         },
         getLastPingVersion: function() { return st.moduleVersion; }
@@ -4267,7 +4303,8 @@ await checkAsync('gofa-setup: full happy path runs all 9 steps in order', async 
     assert.strictEqual(msg.payload.ok, true, JSON.stringify(msg.payload));
     assert.deepStrictEqual(msg.payload.steps.map(function(s) { return s.name; }), [
         'preflight', 'stop RAPID', 'unload conflicting module', 'upload MainModule.mod',
-        'load module', 'reset program pointer', 'motors on', 'start RAPID', 'socket PING'
+        'load module', 'reset program pointer', 'T_LED reload', 'motors on', 'start RAPID',
+        'socket PING'
     ]);
     assert.ok(msg.payload.steps.every(function(s) { return s.ok; }));
     // sibling MainModuleEGM was loaded → unloaded before loadmod
@@ -4287,8 +4324,7 @@ await checkAsync('gofa-setup: matching module version reports OK (module vX.Y.Z)
     var msg = {};
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, true);
-    var last = msg.payload.steps[msg.payload.steps.length - 1];
-    assert.strictEqual(last.name, 'socket PING');
+    var last = msg.payload.steps.filter(function(s) { return s.name === 'socket PING'; })[0];
     assert.ok(last.detail.indexOf('OK (') === 0);
     assert.ok(last.detail.indexOf('WARNING') === -1);
 });
@@ -4299,8 +4335,7 @@ await checkAsync('gofa-setup: mismatched module version reports warning but rema
     var msg = {};
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, true);
-    var last = msg.payload.steps[msg.payload.steps.length - 1];
-    assert.strictEqual(last.name, 'socket PING');
+    var last = msg.payload.steps.filter(function(s) { return s.name === 'socket PING'; })[0];
     assert.ok(last.detail.indexOf('WARNING') >= 0);
     assert.ok(last.detail.indexOf('9.9.9') >= 0);
 });
@@ -4314,8 +4349,7 @@ await checkAsync('gofa-setup: a patch-only module version difference reports OK,
     var node = makeSetupNode(robot);
     var msg = {};
     await runInput(node, msg);
-    var last = msg.payload.steps[msg.payload.steps.length - 1];
-    assert.strictEqual(last.name, 'socket PING');
+    var last = msg.payload.steps.filter(function(s) { return s.name === 'socket PING'; })[0];
     assert.ok(last.detail.indexOf('OK (') === 0, 'expected OK, got: ' + last.detail);
     assert.ok(last.detail.indexOf('WARNING') === -1);
 });
@@ -4354,8 +4388,10 @@ await checkAsync('gofa-setup: dead socket fails the last step, earlier steps sta
     assert.strictEqual(last.name, 'socket PING');
     assert.strictEqual(last.ok, false);
     assert.ok(last.detail.indexOf('SERVER_IP') >= 0);
-    assert.strictEqual(msg.payload.steps.length, 9);
-    assert.ok(msg.payload.steps.slice(0, 8).every(function(s) { return s.ok; }));
+    // 9 T_ROB1 steps + the 'T_LED reload' skip step (ledTask defaults false),
+    // which now runs interleaved before 'motors on', not appended at the end.
+    assert.strictEqual(msg.payload.steps.length, 10);
+    assert.ok(msg.payload.steps.slice(0, 9).every(function(s) { return s.ok; }));
 });
 
 await checkAsync('gofa-setup: MainModuleEGM selection uploads/loads EGM module and unloads MainModule', async function() {
@@ -4375,6 +4411,74 @@ await checkAsync('gofa-setup: no robot configured errors cleanly', async functio
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, false);
     assert.strictEqual(node.errors.length, 1);
+});
+
+await checkAsync('gofa-setup: T_LED present interleaves reload before motors-on, confirms/pings after start', async function() {
+    var robot = makeSetupRobot({ exec: 'running', ledTask: true });
+    var node = makeSetupNode(robot);
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true, JSON.stringify(msg.payload));
+    var names = msg.payload.steps.map(function(s) { return s.name; });
+    // stop/upload/loadmod/resetpp run BEFORE motors-on/start (loadmod needs the
+    // global exec state stopped, confirmed live); confirm/ping run after —
+    // reusing T_ROB1's own start call rather than a redundant one of their own.
+    assert.deepStrictEqual(names, [
+        'preflight', 'stop RAPID', 'unload conflicting module', 'upload MainModule.mod',
+        'load module', 'reset program pointer',
+        'stop T_LED', 'upload BackgroundLed.mod', 'load module into T_LED', 'reset T_LED program pointer',
+        'motors on', 'start RAPID', 'socket PING',
+        'confirm T_LED started', 'ping T_LED (background port)'
+    ]);
+    assert.ok(msg.payload.steps.every(function(s) { return s.ok; }), JSON.stringify(msg.payload.steps));
+    assert.ok(robot._st.calls.some(function(c) { return c.indexOf('loadmod') >= 0 && c.indexOf('BackgroundLed') >= 0; }));
+    assert.ok(robot._st.calls.some(function(c) { return c === 'SOCK PING@1026'; }));
+    assert.strictEqual(robot._st.ledExec, 'started');
+});
+
+await checkAsync('gofa-setup: T_LED loadmod failure is isolated — no crash, no confirm/ping steps run', async function() {
+    var robot = makeSetupRobot({ exec: 'running', ledTask: true });
+    var origHal = robot.rwsPostHal;
+    robot.rwsPostHal = function(p, b) {
+        if (p.indexOf('/tasks/T_LED/loadmod') >= 0) return Promise.reject(new Error('HTTP 403 simulated'));
+        return origHal(p, b);
+    };
+    var node = makeSetupNode(robot);
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true, JSON.stringify(msg.payload)); // still non-fatal overall
+    var failed = msg.payload.steps.filter(function(s) { return s.name === 'load module into T_LED'; })[0];
+    assert.strictEqual(failed.ok, false);
+    assert.ok(failed.detail.indexOf('403') >= 0, failed.detail);
+    assert.ok(!msg.payload.steps.some(function(s) { return s.name === 'confirm T_LED started'; }));
+});
+
+await checkAsync('gofa-setup: T_LED not found skips the sub-chain without failing the run', async function() {
+    var robot = makeSetupRobot({ exec: 'running' }); // ledTask defaults false
+    var node = makeSetupNode(robot);
+    var msg = {};
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true);
+    var skip = msg.payload.steps.filter(function(s) { return s.name === 'T_LED reload'; })[0];
+    assert.strictEqual(skip.ok, true);
+    assert.ok(skip.detail.indexOf('not found') >= 0);
+    // no confirm/ping steps run at all when there's nothing to reload
+    assert.ok(!msg.payload.steps.some(function(s) { return s.name === 'confirm T_LED started'; }));
+});
+
+await checkAsync('gofa-setup: T_LED restart failure (both start attempts exhausted) is recorded but does not fail the overall run', async function() {
+    var robot = makeSetupRobot({ exec: 'running', ledTask: true, ledRestartFails: true });
+    var node = makeSetupNode(robot);
+    var msg = {};
+    await runInput(node, msg);
+    // Whole-run ok:true even though T_LED never reached 'started' — T_ROB1 motion
+    // setup succeeding is the priority, per the failure-isolation design.
+    assert.strictEqual(msg.payload.ok, true, JSON.stringify(msg.payload));
+    var confirm = msg.payload.steps.filter(function(s) { return s.name === 'confirm T_LED started'; })[0];
+    assert.strictEqual(confirm.ok, false);
+    assert.ok(confirm.detail.indexOf('FlexPendant') >= 0, confirm.detail);
+    // ping never runs after a failed confirm
+    assert.ok(!msg.payload.steps.some(function(s) { return s.name === 'ping T_LED (background port)'; }));
 });
 
 // NEW TESTS

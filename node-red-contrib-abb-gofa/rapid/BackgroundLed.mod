@@ -53,13 +53,43 @@ MODULE BackgroundLed
 
     ! See MainModule.mod's MODULE_VERSION comment — same purpose, own value
     ! since this task's module is uploaded/reloaded independently of T_ROB1's.
-    CONST string MODULE_VERSION  := "2.4.12";
+    CONST string MODULE_VERSION  := "2.4.13";
 
     VAR socketdev ledServerSocket;
     VAR socketdev ledClientSocket;
     VAR string    rxStr;
 
+    ! Remote self-stop, mirroring MainModuleEGM.mod's TrapEgmStop/EGMStop
+    ! pattern: T_LED is SEMISTATIC, so none of RWS's task-group stop/start
+    ! actions touch it (confirmed live — usetsp=alltsk is accepted but is a
+    ! no-op against T_LED). A plain RAPID Stop from a TRAP is the documented
+    ! way to stop a background task remotely (ABB community forum: "you can
+    ! stop background tasks, as long as they are configured with the
+    ! NoSafety Trust Level" — T_LED's TrustLevel is already "None", this
+    ! controller's label for that same option). DO15 is dedicated to this —
+    ! deliberately NOT DO16 (MainModuleEGM.mod's EGM graceful-stop signal on
+    ! T_ROB1); since digital I/O is global/task-independent, sharing DO16
+    ! would make an EGM stop also kill T_LED.
+    !
+    ! isConnected guard: CONNECTing an already-connected intnum is a fatal
+    ! RAPID runtime error (40166). Stop (called from the TRAP) resumes back
+    ! inside the TRAP on a plain "continue", not fresh at the top of main()
+    ! — only an explicit resetpp (done Node-RED-side before the next start,
+    ! see gofa-setup.js) actually re-enters main() from scratch, which is
+    ! also what re-initializes this VAR back to FALSE. Cheap guard either way.
+    VAR intnum ledStopIntNo;
+    VAR bool   ledStopConnected := FALSE;
+
+    TRAP TrapLedStop
+        Stop;
+    ENDTRAP
+
     PROC main()
+        IF NOT ledStopConnected THEN
+            CONNECT ledStopIntNo WITH TrapLedStop;
+            ISignalDO ABB_Scalable_IO_0_DO15, 1, ledStopIntNo;
+            ledStopConnected := TRUE;
+        ENDIF
         WHILE TRUE DO
             ServeForever;
             WaitTime 1;
