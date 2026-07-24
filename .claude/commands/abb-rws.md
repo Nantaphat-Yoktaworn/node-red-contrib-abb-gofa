@@ -25,6 +25,23 @@ Pulled directly from the controller via `GET /rw/system` and `GET /rw/system/pro
 
 **Installed RobotWare options relevant to this project** (full list via `GET /rw/system`): `3024-1 EtherNet/IP Scanner`, `3024-2 EtherNet/IP Adapter` (why the DSQC1030 works over EtherNet/IP), `3114-1 Multitasking`, `3124-1 Externally Guided Motion (EGM)` (installed but not used by this project — see the `abb-rws` skill's Motion System section on why continuous pose isn't available over RWS; EGM is the real ABB answer for that, and it's actually licensed here, unlike previously assumed), `3043-3 SafeMove Collaborative`, `Leadthrough`, `ASI`, `Collaborative Speed Control Base`, `Wizard`, `3119-1 RobotStudio Connect` (already confirmed unrelated to RWS — see `omnicore-c30` skill).
 
+**Three more features checked live 2026-07-24** (user asked "does the controller have X" after reading ABB's manuals for each — see [[project_option_presence_checks_2026-07-24]] for the full methodology):
+
+| Feature | Manual | Present? | How confirmed |
+|---|---|---|---|
+| Robot Control Mate (`3065-1`) | 3HAC073107 | **No** | Not in the `/rw/system` options list; direct hit on its documented web-HMI URL (`https://<ip>/docs/RCM.html`) with real auth returned a genuine `404 "Cannot find document"`, not just an RWS auth wall |
+| Collaborative Speed Control add-in | 3HAC091309 | **Yes** | `GET /rw/system/products` lists `CollaborativeSpeedControl` v1.3.2; the add-in auto-installs whenever `Collaborative Speed Control Base` or `Leadthrough` is licensed (both are, on this controller) |
+| Force control Standard for GoFa | 3HAC083267 | **Yes** | **Not** listed by name in the options list (the list is incomplete/aliased for this one) — settled by a live compile-test, see below |
+
+**When the options list is ambiguous, compile-test the actual RAPID instruction — it's the ground truth, not the options list.** RobotWare gates unlicensed-option RAPID instructions (`FCAct`, etc.) at compile time, so `loadmod`-ing a tiny module that calls the instruction is a direct, load-bearing test: a clean `200`/`204` means the instruction genuinely compiled; a RAPID compile error means it's not available. Steps (all via the existing scripts, no new tooling needed):
+1. Write a minimal `.mod` using the target instruction, straight from the vendor manual's own usage example (don't invent syntax) — no `PROC main()`, so it can't collide with `MainModule`'s.
+2. Upload via `PUT /fileservice/$HOME/Programs/<name>.mod` (`Content-Type: text/plain;v=2.0`).
+3. `loadmod` it via `mastership-test.js <path> "modulepath=$HOME/Programs/<name>.mod&replace=true" --hal` (requires RAPID stopped, same as any `loadmod`).
+4. Read the result: success = feature present. A RAPID compile error naming the instruction = not licensed.
+5. Clean up regardless of outcome: `unloadmod` (same mastership-test.js pattern, body `module=<name>`) then `DELETE /fileservice/$HOME/Programs/<name>.mod` — **the DELETE call needs an explicit `Accept: application/xhtml+xml;v=2.0` header**, a bare curl `DELETE` with no Accept header gets a `406`, not the expected `204` (same header requirement every other RWS call in this project already follows, easy to forget when hand-rolling a one-off curl instead of going through `gofa-robot.js`'s `requestRaw`).
+
+Confirmed live for Force Control: uploaded a module using the manual's own `FCAct tool1; WaitTime 1; FCDeact;` example, `loadmod` returned `200` with `"loaded-module": "FCTest"`, confirmed via `GET /rw/rapid/tasks/T_ROB1/modules`, then cleanly unloaded and deleted — controller left in its exact prior state (`MainModule` only).
+
 ---
 
 ## Development workflow: verify before building
