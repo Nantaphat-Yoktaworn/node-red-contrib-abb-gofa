@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-abb-gofa",
-  "version": "2.4.13",
+  "version": "2.5.0",
   "description": "Node-RED nodes for controlling an ABB GoFa (CRB 15000) collaborative robot via RWS and a RAPID TCP socket server",
   "keywords": [
     "node-red",
@@ -43,10 +43,6 @@
       "gofa-motor": "nodes/gofa-motor.js",
       "gofa-jog": "nodes/gofa-jog.js",
       "gofa-joint-jog": "nodes/gofa-joint-jog.js",
-      "gofa-save-point": "nodes/gofa-save-point.js",
-      "gofa-go-point": "nodes/gofa-go-point.js",
-      "gofa-point-list": "nodes/gofa-point-list.js",
-      "gofa-delete-point": "nodes/gofa-delete-point.js",
       "gofa-sequencer": "nodes/gofa-sequencer.js",
       "gofa-stop-seq": "nodes/gofa-stop-seq.js",
       "gofa-rapid-exec": "nodes/gofa-rapid-exec.js",

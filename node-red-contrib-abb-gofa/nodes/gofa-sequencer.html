@@ -11,8 +11,7 @@
             loop:     { value: false },
             pingpong: { value: false },
             count:    { value: 0 },
-            moveType: { value: 'J' },
-            storage:  { value: 'local' }
+            moveType: { value: 'J' }
         },
         inputs: 1, outputs: 2,
         outputLabels: ['step complete', 'sequence done / stopped'],
@@ -61,9 +60,7 @@
 
             function loadPoints(robotId, cb) {
                 if (!robotId) { if (cb) cb(); return; }
-                var storage = $('#node-input-storage').val();
-                var endpoint = '/gofa-robot/' + robotId + '/' + (storage === 'remote' ? 'remote-points' : 'points');
-                $.getJSON(endpoint, function(pts) {
+                $.getJSON('/gofa-robot/' + robotId + '/remote-points', function(pts) {
                     cachedPts = pts;
                     if (cb) cb();
                 });
@@ -87,7 +84,6 @@
             }
 
             $('#node-input-robot').change(function() { loadPoints($(this).val(), refreshStepSelects); });
-            $('#node-input-storage').change(function() { loadPoints($('#node-input-robot').val(), refreshStepSelects); });
 
             // show loop-count row only when loop is checked
             function toggleCountRow() {
@@ -125,7 +121,6 @@
                 var pingpong = $('#node-input-pingpong').prop('checked');
                 var count = parseInt($('#node-input-count').val()) || 0;
                 var moveType = $('#node-input-moveType').val() || 'J';
-                var storage = $('#node-input-storage').val() || 'local';
 
                 RED.notify('Starting sequence execution...', 'info');
 
@@ -139,8 +134,7 @@
                         loop: loop,
                         pingpong: pingpong,
                         count: count,
-                        moveType: moveType,
-                        storage: storage
+                        moveType: moveType
                     })
                 })
                     .done(function(data) {
@@ -226,13 +220,6 @@
         <input type="text" id="node-input-robot">
     </div>
     <div class="form-row">
-        <label for="node-input-storage"><i class="fa fa-database"></i> Storage</label>
-        <select id="node-input-storage">
-            <option value="local">Local (points.json)</option>
-            <option value="remote">On-Robot</option>
-        </select>
-    </div>
-    <div class="form-row">
         <label><i class="fa fa-list"></i> Sequence Steps</label>
         <div style="margin-left:105px;font-size:0.8em;color:#888;margin-bottom:4px">
             Point &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Dwell override (ms) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Move type
@@ -289,15 +276,13 @@
     <p><b>Joint (MoveJ)</b> — joint-interpolated; more predictable/reliable since it won't fault or slow drastically near a singularity. This is the default whenever a step or the node-level default is left unset ("default"/blank) or set to an invalid value. <b>Linear (MoveL)</b> — straight-line TCP path; can hit singularities/joint limits along the line that a joint move to the same target would avoid.</p>
     <h3>Loop count</h3>
     <p>When <em>Loop</em> is checked, set <em>Loop count</em> to the number of full passes (0 = loop forever until Stop Sequence fires).</p>
-    <h3>Storage</h3>
-    <p><b>Local</b> — resolves steps against the config node's Points File (default). <b>On-Robot</b> —
-    fetches the full point list once from a JSON file on the robot controller's own disk via RWS
-    <code>fileservice</code>, then resolves every step against it — one RWS round trip for the whole
-    sequence, not one per step. Movement (<code>socketSend</code>, dwell/loop/pingpong/stop) is
-    entirely unaffected either way.</p>
+    <h3>Points source</h3>
+    <p>Fetches the full point list once from a JSON file on the robot controller's own disk via
+    RWS <code>fileservice</code> (2.5.0+: the only point storage this palette has), then resolves
+    every step against it — one RWS round trip for the whole sequence, not one per step. Movement
+    (<code>socketSend</code>, dwell/loop/pingpong/stop) is entirely unaffected either way.</p>
     <h3>msg.payload overrides</h3>
     <ul>
-        <li><code>storage</code> — <code>"local"</code>/<code>"remote"</code>, overrides <em>Storage</em></li>
         <li><code>steps</code> — array of <code>{name, dwell?, moveType?}</code> replacing the configured list</li>
         <li><code>dwell</code> — default dwell in ms</li>
         <li><code>moveType</code> — default move type ("J" or "L") for steps that don't set their own</li>

@@ -3,7 +3,6 @@ const https = require('https');
 const http  = require('http');
 const net   = require('net');
 const fs    = require('fs');
-const path  = require('path');
 const os    = require('os');
 
 function parseXhtml(body, cls) {
@@ -11,19 +10,6 @@ function parseXhtml(body, cls) {
     // '' instead of null — null still means "class not present at all".
     var m = body.match(new RegExp('class="' + cls + '">([^<]*)<'));
     return m ? m[1].trim() : null;
-}
-
-// Write via temp-file + rename so a crash/interruption mid-write can never
-// leave points.json truncated or half-written.
-function atomicWriteFileSync(filePath, contents) {
-    var tmpPath = filePath + '.' + process.pid + '.' + Date.now() + '.tmp';
-    fs.writeFileSync(tmpPath, contents);
-    fs.renameSync(tmpPath, filePath);
-}
-
-function fileMtimeMs(filePath) {
-    try { return fs.statSync(filePath).mtimeMs; }
-    catch (e) { return null; }
 }
 
 // Validates a move-type value ('J' or 'L'); anything else resolves to fallback.
@@ -79,7 +65,7 @@ function parseJointLimits(raw) {
 // Soft-limit check for an absolute 6-joint move (degrees). Returns { ok: true }
 // or { ok: false, joint, value, min, max } naming the first out-of-range axis.
 // Fail-fast so a bad target returns a clean error instead of provoking a RAPID
-// motion fault. Does NOT apply to Cartesian moves (gofa-go-point) — those would
+// motion fault. Does NOT apply to Cartesian moves (gofa-points, go action) — those would
 // need inverse kinematics to know the joint angles, which isn't available here.
 function validateJoints(joints, limits) {
     limits = limits || JOINT_LIMITS;
@@ -91,8 +77,8 @@ function validateJoints(joints, limits) {
     return { ok: true };
 }
 
-// Shared by addPoint() (local, sync) and remoteAddPoint() (on-robot, async) —
-// auto-names "Point N" when blank, rejects a name that's already taken.
+// Used by remoteAddPoint() — auto-names "Point N" when blank, rejects a name
+// that's already taken.
 function resolvePointName(name, existingPoints) {
     name = (name || '').trim();
     if (!name) {
@@ -603,7 +589,6 @@ module.exports = function(RED) {
         if (!this.password) {
             this.warn('gofa-robot: no password configured — set one in the node credentials');
         }
-        this.pointsFile = config.pointsFile || path.join(RED.settings.userDir || '.', 'points.json');
         this.remotePointsPath = config.remotePointsPath || '$HOME/Programs/gofa_points.json';
 
         // Escape hatch for the editor live-control guard (nodes/lib/require-admin-auth.js):
@@ -624,8 +609,6 @@ module.exports = function(RED) {
             ip: this.ip, rwsPort: this.rwsPort, socketPort: this.socketPort,
             username: this.username, password: this.password
         });
-        this._points       = [];
-        this._pointsMtime  = null;
         this._seqStop      = false;
         this._seqRunning   = false;
         this._egmActive    = false;
@@ -633,104 +616,21 @@ module.exports = function(RED) {
         this._egmBaseline  = null;
         this._egmSocket    = null;
 
-        this._loadPoints();
-
         var node = this;
         this.on('close', function(done) {
             node.logout().then(function() { done(); });
         });
     }
 
-    GoFaRobotNode.prototype._loadPoints = function() {
-        try {
-            this._points = JSON.parse(fs.readFileSync(this.pointsFile, 'utf8'));
-            this._pointsMtime = fileMtimeMs(this.pointsFile);
-        }
-        catch(e) { this._points = []; this._pointsMtime = null; }
-    };
-
-    GoFaRobotNode.prototype._savePoints = function() {
-        var onDisk = fileMtimeMs(this.pointsFile);
-        if (this._pointsMtime !== null && onDisk !== null && onDisk !== this._pointsMtime) {
-            this.warn('points.json changed on disk since it was last read (another flow or ' +
-                      'config node using the same file?) — this save will overwrite those changes');
-        }
-        try {
-            atomicWriteFileSync(this.pointsFile, JSON.stringify(this._points, null, 2));
-            this._pointsMtime = fileMtimeMs(this.pointsFile);
-        }
-        catch(e) { this.warn('points.json write failed: ' + e.message); }
-    };
-
-    GoFaRobotNode.prototype.getPoints  = function() { return this._points; };
-
-    GoFaRobotNode.prototype.addPoint = function(name, target) {
-        var resolved = resolvePointName(name, this._points);
-        if (resolved.error) return resolved;
-        var pt = { id: 'p' + Date.now(), name: resolved.name, target: target };
-        this._points.push(pt);
-        this._savePoints();
-        return pt;
-    };
-
-    GoFaRobotNode.prototype.deletePoint = function(id) {
-        this._points = this._points.filter(function(p) { return p.id !== id; });
-        this._savePoints();
-    };
-
-    GoFaRobotNode.prototype.findPoint = function(nameOrId) {
-        return this._points.find(function(p) {
-            return p.id === nameOrId || p.name === nameOrId;
-        }) || null;
-    };
-
-    GoFaRobotNode.prototype.replacePoints = function(arr) {
-        if (!Array.isArray(arr)) {
-            return { error: 'Input must be an array' };
-        }
-        for (var i = 0; i < arr.length; i++) {
-            var item = arr[i];
-            if (!item || typeof item !== 'object') {
-                return { error: 'Element is not an object', invalidAt: i };
-            }
-            if (typeof item.name !== 'string' || !item.name.trim()) {
-                return { error: 'Element missing a non-empty name string', invalidAt: i };
-            }
-            if (!item.target || typeof item.target !== 'object') {
-                return { error: 'Element missing target object', invalidAt: i };
-            }
-            var t = item.target;
-            var vals = [t.x, t.y, t.z, t.q1, t.q2, t.q3, t.q4, t.cf1, t.cf4, t.cf6, t.cfx];
-            if (vals.some(function(v) { return typeof v !== 'number' || !isFinite(v); })) {
-                return { error: 'Element target has non-numeric fields', invalidAt: i };
-            }
-        }
-
-        var baseTime = Date.now();
-        var result = [];
-        for (var i = 0; i < arr.length; i++) {
-            var item = arr[i];
-            var pt = {
-                id: item.id || ('p' + baseTime + '-' + i),
-                name: item.name.trim(),
-                target: item.target
-            };
-            result.push(pt);
-        }
-
-        this._points = result;
-        this._savePoints();
-        return result;
-    };
-
-    // On-robot point storage — same shape/behavior as the local methods above,
-    // but backed by a JSON file on the robot's own disk (RWS fileservice
-    // GET/PUT) instead of points.json on the Node-RED host. Confirmed live:
-    // GET on a missing file is a clean 404 (-> []); PUT requires
-    // Content-Type: text/plain;v=2.0 (application/json is rejected, 415) and
-    // fully overwrites (no append). No concurrent-write protection (unlike
-    // local storage's mtime-drift check) — acceptable for a human-paced
-    // "teach a point" workflow, not built.
+    // On-robot point storage — the only point storage this palette has (2.5.0+
+    // removed the earlier local points.json-on-the-Node-RED-host option
+    // entirely, by request — every point now lives on the robot controller's
+    // own disk). Backed by a JSON file on the robot's own disk (RWS fileservice
+    // GET/PUT). Confirmed live: GET on a missing file is a clean 404 (-> []);
+    // PUT requires Content-Type: text/plain;v=2.0 (application/json is
+    // rejected, 415) and fully overwrites (no append). No concurrent-write
+    // protection — acceptable for a human-paced "teach a point" workflow, not
+    // built.
     GoFaRobotNode.prototype.remoteGetPoints = function() {
         var node = this;
         return node.requestRaw('GET', '/fileservice/' + node.remotePointsPath, null, { accept: '*/*' })
@@ -812,11 +712,6 @@ module.exports = function(RED) {
     GoFaRobotNode.prototype.gotoToken  = gotoToken;
     GoFaRobotNode.prototype.gotoObj    = gotoObj;
 
-    RED.httpAdmin.get('/gofa-robot/:id/points', RED.auth.needsPermission('gofa-robot.read'), function(req, res) {
-        var node = RED.nodes.getNode(req.params.id);
-        res.json(node ? node.getPoints() : []);
-    });
-
     RED.httpAdmin.get('/gofa-robot/:id/remote-points', RED.auth.needsPermission('gofa-robot.read'), function(req, res) {
         var node = RED.nodes.getNode(req.params.id);
         if (!node) return res.json([]);
@@ -843,8 +738,6 @@ module.exports.versionsCompatible  = versionsCompatible;
 module.exports.JOINT_LIMITS        = JOINT_LIMITS;
 module.exports.parseJointLimits    = parseJointLimits;
 module.exports.validateJoints      = validateJoints;
-module.exports.atomicWriteFileSync = atomicWriteFileSync;
-module.exports.fileMtimeMs         = fileMtimeMs;
 module.exports.createRobotClient   = createRobotClient;
 module.exports.discover            = discover;
 // Single source of truth for the "expected" module version in the version

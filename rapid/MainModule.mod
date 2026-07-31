@@ -29,7 +29,7 @@ MODULE MainModule
     ! mounted, so every motion instruction below now targets tool0 (RAPID's
     ! built-in empty-flange tool) instead of this placeholder [0,0,100] TCP
     ! offset / 1kg mass, which matched nothing real. That placeholder also
-    ! disagreed with gofa-pose/gofa-save-point's RWS reads (already tool0/
+    ! disagreed with gofa-pose/gofa-points (save action)'s RWS reads (already tool0/
     ! wobj0-relative), so leaving it active would have meant a saved point
     ! replays ~100mm off from where it was captured, not just a load-data
     ! safety gap. Upgrade path: once a real gripper is mounted, run
@@ -62,7 +62,7 @@ MODULE MainModule
     ! instead of failing mysteriously later on a command that doesn't exist
     ! yet. Bump this whenever the socket protocol changes; keep in lockstep
     ! with node-red-contrib-abb-gofa/package.json's "version".
-    CONST string MODULE_VERSION := "2.4.13";
+    CONST string MODULE_VERSION := "2.5.0";
 
     ! Persisted home pose (survives restart AND module reload). One line of
     ! 11 ;-separated numbers, same layout as a GOTO token, written by SETHOME.

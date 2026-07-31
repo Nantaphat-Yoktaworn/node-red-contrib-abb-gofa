@@ -12,7 +12,6 @@ module.exports = function(RED) {
         this.pingpong = config.pingpong || false;
         this.count    = parseInt(config.count)  || 0;   // 0 = infinite
         this.moveType = resolveMoveType(config.moveType, 'J');
-        this.storage  = config.storage  || 'local';
         var node = this;
 
         node.on('input', function(msg, send, done) {
@@ -34,7 +33,6 @@ module.exports = function(RED) {
             var pingpong  = (p.pingpong  != null) ? p.pingpong  : node.pingpong;
             var count     = (p.count     != null) ? p.count     : node.count;
             var moveType  = resolveMoveType(p.moveType, node.moveType);
-            var storage   = p.storage || node.storage;
             // startStep is 1-based; clamp to valid range after cmds is built
             var startStep = (p.startStep != null) ? Math.max(1, parseInt(p.startStep) || 1) : 1;
 
@@ -42,11 +40,9 @@ module.exports = function(RED) {
 
             r._seqRunning = true;
 
-            // Fetch the whole points array once up front (one RWS round trip for
-            // remote storage, not one per step), then resolve steps against it
-            // synchronously exactly like before — only the source of the array
-            // changes between local/remote, nothing below this point does.
-            var pointsPromise = (storage === 'remote') ? r.remoteGetPoints() : Promise.resolve(r.getPoints());
+            // Fetch the whole points array once up front (one RWS round trip), then resolve
+            // steps against it synchronously.
+            var pointsPromise = r.remoteGetPoints();
 
             pointsPromise.then(function(allPoints) {
                 function findPt(nameOrId) {
@@ -168,7 +164,6 @@ module.exports = function(RED) {
         var pingpong = req.body.pingpong === true;
         var count = parseInt(req.body.count) || 0;
         var moveType = resolveMoveType(req.body.moveType, 'J');
-        var storage = req.body.storage || 'local';
 
         if (!steps || !steps.length) {
             return res.status(400).json({ error: 'No steps configured' });
@@ -177,7 +172,7 @@ module.exports = function(RED) {
         robot._seqRunning = true;
         robot._seqStop = false;
 
-        var pointsPromise = (storage === 'remote') ? robot.remoteGetPoints() : Promise.resolve(robot.getPoints());
+        var pointsPromise = robot.remoteGetPoints();
 
         pointsPromise.then(function(allPoints) {
             function findPt(nameOrId) {

@@ -87,8 +87,8 @@ curl -sk $AUTH -H "Accept: application/xhtml+xml;v=2.0" "https://$IP/rw/rapid/ta
 # Download a file from the controller (e.g. the running MainModule.mod)
 curl -sk $AUTH -H "Accept: */*" "https://$IP/fileservice/\$HOME/Programs/MainModule.mod"
 
-# Read the on-robot saved-points file (gofa-save-point/etc's "Storage: On-Robot" mode)
-# — a 404 here just means no points have been saved on-robot yet
+# Read the saved-points file (the only point storage gofa-points has — on the robot's own disk)
+# — a 404 here just means no points have been saved yet
 curl -sk $AUTH -H "Accept: */*" "https://$IP/fileservice/\$HOME/Programs/gofa_points.json"
 
 # Check who (if anyone) currently holds edit mastership -- not sent automatically by
@@ -133,7 +133,7 @@ curl -sk $AUTH -X PUT -H "Content-Type: text/plain;v=2.0" \
   --data-binary @rapid/MainModule.mod \
   "https://$IP/fileservice/\$HOME/Programs/MainModule.mod"
 
-# Write the on-robot saved-points file — full overwrite, same JSON shape as points.json.
+# Write the saved-points file — full overwrite.
 # Content-Type MUST be text/plain;v=2.0 or application/octet-stream;v=2.0 — confirmed
 # live that application/json is rejected (415), even though the content is JSON.
 curl -sk $AUTH -X PUT -H "Content-Type: text/plain;v=2.0" \
@@ -244,7 +244,7 @@ Send-GofaCmd "PING"
 | `SETDO:<name>:<value>` | Set a digital output by RWS signal name (0/1) against an explicit allow-list (`ABB_Scalable_IO_0_DO1`–`DO16`) — replies `OK:SETDO`, `ERR:UNKNOWN_SIGNAL`, or `ERR:PARSE` |
 | `SETLED:<r>;<g>;<b>;<period>` | Set ASI status light color (0–255 each) + hardware blink period |
 | `RESETLED` | Restore ASI LED to default (solid green) |
-| `P1` / `P2` / `P3` | **Removed in 2.0.0** — were legacy hardcoded pick/place positions from before the palette existed; no Node-RED node ever sent them. Use the points-based nodes (`gofa-save-point`/`gofa-go-point`) instead. |
+| `P1` / `P2` / `P3` | **Removed in 2.0.0** — were legacy hardcoded pick/place positions from before the palette existed; no Node-RED node ever sent them. Use the points-based node (`gofa-points`, save/go actions) instead. |
 
 Only `nTestVar` (num) and `sTestMsg` (string) are allow-listed for `GETVAR`/`SETVAR`
 out of the box — see "Adding RAPID variables" in `README.md` to add more (that edit

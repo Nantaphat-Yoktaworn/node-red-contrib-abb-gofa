@@ -91,9 +91,8 @@ needed just to silence output. Check it to get the full `msg.payload` described 
 | `gofa-stop-motion` | RWS + Socket | Motion halt. **Mode**: `immediate` (default) halts an in-progress HOME/GOTOJ/GOTOL/MOVEJ/MOVEL now via an RWS execution-stop + auto resetPP/start (arm stays put, socket recovers; needs Auto + motors on); `queued` is the legacy socket STOP that only cancels a not-yet-started move |
 | `gofa-ping` | Socket | Connectivity test with round-trip time |
 | `gofa-grip` | RWS | Digital output on/off (gripper-style) |
-| `gofa-save-point` / `gofa-go-point` / `gofa-point-list` / `gofa-delete-point` | mixed | Teach & replay named points, stored locally or on the robot's own disk |
-| `gofa-points` | disk | Bulk export/import of the point list (action: export / import — import **replaces** the whole list) |
-| `gofa-sequencer` / `gofa-stop-seq` | Socket | Visit saved points in order (dwell, loops, ping-pong) / stop the sequence |
+| `gofa-points` | RWS + Socket + RWS fileservice | Combined point node — **Action**: save / go / list / delete (per-point, on the robot controller's disk — no local storage) / export / import (backup/restore that same on-robot list to/from a file, import **replaces** the whole list) |
+| `gofa-sequencer` / `gofa-stop-seq` | Socket + RWS fileservice | Visit saved points (on the robot controller's disk) in order (dwell, loops, ping-pong) / stop the sequence |
 | `gofa-setup` | RWS + Socket | One-click first-run init for `T_ROB1`: upload the bundled RAPID module (SERVER_IP auto-synced), load, reset PP, motors on, start, verify socket — with a per-step report. **Also reloads `T_LED`/`BackgroundLed.mod` if that task already exists**, best-effort. Cannot *create* the `T_LED` task itself — see the [Background task](#background-task-optional) section below for that one-time step |
 | `gofa-rapid-exec` | RWS | Start / stop / reset-PP / load / unload / activate RAPID program |
 | `gofa-rapid-var-read` / `gofa-rapid-var-write` | Socket | Read/write RAPID PERS variables |
@@ -148,7 +147,7 @@ the other, so mixing them up just costs a reload, not a broken robot.
 **Why two modules instead of one:** an EGM session (`EGMRunJoint`) blocks the RAPID task for
 its whole duration, so the same task can't also be running the plain TCP socket server that
 every other node in this package depends on — while `gofa-egm` is streaming, `gofa-jog`,
-`gofa-go-point`, and the rest simply can't connect. Keeping EGM support in a separate module
+`gofa-points` (go action), and the rest simply can't connect. Keeping EGM support in a separate module
 means the default `MainModule.mod` — and everything that depends on it — is completely
 unaffected by this feature; it's not merged into the file every other node already relies on.
 

@@ -63,7 +63,7 @@
     instead of hanging.</p>
 
     <p>While a session is active, the robot's TCP socket server is stopped — every other
-    socket-based node (<code>gofa-jog</code>, <code>gofa-go-point</code>, etc.) will fail to
+    socket-based node (<code>gofa-jog</code>, <code>gofa-points</code> [go action], etc.) will fail to
     connect until the session ends. <b>Ending a session requires the <code>"stop"</code> action
     (or closing/redeploying this node) — it is not automatic</b> (EGM's own comm-timeout
     mechanism does not reliably end a session once connected; going quiet on its own can leave

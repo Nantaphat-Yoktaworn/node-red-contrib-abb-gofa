@@ -497,12 +497,22 @@ All palette nodes follow: **msg.payload → node property (editor) → built-in 
 | `gofa-move` | `'HOME'` / `'SETHOME'` | `{ command: 'HOME' }` |
 | `gofa-rapid-exec` | `'start'` / `'stop'` / `'resetpp'` | `{ action: 'start' }` |
 
-**Nodes fixed to read file path from msg.payload (previously used non-standard msg.* keys):**
+**`gofa-points` (2.5.0+, combines the former `gofa-save-point`/`gofa-go-point`/`gofa-point-list`/
+`gofa-delete-point`/`gofa-points`) is the one deliberate exception to the bare-string-is-the-action
+pattern above** — see CLAUDE.md's "Combined points node" section for why. Only
+`msg.payload.action` (`'save'`/`'go'`/`'list'`/`'delete'`/`'export'`/`'import'`) selects the
+action; a bare string means the point name/id for `save`/`go`/`delete`, or the file path for
+`export`/`import` (never the action). All actions are always on the robot controller's own disk
+(no local storage — removed same day, per direct user request):
 
-| Node | msg.payload string | msg.payload object | Legacy fallback |
-|------|-------------------|--------------------|-----------------|
-| `gofa-points-export` | save path | `{ savePath: '...' }` | `msg.savePath` |
-| `gofa-points-import` | load path | `{ loadPath: '...' }` or array | `msg.loadPath` |
+| Action | msg.payload string | msg.payload object | Legacy fallback |
+|--------|--------------------|--------------------|-----------------|
+| `save` | point name | `{ name: '...' }` | — |
+| `go` | point name/id | `{ name: '...' }` / `{ id: '...' }`, `{ moveType: 'J'|'L' }` | — |
+| `list` | (ignored) | (no overrides) | — |
+| `delete` | point name/id | `{ name: '...' }` / `{ id: '...' }` | — |
+| `export` | backup-file save path | `{ path: '...' }` / `{ savePath: '...' }` | `msg.savePath` |
+| `import` | backup-file load path | `{ path: '...' }` / `{ loadPath: '...' }` or a bare array | `msg.loadPath` |
 
 **Node fixed to support runtime interval override:**
 

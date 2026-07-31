@@ -3,73 +3,166 @@
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
             outputPayload: { value: false },
-            name:     { value: '' },
-            robot:    { value: '', type: 'gofa-robot', required: true },
-            action:   { value: 'export' },
-            path:     { value: '' }
+            name:      { value: '' },
+            robot:     { value: '', type: 'gofa-robot', required: true },
+            action:    { value: 'list' },
+            pointName: { value: '' },
+            moveType:  { value: 'J' },
+            path:      { value: '' }
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
         label: function() {
-            var a = this.action || 'export';
-            return this.name || ('Points ' + a);
+            var labels = { save: 'Save Point', go: 'Go to Point', list: 'Point List', delete: 'Delete Point', export: 'Points Export', import: 'Points Import' };
+            return this.name || labels[this.action] || 'Points';
         },
-        paletteLabel: 'Points File',
+        paletteLabel: 'Points',
         oneditprepare: function() {
             var node = this;
+
+            function toggleFields() {
+                var action = $('#node-input-action').val();
+                $('#node-pointname-field').toggle(action === 'save');
+                $('#node-pointselect-field').toggle(action === 'go' || action === 'delete');
+                $('#node-movetype-field').toggle(action === 'go');
+                $('#node-path-field').toggle(action === 'export' || action === 'import');
+                $('#node-list-result-field').toggle(action === 'list');
+                $('#gofa-points-btn').text(runButtonLabel(action));
+            }
+            function runButtonLabel(action) {
+                var labels = {
+                    save: 'Save Current Pose', go: 'Go to Point Now', list: 'Refresh Points',
+                    delete: 'Delete Selected Point Now', export: 'Export Points Now', import: 'Import Points Now'
+                };
+                return labels[action] || 'Run Action Now';
+            }
+
             function robotId() {
                 var v = $('#node-input-robot').val();
                 return (v && v !== '_ADD_') ? v : null;
             }
-
-            function runPointsAction() {
+            // #node-select-pointName is a UI-only proxy for picking an existing point — the
+            // actual bound field Node-RED reads/writes is the plain text input
+            // #node-input-pointName (shared with the "save" action's free-text name), so every
+            // change here is mirrored into that hidden-when-not-visible input.
+            function loadPointSelect() {
                 var id = robotId();
+                var sel = $('#node-select-pointName').empty()
+                    .append($('<option value="">-- select point --</option>'));
+                if (!id) return;
+                $.getJSON('/gofa-robot/' + id + '/remote-points', function(pts) {
+                    pts.forEach(function(p) {
+                        sel.append($('<option>').val(p.name).text(p.name));
+                    });
+                    sel.val($('#node-input-pointName').val());
+                });
+            }
+            function renderPointList() {
+                var id = robotId();
+                if (!id) {
+                    $('#gofa-points-list-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">Select (and deploy) a robot config first</span>');
+                    return;
+                }
+                $('#gofa-points-list-result').html('<i class="fa fa-spinner fa-spin"></i> Fetching...');
+                $.getJSON('gofa-robot/' + id + '/remote-points')
+                    .done(function(points) {
+                        if (!points || points.length === 0) {
+                            $('#gofa-points-list-result').html('No points saved.');
+                            return;
+                        }
+                        var html = '<table class="red-ui-info-table" style="width: 100%; border-collapse: collapse;">' +
+                            '<thead><tr><th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc; width: 40%;">Name</th><th style="text-align: left; padding: 4px; border-bottom: 1px solid #ccc;">Coordinates</th></tr></thead>' +
+                            '<tbody>';
+                        function fmtTarget(t) {
+                            if (!t || typeof t !== 'object') return '';
+                            var n = function(v) { return typeof v === 'number' ? v.toFixed(1) : '?'; };
+                            return 'x=' + n(t.x) + ' y=' + n(t.y) + ' z=' + n(t.z) + ' mm';
+                        }
+                        points.forEach(function(pt) {
+                            html += '<tr>' +
+                                '<td style="font-weight: bold; padding: 4px; border-bottom: 1px solid #eee;">' + pt.name + '</td>' +
+                                '<td style="padding: 4px; border-bottom: 1px solid #eee; font-family: monospace; font-size: 11px;">' + fmtTarget(pt.target) + '</td>' +
+                                '</tr>';
+                        });
+                        html += '</tbody></table>';
+                        $('#gofa-points-list-result').html(html);
+                    })
+                    .fail(function(xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to fetch points';
+                        $('#gofa-points-list-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">' + err + '</span>');
+                    });
+            }
+
+            function runAction() {
+                var id = robotId();
+                var action = $('#node-input-action').val();
                 if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
 
-                var action = $('#node-input-action').val() || 'export';
-                var path = $('#node-input-path').val() || '';
-
+                var body = { action: action };
+                if (action === 'save') {
+                    body.pointName = $('#node-input-pointName').val() || '';
+                } else if (action === 'go' || action === 'delete') {
+                    body.pointName = $('#node-input-pointName').val();
+                    if (!body.pointName) return RED.notify('Select a point first', 'warning');
+                }
+                if (action === 'go') {
+                    body.moveType = $('#node-input-moveType').val() || 'J';
+                    if (!confirm('WARNING: The robot will execute a physical move to point "' + body.pointName + '" (' + body.moveType + '). Ensure the path is clear. Proceed?')) {
+                        return;
+                    }
+                }
+                if (action === 'export' || action === 'import') {
+                    body.path = $('#node-input-path').val() || '';
+                }
                 if (action === 'import') {
-                    if (!confirm('WARNING: Importing points will overwrite all currently saved points in the robot node. Proceed?')) {
+                    if (!confirm('WARNING: Importing points will overwrite all currently saved points on the robot controller. Proceed?')) {
                         return;
                     }
                 }
 
                 var btn = $('#gofa-points-btn').prop('disabled', true);
-                $('#gofa-points-result').html('<i class="fa fa-spinner fa-spin"></i> Processing...');
-
+                RED.notify('Running "' + action + '"...', 'info');
                 $.ajax({
-                    url: 'gofa-points/' + id + '/test',
+                    url: 'gofa-points/' + id + '/run',
                     type: 'POST',
                     contentType: 'application/json',
-                    data: JSON.stringify({ action: action, path: path })
+                    data: JSON.stringify(body)
                 })
                     .done(function(data) {
-                        RED.notify('Points action succeeded!', 'success');
-                        if (action === 'export') {
-                            var savedMsg = data.savedTo ? ' and saved to ' + data.savedTo : ' (in memory)';
-                            $('#gofa-points-result').html(
-                                '<div><b>Exported:</b> ' + data.count + ' points' + savedMsg + '</div>'
-                            );
-                        } else if (action === 'import') {
-                            $('#gofa-points-result').html(
-                                '<div><b>Imported successfully:</b> ' + data.count + ' points from ' + data.loadedFrom + '</div>'
-                            );
-                        }
+                        if (action === 'save') RED.notify('Point "' + data.point.name + '" saved successfully!', 'success');
+                        else if (action === 'go') RED.notify('Move command acknowledged: ' + data.ack, 'success');
+                        else if (action === 'delete') { RED.notify('Point "' + data.deleted.name + '" deleted successfully!', 'success'); loadPointSelect(); }
+                        else if (action === 'list') { renderPointList(); RED.notify('Refreshed: ' + data.points.length + ' points', 'success'); }
+                        else if (action === 'export') RED.notify('Exported ' + data.count + ' points' + (data.savedTo ? ' to ' + data.savedTo : ''), 'success');
+                        else if (action === 'import') RED.notify('Imported ' + data.count + ' points from ' + data.loadedFrom, 'success');
                     })
                     .fail(function(xhr) {
-                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Points action failed';
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Action failed';
                         RED.notify(err, 'error');
-                        $('#gofa-points-result').html('<span style="color: var(--red-ui-text-color-error, #f00);">' + err + '</span>');
                     })
                     .always(function() {
                         btn.prop('disabled', false);
                     });
             }
 
-            $('#gofa-points-btn').on('click', function(e) {
-                e.preventDefault();
-                runPointsAction();
+            $('#node-input-action').on('change', function() {
+                toggleFields();
+                if ($(this).val() === 'go' || $(this).val() === 'delete') loadPointSelect();
+                if ($(this).val() === 'list') renderPointList();
             });
+            $('#node-input-robot').on('change', function() {
+                var action = $('#node-input-action').val();
+                if (action === 'go' || action === 'delete') loadPointSelect();
+                if (action === 'list') renderPointList();
+            });
+            $('#gofa-points-btn').on('click', function(e) { e.preventDefault(); runAction(); });
+            $('#node-select-pointName').on('change', function() {
+                $('#node-input-pointName').val($(this).val());
+            });
+
+            toggleFields();
+            var initialAction = $('#node-input-action').val();
+            if (initialAction === 'go' || initialAction === 'delete') loadPointSelect();
+            if (initialAction === 'list') renderPointList();
         }
     });
 </script>
@@ -81,25 +174,44 @@
     <div class="form-row">
         <label for="node-input-action"><i class="fa fa-play"></i> Action</label>
         <select id="node-input-action">
-            <option value="export">Export</option>
-            <option value="import">Import</option>
+            <option value="save">Save Point (capture current pose)</option>
+            <option value="go">Go to Point</option>
+            <option value="list">List Points</option>
+            <option value="delete">Delete Point</option>
+            <option value="export">Export Points (to a file on this host)</option>
+            <option value="import">Import Points (from a file, replaces the robot's list)</option>
         </select>
     </div>
-    <div class="form-row">
-        <button id="gofa-points-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-play"></i> Run Points Action Now</button>
+    <div id="node-pointname-field" class="form-row">
+        <label for="node-input-pointName"><i class="fa fa-map-marker"></i> Point Name</label>
+        <input type="text" id="node-input-pointName" placeholder="Leave blank for auto-name">
+    </div>
+    <div id="node-pointselect-field" class="form-row">
+        <label for="node-select-pointName"><i class="fa fa-map-marker"></i> Point</label>
+        <select id="node-select-pointName" style="width:70%"></select>
+    </div>
+    <div id="node-movetype-field" class="form-row">
+        <label for="node-input-moveType"><i class="fa fa-share"></i> Move type</label>
+        <select id="node-input-moveType" style="width:150px">
+            <option value="J">Joint (MoveJ)</option>
+            <option value="L">Linear (MoveL)</option>
+        </select>
+    </div>
+    <div id="node-path-field" class="form-row">
+        <label for="node-input-path"><i class="fa fa-file"></i> File path</label>
+        <input type="text" id="node-input-path" placeholder="Optional file path">
     </div>
     <div class="form-row">
-        <div id="gofa-points-result" style="background: var(--red-ui-tertiary-background, #f3f3f3); padding: 10px; border: 1px solid var(--red-ui-form-input-border, #ccc); border-radius: 4px; min-height: 40px;">
-            Select a robot and click Run Points Action Now.
+        <button id="gofa-points-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-play"></i> Run Action Now</button>
+    </div>
+    <div id="node-list-result-field" class="form-row">
+        <div id="gofa-points-list-result" style="background: var(--red-ui-tertiary-background, #f3f3f3); padding: 10px; border: 1px solid var(--red-ui-form-input-border, #ccc); border-radius: 4px; min-height: 80px; max-height: 200px; overflow-y: auto;">
+            Select a robot to load the point list.
         </div>
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
-        <input type="text" id="node-input-name" placeholder="">
-    </div>
-    <div class="form-row">
-        <label for="node-input-path"><i class="fa fa-file"></i> File path</label>
-        <input type="text" id="node-input-path" placeholder="Optional file path">
+        <input type="text" id="node-input-name" placeholder="Points">
     </div>
     <div class="form-row">
         <input type="checkbox" id="node-input-outputPayload" style="display:inline-block; width:auto; vertical-align:top;">
@@ -108,23 +220,92 @@
 </script>
 <script type="text/html" data-help-name="gofa-points">
     <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
-    <p>Exports or imports the saved points list from/to the robot config node.</p>
+    <p>Combines all saved-point operations — capture, move-to, list, delete, and bulk file
+    export/import — into one node, selected via the <em>Action</em> dropdown. This node replaces
+    the former separate <code>gofa-save-point</code>, <code>gofa-go-point</code>,
+    <code>gofa-point-list</code>, and <code>gofa-delete-point</code> nodes (removed) plus the
+    original single-purpose <code>gofa-points</code> export/import node, which this one now is.</p>
+    <p><b>All points live on the robot controller's own disk</b> (the <code>gofa-robot</code>
+    config node's <em>Remote Points Path</em>) — there is no local/Node-RED-host point storage
+    (removed in 2.5.0).</p>
 
     <h3>Input</h3>
     <dl class="message-properties">
         <dt>payload.action <span class="property-type">string</span></dt>
-        <dd>Can be set to <code>"export"</code> or <code>"import"</code> to override the configured action at runtime. Unlike other nodes, a bare string <code>msg.payload</code> is interpreted as a file path, NOT an action override.</dd>
+        <dd>
+            <code>"save"</code> / <code>"go"</code> / <code>"list"</code> / <code>"delete"</code> /
+            <code>"export"</code> / <code>"import"</code> — overrides the <em>Action</em> dropdown
+            for this message. <b>Only <code>msg.payload.action</code> (an object field) selects
+            the action — a bare string <code>msg.payload</code> never does.</b> Absent →
+            uses the configured Action.
+        </dd>
+        <dt>payload (bare string) <span class="property-type">string</span></dt>
+        <dd>
+            Meaning depends on the (resolved) action: the point name for <b>save</b>, the point
+            name/id to act on for <b>go</b>/<b>delete</b>, or the file path for
+            <b>export</b>/<b>import</b>. Ignored by <b>list</b>.
+        </dd>
+        <dt>payload.name / payload.id <span class="property-type">string</span></dt>
+        <dd>Point identifier for <b>save</b> (name only, optional — blank auto-numbers
+        <code>"Point N"</code>), <b>go</b>, and <b>delete</b>. Overrides the Point Name/Point
+        property and any bare-string form above.</dd>
+        <dt>payload.moveType <span class="property-type">string</span></dt>
+        <dd><code>"J"</code>/<code>"L"</code> — overrides <em>Move type</em>, <b>go</b> only.</dd>
+        <dt>payload.path / payload.savePath / payload.loadPath <span class="property-type">string</span></dt>
+        <dd>File path for <b>export</b>/<b>import</b>, overriding the <em>File path</em> property.
+        This file lives on the Node-RED host — it's a plain backup/restore copy, not where the
+        points actually live.</dd>
+        <dt>payload / payload.points <span class="property-type">array</span></dt>
+        <dd><b>import</b> only, when no path is given: an array of points (or
+        <code>{points:[...]}</code>) to import directly.</dd>
     </dl>
-    
+
     <h3>Actions</h3>
     <ul>
-        <li><b>Export</b>: Outputs the current points list. Optionally writes it to a file if a path is specified (via the <em>File path</em> property, a string <code>msg.payload</code>, <code>msg.payload.savePath</code>, or <code>msg.savePath</code>).</li>
-        <li><b>Import</b>: REPLACES the entire point list (destructive). Reads points from a file if a path is specified (via the <em>File path</em> property, a string <code>msg.payload</code>, <code>msg.payload.loadPath</code>, or <code>msg.loadPath</code>). If NO path is given, it treats a <code>msg.payload</code> array (or <code>msg.payload.points</code>) as the points to import directly.</li>
+        <li><b>save</b> — reads the current TCP pose via RWS and saves it as a named point on the
+        robot controller's disk.</li>
+        <li><b>go</b> — looks up a saved point and moves the robot to it (<code>MoveJ</code> or
+        <code>MoveL</code> per <em>Move type</em>).</li>
+        <li><b>list</b> — outputs the full saved-point array from the robot controller's disk.</li>
+        <li><b>delete</b> — removes a saved point by name/id from the robot controller's disk.</li>
+        <li><b>export</b> — reads the robot's on-disk point list; optionally also writes a backup
+        copy to a file on the Node-RED host if a path is given.</li>
+        <li><b>import</b> — REPLACES the robot's entire on-disk point list (destructive). Reads
+        from a file on the Node-RED host if a path is given, otherwise takes the array directly
+        from the payload.</li>
     </ul>
 
-    <h3>Output</h3>
-    <p>Returns a success object with <code>ok: true</code>, the <code>count</code> of points, and either the <code>points</code> array (on export) or <code>loadedFrom</code> path (on import). Export also adds <code>savedTo</code> (the file path) when a file path was given — omitted if the export was in-memory only (no path).</p>
+    <h3>Output <code>msg.payload</code></h3>
+    <dl class="message-properties">
+        <dt>save success</dt><dd><code>{ ok: true, point: {id,name,target}, points: [...] }</code></dd>
+        <dt>go success</dt><dd><code>{ ok: true, ack: "OK:...", point: {...}, moveType: "J"|"L" }</code>;
+        a rejected-but-replied ack (robot responded, not with <code>OK:</code>) is
+        <code>{ ok: false, ack, point, moveType }</code> — no <code>error</code> field</dd>
+        <dt>list success</dt><dd>bare array of <code>{ id, name, target }</code> (may be empty) — not wrapped in <code>{ok,...}</code></dd>
+        <dt>delete success</dt><dd><code>{ ok: true, deleted: {...point}, points: [...remaining] }</code></dd>
+        <dt>export success</dt><dd><code>{ ok: true, count, points }</code>, plus <code>savedTo</code> when a file path was given</dd>
+        <dt>import success</dt><dd><code>{ ok: true, count, loadedFrom }</code> (<code>loadedFrom</code> is <code>null</code> when imported directly from the payload)</dd>
+        <dt>any failure</dt><dd><code>{ ok: false, error: "..." }</code></dd>
+    </dl>
+
+    <h3>Move type (go only)</h3>
+    <p><b>Joint (MoveJ)</b> — joint-interpolated; more predictable/reliable since it won't fault
+    or slow drastically near a singularity. Default whenever unset or invalid.</p>
+    <p><b>Linear (MoveL)</b> — straight-line TCP path; can hit singularities/joint limits a joint
+    move would route around.</p>
+
+    <h3>Chaining two of these nodes</h3>
+    <p>Unlike <b>gofa-rapid-exec</b>, none of this node's success payloads include an
+    <code>action</code> field, and none reuse the exact field names its own override logic reads
+    (<code>path</code>/<code>savePath</code>/<code>loadPath</code> vs. output's
+    <code>savedTo</code>/<code>loadedFrom</code>) — so wiring one instance straight into another
+    is not currently known to misfire the way <b>gofa-rapid-exec</b>/<b>gofa-asi-led</b> can.
+    Still, since the resolved action always comes from <code>msg.payload.action</code>, an
+    upstream node that happens to set that field will override whichever action is configured
+    here — same override mechanism, applied deliberately.</p>
 
     <h3>Notes</h3>
-    <p>Points are stored on the Node-RED host (not on the controller). <b>Security Note:</b> Like the Node-RED core file node, this node allows reading/writing to arbitrary file paths specified by the incoming payload.</p>
+    <p><b>export</b>/<b>import</b>: like the Node-RED core <code>file</code> node, this allows
+    reading/writing arbitrary file paths given in the incoming payload — same security
+    consideration as the original standalone <code>gofa-points</code> node.</p>
 </script>

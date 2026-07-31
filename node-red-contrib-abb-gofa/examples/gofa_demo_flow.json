@@ -1610,7 +1610,8 @@
     },
     {
         "id": "e872ded62773f0bd",
-        "type": "gofa-save-point",
+        "type": "gofa-points",
+        "action": "save",
         "z": "a520b411b857ec3c",
         "g": "220d685a24069293",
         "name": "1. Save Current Pose",
@@ -1669,13 +1670,13 @@
     },
     {
         "id": "28a3cba44de10caa",
-        "type": "gofa-save-point",
+        "type": "gofa-points",
+        "action": "save",
         "z": "a520b411b857ec3c",
         "g": "220d685a24069293",
         "name": "1b. Save Current Pose (On-Robot)",
         "robot": "cfg1",
         "pointName": "",
-        "storage": "remote",
         "x": 1000,
         "y": 715,
         "wires": [
@@ -1729,7 +1730,8 @@
     },
     {
         "id": "081de24632110cd6",
-        "type": "gofa-point-list",
+        "type": "gofa-points",
+        "action": "list",
         "z": "a520b411b857ec3c",
         "g": "feec6542cfd99499",
         "name": "2. List All Points",
@@ -1787,7 +1789,8 @@
     },
     {
         "id": "147acb27186a6aae",
-        "type": "gofa-go-point",
+        "type": "gofa-points",
+        "action": "go",
         "z": "a520b411b857ec3c",
         "g": "fafb15f93f64a3a5",
         "name": "3. Go to Point",
@@ -1846,14 +1849,14 @@
     },
     {
         "id": "19cacaa80ccd65f3",
-        "type": "gofa-go-point",
+        "type": "gofa-points",
+        "action": "go",
         "z": "a520b411b857ec3c",
         "g": "fafb15f93f64a3a5",
         "name": "3b. Go to Point (On-Robot)",
         "robot": "cfg1",
         "pointName": "Point 1",
         "moveType": "J",
-        "storage": "remote",
         "x": 3465,
         "y": 1867,
         "wires": [
@@ -1907,7 +1910,8 @@
     },
     {
         "id": "d02733b447911ac0",
-        "type": "gofa-delete-point",
+        "type": "gofa-points",
+        "action": "delete",
         "z": "a520b411b857ec3c",
         "g": "feec6542cfd99499",
         "name": "4. Delete Point",
@@ -1966,12 +1970,12 @@
     },
     {
         "id": "a2cad4e4dbf6947f",
-        "type": "gofa-point-list",
+        "type": "gofa-points",
+        "action": "list",
         "z": "a520b411b857ec3c",
         "g": "feec6542cfd99499",
         "name": "2b. List All Points (On-Robot)",
         "robot": "cfg1",
-        "storage": "remote",
         "x": 5425,
         "y": 155,
         "wires": [
@@ -2025,13 +2029,13 @@
     },
     {
         "id": "f67f49016ad60e07",
-        "type": "gofa-delete-point",
+        "type": "gofa-points",
+        "action": "delete",
         "z": "a520b411b857ec3c",
         "g": "feec6542cfd99499",
         "name": "4b. Delete Point (On-Robot)",
         "robot": "cfg1",
         "pointName": "Demo Point",
-        "storage": "remote",
         "x": 5425,
         "y": 265,
         "wires": [
@@ -2184,7 +2188,6 @@
         "dwell": 1000,
         "loop": false,
         "pingpong": false,
-        "storage": "remote",
         "x": 3465,
         "y": 2042,
         "wires": [

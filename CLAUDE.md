@@ -1077,11 +1077,11 @@ fetch resolves) could each append their own signal list into the same, already-p
 `<select>`, producing duplicate options. Fixed by re-clearing the list inside `.done()` too, so
 whichever response lands last always rebuilds from a clean slate regardless of ordering.
 
-## Nodes (43 total)
+## Nodes (39 total)
 
 | Node | Transport | Description |
 |------|-----------|-------------|
-| `gofa-robot` | config | Shared config: IP, RWS port 443, socket port 1025, creds, local points file, remote (on-robot) points path, optional per-axis **Joint Limits** override (see the joint soft-limit note below). Config dialog has a **Discover** button (admin endpoint `/gofa-robot/discover` → `discover()` LAN scan, verifies ABB via WWW-Authenticate realm) |
+| `gofa-robot` | config | Shared config: IP, RWS port 443, socket port 1025, creds, on-robot points path (the only point storage this palette has — see the "Saved points format" section below), optional per-axis **Joint Limits** override (see the joint soft-limit note below). Config dialog has a **Discover** button (admin endpoint `/gofa-robot/discover` → `discover()` LAN scan, verifies ABB via WWW-Authenticate realm) |
 | `gofa-setup` | RWS + Socket | One-click first-run init: preflight (must be Auto mode — RWS can't change opmode) → stop RAPID → unload conflicting MainModule/MainModuleEGM sibling → upload bundled `.mod` (SERVER_IP auto-synced) → loadmod → resetpp → **reload T_LED/BackgroundLed.mod if present** (stop via DO15 TRAP → upload → loadmod → resetpp, best-effort/non-fatal — see "Background LED task" section) → motors on → start (verified by polling, HTTP 200 lies) → socket PING (also compares the module's reported version against the palette's, warning in that step's `detail` on drift — see the "Module version handshake" note below) → **confirm T_LED started → ping T_LED**. Per-step `{name, ok, detail}` report; `outputPayload` defaults **true** (the report is the point). Module files read from the package's own `rapid/` dir (synced by prepack.js) |
 | `gofa-status` | RWS | Reads ctrlstate, opmode, speedratio, RAPID execstate |
 | `gofa-connection-status` | RWS + Socket + Background | Checks RWS (4 calls), the T_ROB1 TCP socket ping, and the `BackgroundLed.mod` background-task ping independently — each failure is caught and reported per-layer instead of the whole node throwing on the first one down. `msg.payload.background` distinguishes "T_ROB1 specifically stopped" from "whole controller unreachable". `msg.payload.moduleVersion` reports each ping's module version vs. the palette's own (`match`/`mismatch`/`unknown` — see the "Module version handshake" note below); a mismatch (but otherwise-healthy) result sets yellow status instead of green. `msg.payload.egmActive` mirrors `robot._egmActive` — needed so a consumer polling this node (like `flows/watchdog_flow.json`) doesn't mistake an active EGM session's `{rapid:'running', socket down}` shape for a genuine wedge. Unlike `gofa-status`, a degraded/unreachable result is still a successful run (no Node-RED error raised), so it's safe to poll on a timer — this is what `flows/watchdog_flow.json` polls. |
@@ -1099,12 +1099,8 @@ whichever response lands last always rebuilds from a clean slate regardless of o
 | `gofa-speed-set` | Socket | Global speed override via RAPID's `VelSet` (not `SpeedRefresh` — see the `SPEED`/`SpeedRefresh` note above for why); Action dropdown — Set (`speed` cmd) or Read current (`getspeed` cmd, reads `C_MOTSET.vel.oride`, genuinely reflects Set). Neither needs mastership; both need RAPID running. `msg.payload` accepts `{speed}`/`{action}` object-form overrides, matching the rest of the palette's override convention. **Chaining hazard**: its own `{ok, action, speed}` output can be misread as another instance's `action` override — same class as `gofa-rapid-exec`/`gofa-asi-led` |
 | `gofa-stop-motion` | RWS + Socket | Halt motion. **Mode** dropdown (2.4.12): `immediate` (default) = RWS `execution/stop` → `resetpp` → `start` — halts an in-progress `HOME`/`GOTOJ`/`GOTOL`/`MOVEJ`/`MOVEL` now, arm stays put, socket auto-recovers (needs Auto + motors on); `queued` is the legacy socket `STOP` (only cancels a not-yet-started move). See the "Mid-move STOP" note above |
 | `gofa-ping` | Socket | Connectivity test, measures round-trip time |
-| `gofa-save-point` | RWS + disk/RWS | Read pose via RWS, save as named point in `points.json` (Local) or a JSON file on the robot's own disk (On-Robot) |
-| `gofa-go-point` | Socket + disk/RWS | Look up saved point (Local `points.json` or On-Robot file), send GOTO token; move type (MoveJ/MoveL) selectable per-node or per-message |
-| `gofa-point-list` | disk/RWS | Output full saved-point array, from `points.json` (Local) or the robot's own disk (On-Robot) |
-| `gofa-delete-point` | disk/RWS | Remove a saved point by name, from `points.json` (Local) or the robot's own disk (On-Robot) |
-| `gofa-points` | disk | Dump points list to `msg.payload` (action `export`) or **replace** it from `msg.payload`/file (action `import`) — local storage only. Bare-string payload stays a file path (NOT an action override); only `msg.payload.action` overrides |
-| `gofa-sequencer` | Socket + disk/RWS | Visit saved points in order (Local `points.json` or On-Robot file); per-step dwell + move type override, loop count, ping-pong, startStep |
+| `gofa-points` | RWS + Socket + RWS fileservice | **Combines the former `gofa-save-point`/`gofa-go-point`/`gofa-point-list`/`gofa-delete-point`/`gofa-points` (removed, 2.5.0) into one node**, selected via an **Action** dropdown: `save` (read pose via RWS, save as named point on the robot controller's disk), `go` (look up a saved point, send GOTO token; move type Joint/Linear per-node or per-message), `list` (output the full saved-point array), `delete` (remove a saved point by name) — all always on-robot, no local storage (removed 2.5.0, same day as the merge). `export`/`import` read/**replace** that same on-robot list, optionally also reading/writing a backup file on the Node-RED host. Only `msg.payload.action` (an object field) overrides the action; a bare-string `msg.payload` means the point name for save/go/delete or the file path for export/import (never an action override), matching each original single-purpose node's own convention. See the "Combined points node" section below |
+| `gofa-sequencer` | Socket + RWS fileservice | Visit saved points (always on-robot, no local storage — removed 2.5.0) in order; per-step dwell + move type override, loop count, ping-pong, startStep |
 | `gofa-stop-seq` | Socket + in-memory | Sets `_seqStop` flag and sends immediate `STOP` socket command |
 | `gofa-rapid-exec` | RWS | Start/stop/resetPP/loadmod/unloadmod/activate RAPID program *(requires Remote Start/Stop UAS grants; resetpp/loadmod/unloadmod/activate need Edit mastership, granted automatically)* |
 | `gofa-rapid-var-read` | Socket | Read a RAPID PERS variable via `GETVAR:<name>` socket command |
@@ -1127,15 +1123,142 @@ whichever response lands last always rebuilds from a clean slate regardless of o
 
 ## Saved points format
 
-Stored in `points.json` on the Node-RED host by default (local storage):
+**Every point lives on the robot controller's own disk (2.5.0+) — there is no local/Node-RED-host
+point storage.** Stored as a JSON file at `gofa-robot`'s **Remote Points Path** (default
+`$HOME/Programs/gofa_points.json`), managed purely over RWS `fileservice` `GET`/`PUT`
+(`gofa-robot.js`'s `remoteGetPoints`/`remoteAddPoint`/`remoteDeletePoint`/`remoteFindPoint`/
+`remoteSavePoints`), the exact mechanism `gofa-file` already uses:
 ```json
 [{ "id": "uuid", "name": "pick1", "target": { "x":323.2, "y":-81.8, "z":807.0, "q1":0.267, "q2":0.129, "q3":0.954, "q4":-0.053, "cf1":-1, "cf4":-1, "cf6":0, "cfx":0 } }]
 ```
-GOTO token rounds to 1 dp (xyz) / 4 dp (quaternion) to stay under RAPID's 80-char string limit. RAPID re-normalizes the quaternion on receipt.
+GOTO token rounds to 1 dp (xyz) / 4 dp (quaternion) to stay under RAPID's 80-char string limit. RAPID re-normalizes the quaternion on receipt. This does **not** touch `MainModule.mod` or RAPID at all — movement (`gotoToken()`/`socketSend()`, the `GOTOJ`/`GOTOL` socket protocol) doesn't know or care where the point came from, only its `target` fields.
 
-**On-robot storage note**: `gofa-save-point`/`gofa-go-point`/`gofa-delete-point`/`gofa-point-list`/`gofa-sequencer` all have a **Storage: Local / On-Robot** option (`msg.payload.storage` override, `'local'`/`'remote'`). On-Robot stores the exact same JSON shape above in a file on the robot controller's own disk (`gofa-robot`'s **Remote Points Path**, default `$HOME/Programs/gofa_points.json`) instead of `points.json` — no local file needed on the Node-RED host. This does **not** touch `MainModule.mod` or RAPID at all: the file is managed purely over RWS `fileservice` `GET`/`PUT` (`gofa-robot.js`'s `remoteGetPoints`/`remoteAddPoint`/`remoteDeletePoint`/`remoteFindPoint`/`remoteSavePoints`), the exact mechanism `gofa-file` already uses. Movement is completely unaffected either way — `gotoToken()`/`socketSend()` and the `GOTOJ`/`GOTOL` socket protocol don't know or care where the point came from.
+Originally considered storing the list *inside* RAPID (new socket commands reading/writing a file from within `MainModule.mod`), but RAPID's `string` type has a hard 80-character cap (see the GOTO-token rounding above) that a growing list of named points would blow past for more than a point or two — confirmed live: `GET`/`PUT /fileservice/$HOME/Programs/gofa_points_test.json` round-trips a JSON list with no RAPID string involved at all (plain HTTP), which sidesteps the limit entirely. Two things confirmed live building this: `GET` on a missing file is a clean `404` (`rapi_file_service.cpp: Path does not exist`) — treated as `[]`; `PUT` **requires** `Content-Type: text/plain;v=2.0` or `application/octet-stream;v=2.0` — `application/json` is rejected (`415`, and the error body itself names the two valid options). No concurrent-write protection on the remote file — acceptable for a human-paced "teach a point" workflow, not built.
 
-Originally considered storing the list *inside* RAPID (new socket commands reading/writing a file from within `MainModule.mod`), but RAPID's `string` type has a hard 80-character cap (see the GOTO-token rounding above) that a growing list of named points would blow past for more than a point or two — confirmed live: `GET`/`PUT /fileservice/$HOME/Programs/gofa_points_test.json` round-trips a JSON list with no RAPID string involved at all (plain HTTP), which sidesteps the limit entirely. Two things confirmed live building this: `GET` on a missing file is a clean `404` (`rapi_file_service.cpp: Path does not exist`) — treated as `[]`; `PUT` **requires** `Content-Type: text/plain;v=2.0` or `application/octet-stream;v=2.0` — `application/json` is rejected (`415`, and the error body itself names the two valid options). No concurrent-write protection on the remote file (unlike local storage's changed-on-disk mtime check) — acceptable for a human-paced "teach a point" workflow, not built.
+**Local (Node-RED-host `points.json`) storage removed, same day as the `gofa-points` merge above,
+by direct user request** ("let save point only inside the robot controller disk, remove
+everything about it"). Removed from `gofa-robot.js` entirely: the `pointsFile` config field,
+`_points`/`_pointsMtime` in-memory state, `_loadPoints`/`_savePoints`/`getPoints`/`addPoint`/
+`deletePoint`/`findPoint`/`replacePoints`, the `atomicWriteFileSync`/`fileMtimeMs` utilities (only
+ever used by the now-gone local storage — genuinely dead code once it left, not kept "just in
+case"), and the `/gofa-robot/:id/points` admin route. `gofa-points`'s Storage dropdown is gone —
+`save`/`go`/`list`/`delete` are unconditionally on-robot now. `gofa-sequencer` had the identical
+option (`storage: 'local'|'remote'`) for resolving its step list and lost it the same way — it
+now always calls `remoteGetPoints()`. **`export`/`import` were repurposed, not removed**: export
+now reads the on-robot list via `remoteGetPoints()` (optionally still writing a backup copy to a
+file on the Node-RED host — that file is just a plain backup, unrelated to where points actually
+live); import validates (the same field checks the old local-only `replacePoints()` used to do,
+now living directly in `gofa-points.js` as `validatePointsArray()`, since `remoteSavePoints()`
+itself does no validation) and then calls `remoteSavePoints()` to REPLACE the robot's on-disk
+list. All `flows/`/`examples/` node instances had their now-meaningless `"storage"` field
+stripped for cleanliness (harmless either way — the runtime never reads it).
+
+## Combined points node (`gofa-points`, 2.5.0)
+
+**`gofa-save-point`, `gofa-go-point`, `gofa-point-list`, and `gofa-delete-point` were removed and
+folded into `gofa-points` as new Action-dropdown options** (`save`/`go`/`list`/`delete`, alongside
+the original `export`/`import`), per a direct user request to combine the point-related nodes
+into one node with an Action dropdown instead of five separate node types. `nodes/gofa-points.js`
+now holds six `do*` action functions (`doSave`/`doGo`/`doList`/`doDelete`/`doExport`/`doImport`)
+shared by both the runtime `on('input')` handler and a single consolidated admin route
+(`POST /gofa-points/:id/run`, replacing the five old separate admin endpoints) — same
+"shared action function, thin dispatcher" pattern as `gofa-egm`'s `start`/`stop`, chosen over
+`gofa-rapid-exec`'s grouped-if/else-if style since these six actions don't share preconditions
+the way `loadmod`/`unloadmod`/`activate` do.
+
+**Payload contract, deliberately NOT the `gofa-rapid-exec`/`gofa-motor` bare-string-is-the-action
+convention.** Only `msg.payload.action` (an object field) selects the action — a bare string
+`msg.payload` never does. This preserves the original standalone `gofa-points` node's own
+documented exception ("a bare string is a file path, not an action override") rather than
+breaking it, and extends the same idea to the newly-folded actions: a bare string means the point
+name for `save`/`go`/`delete`, the file path for `export`/`import`, and is ignored by `list`. This
+is a deliberate behavior refinement over the original separate nodes, not just a copy-paste: the
+original `gofa-go-point`/`gofa-delete-point` runtime handlers read `msg.payload.name` but *never*
+a bare string (a string has no `.name` property, so it silently fell through to the configured
+default) — likely an accidental inconsistency nobody relied on, now made consistent with
+`gofa-save-point`'s bare-string-is-the-name behavior across all three per-point actions.
+
+**Real bug caught mid-build, worth remembering for any future merge of this shape**: the admin
+routes for `gofa-save-point`/`gofa-go-point`/`gofa-point-list`/`gofa-delete-point` had defensive
+`typeof robot.X !== 'function'` guards (a friendlier 400 instead of a raw crash if the config node
+wasn't fully set up) that the **runtime `on('input')` handlers never had**. Naively hoisting each
+node's admin-route logic into the new shared `do*` functions carried those guards into the
+runtime path too, which is a real behavior change, not a refactor — it broke test mocks that
+intentionally omit a method (e.g. a duplicate-name-error test whose mock has `remoteAddPoint` but
+not `remoteGetPoints`, since the original runtime handler never reached that method on the
+error path either). Fixed by stripping all such guards from the shared functions — a missing
+method now throws a plain `TypeError` inside a `.then()` callback, which is automatically caught
+as a promise rejection by both call sites' existing `.catch()`, so admin-route friendliness is
+lost only in this one rare edge case (a not-fully-initialized config node), while runtime
+behavior for every action stays byte-for-byte identical to the five original nodes. Caught by
+running the (migrated) test suite, not by inspection — a reminder that merging near-duplicate
+runtime-handler + admin-route pairs needs the runtime and admin variants checked *separately*
+for which defensive checks each one actually had.
+
+**No known chaining hazard** (unlike `gofa-rapid-exec`/`gofa-asi-led`, see their notes above):
+none of the six actions' success payloads include an `action` field, and the field names used for
+overrides (`path`/`savePath`/`loadPath`) are distinct from the field names used in output
+(`savedTo`/`loadedFrom`) — chosen specifically to avoid the same collision class. Not yet
+live-verified by actually chaining two instances back-to-back, just verified by inspection of the
+field names on both sides.
+
+**Confirmed live end-to-end 2026-07-31** (GoFa 12 / OmniCore C30, RobotWare 7.21.0+229, IP had
+drifted to `192.168.20.59`), driving the real `gofa-points.js` node file (not a reimplementation)
+via the same fake-RED harness pattern `test.js` uses. Full sequence, all against a dedicated
+scratch local points file and a dedicated on-robot test filename (never the user's real
+`points.json`/`gofa_points.json`): `list` (empty) → `save` (real RWS pose read) → `list` (1 point)
+→ `go` to a manually-offset point (+30mm Z, ~3cm, at a 20% `VelSet` speed cap — real physical
+motion, confirmed by RD2 watching the robot) → `go` back to the original captured pose (speed
+restored to 100% after) → `export` (to a scratch file, read-only w.r.t. real data) → `delete` →
+`list` (empty again) → the same `save`/`list`/`delete` round trip repeated with `storage: 'remote'`
+against a dedicated on-robot test file. Every action passed; `import` was deliberately not
+live-tested (it's local-file-only, touches no robot hardware, and is destructive to the real
+points list — already thoroughly covered by the unit suite, so a live round trip adds no
+verification value proportional to its risk).
+
+**Found and fixed a real, unrelated bug in the process — a stale `SERVER_IP`, not the previously
+suspected socket-wedge bug.** The live test's first socket `PING` timed out even though RWS
+reported `RAPID: running` — the exact `{rws.ok, rapid:'running', socket down}` shape this
+project's watchdog flow treats as a genuine wedge (see the "Module version handshake + watchdog
+flow" section). A manual `stop`/`resetpp`/`start` recovery cycle (the watchdog's own fix) did
+**not** clear it, which pointed at a different, already-documented cause instead: the robot's IP
+had drifted (again — see the `reference_robot_ip_drift` pattern) to `192.168.20.59`, while the
+module actually running on the controller still had an older `SERVER_IP` baked in from whenever
+it was last loaded — exactly the "`SocketBind` silently fails, every socket command times out
+with no error" failure mode the `SERVER_IP note` above describes. Running `gofa-setup` (which
+`patchServerIp`-rewrites `SERVER_IP` to the configured IP on every upload) fixed it immediately —
+confirmed via the step report's `"upload MainModule.mod": "... SERVER_IP → 192.168.20.59"` and a
+subsequent clean socket `PING`. Same `gofa-setup` run also confirmed the `2.5.0` version-handshake
+bump deployed correctly: final steps reported `"OK (module v2.5.0)"` for both `T_ROB1`'s socket
+and `T_LED`'s background-task socket. **Lesson for next time this symptom appears**: check
+`SERVER_IP`-vs-actual-IP drift *before* assuming it's the unexplained wedge bug — a full
+stop/resetpp/start recovery cycle that does nothing is itself a useful signal the cause is
+elsewhere, since that recovery is exactly what fixes a genuine wedge.
+
+The editor panel's new single "Run Action Now" button/point-selector proxy dropdown
+(`#node-select-pointName` mirrors into the real bound field `#node-input-pointName`, needed
+because the Point Name text field and the Point selector `<select>` can't share one `id`) was
+**not** separately live-tested — only the six actions' underlying `on('input')` behavior was, via
+the same code path the editor's admin route also calls.
+
+**Migration**: `flows/`/`examples/` example flows updated (their `gofa-save-point`/`gofa-go-point`/
+`gofa-point-list`/`gofa-delete-point` node instances now have `"type": "gofa-points"` plus the
+matching `"action"` field; existing `robot`/`pointName`/`moveType`/`outputPayload` config fields
+were left untouched since the new node reuses the same field names). The same day, local point
+storage was removed entirely (see the "Saved points format" section above) — every migrated
+node's now-meaningless `"storage"` field was stripped from `flows/`/`examples/` (and this repo
+maintainer's own real local `~/.node-red/flows.json`, backed up first) in the same pass. Any
+external/deployed flow still referencing one of the four removed types will need the same
+mechanical edit — there is no compatibility shim (per user request, replace-not-alias). Bumped to
+2.5.0 (no RAPID/socket-protocol change, so no `MODULE_VERSION` bump — this is Node-RED/admin-route
+code only).
+
+**Confirmed live same day (2026-07-31)**, driving the real `gofa-points.js` against the robot at
+`192.168.20.59` with a dedicated on-robot test filename (never the real `gofa_points.json`):
+`save` → `export` (no path) → `export` (with a backup-file path on the Node-RED host) → `import`
+(from that backup file, replacing the on-robot test list) → `list` (confirms the round trip) — all
+passed, no motion involved. This is the repurposed export/import behavior specifically; the
+save/go/list/delete actions themselves were already confirmed live in the merge session above.
 
 ## RWS key endpoints
 

@@ -8,8 +8,6 @@ var robot  = require('./nodes/gofa-robot');
 var gotoToken           = robot.gotoToken;
 var gotoObj             = robot.gotoObj;
 var parseXhtml          = robot.parseXhtml;
-var atomicWriteFileSync = robot.atomicWriteFileSync;
-var fileMtimeMs         = robot.fileMtimeMs;
 var resolveMoveType     = robot.resolveMoveType;
 var createRobotClient   = robot.createRobotClient;
 var patchServerIp       = require('./nodes/lib/patch-server-ip');
@@ -188,61 +186,14 @@ check('parseLiSpans: returns empty array when no matching li blocks', function()
     assert.deepStrictEqual(parseLiSpans('<ul></ul>', 'rap-task-li', ['name']), []);
 });
 
-// ── gofa-robot: atomic points.json writes ───────────────────────────────────
-check('atomicWriteFileSync: writes file with given contents', function() {
-    var f = path.join(tmpDir, 'atomic-a.json');
-    atomicWriteFileSync(f, '{"x":1}');
-    assert.strictEqual(fs.readFileSync(f, 'utf8'), '{"x":1}');
-});
-check('atomicWriteFileSync: overwrites existing file cleanly', function() {
-    var f = path.join(tmpDir, 'atomic-b.json');
-    fs.writeFileSync(f, 'old');
-    atomicWriteFileSync(f, 'new');
-    assert.strictEqual(fs.readFileSync(f, 'utf8'), 'new');
-});
-check('atomicWriteFileSync: leaves no leftover temp files', function() {
-    var f = path.join(tmpDir, 'atomic-c.json');
-    atomicWriteFileSync(f, 'data');
-    var leftovers = fs.readdirSync(tmpDir).filter(function(n) { return n.indexOf('.tmp') >= 0; });
-    assert.deepStrictEqual(leftovers, []);
-});
-check('fileMtimeMs: returns null for a missing file', function() {
-    assert.strictEqual(fileMtimeMs(path.join(tmpDir, 'nope.json')), null);
-});
-check('fileMtimeMs: returns a number for an existing file', function() {
-    var f = path.join(tmpDir, 'atomic-d.json');
-    fs.writeFileSync(f, 'x');
-    assert.strictEqual(typeof fileMtimeMs(f), 'number');
-});
-
-// ── gofa-robot: point management ────────────────────────────────────────────
-function makeRobotNode(pointsFile) {
-    var Ctor = loadNodeType('./nodes/gofa-robot');
-    return new Ctor({ pointsFile: pointsFile });
-}
-
-check('gofa-robot: addPoint auto-names sequential points', function() {
-    var node = makeRobotNode(path.join(tmpDir, 'points-1.json'));
-    var p1 = node.addPoint('', { x: 1 });
-    var p2 = node.addPoint('', { x: 2 });
-    assert.strictEqual(p1.name, 'Point 1');
-    assert.strictEqual(p2.name, 'Point 2');
-});
-check('gofa-robot: addPoint rejects duplicate names', function() {
-    var node = makeRobotNode(path.join(tmpDir, 'points-2.json'));
-    node.addPoint('pick1', { x: 1 });
-    var res = node.addPoint('pick1', { x: 2 });
-    assert.ok(res.error);
-});
 check('gofa-robot: jointLimits defaults to CRB 15000-12, valid override applies, invalid falls back', function() {
     var Ctor = loadNodeType('./nodes/gofa-robot');
-    var def = new Ctor({ pointsFile: path.join(tmpDir, 'jl-1.json') });
+    var def = new Ctor({});
     assert.deepStrictEqual(def.jointLimits, robot.JOINT_LIMITS);
-    var ov = new Ctor({ pointsFile: path.join(tmpDir, 'jl-2.json'),
-        jointLimits: '[[-90,90],[-90,90],[-90,90],[-90,90],[-90,90],[-90,90]]' });
+    var ov = new Ctor({ jointLimits: '[[-90,90],[-90,90],[-90,90],[-90,90],[-90,90],[-90,90]]' });
     assert.deepStrictEqual(ov.jointLimits[0], [-90, 90]);
     // malformed → keep defaults (never silently disable the check)
-    var bad = new Ctor({ pointsFile: path.join(tmpDir, 'jl-3.json'), jointLimits: 'garbage' });
+    var bad = new Ctor({ jointLimits: 'garbage' });
     assert.deepStrictEqual(bad.jointLimits, robot.JOINT_LIMITS);
 });
 check('requireAdminAuth: 403 without adminAuth; allows with override or with adminAuth', function() {
@@ -283,41 +234,6 @@ check('versionsCompatible: matches on major.minor (patch differences are compati
     assert.strictEqual(vc('garbage', '2.4.10'), false);
     assert.strictEqual(vc('2.4.10', undefined), false);
 });
-check('gofa-robot: addPoint persists to disk', function() {
-    var f = path.join(tmpDir, 'points-3.json');
-    var node = makeRobotNode(f);
-    node.addPoint('pick1', { x: 1 });
-    var onDisk = JSON.parse(fs.readFileSync(f, 'utf8'));
-    assert.strictEqual(onDisk.length, 1);
-    assert.strictEqual(onDisk[0].name, 'pick1');
-});
-check('gofa-robot: deletePoint removes by id and persists', function() {
-    var f = path.join(tmpDir, 'points-4.json');
-    var node = makeRobotNode(f);
-    var p = node.addPoint('pick1', { x: 1 });
-    node.deletePoint(p.id);
-    assert.strictEqual(node.getPoints().length, 0);
-    var onDisk = JSON.parse(fs.readFileSync(f, 'utf8'));
-    assert.strictEqual(onDisk.length, 0);
-});
-check('gofa-robot: findPoint matches by name or id, else null', function() {
-    var node = makeRobotNode(path.join(tmpDir, 'points-5.json'));
-    var p = node.addPoint('pick1', { x: 1 });
-    assert.strictEqual(node.findPoint('pick1'), p);
-    assert.strictEqual(node.findPoint(p.id), p);
-    assert.strictEqual(node.findPoint('missing'), null);
-});
-check('gofa-robot: _savePoints warns when the file changed on disk since last read', function() {
-    var f = path.join(tmpDir, 'points-6.json');
-    var node = makeRobotNode(f);
-    node.addPoint('pick1', { x: 1 }); // first save creates the file, records its mtime
-    var later = new Date(Date.now() + 5000);
-    fs.utimesSync(f, later, later); // simulate another process/config-node writing it
-    node.warnings = [];
-    node.addPoint('pick2', { x: 2 });
-    assert.ok(node.warnings.some(function(w) { return w.indexOf('changed on disk') >= 0; }));
-});
-
 // ── gofa-file: SERVER_IP injection ────────────────────────────────────
 var sampleMod = 'MODULE MainModule\n' +
                 '    CONST string SERVER_IP   := "192.168.20.15";\n' +
@@ -529,117 +445,116 @@ check('decodeEgmRobot: empty buffer decodes to empty/default fields, does not th
 // ── async node tests (drive the real 'input' handlers) ──────────────────────
 (async function() {
 
-// gofa-points ─────────────────────────────────────────────────────────
-await checkAsync('gofa-points: array payload replaces points', async function() {
-    var mockRobot = { _points: [{ id: 'old', name: 'old' }], _savePoints: function() { this._saved = true; }, replacePoints: function(arr) { this._points = arr; this._savePoints(); return arr; } };
+// gofa-points (import action) — always on-robot (remoteSavePoints); validation
+// happens inside gofa-points.js itself (validatePointsArray, not mockable), so
+// every payload below must be a genuinely valid point array unless the test is
+// specifically checking a validation failure. ─────────────────────────────────
+await checkAsync('gofa-points (import): array payload replaces points', async function() {
+    var savedPts = null;
+    var mockRobot = { remoteSavePoints: function(pts) { savedPts = pts; return Promise.resolve(); } };
     var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'import' });
-    var msg = { payload: [{ id: 'p1', name: 'p1', target: {} }] };
+    var msg = { payload: [{ id: 'p1', name: 'p1', target: sample }] };
     await runInput(node, msg);
-    assert.strictEqual(mockRobot._points.length, 1);
-    assert.strictEqual(mockRobot._points[0].name, 'p1');
-    assert.ok(mockRobot._saved);
+    assert.strictEqual(savedPts.length, 1);
+    assert.strictEqual(savedPts[0].name, 'p1');
     assert.deepStrictEqual(msg.payload, { ok: true, count: 1, loadedFrom: null });
 });
-await checkAsync('gofa-points: {points:[...]} wrapper is unwrapped', async function() {
-    var mockRobot = { _points: [], _savePoints: function() {}, replacePoints: function(arr) { this._points = arr; this._savePoints(); return arr; } };
+await checkAsync('gofa-points (import): {points:[...]} wrapper is unwrapped', async function() {
+    var savedPts = null;
+    var mockRobot = { remoteSavePoints: function(pts) { savedPts = pts; return Promise.resolve(); } };
     var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'import' });
-    await runInput(node, { payload: { points: [{ id: 'p1', name: 'p1' }] } });
-    assert.strictEqual(mockRobot._points.length, 1);
+    await runInput(node, { payload: { points: [{ id: 'p1', name: 'p1', target: sample }] } });
+    assert.strictEqual(savedPts.length, 1);
 });
-await checkAsync('gofa-points: loads from a file path in msg.payload', async function() {
+await checkAsync('gofa-points (import): loads from a file path in msg.payload', async function() {
     var f = path.join(tmpDir, 'import-1.json');
-    fs.writeFileSync(f, JSON.stringify([{ id: 'p1', name: 'p1' }]));
-    var mockRobot = { _points: [], _savePoints: function() {}, replacePoints: function(arr) { this._points = arr; this._savePoints(); return arr; } };
+    fs.writeFileSync(f, JSON.stringify([{ id: 'p1', name: 'p1', target: sample }]));
+    var savedPts = null;
+    var mockRobot = { remoteSavePoints: function(pts) { savedPts = pts; return Promise.resolve(); } };
     var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'import' });
     var msg = { payload: f };
     await runInput(node, msg);
-    assert.strictEqual(mockRobot._points.length, 1);
+    assert.strictEqual(savedPts.length, 1);
     assert.strictEqual(msg.payload.loadedFrom, f);
 });
-await checkAsync('gofa-points: missing file reports an error', async function() {
-    var mockRobot = { _points: [], _savePoints: function() {}, replacePoints: function(arr) { this._points = arr; this._savePoints(); return arr; } };
+await checkAsync('gofa-points (import): missing file reports an error', async function() {
+    var mockRobot = { remoteSavePoints: function() { return Promise.resolve(); } };
     var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'import' });
     var err = await runInput(node, { payload: path.join(tmpDir, 'missing.json') });
     assert.ok(err);
     assert.ok(node.errors.length > 0);
 });
-await checkAsync('gofa-points: missing robot config reports an error', async function() {
+await checkAsync('gofa-points (import): missing robot config reports an error', async function() {
     var node = new (loadNodeType('./nodes/gofa-points', { nodesById: {} }))({ robot: 'nope', action: 'import' });
     await runInput(node, { payload: [] });
     assert.ok(node.errors.length > 0);
 });
-await checkAsync('gofa-points: importing missing target is rejected', async function() {
-    var pointsFile = path.join(tmpDir, 'points-import-invalid.json');
-    fs.writeFileSync(pointsFile, JSON.stringify([{ id: 'old', name: 'old', target: sample }]));
-    var robotNode = makeRobotNode(pointsFile);
-    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: robotNode } }))({ robot: 'r1', action: 'import' });
+await checkAsync('gofa-points (import): importing missing target is rejected, nothing is written', async function() {
+    var saveCalls = 0;
+    var mockRobot = { remoteSavePoints: function() { saveCalls++; return Promise.resolve(); } };
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'import' });
     var err = await runInput(node, { payload: [{ name: 'p1' }] });
     assert.ok(err);
     assert.ok(node.errors.length > 0);
-    assert.strictEqual(robotNode.getPoints().length, 1);
-    assert.strictEqual(robotNode.getPoints()[0].name, 'old');
+    assert.strictEqual(saveCalls, 0, 'must not call remoteSavePoints when validation fails');
 });
-await checkAsync('gofa-points: importing non-numeric target field is rejected', async function() {
-    var pointsFile = path.join(tmpDir, 'points-import-nonnum.json');
-    fs.writeFileSync(pointsFile, JSON.stringify([{ id: 'old', name: 'old', target: sample }]));
-    var robotNode = makeRobotNode(pointsFile);
-    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: robotNode } }))({ robot: 'r1', action: 'import' });
+await checkAsync('gofa-points (import): importing non-numeric target field is rejected, nothing is written', async function() {
+    var saveCalls = 0;
+    var mockRobot = { remoteSavePoints: function() { saveCalls++; return Promise.resolve(); } };
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'import' });
     var invalidPoints = [{ name: 'p1', target: { x: 'abc', y: 0, z: 0, q1: 0, q2: 0, q3: 0, q4: 0, cf1: 0, cf4: 0, cf6: 0, cfx: 0 } }];
     var err = await runInput(node, { payload: invalidPoints });
     assert.ok(err);
     assert.ok(node.errors.length > 0);
-    assert.strictEqual(robotNode.getPoints().length, 1);
-    assert.strictEqual(robotNode.getPoints()[0].name, 'old');
+    assert.strictEqual(saveCalls, 0, 'must not call remoteSavePoints when validation fails');
 });
-await checkAsync('gofa-points: importing fully valid array succeeds', async function() {
-    var pointsFile = path.join(tmpDir, 'points-import-valid.json');
-    fs.writeFileSync(pointsFile, JSON.stringify([]));
-    var robotNode = makeRobotNode(pointsFile);
-    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: robotNode } }))({ robot: 'r1', action: 'import' });
+await checkAsync('gofa-points (import): importing fully valid array succeeds', async function() {
+    var savedPts = null;
+    var mockRobot = { remoteSavePoints: function(pts) { savedPts = pts; return Promise.resolve(); } };
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'import' });
     var validPoints = [{ id: 'p1', name: 'p1', target: sample }];
     var msg = { payload: validPoints };
     await runInput(node, msg);
-    assert.strictEqual(robotNode.getPoints().length, 1);
-    assert.strictEqual(robotNode.getPoints()[0].name, 'p1');
+    assert.strictEqual(savedPts.length, 1);
+    assert.strictEqual(savedPts[0].name, 'p1');
     assert.deepStrictEqual(msg.payload, { ok: true, count: 1, loadedFrom: null });
 });
-await checkAsync('gofa-points: importing valid element missing id auto-assigns id', async function() {
-    var pointsFile = path.join(tmpDir, 'points-import-missingid.json');
-    fs.writeFileSync(pointsFile, JSON.stringify([]));
-    var robotNode = makeRobotNode(pointsFile);
-    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: robotNode } }))({ robot: 'r1', action: 'import' });
+await checkAsync('gofa-points (import): importing valid element missing id auto-assigns id', async function() {
+    var savedPts = null;
+    var mockRobot = { remoteSavePoints: function(pts) { savedPts = pts; return Promise.resolve(); } };
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'import' });
     var validPoints = [{ name: 'p1', target: sample }, { name: 'p2', target: sample }];
     await runInput(node, { payload: validPoints });
-    var pts = robotNode.getPoints();
-    assert.strictEqual(pts.length, 2);
-    assert.strictEqual(pts[0].name, 'p1');
-    assert.ok(pts[0].id.startsWith('p'));
-    assert.strictEqual(pts[1].name, 'p2');
-    assert.ok(pts[1].id.startsWith('p'));
-    assert.notStrictEqual(pts[0].id, pts[1].id, 'auto-assigned IDs should not collide');
+    assert.strictEqual(savedPts.length, 2);
+    assert.strictEqual(savedPts[0].name, 'p1');
+    assert.ok(savedPts[0].id.startsWith('p'));
+    assert.strictEqual(savedPts[1].name, 'p2');
+    assert.ok(savedPts[1].id.startsWith('p'));
+    assert.notStrictEqual(savedPts[0].id, savedPts[1].id, 'auto-assigned IDs should not collide');
 });
 
-// gofa-points ─────────────────────────────────────────────────────────
-await checkAsync('gofa-points export: no savePath just outputs the points', async function() {
-    var mockRobot = { getPoints: function() { return [{ id: 'p1', name: 'p1' }]; } };
-    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+// gofa-points (export action) — always reads the on-robot list via remoteGetPoints;
+// optionally also backs it up to a file on the Node-RED host. ─────────────────
+await checkAsync('gofa-points (export): no savePath just outputs the points', async function() {
+    var mockRobot = { remoteGetPoints: function() { return Promise.resolve([{ id: 'p1', name: 'p1' }]); } };
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'export' });
     var msg = { payload: null };
     await runInput(node, msg);
     assert.deepStrictEqual(msg.payload.points, [{ id: 'p1', name: 'p1' }]);
     assert.strictEqual(msg.payload.savedTo, undefined);
 });
-await checkAsync('gofa-points export: savePath writes the file to disk', async function() {
+await checkAsync('gofa-points (export): savePath writes a backup file to disk', async function() {
     var f = path.join(tmpDir, 'export-1.json');
-    var mockRobot = { getPoints: function() { return [{ id: 'p1', name: 'p1' }]; } };
-    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+    var mockRobot = { remoteGetPoints: function() { return Promise.resolve([{ id: 'p1', name: 'p1' }]); } };
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'export' });
     var msg = { payload: f };
     await runInput(node, msg);
     assert.strictEqual(msg.payload.savedTo, f);
     assert.strictEqual(JSON.parse(fs.readFileSync(f, 'utf8')).length, 1);
 });
-await checkAsync('gofa-points export: write failure reports an error', async function() {
-    var mockRobot = { getPoints: function() { return []; } };
-    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+await checkAsync('gofa-points (export): write failure reports an error', async function() {
+    var mockRobot = { remoteGetPoints: function() { return Promise.resolve([]); } };
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'export' });
     var badPath = path.join(tmpDir, 'nope-dir', 'x.json');
     var err = await runInput(node, { payload: badPath });
     assert.ok(err);
@@ -651,7 +566,7 @@ await checkAsync('gofa-points export: write failure reports an error', async fun
 // the only two methods remoteGetPoints/remoteAddPoint/etc actually call, so
 // this exercises the real remote* method bodies, not a reimplementation.
 function makeRemoteRobotNode(fileState) {
-    var node = makeRobotNode(path.join(tmpDir, 'unused-remote-points.json'));
+    var node = new (loadNodeType('./nodes/gofa-robot'))({});
     var stored = fileState.exists ? JSON.stringify(fileState.points || []) : null;
     node.requestRaw = function(method) {
         if (method !== 'GET') return Promise.reject(new Error('unexpected requestRaw ' + method));
@@ -723,82 +638,65 @@ await checkAsync('gofa-robot: remoteFindPoint matches by name or id, else null',
     assert.strictEqual(await node.remoteFindPoint('nope'), null);
 });
 
-// gofa-go-point ──────────────────────────────────────────────────────────────
+// gofa-points (go action) — always on-robot (remoteFindPoint) ─────────────────
 function makeGoPointRobot(pt) {
     var calls = [];
     return {
-        findPoint: function() { return pt; },
+        remoteFindPoint: function() { return Promise.resolve(pt); },
         gotoObj: function(target, moveType) { calls.push(moveType); return { cmd: 'goto' + (moveType || 'j').toLowerCase(), val: [] }; },
         socketSend: function(obj) { return Promise.resolve('OK:GOTO'); },
         _calls: calls
     };
 }
-await checkAsync('gofa-go-point: uses the configured move type by default', async function() {
+await checkAsync('gofa-points (go): uses the configured move type by default', async function() {
     var mockRobot = makeGoPointRobot({ name: 'pick1', target: {} });
-    var node = new (loadNodeType('./nodes/gofa-go-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', moveType: 'L' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'go', moveType: 'L' });
     var msg = { payload: {} };
     await runInput(node, msg);
     assert.deepStrictEqual(mockRobot._calls, ['L']);
     assert.strictEqual(msg.payload.moveType, 'L');
 });
-await checkAsync('gofa-go-point: msg.payload.moveType overrides the configured value', async function() {
+await checkAsync('gofa-points (go): msg.payload.moveType overrides the configured value', async function() {
     var mockRobot = makeGoPointRobot({ name: 'pick1', target: {} });
-    var node = new (loadNodeType('./nodes/gofa-go-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', moveType: 'J' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'go', moveType: 'J' });
     var msg = { payload: { moveType: 'L' } };
     await runInput(node, msg);
     assert.deepStrictEqual(mockRobot._calls, ['L']);
 });
-await checkAsync('gofa-go-point: invalid msg.payload.moveType falls back to configured value', async function() {
+await checkAsync('gofa-points (go): invalid msg.payload.moveType falls back to configured value', async function() {
     var mockRobot = makeGoPointRobot({ name: 'pick1', target: {} });
-    var node = new (loadNodeType('./nodes/gofa-go-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', moveType: 'L' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'go', moveType: 'L' });
     var msg = { payload: { moveType: 'sideways' } };
     await runInput(node, msg);
     assert.deepStrictEqual(mockRobot._calls, ['L']);
 });
-await checkAsync('gofa-go-point: storage "remote" looks the point up via remoteFindPoint', async function() {
+await checkAsync('gofa-points (go): looks the point up via remoteFindPoint', async function() {
     var calls = [];
     var mockRobot = {
-        findPoint: function() { throw new Error('must not use local findPoint in remote mode'); },
         remoteFindPoint: function(name) { calls.push(name); return Promise.resolve({ name: 'pick1', target: {} }); },
         gotoObj: function() { return { cmd: 'gotoj', val: [] }; },
         socketSend: function(obj) { return Promise.resolve('OK:GOTO'); }
     };
-    var node = new (loadNodeType('./nodes/gofa-go-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote', pointName: 'pick1' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'go', pointName: 'pick1' });
     var msg = {};
     await runInput(node, msg);
     assert.deepStrictEqual(calls, ['pick1']);
     assert.strictEqual(msg.payload.ok, true);
 });
 
-// gofa-save-point ────────────────────────────────────────────────────────────
+// gofa-points (save action) — always on-robot (remoteAddPoint/remoteGetPoints) ─
 var samplePoseBody = '<span class="x">1</span><span class="y">2</span><span class="z">3</span>' +
     '<span class="q1">0</span><span class="q2">0</span><span class="q3">0</span><span class="q4">1</span>' +
     '<span class="cf1">0</span><span class="cf4">0</span><span class="cf6">0</span><span class="cfx">0</span>';
-await checkAsync('gofa-save-point: storage "local" (default) uses addPoint/getPoints', async function() {
+await checkAsync('gofa-points (save): uses remoteAddPoint/remoteGetPoints', async function() {
     var calls = [];
     var mockRobot = {
         rwsGet: function() { return Promise.resolve(samplePoseBody); },
         parseXhtml: parseXhtml,
-        addPoint: function(name, target) { calls.push(['add', name, target]); return { id: 'p1', name: 'pick1', target: target }; },
-        getPoints: function() { return [{ id: 'p1', name: 'pick1' }]; }
-    };
-    var node = new (loadNodeType('./nodes/gofa-save-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', pointName: 'pick1' });
-    var msg = {};
-    await runInput(node, msg);
-    assert.strictEqual(msg.payload.ok, true);
-    assert.strictEqual(msg.payload.point.name, 'pick1');
-    assert.strictEqual(calls[0][0], 'add');
-});
-await checkAsync('gofa-save-point: storage "remote" uses remoteAddPoint/remoteGetPoints', async function() {
-    var calls = [];
-    var mockRobot = {
-        rwsGet: function() { return Promise.resolve(samplePoseBody); },
-        parseXhtml: parseXhtml,
-        addPoint: function() { throw new Error('must not use local addPoint in remote mode'); },
         remoteAddPoint: function(name, target) { calls.push(['add', name, target]); return Promise.resolve({ id: 'p1', name: 'pick1', target: target }); },
         remoteGetPoints: function() { return Promise.resolve([{ id: 'p1', name: 'pick1' }]); }
     };
-    var node = new (loadNodeType('./nodes/gofa-save-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote', pointName: 'pick1' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'save', pointName: 'pick1' });
     var msg = {};
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, true);
@@ -806,74 +704,52 @@ await checkAsync('gofa-save-point: storage "remote" uses remoteAddPoint/remoteGe
     assert.strictEqual(msg.payload.points.length, 1);
     assert.strictEqual(calls[0][0], 'add');
 });
-await checkAsync('gofa-save-point: storage "remote" surfaces a duplicate-name error', async function() {
+await checkAsync('gofa-points (save): surfaces a duplicate-name error', async function() {
     var mockRobot = {
         rwsGet: function() { return Promise.resolve(samplePoseBody); },
         parseXhtml: parseXhtml,
         remoteAddPoint: function() { return Promise.resolve({ error: 'A point named "pick1" already exists' }); }
     };
-    var node = new (loadNodeType('./nodes/gofa-save-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote', pointName: 'pick1' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'save', pointName: 'pick1' });
     var msg = {};
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, false);
     assert.ok(msg.payload.error.indexOf('already exists') >= 0);
 });
 
-// gofa-delete-point ──────────────────────────────────────────────────────────
-await checkAsync('gofa-delete-point: storage "local" (default) uses findPoint/deletePoint', async function() {
+// gofa-points (delete action) — always on-robot (remoteFindPoint/remoteDeletePoint) ─
+await checkAsync('gofa-points (delete): uses remoteFindPoint/remoteDeletePoint', async function() {
     var deletedId;
     var mockRobot = {
-        findPoint: function(name) { return name === 'pick1' ? { id: 'p1', name: 'pick1' } : null; },
-        deletePoint: function(id) { deletedId = id; },
-        getPoints: function() { return []; }
-    };
-    var node = new (loadNodeType('./nodes/gofa-delete-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', pointName: 'pick1' });
-    var msg = {};
-    await runInput(node, msg);
-    assert.strictEqual(msg.payload.ok, true);
-    assert.strictEqual(deletedId, 'p1');
-});
-await checkAsync('gofa-delete-point: storage "remote" uses remoteFindPoint/remoteDeletePoint', async function() {
-    var deletedId;
-    var mockRobot = {
-        findPoint: function() { throw new Error('must not use local findPoint in remote mode'); },
         remoteFindPoint: function(name) { return Promise.resolve(name === 'pick1' ? { id: 'p1', name: 'pick1' } : null); },
         remoteDeletePoint: function(id) { deletedId = id; return Promise.resolve({ id: id, name: 'pick1' }); },
         remoteGetPoints: function() { return Promise.resolve([]); }
     };
-    var node = new (loadNodeType('./nodes/gofa-delete-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote', pointName: 'pick1' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'delete', pointName: 'pick1' });
     var msg = {};
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, true);
     assert.strictEqual(deletedId, 'p1');
     assert.deepStrictEqual(msg.payload.points, []);
 });
-await checkAsync('gofa-delete-point: reports "not found" without touching remoteDeletePoint', async function() {
+await checkAsync('gofa-points (delete): reports "not found" without touching remoteDeletePoint', async function() {
     var mockRobot = {
         remoteFindPoint: function() { return Promise.resolve(null); },
         remoteDeletePoint: function() { throw new Error('must not delete when point was not found'); }
     };
-    var node = new (loadNodeType('./nodes/gofa-delete-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote', pointName: 'missing' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'delete', pointName: 'missing' });
     var msg = {};
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, false);
     assert.ok(msg.payload.error.indexOf('not found') >= 0);
 });
 
-// gofa-point-list ────────────────────────────────────────────────────────────
-await checkAsync('gofa-point-list: storage "local" (default) uses getPoints', async function() {
-    var mockRobot = { getPoints: function() { return [{ id: 'p1', name: 'pick1' }]; } };
-    var node = new (loadNodeType('./nodes/gofa-point-list', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
-    var msg = {};
-    await runInput(node, msg);
-    assert.strictEqual(msg.payload.length, 1);
-});
-await checkAsync('gofa-point-list: storage "remote" uses remoteGetPoints', async function() {
+// gofa-points (list action) — always on-robot (remoteGetPoints) ───────────────
+await checkAsync('gofa-points (list): uses remoteGetPoints', async function() {
     var mockRobot = {
-        getPoints: function() { throw new Error('must not use local getPoints in remote mode'); },
         remoteGetPoints: function() { return Promise.resolve([{ id: 'p1', name: 'pick1' }, { id: 'p2', name: 'pick2' }]); }
     };
-    var node = new (loadNodeType('./nodes/gofa-point-list', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'list' });
     var msg = {};
     await runInput(node, msg);
     assert.strictEqual(msg.payload.length, 2);
@@ -884,8 +760,7 @@ function makeSeqRobot(pointMap) {
     var calls = [];
     return {
         _seqStop: false, _seqRunning: false, _calls: calls,
-        findPoint: function(name) { return pointMap[name] || null; },
-        getPoints: function() { return Object.keys(pointMap).map(function(k) { return pointMap[k]; }); },
+        remoteGetPoints: function() { return Promise.resolve(Object.keys(pointMap).map(function(k) { return pointMap[k]; })); },
         gotoObj: function(target, moveType) { calls.push(moveType); return { cmd: 'goto' + (moveType || 'j').toLowerCase(), val: [] }; },
         socketSend: function(obj) { return Promise.resolve('OK:GOTO'); }
     };
@@ -949,19 +824,17 @@ await checkAsync('gofa-sequencer: stops early once _seqStop is set', async funct
     assert.strictEqual(stepMsgs(node).length, 1);
     assert.strictEqual(endMsg(node).payload.stopped, true);
 });
-await checkAsync('gofa-sequencer: storage "remote" fetches the point list once via remoteGetPoints, not getPoints', async function() {
-    var getPointsCalls = 0, remoteGetPointsCalls = 0;
+await checkAsync('gofa-sequencer: fetches the point list once via remoteGetPoints for the whole sequence', async function() {
+    var remoteGetPointsCalls = 0;
     var mockRobot = {
         _seqStop: false, _seqRunning: false,
-        getPoints: function() { getPointsCalls++; return []; },
         remoteGetPoints: function() { remoteGetPointsCalls++; return Promise.resolve([{ name: 'a', target: {} }, { name: 'b', target: {} }]); },
         gotoObj: function() { return { cmd: 'gotoj', val: [] }; },
         socketSend: function(obj) { return Promise.resolve('OK:GOTO'); }
     };
-    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote', dwell: 0, outputPayload: true });
+    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: mockRobot } }))({ robot: 'r1', dwell: 0, outputPayload: true });
     await runInput(node, { payload: { steps: [{ name: 'a' }, { name: 'b' }] } });
     assert.strictEqual(remoteGetPointsCalls, 1, 'must fetch the remote list exactly once for the whole sequence');
-    assert.strictEqual(getPointsCalls, 0, 'must not touch local getPoints in remote mode');
     assert.strictEqual(stepMsgs(node).length, 2);
     assert.deepStrictEqual(endMsg(node).payload, { done: true, loops: 1 });
 });
@@ -974,7 +847,6 @@ await checkAsync('gofa-sequencer: race condition guard prevents concurrent seque
     });
     var mockRobot = {
         _seqStop: false, _seqRunning: false,
-        getPoints: function() { return []; },
         remoteGetPoints: function() {
             remoteGetPointsCalls++;
             return pointsPromise;
@@ -985,7 +857,7 @@ await checkAsync('gofa-sequencer: race condition guard prevents concurrent seque
             return Promise.resolve('OK:GOTO');
         }
     };
-    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: mockRobot } }))({ robot: 'r1', storage: 'remote', dwell: 0 });
+    var node = new (loadNodeType('./nodes/gofa-sequencer', { nodesById: { r1: mockRobot } }))({ robot: 'r1', dwell: 0 });
 
     var run1 = runInput(node, { payload: { steps: [{ name: 'a' }] } });
     var run2 = runInput(node, { payload: { steps: [{ name: 'a' }] } });
@@ -2090,7 +1962,6 @@ await checkAsync('gofa-robot: node close calls logout and invokes done()', async
         var GoFaRobot = loadNodeType('./nodes/gofa-robot', {});
         var node = new GoFaRobot({
             ip: '127.0.0.1', rwsPort: port, socketPort: 1025, username: 'u',
-            pointsFile: path.join(tmpDir, 'gofa-robot-close-test.json'),
             credentials: { password: 'p' }
         });
         await node.rwsGet('/rw/panel/ctrl-state');
@@ -2974,7 +2845,7 @@ await checkAsync('gofa-motor: rejects invalid motor actions', async function() {
 });
 
 // gofa-asi-led / gofa-pose / gofa-joints / gofa-status / gofa-rapid-var-read /
-// gofa-save-point / gofa-file — Tier 6 fixes (agy, parallel batch D1-D6) ──
+// gofa-points (save action) / gofa-file — Tier 6 fixes (agy, parallel batch D1-D6) ──
 
 await checkAsync('gofa-asi-led: counted blink sequence completes', async function() {
     var calls = [];
@@ -3259,21 +3130,21 @@ await checkAsync('gofa-rapid-var-read: propagates socket connectivity errors wit
     assert.strictEqual(rwsGetCalled, false, 'should not call rwsGet or fall back to module-text on connection error');
 });
 
-await checkAsync('gofa-save-point: a blank name is passed through to addPoint (auto-numbered "Point N"), not rejected', async function() {
+await checkAsync('gofa-points (save): a blank name is passed through to remoteAddPoint (auto-numbered "Point N"), not rejected', async function() {
     // resolvePointName() in gofa-robot.js already auto-generates "Point N" for a
     // blank name — this is a real, intentional feature (the demo flow's
-    // gofa-save-point nodes rely on it: pointName left blank on purpose). An
-    // earlier version of this fix incorrectly rejected blank names outright.
+    // save-action gofa-points nodes rely on it: pointName left blank on purpose).
+    // An earlier version of this fix incorrectly rejected blank names outright.
     var sampleTargetBody = '<span class="x">1</span><span class="y">2</span><span class="z">3</span>' +
         '<span class="q1">0</span><span class="q2">0</span><span class="q3">0</span><span class="q4">1</span>' +
         '<span class="cf1">0</span><span class="cf4">0</span><span class="cf6">0</span><span class="cfx">0</span>';
     var mockRobot = {
         rwsGet: function() { return Promise.resolve(sampleTargetBody); },
         parseXhtml: parseXhtml,
-        addPoint: function(name, target) { return { id: 'p1', name: 'Point 1', target: target }; },
-        getPoints: function() { return [{ id: 'p1', name: 'Point 1' }]; }
+        remoteAddPoint: function(name, target) { return Promise.resolve({ id: 'p1', name: 'Point 1', target: target }); },
+        remoteGetPoints: function() { return Promise.resolve([{ id: 'p1', name: 'Point 1' }]); }
     };
-    var node = new (loadNodeType('./nodes/gofa-save-point', { nodesById: { r1: mockRobot } }))({ robot: 'r1', pointName: '' });
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'save', pointName: '' });
     var msg = { payload: { name: '  ' } };
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, true);
@@ -4518,10 +4389,10 @@ await checkAsync('gofa-leadthrough: action override via msg.payload', async func
     assert.deepStrictEqual(posts, ['status=inactive']);
 });
 
-await checkAsync('gofa-points: import still accepts a bare array payload', async function() {
-    var mockRobot = { replacePoints: function(arr) { this._pts = arr; return arr; }, _savePoints: function(){} };
+await checkAsync('gofa-points (import): import still accepts a bare array payload', async function() {
+    var mockRobot = { _pts: null, remoteSavePoints: function(arr) { this._pts = arr; return Promise.resolve(); } };
     var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))({ robot: 'r1', action: 'import' });
-    var msg = { payload: [{id:'p1', name:'pt1'}] };
+    var msg = { payload: [{ id: 'p1', name: 'pt1', target: sample }] };
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, true);
     assert.strictEqual(mockRobot._pts.length, 1);

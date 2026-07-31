@@ -8,7 +8,6 @@
             socketPort:  { value: '1025', required: true },
             backgroundPort: { value: '1026' },
             username:    { value: 'Default User' },
-            pointsFile:  { value: 'points.json' },
             remotePointsPath: { value: '$HOME/Programs/gofa_points.json' },
             jointLimits: { value: '' },
             allowInsecureLiveControl: { value: false }
@@ -102,10 +101,6 @@
         <input type="password" id="node-config-input-password" placeholder="required">
     </div>
     <div class="form-row">
-        <label for="node-config-input-pointsFile"><i class="fa fa-file"></i> Points File</label>
-        <input type="text" id="node-config-input-pointsFile" placeholder="points.json">
-    </div>
-    <div class="form-row">
         <label for="node-config-input-remotePointsPath"><i class="fa fa-globe"></i> Remote Points Path</label>
         <input type="text" id="node-config-input-remotePointsPath" placeholder="$HOME/Programs/gofa_points.json">
     </div>
@@ -129,22 +124,21 @@
     subscription is active (e.g. a <code>gofa-subscribe-io</code>/<code>-state</code>/<code>-elog</code>
     node) — repeated redeploys without a clean logout can leak sessions toward that lower limit
     and eventually lock out the FlexPendant with "too many device login".</p>
-    <p>Points file is loaded at startup and kept in memory; all changes are persisted immediately.</p>
-    <p><b>Remote Points Path</b> — used instead of the local Points File when a point node's
-    <em>Storage</em> is set to <b>On-Robot</b>. A plain JSON file on the robot controller's own
-    disk (managed purely via RWS <code>fileservice</code> <code>GET</code>/<code>PUT</code>, same
-    mechanism as <b>gofa-file</b>) — no local file needed on the
-    Node-RED host. Same best-effort protection as the local Points File's changed-on-disk
-    check: a save re-fetches the remote file right before writing and warns (doesn't block) if
-    it changed since it was last read — doesn't fully close the race, but turns a previously
-    silent overwrite into a visible warning, fine for a human-paced "teach a point" workflow.</p>
+    <p><b>Remote Points Path</b> — where <b>gofa-points</b> stores every saved point (2.5.0+: the
+    only storage this palette has — there is no local/Node-RED-host option). A plain JSON file on
+    the robot controller's own disk (managed purely via RWS <code>fileservice</code>
+    <code>GET</code>/<code>PUT</code>, same mechanism as <b>gofa-file</b>) — no local file needed
+    on the Node-RED host. A save re-fetches the remote file right before writing and warns
+    (doesn't block) if it changed since it was last read — doesn't fully close the race, but turns
+    a previously silent overwrite into a visible warning, fine for a human-paced "teach a point"
+    workflow.</p>
     <p><b>Joint Limits</b> — soft per-axis limits (degrees) that <b>gofa-movej</b> checks before
     sending an absolute joint move, so an out-of-range target returns a clean error instead of
     faulting RAPID. Leave blank to use the CRB 15000-12 hardware working range
     (<code>[[-270,270],[-180,180],[-225,85],[-180,180],[-180,180],[-270,270]]</code>). Set a JSON
     array of six <code>[min,max]</code> pairs to enforce tighter limits (e.g. a cell with a
     restricted axis range). An invalid value is ignored (a warning is logged) and the defaults
-    are used. Does not apply to Cartesian moves (<b>gofa-go-point</b>), which would need inverse
+    are used. Does not apply to Cartesian moves (<b>gofa-points</b>, go action), which would need inverse
     kinematics to know the joint angles.</p>
     <p><b>Allow insecure live control</b> — the interactive buttons in every node's edit dialog
     ("Jog Now", "Move Joints Now", "Motors On", …) call admin HTTP endpoints that move the robot.

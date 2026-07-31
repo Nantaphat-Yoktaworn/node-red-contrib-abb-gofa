@@ -75,7 +75,7 @@ module.exports = function(RED) {
             // Move type: J = MoveAbsJ (joint-interpolated, default, most reliable),
             // L = straight-line TCP path to the pose those joints describe (the
             // RAPID server does the forward kinematics via CalcRobT). Same
-            // per-message override names gofa-go-point uses.
+            // per-message override names gofa-points' go action uses.
             var moveType = node.moveType;
             if (msg.moveType !== undefined) moveType = resolveMoveType(msg.moveType, moveType);
             if (msg.payload && typeof msg.payload === 'object' && !Array.isArray(msg.payload) && msg.payload.moveType !== undefined) {

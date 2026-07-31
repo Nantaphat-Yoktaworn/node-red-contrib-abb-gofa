@@ -11,7 +11,13 @@ fs.cpSync('../rapid/BackgroundLed.mod', 'rapid/BackgroundLed.mod');
 fs.mkdirSync('examples', { recursive: true });
 for (const f of fs.readdirSync('../flows').filter(f => f.endsWith('.json'))) {
     const text = fs.readFileSync('../flows/' + f, 'utf8')
-        .replace(/"username": "NNNN"/g, '"username": "Default User"')
+        // Match the "username" field itself, not one hardcoded value — this lab's
+        // controller account has already changed once (NNNN -> Admin, 2026-07-22),
+        // and a value-specific regex silently stops genericizing the moment it
+        // changes again, leaking this lab's real current username into the public
+        // package (exactly what happened here: this line only ever matched "NNNN",
+        // so it silently passed the real "Admin" straight through unchanged).
+        .replace(/"username":\s*"[^"]*"/g, '"username": "Default User"')
         // Match the "ip" field itself, not one hardcoded subnet — this lab's robot
         // has drifted across several subnets already (192.168.20.x, 192.168.1.x),
         // and a subnet-specific regex silently stops genericizing the moment it

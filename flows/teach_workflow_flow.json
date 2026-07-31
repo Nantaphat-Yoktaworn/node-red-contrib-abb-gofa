@@ -845,13 +845,13 @@
     },
     {
         "id": "24eefbe32fc69beb",
-        "type": "gofa-save-point",
+        "type": "gofa-points",
+        "action": "save",
         "z": "a17a5b075916bef6",
         "g": "7fa433d560ceee6d",
         "name": "Save Taught Point",
         "robot": "cfg1",
         "pointName": "",
-        "storage": "remote",
         "x": 2000,
         "y": 860,
         "wires": [
