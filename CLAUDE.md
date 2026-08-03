@@ -166,7 +166,7 @@ rapid/MainModule.mod               ← RAPID socket server (must run on controll
 rapid/MainModuleEGM.mod            ← optional: MainModule.mod clone + EGM mode, see docs/egm.md
 rapid/BackgroundLed.mod             ← optional: separate-task LED server, see docs/background-led-task.md
 flows/gofa_demo_flow.json          ← one inject per node, for testing
-flows/teach_workflow_flow.json     ← physical ASI-button teach workflow (own tab/config, see README)
+flows/teach_flow.json              ← physical ASI-button teach workflow (own tab/config, see README)
 flows/watchdog_flow.json           ← self-healing socket-wedge watchdog, see docs/version-handshake-watchdog.md
 flows/mqtt_bridge_flow.json        ← publishes state/pose/io onto MQTT topics via core mqtt out
 flows/brake_check_reminder_flow.json ← see docs/brake-check-reminder.md

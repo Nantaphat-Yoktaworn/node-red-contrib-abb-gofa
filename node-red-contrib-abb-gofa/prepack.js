@@ -7,9 +7,12 @@ fs.cpSync('../rapid/MainModule.mod', 'rapid/MainModule.mod');
 fs.cpSync('../rapid/MainModuleEGM.mod', 'rapid/MainModuleEGM.mod');
 fs.cpSync('../rapid/BackgroundLed.mod', 'rapid/BackgroundLed.mod');
 
-// Example flows = repo flows with this lab's username/IP genericized
+// Example flows = repo flows with this lab's username/IP genericized.
+// "*_th.json" files are local-only, gitignored, Thai-annotated learning copies —
+// never ship them to npm, regardless of whether they happen to exist in flows/
+// on the machine running this script (fs.readdirSync doesn't know about .gitignore).
 fs.mkdirSync('examples', { recursive: true });
-for (const f of fs.readdirSync('../flows').filter(f => f.endsWith('.json'))) {
+for (const f of fs.readdirSync('../flows').filter(f => f.endsWith('.json') && !f.endsWith('_th.json'))) {
     const text = fs.readFileSync('../flows/' + f, 'utf8')
         // Match the "username" field itself, not one hardcoded value — this lab's
         // controller account has already changed once (NNNN -> Admin, 2026-07-22),

@@ -7,17 +7,6 @@
         "info": "Learning-resource flow: mirrors a real conveyor pick -> classify -> sorted-place industrial cell.\n\n1. Deploy, then use the \"0 - Teach Points\" group once: jog the robot (FlexPendant, or the Cartesian/Joint Jog group in gofa_demo_flow.json) to the pickup spot and press \"Save Pickup\"; repeat for Bin A and Bin B; press \"Set Home Here\" at a safe ready pose clear of both bins.\n2. Press \"Start Cycle\" in the \"1 - Sorting Cycle\" group to run one pick/classify/place cycle.\n3. The \"classify\" step reads the physical ASI button (Asi1Button2) as a stand-in for a real color/vision/weight sensor: press it before the read fires to route the part to Bin A, leave it unpressed to route to Bin B."
     },
     {
-        "id": "pp-cfg",
-        "type": "gofa-robot",
-        "name": "ABB-GoFa-12",
-        "ip": "192.168.125.1",
-        "rwsPort": "443",
-        "socketPort": "1025",
-        "username": "Default User",
-        "pointsFile": "points.json",
-        "remotePointsPath": ""
-    },
-    {
         "id": "pp-g-setup",
         "type": "group",
         "z": "pp-tab",
@@ -33,15 +22,26 @@
         },
         "nodes": [
             "pp-c-setup",
-            "pp-i-save-pickup", "pp-n-save-pickup", "pp-d-save-pickup",
-            "pp-i-save-bina", "pp-n-save-bina", "pp-d-save-bina",
-            "pp-i-save-binb", "pp-n-save-binb", "pp-d-save-binb",
-            "pp-i-sethome", "pp-n-sethome", "pp-d-sethome"
+            "pp-i-save-pickup",
+            "pp-n-save-pickup",
+            "pp-d-save-pickup",
+            "pp-i-save-bina",
+            "pp-n-save-bina",
+            "pp-d-save-bina",
+            "pp-i-save-binb",
+            "pp-n-save-binb",
+            "pp-d-save-binb",
+            "pp-i-sethome",
+            "pp-n-sethome",
+            "pp-d-sethome",
+            "42a91bd830bca8e9",
+            "bb09d07a407bc8a5",
+            "c445cd906aead295"
         ],
-        "x": 54,
+        "x": 44,
         "y": 39,
-        "w": 900,
-        "h": 340
+        "w": 872,
+        "h": 362
     },
     {
         "id": "pp-g-cycle",
@@ -59,15 +59,27 @@
         },
         "nodes": [
             "pp-c-cycle",
-            "pp-i-start", "pp-n-motoron", "pp-n-home1", "pp-n-goto-pickup", "pp-n-grip-close", "pp-n-delay1", "pp-n-classify", "pp-n-switch",
-            "pp-n-goto-bina", "pp-n-release-a", "pp-d-sorted-a",
-            "pp-n-goto-binb", "pp-n-release-b", "pp-d-sorted-b",
-            "pp-n-home2", "pp-d-complete"
+            "pp-i-start",
+            "pp-n-motoron",
+            "pp-n-home1",
+            "pp-n-goto-pickup",
+            "pp-n-grip-close",
+            "pp-n-delay1",
+            "pp-n-classify",
+            "pp-n-switch",
+            "pp-n-goto-bina",
+            "pp-n-release-a",
+            "pp-d-sorted-a",
+            "pp-n-goto-binb",
+            "pp-n-release-b",
+            "pp-d-sorted-b",
+            "pp-n-home2",
+            "pp-d-complete"
         ],
         "x": 54,
         "y": 419,
-        "w": 2620,
-        "h": 300
+        "w": 2932,
+        "h": 202
     },
     {
         "id": "pp-c-setup",
@@ -86,24 +98,44 @@
         "z": "pp-tab",
         "g": "pp-g-setup",
         "name": "Save 'Pickup' (here)",
-        "props": [{ "p": "payload" }],
-        "repeat": "", "crontab": "", "once": false, "onceDelay": 0.1,
-        "topic": "", "payload": "", "payloadType": "date",
-        "x": 190, "y": 140,
-        "wires": [["pp-n-save-pickup"]]
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 190,
+        "y": 140,
+        "wires": [
+            [
+                "pp-n-save-pickup"
+            ]
+        ]
     },
     {
         "id": "pp-n-save-pickup",
         "type": "gofa-points",
-        "action": "save",
         "z": "pp-tab",
         "g": "pp-g-setup",
+        "outputPayload": true,
         "name": "Save 'Pickup'",
-        "robot": "pp-cfg",
+        "robot": "cfg1",
+        "action": "save",
         "pointName": "Pickup",
-        "x": 440, "y": 140,
-        "wires": [["pp-d-save-pickup"]],
-        "outputPayload": true
+        "path": "",
+        "x": 440,
+        "y": 140,
+        "wires": [
+            [
+                "pp-d-save-pickup"
+            ]
+        ]
     },
     {
         "id": "pp-d-save-pickup",
@@ -111,9 +143,14 @@
         "z": "pp-tab",
         "g": "pp-g-setup",
         "name": "{ ok, point:{name:'Pickup',...} }",
-        "active": true, "tosidebar": true, "console": false, "tostatus": false,
-        "complete": "payload", "targetType": "msg",
-        "x": 710, "y": 140,
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 710,
+        "y": 140,
         "wires": []
     },
     {
@@ -122,24 +159,44 @@
         "z": "pp-tab",
         "g": "pp-g-setup",
         "name": "Save 'Bin A' (here)",
-        "props": [{ "p": "payload" }],
-        "repeat": "", "crontab": "", "once": false, "onceDelay": 0.1,
-        "topic": "", "payload": "", "payloadType": "date",
-        "x": 190, "y": 195,
-        "wires": [["pp-n-save-bina"]]
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 190,
+        "y": 195,
+        "wires": [
+            [
+                "pp-n-save-bina"
+            ]
+        ]
     },
     {
         "id": "pp-n-save-bina",
         "type": "gofa-points",
-        "action": "save",
         "z": "pp-tab",
         "g": "pp-g-setup",
+        "outputPayload": true,
         "name": "Save 'Bin A'",
-        "robot": "pp-cfg",
+        "robot": "cfg1",
+        "action": "save",
         "pointName": "Bin A",
-        "x": 440, "y": 195,
-        "wires": [["pp-d-save-bina"]],
-        "outputPayload": true
+        "path": "",
+        "x": 440,
+        "y": 195,
+        "wires": [
+            [
+                "pp-d-save-bina"
+            ]
+        ]
     },
     {
         "id": "pp-d-save-bina",
@@ -147,9 +204,14 @@
         "z": "pp-tab",
         "g": "pp-g-setup",
         "name": "{ ok, point:{name:'Bin A',...} }",
-        "active": true, "tosidebar": true, "console": false, "tostatus": false,
-        "complete": "payload", "targetType": "msg",
-        "x": 710, "y": 195,
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 710,
+        "y": 195,
         "wires": []
     },
     {
@@ -158,24 +220,44 @@
         "z": "pp-tab",
         "g": "pp-g-setup",
         "name": "Save 'Bin B' (here)",
-        "props": [{ "p": "payload" }],
-        "repeat": "", "crontab": "", "once": false, "onceDelay": 0.1,
-        "topic": "", "payload": "", "payloadType": "date",
-        "x": 190, "y": 250,
-        "wires": [["pp-n-save-binb"]]
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 190,
+        "y": 250,
+        "wires": [
+            [
+                "pp-n-save-binb"
+            ]
+        ]
     },
     {
         "id": "pp-n-save-binb",
         "type": "gofa-points",
-        "action": "save",
         "z": "pp-tab",
         "g": "pp-g-setup",
+        "outputPayload": true,
         "name": "Save 'Bin B'",
-        "robot": "pp-cfg",
+        "robot": "cfg1",
+        "action": "save",
         "pointName": "Bin B",
-        "x": 440, "y": 250,
-        "wires": [["pp-d-save-binb"]],
-        "outputPayload": true
+        "path": "",
+        "x": 440,
+        "y": 250,
+        "wires": [
+            [
+                "pp-d-save-binb"
+            ]
+        ]
     },
     {
         "id": "pp-d-save-binb",
@@ -183,9 +265,14 @@
         "z": "pp-tab",
         "g": "pp-g-setup",
         "name": "{ ok, point:{name:'Bin B',...} }",
-        "active": true, "tosidebar": true, "console": false, "tostatus": false,
-        "complete": "payload", "targetType": "msg",
-        "x": 710, "y": 250,
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 710,
+        "y": 250,
         "wires": []
     },
     {
@@ -194,23 +281,42 @@
         "z": "pp-tab",
         "g": "pp-g-setup",
         "name": "Set Home (here)",
-        "props": [{ "p": "payload" }],
-        "repeat": "", "crontab": "", "once": false, "onceDelay": 0.1,
-        "topic": "", "payload": "", "payloadType": "date",
-        "x": 190, "y": 305,
-        "wires": [["pp-n-sethome"]]
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 190,
+        "y": 305,
+        "wires": [
+            [
+                "pp-n-sethome"
+            ]
+        ]
     },
     {
         "id": "pp-n-sethome",
         "type": "gofa-move",
         "z": "pp-tab",
         "g": "pp-g-setup",
+        "outputPayload": true,
         "name": "SETHOME",
-        "robot": "pp-cfg",
+        "robot": "cfg1",
         "command": "SETHOME",
-        "x": 440, "y": 305,
-        "wires": [["pp-d-sethome"]],
-        "outputPayload": true
+        "x": 440,
+        "y": 305,
+        "wires": [
+            [
+                "pp-d-sethome"
+            ]
+        ]
     },
     {
         "id": "pp-d-sethome",
@@ -218,9 +324,14 @@
         "z": "pp-tab",
         "g": "pp-g-setup",
         "name": "{ ok, ack:'OK:SETHOME' }",
-        "active": true, "tosidebar": true, "console": false, "tostatus": false,
-        "complete": "payload", "targetType": "msg",
-        "x": 710, "y": 305,
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 710,
+        "y": 305,
         "wires": []
     },
     {
@@ -230,7 +341,8 @@
         "g": "pp-g-cycle",
         "name": "Real industrial pattern: part arrives -> pick -> classify (sensor) -> place in the matching bin -> return to ready. Classify = Asi1Button2 as a stand-in sensor.",
         "info": "",
-        "x": 700, "y": 460,
+        "x": 740,
+        "y": 460,
         "wires": []
     },
     {
@@ -239,62 +351,97 @@
         "z": "pp-tab",
         "g": "pp-g-cycle",
         "name": "Start Cycle (part arrived)",
-        "props": [{ "p": "payload" }],
-        "repeat": "", "crontab": "", "once": false, "onceDelay": 0.1,
-        "topic": "", "payload": "", "payloadType": "date",
-        "x": 190, "y": 520,
-        "wires": [["pp-n-motoron"]]
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 210,
+        "y": 520,
+        "wires": [
+            [
+                "pp-n-motoron"
+            ]
+        ]
     },
     {
         "id": "pp-n-motoron",
         "type": "gofa-motor",
         "z": "pp-tab",
         "g": "pp-g-cycle",
+        "outputPayload": true,
         "name": "Ensure Motors ON",
-        "robot": "pp-cfg",
+        "robot": "cfg1",
         "action": "motoron",
-        "x": 400, "y": 520,
-        "wires": [["pp-n-home1"]],
-        "outputPayload": true
+        "x": 440,
+        "y": 520,
+        "wires": [
+            [
+                "pp-n-home1"
+            ]
+        ]
     },
     {
         "id": "pp-n-home1",
         "type": "gofa-move",
         "z": "pp-tab",
         "g": "pp-g-cycle",
+        "outputPayload": true,
         "name": "Go to Ready/Home",
-        "robot": "pp-cfg",
+        "robot": "cfg1",
         "command": "HOME",
-        "x": 610, "y": 520,
-        "wires": [["pp-n-goto-pickup"]],
-        "outputPayload": true
+        "x": 650,
+        "y": 520,
+        "wires": [
+            [
+                "pp-n-goto-pickup"
+            ]
+        ]
     },
     {
         "id": "pp-n-goto-pickup",
         "type": "gofa-points",
-        "action": "go",
         "z": "pp-tab",
         "g": "pp-g-cycle",
+        "outputPayload": true,
         "name": "Go to 'Pickup'",
-        "robot": "pp-cfg",
+        "robot": "cfg1",
+        "action": "go",
         "pointName": "Pickup",
         "moveType": "J",
-        "x": 810, "y": 520,
-        "wires": [["pp-n-grip-close"]],
-        "outputPayload": true
+        "path": "",
+        "x": 850,
+        "y": 520,
+        "wires": [
+            [
+                "pp-n-grip-close"
+            ]
+        ]
     },
     {
         "id": "pp-n-grip-close",
         "type": "gofa-grip",
         "z": "pp-tab",
         "g": "pp-g-cycle",
+        "outputPayload": true,
         "name": "Close Gripper (Pick)",
-        "robot": "pp-cfg",
+        "robot": "cfg1",
         "action": "on",
         "signal": "ABB_Scalable_IO_0_DO1",
-        "x": 1010, "y": 520,
-        "wires": [["pp-n-delay1"]],
-        "outputPayload": true
+        "x": 1050,
+        "y": 520,
+        "wires": [
+            [
+                "pp-n-delay1"
+            ]
+        ]
     },
     {
         "id": "pp-n-delay1",
@@ -314,20 +461,30 @@
         "drop": false,
         "allowrate": false,
         "outputs": 1,
-        "x": 1180, "y": 520,
-        "wires": [["pp-n-classify"]]
+        "x": 1250,
+        "y": 520,
+        "wires": [
+            [
+                "pp-n-classify"
+            ]
+        ]
     },
     {
         "id": "pp-n-classify",
         "type": "gofa-di-read",
         "z": "pp-tab",
         "g": "pp-g-cycle",
+        "outputPayload": true,
         "name": "Classify Part (stand-in sensor)",
-        "robot": "pp-cfg",
+        "robot": "cfg1",
         "signal": "Asi1Button2",
-        "x": 1400, "y": 520,
-        "wires": [["pp-n-switch"]],
-        "outputPayload": true
+        "x": 1470,
+        "y": 520,
+        "wires": [
+            [
+                "pp-n-switch"
+            ]
+        ]
     },
     {
         "id": "pp-n-switch",
@@ -338,41 +495,67 @@
         "property": "payload.value",
         "propertyType": "msg",
         "rules": [
-            { "t": "eq", "v": "1", "vt": "num" },
-            { "t": "else" }
+            {
+                "t": "eq",
+                "v": "1",
+                "vt": "num"
+            },
+            {
+                "t": "else"
+            }
         ],
         "checkall": "false",
         "repair": false,
         "outputs": 2,
-        "x": 1620, "y": 520,
-        "wires": [["pp-n-goto-bina"], ["pp-n-goto-binb"]]
+        "x": 1720,
+        "y": 520,
+        "wires": [
+            [
+                "pp-n-goto-bina"
+            ],
+            [
+                "pp-n-goto-binb"
+            ]
+        ]
     },
     {
         "id": "pp-n-goto-bina",
         "type": "gofa-points",
-        "action": "go",
         "z": "pp-tab",
         "g": "pp-g-cycle",
+        "outputPayload": true,
         "name": "Go to 'Bin A'",
-        "robot": "pp-cfg",
+        "robot": "cfg1",
+        "action": "go",
         "pointName": "Bin A",
         "moveType": "J",
-        "x": 1840, "y": 460,
-        "wires": [["pp-n-release-a"]],
-        "outputPayload": true
+        "path": "",
+        "x": 1960,
+        "y": 460,
+        "wires": [
+            [
+                "pp-n-release-a"
+            ]
+        ]
     },
     {
         "id": "pp-n-release-a",
         "type": "gofa-grip",
         "z": "pp-tab",
         "g": "pp-g-cycle",
+        "outputPayload": true,
         "name": "Release (Place -> Bin A)",
-        "robot": "pp-cfg",
+        "robot": "cfg1",
         "action": "off",
         "signal": "ABB_Scalable_IO_0_DO1",
-        "x": 2040, "y": 460,
-        "wires": [["pp-d-sorted-a", "pp-n-home2"]],
-        "outputPayload": true
+        "x": 2160,
+        "y": 460,
+        "wires": [
+            [
+                "pp-d-sorted-a",
+                "pp-n-home2"
+            ]
+        ]
     },
     {
         "id": "pp-d-sorted-a",
@@ -380,37 +563,54 @@
         "z": "pp-tab",
         "g": "pp-g-cycle",
         "name": "Sorted -> Bin A",
-        "active": true, "tosidebar": true, "console": false, "tostatus": false,
-        "complete": "payload", "targetType": "msg",
-        "x": 2240, "y": 460,
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 2530,
+        "y": 460,
         "wires": []
     },
     {
         "id": "pp-n-goto-binb",
         "type": "gofa-points",
-        "action": "go",
         "z": "pp-tab",
         "g": "pp-g-cycle",
+        "outputPayload": true,
         "name": "Go to 'Bin B'",
-        "robot": "pp-cfg",
+        "robot": "cfg1",
+        "action": "go",
         "pointName": "Bin B",
         "moveType": "J",
-        "x": 1840, "y": 580,
-        "wires": [["pp-n-release-b"]],
-        "outputPayload": true
+        "path": "",
+        "x": 1960,
+        "y": 580,
+        "wires": [
+            [
+                "pp-n-release-b"
+            ]
+        ]
     },
     {
         "id": "pp-n-release-b",
         "type": "gofa-grip",
         "z": "pp-tab",
         "g": "pp-g-cycle",
+        "outputPayload": true,
         "name": "Release (Place -> Bin B)",
-        "robot": "pp-cfg",
+        "robot": "cfg1",
         "action": "off",
         "signal": "ABB_Scalable_IO_0_DO1",
-        "x": 2040, "y": 580,
-        "wires": [["pp-d-sorted-b", "pp-n-home2"]],
-        "outputPayload": true
+        "x": 2160,
+        "y": 580,
+        "wires": [
+            [
+                "pp-d-sorted-b",
+                "pp-n-home2"
+            ]
+        ]
     },
     {
         "id": "pp-d-sorted-b",
@@ -418,9 +618,14 @@
         "z": "pp-tab",
         "g": "pp-g-cycle",
         "name": "Sorted -> Bin B",
-        "active": true, "tosidebar": true, "console": false, "tostatus": false,
-        "complete": "payload", "targetType": "msg",
-        "x": 2240, "y": 580,
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 2530,
+        "y": 580,
         "wires": []
     },
     {
@@ -428,12 +633,17 @@
         "type": "gofa-move",
         "z": "pp-tab",
         "g": "pp-g-cycle",
+        "outputPayload": true,
         "name": "Return to Ready",
-        "robot": "pp-cfg",
+        "robot": "cfg1",
         "command": "HOME",
-        "x": 2400, "y": 520,
-        "wires": [["pp-d-complete"]],
-        "outputPayload": true
+        "x": 2520,
+        "y": 520,
+        "wires": [
+            [
+                "pp-d-complete"
+            ]
+        ]
     },
     {
         "id": "pp-d-complete",
@@ -441,9 +651,103 @@
         "z": "pp-tab",
         "g": "pp-g-cycle",
         "name": "Cycle Complete -- ready for next part",
-        "active": true, "tosidebar": true, "console": false, "tostatus": false,
-        "complete": "payload", "targetType": "msg",
-        "x": 2610, "y": 520,
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 2790,
+        "y": 520,
         "wires": []
+    },
+    {
+        "id": "42a91bd830bca8e9",
+        "type": "gofa-points",
+        "z": "pp-tab",
+        "g": "pp-g-setup",
+        "outputPayload": true,
+        "name": "",
+        "robot": "cfg1",
+        "action": "delete",
+        "pointName": "Bin B",
+        "moveType": "J",
+        "path": "",
+        "x": 450,
+        "y": 360,
+        "wires": [
+            [
+                "c445cd906aead295"
+            ]
+        ]
+    },
+    {
+        "id": "bb09d07a407bc8a5",
+        "type": "inject",
+        "z": "pp-tab",
+        "g": "pp-g-setup",
+        "name": "Delete Point",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 190,
+        "y": 360,
+        "wires": [
+            [
+                "42a91bd830bca8e9"
+            ]
+        ]
+    },
+    {
+        "id": "c445cd906aead295",
+        "type": "debug",
+        "z": "pp-tab",
+        "g": "pp-g-setup",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 670,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "cfg1",
+        "type": "gofa-robot",
+        "name": "ABB-GoFa-12",
+        "ip": "192.168.125.1",
+        "rwsPort": "443",
+        "socketPort": "1025",
+        "backgroundPort": "",
+        "username": "Default User",
+        "remotePointsPath": "",
+        "jointLimits": "",
+        "allowInsecureLiveControl": true
+    },
+    {
+        "id": "6bebfbf582497203",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-contrib-abb-gofa": "2.5.1"
+        }
     }
 ]

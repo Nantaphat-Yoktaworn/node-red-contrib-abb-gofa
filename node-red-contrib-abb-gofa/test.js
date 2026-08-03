@@ -3983,7 +3983,7 @@ check('watchdog_flow.json: Detect Wedge function correctly excludes active EGM s
 // live 2026-07-20: its own success payload {ok, r, g, b, blinks, transport}
 // has r/g/b fields, and resolvePayload() treats ANY incoming object with
 // those fields as a color override. Chaining two gofa-asi-led nodes directly
-// (as teach_workflow_flow.json's Point-Saved blink -> Restore-Idle color
+// (as teach_flow.json's Point-Saved blink -> Restore-Idle color
 // originally was) makes the second one silently repeat the first node's
 // color instead of its own configured one — confirmed live: a white blink's
 // own output payload, fed straight into a node configured for yellow,
@@ -3998,8 +3998,8 @@ check('gofa-asi-led: chaining hazard — one node\'s own output payload silently
         'a chained gofa-asi-led node\'s own output payload silently overrides the next node\'s color — this is the exact live-confirmed bug, not the desired behavior; the fix is a change node between them, not different resolvePayload logic');
 });
 
-check('teach_workflow_flow.json: a change node clears msg.payload between the Point-Saved blink LED and the Restore-Idle LED', function() {
-    var flow = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'flows', 'teach_workflow_flow.json'), 'utf8'));
+check('teach_flow.json: a change node clears msg.payload between the Point-Saved blink LED and the Restore-Idle LED', function() {
+    var flow = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'flows', 'teach_flow.json'), 'utf8'));
     var byId = {}; flow.forEach(function(n) { byId[n.id] = n; });
     var blinkNode = flow.find(function(n) { return n.type === 'gofa-asi-led' && /Point Saved/.test(n.name); });
     assert.ok(blinkNode, 'Point Saved LED node not found');
@@ -4017,7 +4017,7 @@ check('teach_workflow_flow.json: a change node clears msg.payload between the Po
 // node's Output payload checkbox is off — the right default for a user's own
 // flow, but wrong for THESE bundled example/demo flows, whose entire purpose
 // is showing a node's real output (debug sidebar, and — for
-// teach_workflow_flow.json — the flow's own switch/change routing logic,
+// teach_flow.json — the flow's own switch/change routing logic,
 // which reads msg.payload.* directly). Confirmed live 2026-07-16: exactly
 // this bug (no node had it set) silently broke all three example flows —
 // nobody noticed until an unrelated audit found it (15ef5fa/566907a/
@@ -4028,7 +4028,9 @@ check('example flows: every gofa-* node instance has Output payload enabled', fu
     var dirs = [path.join(__dirname, '..', 'flows'), path.join(__dirname, 'examples')];
     var problems = [];
     dirs.forEach(function(dir) {
-        fs.readdirSync(dir).filter(function(f) { return f.endsWith('.json'); }).forEach(function(f) {
+        // "*_th.json" = local-only, gitignored, Thai-annotated learning copies — never
+        // shipped (see prepack.js) and not held to the public-flow conventions checked here.
+        fs.readdirSync(dir).filter(function(f) { return f.endsWith('.json') && !f.endsWith('_th.json'); }).forEach(function(f) {
             var flow = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
             flow.forEach(function(n) {
                 if (n.type && n.type.indexOf('gofa-') === 0 && n.type !== 'gofa-robot' && n.outputPayload !== true) {
@@ -4042,8 +4044,8 @@ check('example flows: every gofa-* node instance has Output payload enabled', fu
 
 // flows/ (repo-root source of truth) and examples/ (npm-shipped copy) must stay in sync, same
 // rule as the rapid/*.mod drift check above — confirmed live 2026-07-17 that this drifts
-// silently otherwise: examples/teach_workflow_flow.json was missing a transport:"background"
-// field flows/teach_workflow_flow.json already had, for months, with nothing catching it. The
+// silently otherwise: examples/teach_flow.json was missing a transport:"background"
+// field flows/teach_flow.json already had, for months, with nothing catching it. The
 // ONE intentional difference: gofa-robot's ip/username are genericized in examples/ for the
 // public npm release (see reference_public_release memory) — excluded here, everything else
 // must be byte-for-byte identical.
@@ -4051,7 +4053,9 @@ check('example flows: examples/ (npm copy) matches flows/ (source of truth), exc
     var flowsDir = path.join(__dirname, '..', 'flows');
     var exDir    = path.join(__dirname, 'examples');
     var problems = [];
-    fs.readdirSync(flowsDir).filter(function(f) { return f.endsWith('.json'); }).forEach(function(f) {
+    // "*_th.json" = local-only, gitignored, Thai-annotated learning copies — prepack.js
+    // never syncs them to examples/, so they're intentionally excluded from this check too.
+    fs.readdirSync(flowsDir).filter(function(f) { return f.endsWith('.json') && !f.endsWith('_th.json'); }).forEach(function(f) {
         var exPath = path.join(exDir, f);
         if (!fs.existsSync(exPath)) { problems.push(f + ': missing from examples/'); return; }
         var a = JSON.parse(fs.readFileSync(path.join(flowsDir, f), 'utf8'));

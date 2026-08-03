@@ -41,7 +41,7 @@ flows/
   gofa_demo_flow.json            ← Demo flow — one inject per node, includes the EGM module-load + streaming demo (see EGM section)
   setup_flow.json                ← One-click first-run setup flow
   pickplace_sorting_flow.json    ← Pick-and-place sorting cell example
-  teach_workflow_flow.json       ← Physical-button teach workflow (see below)
+  teach_flow.json                ← Physical-button teach workflow (see below)
   watchdog_flow.json             ← Self-healing socket-wedge watchdog — see the "Module version handshake + watchdog flow" section in CLAUDE.md
   mqtt_bridge_flow.json          ← Publishes state/pose/io onto MQTT topics via core mqtt out nodes
   egm_conveyor_demo_flow.json    ← EGM conveyor-tracking demo (simulated target — see EGM section)
@@ -130,7 +130,7 @@ find . -type f \( -name "*.js" -o -name "*.html" -o -name "*.json" -o -name "*.m
 | `node-red-contrib-abb-gofa/nodes/gofa-robot.js` | Default IP in the config node |
 | `node-red-contrib-abb-gofa/nodes/gofa-robot.html` | Placeholder in the UI |
 | `flows/gofa_demo_flow.json` | Stored IP in the demo flow config |
-| `flows/teach_workflow_flow.json` | Stored IP in the teach workflow config |
+| `flows/teach_flow.json` | Stored IP in the teach workflow config |
 
 > **Why MainModule.mod?** The RAPID socket server explicitly binds to the controller's own IP address. If this doesn't match the actual IP, the socket server silently fails to start and all TCP commands will time out.
 
@@ -265,7 +265,7 @@ Click **Update** → **Deploy**.
 | `flows/gofa_demo_flow.json` | One inject per node — good for testing each feature; includes a "4 - EGM (UDP)" group that loads `MainModuleEGM.mod` and streams (see [EGM](#egm-externally-guided-motion)) |
 | `flows/setup_flow.json` | One-click first-run setup (`gofa-setup`) |
 | `flows/pickplace_sorting_flow.json` | Pick-and-place sorting cell example |
-| `flows/teach_workflow_flow.json` | Physical-button teach workflow (see below) |
+| `flows/teach_flow.json` | Physical-button teach workflow (see below) |
 | `flows/watchdog_flow.json` | Self-healing socket-wedge watchdog — polls every 30s, auto-recovers a genuinely stuck RAPID socket, leaves teach workflow / EGM sessions alone |
 | `flows/mqtt_bridge_flow.json` | Publishes state/pose/io onto MQTT topics via core `mqtt out` nodes |
 | `flows/egm_conveyor_demo_flow.json` | EGM conveyor-tracking demo — a simulated moving target (no real conveyor/encoder) streamed into an active EGM session, illustrating the real-world pattern; requires `MainModuleEGM.mod` loaded (see [EGM](#egm-externally-guided-motion)) |
@@ -276,7 +276,7 @@ After importing, open the **gofa-robot** config node (click any GoFa node → pe
 
 ## Teach workflow (physical ASI buttons)
 
-`flows/teach_workflow_flow.json` is a standalone flow — its own tab, its own copy of the
+`flows/teach_flow.json` is a standalone flow — its own tab, its own copy of the
 `gofa-robot` config node (same `cfg1` id as the demo flow, so importing both is safe; Node-RED
 de-dupes config nodes by id). It uses the two physical buttons on the GoFa's arm
 (`Asi1Button1`/`Asi1Button2` — plain digital signals, readable/subscribable regardless of what
