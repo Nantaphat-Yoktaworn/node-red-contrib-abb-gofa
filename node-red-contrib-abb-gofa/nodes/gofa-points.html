@@ -50,6 +50,7 @@
                     .append($('<option value="">-- select point --</option>'));
                 if (!id) return;
                 $.getJSON('/gofa-robot/' + id + '/remote-points', function(pts) {
+                    sel.empty().append($('<option value="">-- select point --</option>'));
                     pts.forEach(function(p) {
                         sel.append($('<option>').val(p.name).text(p.name));
                     });
