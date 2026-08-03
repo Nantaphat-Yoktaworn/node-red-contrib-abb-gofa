@@ -1,0 +1,11 @@
+# RobotStudio virtual controller (VC) workflow — doc-only, NOT live-verified
+
+**Status: written from ABB's documented behavior + this project's own confirmed RWS findings, but never run against a live VC (none available in this dev environment as of 2026-07-20).** Treat as "should work per docs," not confirmed, until someone points `gofa-robot` at a real VC and runs `check-status.js`.
+
+**Why it should work at all**: RWS is served by the RobotWare software itself, not physical hardware — a VC runs the identical stack. Nothing in this codebase assumes physical hardware.
+
+**Connection differences**: **IP** — VCs normally only listen on `127.0.0.1` unless RobotStudio's VC networking is bridged; if Node-RED runs on the same machine, use `127.0.0.1`. **Ports** unchanged (443/1025/1026). **`SERVER_IP`** in `MainModule.mod` needs to be the VC's own bind address (likely `127.0.0.1`) — `patchServerIp` should carry this through automatically, unverified. **Credentials** — VC's own configured login, not necessarily this lab's.
+
+**Expected VC/real-hardware gaps** (each independently confirmed against the real controller elsewhere in this project — re-verify against a VC, don't assume): ASI status light likely doesn't exist on a default VC station (real hardware; see `docs/background-led-task.md`); EGM should work in principle but rides on a UDP transport pointed at a real host IP:port (same VC-networking caveat, harder for a live stream) and timing fidelity (~24ms frame rate) isn't guaranteed on simulated RobotWare — see `docs/egm.md`; Digital I/O works only for whatever signals the VC station defines (`SETDO`'s allow-list is hardcoded to `ABB_Scalable_IO_0_DI/DO*`, needs that I/O module added to the VC station or the allow-list edited); Motion/socket protocol (`\Conc` fix included) should be identical — pure RAPID logic, reasonable first thing to verify; Multitasking (`T_LED`) needs RobotWare Multitasking `[3114-1]` licensed in the VC's own config (not inherited from the real controller) or task-creation hits the same RWS wall, this time with no FlexPendant escape hatch either.
+
+**Suggested first live-verification pass**: `check-status.js` with `GOFA_IP=127.0.0.1` against a fresh default GoFa 12 VC station, then `gofa-setup`, then basic motion. This is `ideas/improvement-roadmap.md` item #4.
