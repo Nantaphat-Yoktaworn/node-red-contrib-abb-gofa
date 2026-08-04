@@ -30,7 +30,32 @@ Rule: **motion always goes through the socket; read-only data and motor control 
 
 **Case-sensitivity is not uniform across JSON commands** — the legacy text protocol is fully case-insensitive, but `DispatchJson` handlers normalize case individually (`getvar`/`setvar` do, `setdo` originally didn't). Full detail, RAPID socket command table, and every protocol-level gotcha (RWS I/O `/set-value` vs `/set`, `SERVER_IP` drift, `loadmod`/`unloadmod`/`activate`, `\Conc` queue-depth crash, `VelSet` vs `SpeedRefresh`, mid-move STOP, chaining hazards, elog domain/severity, joint soft-limits, and more): **`docs/rapid-protocol-notes.md`**.
 
-## Detailed docs (read when touching that subsystem)
+## Documentation layout (restructured 2026-08-04)
+
+User-facing docs are split by job — see `docs/README.md` for the index:
+
+| Doc | Job |
+|-----|-----|
+| `README.md` (root) | Landing page only: safety, install, doc index, repo layout. Keep it short — it is not the manual |
+| `docs/getting-started.md` | Setup steps 1–5 + the "Your first move" tutorial + example flows |
+| `docs/reference.md` | Every node, `msg.payload` conventions, EGM, background task, teach workflow, defaults |
+| `docs/troubleshooting.md` | Symptom-keyed fixes. **Current-release behavior only** — "this used to be broken" belongs in `CHANGELOG.md` |
+| `CHANGELOG.md` | Release history + every removed-node migration table |
+| `node-red-contrib-abb-gofa/README.md` | npm page. Self-contained summary; links to GitHub for depth |
+
+**Rule — release notes and fixed-bug archaeology go in `CHANGELOG.md`, never in a README or the
+troubleshooting page.** Both READMEs previously opened with release notes, and troubleshooting
+carried entries for bugs fixed in 2.4.x that a new user cannot hit.
+
+**Rule — the two READMEs must not restate each other.** Duplicated prose drifts exactly the way
+duplicated code does: the 2026-08-04 doc audit found the root README still documenting five nodes
+removed at 2.5.0, the npm README claiming 43 nodes when there are 38, a `ws` dependency that no
+longer exists, and a default IP two subnets stale. Verify doc claims against the code
+(`package.json`'s node list, `gofa-robot.js` defaults, `dependencies`) rather than against the
+other README. `scratchpad/checklinks.js`-style anchor checking is cheap — re-run it after any
+section rename.
+
+## Internals docs (read when touching that subsystem)
 
 | Doc | Covers |
 |-----|--------|
@@ -198,7 +223,9 @@ flows/teach_flow.json              ← physical ASI-button teach workflow (own t
 flows/watchdog_flow.json           ← self-healing socket-wedge watchdog, see docs/version-handshake-watchdog.md
 flows/mqtt_bridge_flow.json        ← publishes state/pose/io onto MQTT topics via core mqtt out
 flows/brake_check_reminder_flow.json ← see docs/brake-check-reminder.md
-docs/                               ← deep-dive reference docs, see table above
+docs/                               ← user docs (getting-started/reference/troubleshooting) +
+                                      per-subsystem internals; index in docs/README.md
+CHANGELOG.md                       ← release history + removed-node migration tables
 MANUAL_CONTROL.md                  ← curl/raw-TCP command reference for controlling the robot without Node-RED
 .claude/commands/                  ← skills (/abb-rws, /omnicore-c30, /crb15000, /robot-status, /mastership-test)
 .claude/memory/                    ← portable snapshot of Claude Code's project memory - read MEMORY.md first, see its README

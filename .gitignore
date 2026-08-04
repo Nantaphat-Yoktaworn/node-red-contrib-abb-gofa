@@ -30,13 +30,14 @@ flows/teach_flow_th.json
 !rapid/MainModuleEGM.mod
 !rapid/BackgroundLed.mod
 
-# Deep-dive reference docs linked from CLAUDE.md
+# User docs (getting-started/reference/troubleshooting) + per-subsystem internals
 !docs/
 !docs/**
 
-# This file, README, license, CI, and Claude Code project config
+# This file, README, changelog, license, CI, and Claude Code project config
 !.gitignore
 !README.md
+!CHANGELOG.md
 !LICENSE
 !CLAUDE.md
 !MANUAL_CONTROL.md

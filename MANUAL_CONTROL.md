@@ -5,10 +5,11 @@ source in `node-red-contrib-abb-gofa/nodes/`, not re-derived — so you can cont
 inspect the robot directly with `curl` / a raw TCP client, for debugging, scripting,
 or when Node-RED itself isn't available.
 
-Replace `<ROBOT_IP>` with the controller's current IP (`192.168.1.103` as of 2026-07-16 —
-see the `SERVER_IP` note in `CLAUDE.md`; it drifts often, including whole-subnet changes,
-so re-check with `check-status.js` or the `/robot-status` skill before trusting this value)
-and `<username>`/`<password>` with your RWS credentials.
+Replace `<ROBOT_IP>` with the controller's current IP, and `<username>`/`<password>` with your RWS
+credentials. **Don't assume a previously-noted IP is still right** — it drifts often, including
+whole-subnet changes. Check it live first with `check-status.js` (or `check-status.js --discover`
+to scan the subnet). The same drift is why `SERVER_IP` inside `MainModule.mod` has to match; see
+the `SERVER_IP` note in `CLAUDE.md`.
 
 ## The one thing that decides which half of this doc you need
 
@@ -16,7 +17,7 @@ and `<username>`/`<password>` with your RWS credentials.
 |---|---|
 | **Part A — RWS (HTTPS, port 443)** | Works whenever the controller is powered on and reachable — RAPID does **not** need to be running. Two specific actions (`loadmod`, `activate`) are the exception: see the callout below. |
 | **Part B — TCP Socket (port 1025, `T_ROB1`/`MainModule.mod`)** | Only works while **RAPID is actually executing** `MainModule.mod`'s `main()` loop — that loop is what opens the socket server. If RAPID is stopped, every socket command (even `PING`) times out. This is expected, not a bug (`check-status.js` reports it as `Socket: ERROR (socket timeout)` whenever `RAPID: stopped`). |
-| **Part C — TCP Socket (port 1026, `T_LED`/`BackgroundLed.mod`)** | Runs in its own `SEMISTATIC` RAPID task, separate from `T_ROB1` — keeps working even while `T_ROB1`/`MainModule.mod` is stopped. Only supports `ping`/`setled`/`resetled`/`setdo` — see below. Requires the one-time RobotStudio task setup described in `README.md`'s ["Background task" section](README.md#background-task-backgroundledmod--t_led). |
+| **Part C — TCP Socket (port 1026, `T_LED`/`BackgroundLed.mod`)** | Runs in its own `SEMISTATIC` RAPID task, separate from `T_ROB1` — keeps working even while `T_ROB1`/`MainModule.mod` is stopped. Only supports `ping`/`setled`/`resetled`/`setdo` — see below. Requires the one-time RobotStudio task setup described in the node reference's ["Background task" section](docs/reference.md#background-task-backgroundledmod--t_led). |
 
 So: status/telemetry/motor-on/upload-a-file/start-RAPID all work over RWS with RAPID
 stopped. Anything that **moves the robot or reads/writes a `PERS` variable** needs
@@ -263,7 +264,7 @@ above — see the EGM section in `README.md` for that protocol and setup.
 
 ## Part C — TCP Socket commands (port 1026, `T_LED`/`BackgroundLed.mod`)
 
-A separate, optional RAPID task (see `README.md`'s ["Background task" section](README.md#background-task-backgroundledmod--t_led)
+A separate, optional RAPID task (see `README.md`'s ["Background task" section](docs/reference.md#background-task-backgroundledmod--t_led)
 for the one-time RobotStudio setup) that keeps answering these same-shaped commands even while
 `T_ROB1`/`MainModule.mod` above is stopped. **JSON only — no legacy plain-text tokens
 here**, unlike Part B's `MainModule.mod` (`BackgroundLed.mod` dispatches every incoming

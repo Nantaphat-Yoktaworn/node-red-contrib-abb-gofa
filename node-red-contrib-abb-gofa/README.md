@@ -13,26 +13,14 @@ Developed and live-tested against a GoFa 12 (CRB 15000-12/1.27) on an OmniCore C
 - Jog/rotate step limits (50 mm / 30°) are enforced in the RAPID module, not in Node-RED — if you edit `MainModule.mod`, keep them.
 - The node property panels have live-action buttons (jog, move, motors on/off, …) backed by Node-RED admin HTTP endpoints. The browser confirmation dialogs are convenience only, not a security control. **Configure [`adminAuth`](https://nodered.org/docs/user-guide/runtime/securing-node-red) on any Node-RED instance controlling a real robot** — it is required, not optional. As of 2.4.10 these motion endpoints are **refused (HTTP 403) when `adminAuth` is not configured**, so an unauthenticated editor port can no longer trigger motion. If your instance has no `adminAuth` but is genuinely protected another way (isolated cell network / firewall / reverse proxy), tick **Allow insecure live control** on the `gofa-robot` config node to re-enable them at your own risk. Deployed flows are unaffected either way — this guard only covers the editor buttons.
 
-## 2.5.2 — bug-fix release (one behavior change)
+## Upgrading
 
-No RAPID protocol change: `MODULE_VERSION` is bumped in lockstep for provenance
-only, so a controller still reporting **2.5.x stays compatible** and does not need
-re-flashing.
-
-**`gofa-movej` no longer moves on a malformed target.** It used to treat a
-*malformed* joint payload the same as *no* payload — both fell back to the node's
-configured joints **and moved the arm there**, so a 5-element array or an object
-with no joint keys moved the robot to a pose the flow never asked for. Those now
-return an error and send no motion command.
-
-Still falls back to the configured joints (inject-triggered flows are unaffected):
-`undefined`/`null`, a number, a boolean, an empty string, `{}`, `{moveType:'L'}`.
-
-Also fixed: `gofa-setup`'s `T_LED` reload was silently skipped on every deployed
-run; fileservice paths containing a space failed; `gofa-subscribe-*` leaked one
-controller subscription per reconnect; `gofa-points` could persist an incomplete
-robtarget; `gofa-connection-status` could crash the Node-RED process via an
-unhandled rejection.
+Node removals in this package are **replacements, not aliases** — a flow built with an older
+version shows "unknown node" for a removed type and has to be edited. The two most likely to
+affect you: `gofa-joint-jog` was merged into `gofa-jog` (2.6.0), and `gofa-save-point`/
+`gofa-go-point`/`gofa-point-list`/`gofa-delete-point` were merged into `gofa-points` (2.5.0, which
+also moved point storage from the Node-RED host onto the robot). Full details and migration tables:
+[CHANGELOG.md](https://github.com/Nantaphat-Yoktaworn/node-red-contrib-abb-gofa/blob/main/CHANGELOG.md).
 
 ## How it works
 
@@ -45,7 +33,7 @@ RWS-only nodes (status, pose, joints, I/O, …) work without the RAPID module; m
 
 ## Requirements
 
-- ABB GoFa CRB 15000 with an OmniCore controller, RobotWare 7.x
+- ABB GoFa CRB 15000 with an OmniCore controller, RobotWare 7.x (must run RWS 2.0)
 - Node-RED ≥ 3.0, Node.js ≥ 18
 - Network access to the controller (HTTPS 443 + TCP 1025)
 - RobotStudio (free) — once, to create an RWS user with the right grants
@@ -60,7 +48,7 @@ npm install node-red-contrib-abb-gofa
 
 (or **Menu → Manage palette → Install** inside the Node-RED editor.)
 
-Restart Node-RED — a `gofa-robot` config node and 43 `gofa-*` nodes appear under the **GoFa** category.
+Restart Node-RED — a `gofa-robot` config node and 37 `gofa-*` nodes appear under the **ABB-GoFa-12** category in the palette sidebar. The package has no runtime dependencies.
 
 ## Controller setup (once)
 
@@ -84,7 +72,7 @@ curl -sk -u <user>:<password> -X PUT -H "Content-Type: text/plain;v=2.0" \
 2. Wire an `inject` into e.g. `gofa-status` or `gofa-ping` to verify connectivity, then go from there.
 3. Every node has full usage docs in the Node-RED sidebar help.
 
-Ready-made example flows (a per-node demo, a full control dashboard, and a physical-button teach workflow) are in the [GitHub repo's `flows/` directory](https://github.com/Nantaphat-Yoktaworn/node-red-contrib-abb-gofa/tree/main/flows).
+Ready-made example flows ship with the package — **Menu → Import → Examples → node-red-contrib-abb-gofa**: a one-inject-per-node demo, one-click setup, a pick-and-place sorting cell, a physical-button teach workflow, a socket-wedge watchdog, an MQTT bridge, an EGM conveyor demo, and a brake-check reminder. They're also in the [GitHub repo's `flows/` directory](https://github.com/Nantaphat-Yoktaworn/node-red-contrib-abb-gofa/tree/main/flows).
 
 ## Nodes
 
@@ -128,7 +116,17 @@ needed just to silence output. Check it to get the full `msg.payload` described 
 | `gofa-subscribe-elog` | RWS WebSocket | Push new event log entries in real time; same Domain/Min Severity filters as `gofa-elog` |
 | `gofa-egm` / `gofa-egm-move` | UDP (EGM) | Sub-10ms joint-position streaming — see [EGM (optional)](#egm-optional) below, requires `MainModuleEGM.mod` |
 
-The full RAPID socket protocol reference, RWS endpoint notes, and troubleshooting guide are in the [GitHub README](https://github.com/Nantaphat-Yoktaworn/node-red-contrib-abb-gofa#readme).
+## Full documentation
+
+| | |
+|---|---|
+| [Getting started](https://github.com/Nantaphat-Yoktaworn/node-red-contrib-abb-gofa/blob/main/docs/getting-started.md) | Controller setup, install, and your first robot move |
+| [Node reference](https://github.com/Nantaphat-Yoktaworn/node-red-contrib-abb-gofa/blob/main/docs/reference.md) | Every node, `msg.payload` conventions, EGM, background task |
+| [Troubleshooting](https://github.com/Nantaphat-Yoktaworn/node-red-contrib-abb-gofa/blob/main/docs/troubleshooting.md) | Symptoms and fixes |
+| [Manual control](https://github.com/Nantaphat-Yoktaworn/node-red-contrib-abb-gofa/blob/main/MANUAL_CONTROL.md) | Drive the robot with `curl` / raw TCP |
+
+Each node also has its own help page in the Node-RED sidebar — select the node and open the
+**Help** tab.
 
 ## EGM (optional)
 
@@ -195,7 +193,7 @@ LED feedback and digital-output writes working during a hand-guiding session (or
 own task. It backs the **Background** transport option on `gofa-do-write`/`gofa-asi-led`, and the
 `background` field on `gofa-connection-status`. Setting it up needs one manual, one-time
 RobotStudio step (creating a new RAPID task isn't possible over RWS at all) — see the
-[GitHub README's "Background task" section](https://github.com/Nantaphat-Yoktaworn/node-red-contrib-abb-gofa#background-task-backgroundledmod--t_led)
+[node reference's "Background task" section](https://github.com/Nantaphat-Yoktaworn/node-red-contrib-abb-gofa/blob/main/docs/reference.md#background-task-backgroundledmod--t_led)
 for the exact steps. After that one-time setup, `gofa-setup` reloads `BackgroundLed.mod`
 automatically on every run, right alongside `T_ROB1` — no further manual steps needed.
 
