@@ -380,8 +380,7 @@ Protocol key: **TCP** = RAPID socket server port 1025 · **RWS** = HTTPS REST AP
 | **gofa-speed-set** | TCP | Speed override 1–100% |
 | **gofa-move** | TCP | HOME (go to home) or SETHOME (save current pose as home) |
 | **gofa-movej** | TCP | Absolute joint move `[j1..j6]` degrees ("Move Joints") — Move type: Joint (default) or Linear straight-line TCP path. Validates each target angle against the robot's Joint Limits before sending (see note below) |
-| **gofa-jog** | TCP | Relative TCP translate (mm, base frame) or rotate (°, tool frame) |
-| **gofa-joint-jog** | TCP | Rotate single joint by ± degrees |
+| **gofa-jog** | TCP | Relative move — **Target**: `X`/`Y`/`Z` translate the TCP (mm, base frame), `RX`/`RY`/`RZ` rotate it (°, tool frame), `J1`–`J6` rotate a single joint (°). Replaces the separate `gofa-joint-jog` node, removed in 2.6.0 |
 | **gofa-zone-set** | TCP | Path blend zone (fine / z1 / z5 / z10 / z20 / z50 / z100) |
 | **gofa-stop-motion** | RWS + TCP | Halt motion. **Mode**: `immediate` (default) halts an in-progress `HOME`/`GOTOJ`/`GOTOL`/`MOVEJ`/`MOVEL` now via an RWS execution-stop, then auto `resetPP`+`start`s so the socket recovers (arm stays where it halted; needs Auto + motors on); `queued` is the legacy socket `STOP` that only cancels a not-yet-started move. A jog is halted immediately by either mode |
 | **gofa-ping** | TCP | Round-trip latency test |
@@ -704,8 +703,7 @@ msg.payload  →  node property (editor)  →  built-in default
 | **gofa-speed-set** | number or string `1`–`100` | `50` |
 | **gofa-zone-set** | `'fine'` / `'z1'` / `'z5'` / `'z10'` / `'z20'` / `'z50'` / `'z100'` | `z10` |
 | **gofa-grip** | `true` / `1` / `'on'` / `'gripon'` or `false` / `0` / `'off'` / `'gripoff'` · `{ action: 'on' }` | `on` |
-| **gofa-jog** | `{ axis, dir, step }` | X, +, 10 |
-| **gofa-joint-jog** | `{ joint, dir, step }` | J1, +, 5 |
+| **gofa-jog** | `{ target, dir, step }` — `target`: `X`/`Y`/`Z`/`RX`/`RY`/`RZ`/`J1`–`J6`. `{ axis, ... }` and `{ joint, ... }` still work as aliases for pre-2.6.0 flows | X, +, 10 |
 | **gofa-movej** | `[j1,j2,j3,j4,j5,j6]` · `{ j1..j6 }` · `{ joints: [...] }` · a JSON-array string. A **malformed** target (wrong-length array, object with no joint keys) is an **error** since 2.5.2 — see below | `[0,0,85,0,0,0]` |
 | **gofa-go-point** | `{ name, moveType?, storage? }` or `{ id, moveType?, storage? }` — `moveType`: `"J"` or `"L"`, `storage`: `"local"`/`"remote"` | (property) |
 | **gofa-save-point** | string (name) · `{ name, storage? }` | (property) |

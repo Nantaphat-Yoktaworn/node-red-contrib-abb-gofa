@@ -3,30 +3,59 @@
         category: 'ABB-GoFa-12', color: '#D3740C',
         defaults: {
             outputPayload: { value: false },
-            name:  { value: '' },
-            robot: { value: '', type: 'gofa-robot', required: true },
-            axis:  { value: 'X' },
-            dir:   { value: '+' },
-            step:  { value: 10 }
+            name:   { value: '' },
+            robot:  { value: '', type: 'gofa-robot', required: true },
+            target: { value: 'X' },
+            // Legacy pre-2.6.0 field. A node saved before the gofa-joint-jog
+            // merge stores its Cartesian axis here and has no `target`; it is
+            // declared so the editor still loads it, migrated into `target` by
+            // oneditprepare, and cleared by oneditsave. The runtime reads it as
+            // a fallback too, so an un-reopened old node keeps working.
+            axis:   { value: '' },
+            dir:    { value: '+' },
+            step:   { value: 10 }
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
-        label: function() { return this.name || ('Jog ' + this.axis + this.dir + this.step); },
+        label: function() {
+            return this.name || ('Jog ' + (this.target || this.axis || 'X') + this.dir + this.step);
+        },
         paletteLabel: 'Jog',
         oneditprepare: function() {
             var node = this;
+
+            // Pre-2.6.0 node: no `target` was ever saved, so it defaulted to
+            // 'X' above. A non-empty legacy `axis` is the migration signal.
+            if (node.axis) $('#node-input-target').val(node.axis);
+
+            function isCartesian(t) { return ['X', 'Y', 'Z'].indexOf(t) !== -1; }
+
+            // Step's unit and ceiling depend on the target: mm for a Cartesian
+            // translation, degrees for a rotation or a single-joint jog. The
+            // node clamps server-side regardless -- this only keeps the spinner
+            // and the hint honest.
+            function syncStepUnits() {
+                var t = $('#node-input-target').val() || 'X';
+                var cart = isCartesian(t);
+                $('#node-input-step').attr('max', cart ? 50 : 30);
+                $('#gofa-jog-step-unit').text(cart ? 'mm (max 50)' : 'deg (max 30)');
+            }
+            $('#node-input-target').on('change', syncStepUnits);
+            syncStepUnits();
+
             function robotId() {
                 var v = $('#node-input-robot').val();
                 return (v && v !== '_ADD_') ? v : null;
             }
             function performJog() {
                 var id = robotId();
-                var axis = $('#node-input-axis').val() || 'X';
+                var target = $('#node-input-target').val() || 'X';
                 var dir = $('#node-input-dir').val() || '+';
                 var step = $('#node-input-step').val() || '10';
+                var unit = isCartesian(target) ? 'mm' : 'degrees';
 
                 if (!id) return RED.notify('Select (and deploy) a robot config first', 'warning');
 
-                if (!confirm('WARNING: The robot will execute a relative jog movement of ' + axis + dir + step + '. Ensure the path is clear. Proceed?')) {
+                if (!confirm('WARNING: The robot will execute a relative jog movement of ' + target + dir + step + ' ' + unit + '. Ensure the path is clear. Proceed?')) {
                     return;
                 }
 
@@ -37,7 +66,7 @@
                     url: 'gofa-jog/' + id + '/jog',
                     type: 'POST',
                     contentType: 'application/json',
-                    data: JSON.stringify({ axis: axis, dir: dir, step: step })
+                    data: JSON.stringify({ target: target, dir: dir, step: step })
                 })
                     .done(function(data) {
                         RED.notify('Jog command acknowledged successfully: ' + data.ack, 'success');
@@ -55,6 +84,11 @@
                 e.preventDefault();
                 performJog();
             });
+        },
+        oneditsave: function() {
+            // Migration is one-way: once the value lives in `target`, drop the
+            // legacy field so it can never disagree with it.
+            this.axis = '';
         }
     });
 </script>
@@ -64,14 +98,26 @@
         <input type="text" id="node-input-robot">
     </div>
     <div class="form-row">
-        <label for="node-input-axis"><i class="fa fa-arrows"></i> Axis</label>
-        <select id="node-input-axis">
-            <option value="X">X — Forward/Back (mm, base frame)</option>
-            <option value="Y">Y — Left/Right (mm, base frame)</option>
-            <option value="Z">Z — Up/Down (mm, base frame)</option>
-            <option value="RX">RX — Roll (deg, tool frame)</option>
-            <option value="RY">RY — Pitch (deg, tool frame)</option>
-            <option value="RZ">RZ — Yaw (deg, tool frame)</option>
+        <label for="node-input-target"><i class="fa fa-arrows"></i> Target</label>
+        <select id="node-input-target">
+            <optgroup label="Cartesian — base frame (mm)">
+                <option value="X">X — Forward/Back</option>
+                <option value="Y">Y — Left/Right</option>
+                <option value="Z">Z — Up/Down</option>
+            </optgroup>
+            <optgroup label="Rotation — tool frame (deg)">
+                <option value="RX">RX — Roll</option>
+                <option value="RY">RY — Pitch</option>
+                <option value="RZ">RZ — Yaw</option>
+            </optgroup>
+            <optgroup label="Single joint (deg)">
+                <option value="J1">J1</option>
+                <option value="J2">J2</option>
+                <option value="J3">J3</option>
+                <option value="J4">J4</option>
+                <option value="J5">J5</option>
+                <option value="J6">J6</option>
+            </optgroup>
         </select>
     </div>
     <div class="form-row">
@@ -84,7 +130,7 @@
     <div class="form-row">
         <label for="node-input-step"><i class="fa fa-sliders"></i> Step</label>
         <input type="number" id="node-input-step" placeholder="10" min="1" max="50">
-        <span style="margin-left:4px">mm (or deg for rotation, max 30)</span>
+        <span id="gofa-jog-step-unit" style="margin-left:4px">mm (max 50)</span>
     </div>
     <div class="form-row">
         <button id="gofa-jog-btn" class="editor-button" style="width: 100%; font-weight: bold;"><i class="fa fa-arrows"></i> Jog Now</button>
@@ -100,24 +146,34 @@
 </script>
 <script type="text/html" data-help-name="gofa-jog">
     <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
-    <p>Moves the robot TCP by a relative amount (Cartesian jog).</p>
+    <p>Moves the robot by a relative amount — a Cartesian TCP translation, a TCP rotation,
+    or a single-joint jog, depending on the selected <b>Target</b>.</p>
+    <p>Since 2.6.0 this node replaces the separate <b>Joint Jog</b> node (<code>gofa-joint-jog</code>),
+    which was removed: select <code>J1</code>–<code>J6</code> as the Target instead.</p>
     <h3>Input</h3>
-    <p><code>msg.payload.axis</code>, <code>msg.payload.dir</code>, <code>msg.payload.step</code>
+    <p><code>msg.payload.target</code>, <code>msg.payload.dir</code>, <code>msg.payload.step</code>
     override the configured values. Each is validated and the message is rejected (no socket
     command sent) if invalid:</p>
     <ul>
-        <li><code>axis</code> — must be (case-insensitive) one of <code>X</code>/<code>Y</code>/<code>Z</code>/<code>RX</code>/<code>RY</code>/<code>RZ</code></li>
+        <li><code>target</code> — case-insensitive; one of
+            <code>X</code>/<code>Y</code>/<code>Z</code> (mm, base frame),
+            <code>RX</code>/<code>RY</code>/<code>RZ</code> (deg, tool frame), or
+            <code>J1</code>–<code>J6</code> (deg, single joint; a bare <code>1</code>–<code>6</code> also works)</li>
         <li><code>dir</code> — must be exactly <code>"+"</code> or <code>"-"</code></li>
-        <li><code>step</code> — a number; clamped to 1–50 mm for <code>X</code>/<code>Y</code>/<code>Z</code>, or 1–30° for <code>RX</code>/<code>RY</code>/<code>RZ</code></li>
+        <li><code>step</code> — a number; clamped to 1–50 mm for <code>X</code>/<code>Y</code>/<code>Z</code>,
+            or 1–30° for every rotation and joint target</li>
     </ul>
+    <p><code>msg.payload.axis</code> and <code>msg.payload.joint</code> are still accepted as
+    aliases for <code>target</code>, so flows written against the pre-2.6.0 nodes keep working.
+    If more than one is present, <code>target</code> wins, then <code>axis</code>, then <code>joint</code>.</p>
     <h3>Output <code>msg.payload</code></h3>
     <p>Success:</p>
     <dl class="message-properties">
         <dt>ok</dt><dd>true if robot replied OK</dd>
         <dt>ack</dt><dd>Raw ack string</dd>
-        <dt>token</dt><dd>Command sent (e.g. X+10)</dd>
+        <dt>token</dt><dd>Command sent (e.g. X+10, RY-15, J3+10)</dd>
     </dl>
-    <p>Invalid input (bad axis/direction/step) or a connection-level failure:
+    <p>Invalid input (bad target/direction/step) or a connection-level failure:
     <code>msg.payload = { ok: false, error: "..." }</code>. A rejected socket command (robot
     replied but not with <code>OK:</code>) instead gives the <code>{ ok: false, ack, token }</code>
     shape above — <code>ok</code> is <code>false</code> and <code>ack</code> holds the raw

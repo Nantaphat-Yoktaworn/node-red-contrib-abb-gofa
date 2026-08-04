@@ -105,8 +105,7 @@ needed just to silence output. Check it to get the full `msg.payload` described 
 | `gofa-motor` | RWS | Motors on/off |
 | `gofa-move` | Socket | Go home / set home |
 | `gofa-movej` | Socket | Absolute joint move ("Move Joints") — Move type: Joint (default) / Linear. Validates each target angle against the robot's Joint Limits (CRB 15000-12 defaults) before sending — an out-of-range target returns a clean error instead of faulting RAPID |
-| `gofa-jog` | Socket | Cartesian jog (±mm / ±°) |
-| `gofa-joint-jog` | Socket | Single-joint jog |
+| `gofa-jog` | Socket | Relative jog — **Target**: `X`/`Y`/`Z` (±mm, base frame), `RX`/`RY`/`RZ` (±°, tool frame) or `J1`–`J6` (±°, single joint). Replaces the separate `gofa-joint-jog` node, removed in 2.6.0 |
 | `gofa-zone-set` | Socket | Path blend zone (FINE…Z100) |
 | `gofa-speed-set` | Socket | Speed override via `VelSet` — set or read current (`C_MOTSET.vel.oride`); see CLAUDE.md for why `SpeedRefresh` doesn't work here |
 | `gofa-stop-motion` | RWS + Socket | Motion halt. **Mode**: `immediate` (default) halts an in-progress HOME/GOTOJ/GOTOL/MOVEJ/MOVEL now via an RWS execution-stop + auto resetPP/start (arm stays put, socket recovers; needs Auto + motors on); `queued` is the legacy socket STOP that only cancels a not-yet-started move |

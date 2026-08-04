@@ -2793,29 +2793,123 @@ await checkAsync('gofa-move: rejects non-HOME/SETHOME commands', async function(
     assert.ok(/Invalid command/.test(msg.payload.error));
 });
 
+// ── lib/jog.js (shared resolver) ────────────────────────────────────────────
+// gofa-jog's runtime handler and its admin route both dispatch through
+// resolveJog(); before the 2.6.0 merge the same algorithm existed in four
+// near-copies across gofa-jog and gofa-joint-jog. These pin the resolver
+// directly so a clamp/spelling regression can't hide behind the node harness.
+check('lib/jog: resolves all three target kinds to the right wire command', function() {
+    var jog = require('./nodes/lib/jog');
+    assert.deepStrictEqual(jog('X', '+', 10).cmd, { cmd: 'jog', axis: 'X', sgn: '+', val: 10, rot: false });
+    // RX/RY/RZ go out as the bare axis letter plus rot:true, NOT as "RY".
+    assert.deepStrictEqual(jog('RY', '-', 15).cmd, { cmd: 'jog', axis: 'Y', sgn: '-', val: 15, rot: true });
+    assert.deepStrictEqual(jog('J3', '-', 10).cmd, { cmd: 'jointjog', joint: 3, sgn: '-', val: 10 });
+    assert.strictEqual(jog('X', '+', 10).token, 'X+10');
+    assert.strictEqual(jog('RY', '-', 15).token, 'RY-15');
+    assert.strictEqual(jog('J3', '-', 10).token, 'J3-10');
+    // Every target the dropdown offers must resolve.
+    jog.TARGETS.forEach(function(t) {
+        assert.ok(!jog(t, '+', 5).error, t + ' should be a valid target');
+    });
+});
+
+check('lib/jog: clamps step per target kind — 50mm Cartesian, 30deg rotation and joint', function() {
+    var jog = require('./nodes/lib/jog');
+    assert.strictEqual(jog('X', '+', 999).cmd.val, 50);
+    assert.strictEqual(jog('RX', '+', 999).cmd.val, 30);
+    assert.strictEqual(jog('J1', '+', 999).cmd.val, 30);
+    assert.strictEqual(jog('X', '+', 0).cmd.val, 1);
+    assert.strictEqual(jog('J1', '+', -5).cmd.val, 1);
+});
+
+check('lib/jog: accepts the documented target spellings, rejects everything else', function() {
+    var jog = require('./nodes/lib/jog');
+    assert.strictEqual(jog('ry', '+', 5).cmd.axis, 'Y');          // case-insensitive
+    assert.strictEqual(jog(' J2 ', '+', 5).cmd.joint, 2);         // trimmed
+    assert.strictEqual(jog(3, '+', 5).cmd.joint, 3);              // bare number shorthand
+    assert.strictEqual(jog('3', '+', 5).cmd.joint, 3);            // bare numeric string (pre-2.6.0 behaviour)
+    assert.ok(/Invalid or missing target/.test(jog(null, '+', 5).error));
+    assert.ok(/Invalid target/.test(jog('BOGUS', '+', 5).error));
+    assert.ok(/Invalid target/.test(jog('J7', '+', 5).error));
+    assert.ok(/Invalid target/.test(jog(0, '+', 5).error));
+    assert.ok(/Invalid direction/.test(jog('X', '=', 5).error));
+    assert.ok(/Invalid step value/.test(jog('X', '+', 'NaN').error));
+});
+
+check('lib/jog: pickTarget prefers target, then the legacy axis and joint aliases', function() {
+    var pick = require('./nodes/lib/jog').pickTarget;
+    assert.strictEqual(pick({ target: 'Z', axis: 'X', joint: 'J1' }, 'Y'), 'Z');
+    assert.strictEqual(pick({ axis: 'X', joint: 'J1' }, 'Y'), 'X');
+    assert.strictEqual(pick({ joint: 'J1' }, 'Y'), 'J1');
+    assert.strictEqual(pick({}, 'Y'), 'Y');
+    assert.strictEqual(pick(null, 'Y'), 'Y');
+});
+
 // ── gofa-jog ────────────────────────────────────────────────────────────────
-await checkAsync('gofa-jog: accepts valid axis, dir, step', async function() {
+await checkAsync('gofa-jog: accepts valid target, dir, step', async function() {
     var sent = [];
     var mockRobot = { socketSend: function(cmd) { sent.push(cmd); return Promise.resolve('OK:JOG'); } };
-    var node = new (loadNodeType('./nodes/gofa-jog', { nodesById: { r1: mockRobot } }))({ robot: 'r1', axis: 'X', dir: '+', step: 10 });
-    var msg = { payload: { axis: 'RY', dir: '-', step: 15 } };
+    var node = new (loadNodeType('./nodes/gofa-jog', { nodesById: { r1: mockRobot } }))({ robot: 'r1', target: 'X', dir: '+', step: 10 });
+    var msg = { payload: { target: 'RY', dir: '-', step: 15 } };
     await runInput(node, msg);
     assert.deepStrictEqual(sent, [{ cmd: 'jog', axis: 'Y', sgn: '-', val: 15, rot: true }]);
     assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.token, 'RY-15');
 });
 
-await checkAsync('gofa-jog: rejects non-string and invalid axis', async function() {
+// The single-joint jog that gofa-joint-jog used to own — same wire command,
+// now reached by selecting J1..J6 as the Target.
+await checkAsync('gofa-jog: a J-target sends jointjog, not jog', async function() {
+    var sent = [];
+    var mockRobot = { socketSend: function(cmd) { sent.push(cmd); return Promise.resolve('OK:JOINTJOG'); } };
+    var node = new (loadNodeType('./nodes/gofa-jog', { nodesById: { r1: mockRobot } }))({ robot: 'r1', target: 'J1', dir: '+', step: 5 });
+    var msg = { payload: { target: 'J3', dir: '-', step: 10 } };
+    await runInput(node, msg);
+    assert.deepStrictEqual(sent, [{ cmd: 'jointjog', joint: 3, sgn: '-', val: 10 }]);
+    assert.strictEqual(msg.payload.ok, true);
+    assert.strictEqual(msg.payload.token, 'J3-10');
+});
+
+// Pre-2.6.0 flows send msg.payload.axis (old gofa-jog) or msg.payload.joint
+// (old gofa-joint-jog), and pre-2.6.0 gofa-jog nodes store config.axis with no
+// config.target at all. All three must keep working untouched.
+await checkAsync('gofa-jog: back-compat — legacy axis/joint payloads and a legacy config.axis', async function() {
+    var sent = [];
+    var mockRobot = { socketSend: function(cmd) { sent.push(cmd); return Promise.resolve('OK:JOG'); } };
+    var Jog = loadNodeType('./nodes/gofa-jog', { nodesById: { r1: mockRobot } });
+
+    var node = new Jog({ robot: 'r1', target: 'X', dir: '+', step: 10 });
+    await runInput(node, { payload: { axis: 'Z', dir: '+', step: 5 } });
+    await runInput(node, { payload: { joint: 'J2', dir: '-', step: 8 } });
+
+    // A node saved before the merge: config.axis set, config.target absent.
+    var legacy = new Jog({ robot: 'r1', axis: 'Y', dir: '-', step: 20 });
+    await runInput(legacy, {});
+
+    assert.deepStrictEqual(sent, [
+        { cmd: 'jog', axis: 'Z', sgn: '+', val: 5, rot: false },
+        { cmd: 'jointjog', joint: 2, sgn: '-', val: 8 },
+        { cmd: 'jog', axis: 'Y', sgn: '-', val: 20, rot: false }
+    ]);
+});
+
+await checkAsync('gofa-jog: rejects non-string and invalid target', async function() {
     var mockRobot = { socketSend: function() { return Promise.resolve('OK:JOG'); } };
     var node = new (loadNodeType('./nodes/gofa-jog', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
-    var msg1 = { payload: { axis: null } };
+    var msg1 = { payload: { target: null } };
     await runInput(node, msg1);
     assert.strictEqual(msg1.payload.ok, false);
-    assert.ok(/Invalid or missing axis/.test(msg1.payload.error));
+    assert.ok(/Invalid or missing target/.test(msg1.payload.error));
 
-    var msg2 = { payload: { axis: 'BOGUS' } };
+    var msg2 = { payload: { target: 'BOGUS' } };
     await runInput(node, msg2);
     assert.strictEqual(msg2.payload.ok, false);
-    assert.ok(/Invalid axis/.test(msg2.payload.error));
+    assert.ok(/Invalid target/.test(msg2.payload.error));
+
+    var msg3 = { payload: { joint: 'J7' } };
+    await runInput(node, msg3);
+    assert.strictEqual(msg3.payload.ok, false);
+    assert.ok(/Invalid target/.test(msg3.payload.error));
 });
 
 await checkAsync('gofa-jog: rejects invalid dir and non-numeric step', async function() {
@@ -2830,31 +2924,6 @@ await checkAsync('gofa-jog: rejects invalid dir and non-numeric step', async fun
     await runInput(node, msg2);
     assert.strictEqual(msg2.payload.ok, false);
     assert.ok(/Invalid step value/.test(msg2.payload.error));
-});
-
-// ── gofa-joint-jog ──────────────────────────────────────────────────────────
-await checkAsync('gofa-joint-jog: accepts valid joint, dir, step', async function() {
-    var sent = [];
-    var mockRobot = { socketSend: function(cmd) { sent.push(cmd); return Promise.resolve('OK:JOINTJOG'); } };
-    var node = new (loadNodeType('./nodes/gofa-joint-jog', { nodesById: { r1: mockRobot } }))({ robot: 'r1', joint: 'J1', dir: '+', step: 5 });
-    var msg = { payload: { joint: 'J3', dir: '-', step: 10 } };
-    await runInput(node, msg);
-    assert.deepStrictEqual(sent, [{ cmd: 'jointjog', joint: 3, sgn: '-', val: 10 }]);
-    assert.strictEqual(msg.payload.ok, true);
-});
-
-await checkAsync('gofa-joint-jog: rejects invalid joint numbers', async function() {
-    var mockRobot = { socketSend: function() { return Promise.resolve('OK:JOINTJOG'); } };
-    var node = new (loadNodeType('./nodes/gofa-joint-jog', { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
-    var msg1 = { payload: { joint: 'J7' } };
-    await runInput(node, msg1);
-    assert.strictEqual(msg1.payload.ok, false);
-    assert.ok(/Invalid joint/.test(msg1.payload.error));
-
-    var msg2 = { payload: { joint: 0 } };
-    await runInput(node, msg2);
-    assert.strictEqual(msg2.payload.ok, false);
-    assert.ok(/Invalid joint/.test(msg2.payload.error));
 });
 
 // ── gofa-motor ──────────────────────────────────────────────────────────────
@@ -4970,8 +5039,7 @@ await checkAsync('C2 admin routes: every route surfaces a transport failure as a
         'GET /gofa-grip/:id/read':            { signal: 'DO1' },
         'GET /gofa-di-read/:id/read':         { signal: 'DI1' },
         'POST /gofa-movej/:id/move':          { joints: [0, 0, 85, 0, 0, 0] },
-        'POST /gofa-jog/:id/jog':             { axis: 'X', sign: '+', distance: 10 },
-        'POST /gofa-joint-jog/:id/jog':       { joint: 1, sign: '+', angle: 5 },
+        'POST /gofa-jog/:id/jog':             { target: 'X', dir: '+', step: 10 },
         'POST /gofa-move/:id/action':         { action: 'home' },
         'POST /gofa-motor/:id/toggle':        { action: 'on' },
         'POST /gofa-speed-set/:id/set':       { speed: 50 },

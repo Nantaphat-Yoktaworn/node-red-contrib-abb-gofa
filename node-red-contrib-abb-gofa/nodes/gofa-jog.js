@@ -1,55 +1,37 @@
 'use strict';
 var requireAdminAuth = require('./lib/require-admin-auth');
 var gate = require('./lib/gate');
+var jog = require('./lib/jog');
 module.exports = function(RED) {
     function GoFaJogNode(config) {
         RED.nodes.createNode(this, config);
         this.robot = RED.nodes.getNode(config.robot);
-        this.axis  = config.axis  || 'X';
-        this.dir   = config.dir   || '+';
-        this.step  = parseFloat(config.step) || 10;
+        // `axis` is the pre-2.6.0 gofa-jog field name; reading it here keeps
+        // already-deployed Jog nodes working without an edit-and-redeploy.
+        this.target = config.target || config.axis || 'X';
+        this.dir    = config.dir    || '+';
+        this.step   = parseFloat(config.step) || 10;
         var node = this;
         node.on('input', function(msg, send, done) {
             send = gate(config, send);
             if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
-            var p    = msg.payload || {};
-            var axis = p.axis !== undefined ? p.axis : node.axis;
-            if (typeof axis !== 'string') {
-                msg.payload = { ok: false, error: 'Invalid or missing axis: ' + axis };
-                node.error('Invalid or missing axis: ' + axis, msg);
-                node.status({ fill: 'red', shape: 'ring', text: 'bad axis' });
+            var p      = msg.payload || {};
+            var target = jog.pickTarget(p, node.target);
+            var dir    = p.dir  !== undefined ? p.dir  : node.dir;
+            var step   = p.step !== undefined ? p.step : node.step;
+
+            var r = jog(target, dir, step);
+            if (r.error) {
+                msg.payload = { ok: false, error: r.error };
+                node.error(r.error, msg);
+                node.status({ fill: 'red', shape: 'ring', text: r.status });
                 send(msg); return done();
             }
-            var upperAxis = axis.toUpperCase();
-            if (['X', 'Y', 'Z', 'RX', 'RY', 'RZ'].indexOf(upperAxis) === -1) {
-                msg.payload = { ok: false, error: 'Invalid axis: ' + axis };
-                node.error('Invalid axis: ' + axis, msg);
-                node.status({ fill: 'red', shape: 'ring', text: 'bad axis' });
-                send(msg); return done();
-            }
-            axis = upperAxis;
-            var dir  = p.dir  !== undefined ? p.dir  : node.dir;
-            if (dir !== '+' && dir !== '-') {
-                msg.payload = { ok: false, error: 'Invalid direction: ' + dir };
-                node.error('Invalid direction: ' + dir, msg);
-                node.status({ fill: 'red', shape: 'ring', text: 'bad dir' });
-                send(msg); return done();
-            }
-            var step = p.step !== undefined ? parseFloat(p.step) : node.step;
-            if (isNaN(step)) {
-                msg.payload = { ok: false, error: 'Invalid step value: ' + p.step };
-                node.error('Invalid step value: ' + p.step, msg);
-                node.status({ fill: 'red', shape: 'ring', text: 'bad step' });
-                send(msg); return done();
-            }
-            var rot  = upperAxis.charAt(0) === 'R';
-            step = Math.max(1, Math.min(rot ? 30 : 50, step));
-            var token = axis + dir + step;
-            var axisLetter = rot ? axis.substring(1) : axis;
-            node.status({ fill: 'blue', shape: 'dot', text: token });
-            node.robot.socketSend({ cmd: 'jog', axis: axisLetter, sgn: dir, val: step, rot: rot }).then(function(ack) {
+
+            node.status({ fill: 'blue', shape: 'dot', text: r.token });
+            node.robot.socketSend(r.cmd).then(function(ack) {
                 var ok = ack.startsWith('OK:');
-                msg.payload = { ok: ok, ack: ack, token: token };
+                msg.payload = { ok: ok, ack: ack, token: r.token };
                 node.status({ fill: ok ? 'green' : 'red', shape: 'dot', text: ack });
                 send(msg); done();
             }).catch(function(err) {
@@ -67,30 +49,15 @@ module.exports = function(RED) {
         if (!robot || typeof robot.socketSend !== 'function') {
             return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
         }
-        var axis = req.body.axis || 'X';
-        var dir = req.body.dir || '+';
-        var step = parseFloat(req.body.step) || 10;
+        var body = req.body || {};
+        var r = jog(jog.pickTarget(body, 'X'), body.dir || '+', body.step !== undefined ? body.step : 10);
+        if (r.error) return res.status(400).json({ error: r.error });
 
-        var upperAxis = axis.toUpperCase();
-        if (['X', 'Y', 'Z', 'RX', 'RY', 'RZ'].indexOf(upperAxis) === -1) {
-            return res.status(400).json({ error: 'Invalid axis: ' + axis });
-        }
-        axis = upperAxis;
-
-        if (dir !== '+' && dir !== '-') {
-            return res.status(400).json({ error: 'Invalid direction: ' + dir });
-        }
-
-        var rot = axis.charAt(0) === 'R';
-        step = Math.max(1, Math.min(rot ? 30 : 50, step));
-        var axisLetter = rot ? axis.substring(1) : axis;
-
-        robot.socketSend({ cmd: 'jog', axis: axisLetter, sgn: dir, val: step, rot: rot }).then(function(ack) {
-            var ok = ack.startsWith('OK:');
-            if (!ok) {
+        robot.socketSend(r.cmd).then(function(ack) {
+            if (!ack.startsWith('OK:')) {
                 throw new Error(ack);
             }
-            res.json({ ok: true, ack: ack });
+            res.json({ ok: true, ack: ack, token: r.token });
         }).catch(function(err) {
             res.status(502).json({ error: err.message });
         });

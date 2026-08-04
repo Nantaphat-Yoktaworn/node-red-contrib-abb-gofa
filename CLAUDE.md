@@ -40,6 +40,7 @@ Rule: **motion always goes through the socket; read-only data and motor control 
 | `docs/version-handshake-watchdog.md` | Module-vs-palette version handshake (`MODULE_VERSION`/`PALETTE_VERSION`), `flows/watchdog_flow.json` self-healing socket-wedge recovery, the `egmActive` exclusion bug |
 | `docs/brake-check-reminder.md` | `flows/brake_check_reminder_flow.json` — Cyclic Brake Check elog-warning detection (read-only, doesn't trigger the check) |
 | `docs/points-system.md` | On-robot point storage format, the combined `gofa-points` node (save/go/list/delete/export/import), migration history from the five removed single-purpose nodes |
+| `docs/jog-merge.md` | The 2.6.0 `gofa-joint-jog`→`gofa-jog` merge — why a Target dropdown instead of an Action one, `lib/jog.js`, back-compat paths, live-test evidence |
 | `docs/interactive-panels.md` | Editor-panel live-action buttons (separate code path from deployed flows), admin-route auth (`requireAdminAuth`), Known Signals dropdown |
 | `docs/virtual-controller.md` | RobotStudio Virtual Controller workflow — doc-only, **not live-verified**, treat as "should work per docs" |
 
@@ -70,7 +71,7 @@ Logical command surface most nodes send via `socketSend()` (a string); `translat
 
 Move commands (`HOME`/`GOTOJ`/`GOTOL`/`MOVEJ`/`MOVEL`) are blocking, no `\Conc`, since 2.4.2; only jog commands still queue.
 
-## Nodes (39 total)
+## Nodes (38 total)
 
 | Node | Transport | Description |
 |------|-----------|-------------|
@@ -85,8 +86,7 @@ Move commands (`HOME`/`GOTOJ`/`GOTOL`/`MOVEJ`/`MOVEL`) are blocking, no `\Conc`,
 | `gofa-motor` | RWS | Motor on/off |
 | `gofa-move` | Socket | HOME or SETHOME |
 | `gofa-movej` | Socket | Absolute joint move; Joint/Linear; validates against Joint Limits first. Since 2.5.2 a *malformed* payload errors instead of silently falling back to the configured joints — only an absent/number/boolean/empty payload falls back (see `resolveJointsPayload`) |
-| `gofa-jog` | Socket | Cartesian jog |
-| `gofa-joint-jog` | Socket | Single joint jog |
+| `gofa-jog` | Socket | Relative jog, one **Target** dropdown covering all three kinds: `X`/`Y`/`Z` (±mm, base frame), `RX`/`RY`/`RZ` (±°, tool frame), `J1`–`J6` (±°, single joint). `gofa-joint-jog` merged in and removed at 2.6.0 — see `docs/jog-merge.md` |
 | `gofa-grip` | RWS | Named DO on/off via `/set-value` (needs `Access: All`); Known Signals dropdown |
 | `gofa-zone-set` | Socket | Path blend zone |
 | `gofa-speed-set` | Socket | Global speed via `VelSet`; Set/Read. Chaining hazard, see protocol doc |
@@ -170,6 +170,7 @@ fix landed in only one of two duplicated copies". Prefer these over re-implement
 | `drop-subscription.js` | Best-effort DELETE of a held subscription — **must** run before re-subscribing or every reconnect orphans one (controller caps concurrent sessions at 19) |
 | `patch-server-ip.js` | Rewrites `SERVER_IP` in a `.mod` to match the config node's IP |
 | `list-signals.js` | Parses the I/O signal list XHTML |
+| `jog.js` | `resolveJog(target, dir, step)` → socket command + token, for every jog kind; `pickTarget()` reads the `target`/`axis`/`joint` payload aliases |
 
 Also in `gofa-robot.js`: `escapeFileservicePath()` — **every** `/fileservice/` URL
 must go through it. Node's HTTP client rejects an unescaped space client-side
@@ -177,9 +178,11 @@ must go through it. Node's HTTP client rejects an unescaped space client-side
 reaches the controller (confirmed live 2026-08-04).
 
 **Runtime vs. admin-route duplication**: `gofa-setup`, `gofa-connection-status`,
-`gofa-rapid-exec`, `gofa-file`, `gofa-sequencer` and `gofa-points` each implement
-their logic **once** and call it from both the deployed node and the editor panel.
-Keep it that way — the two-copy pattern is what produced bugs 2 and 3.
+`gofa-rapid-exec`, `gofa-file`, `gofa-sequencer`, `gofa-points` and `gofa-jog`
+each implement their logic **once** and call it from both the deployed node and
+the editor panel. Keep it that way — the two-copy pattern is what produced bugs
+2 and 3, and it had left a live inconsistency in the jog nodes too until 2.6.0
+(see `docs/jog-merge.md`).
 
 ## Repo layout
 
