@@ -27,7 +27,17 @@ for (const f of fs.readdirSync('../flows').filter(f => f.endsWith('.json') && !f
         // drifts again, leaking this lab's real current IP into the public package.
         // Genericized to ABB's neutral service-port default (matches gofa-robot's
         // own config default), not any address this lab has actually used.
-        .replace(/"ip":\s*"[^"]*"/g, '"ip": "192.168.125.1"');
+        .replace(/"ip":\s*"[^"]*"/g, '"ip": "192.168.125.1"')
+        // Force the live-control escape hatch OFF in every published example.
+        // This lab's own flows/ set it true (the cell is network-isolated, so the
+        // guard in nodes/lib/require-admin-auth.js is redundant here) — but a
+        // stranger importing an example onto a default Node-RED has no adminAuth,
+        // and RED.auth.needsPermission() is a NO-OP in that state. Shipping true
+        // would leave all 22 requireAdminAuth-gated endpoints — jog, movej, motor
+        // on, sequencer start — reachable unauthenticated by anyone who can hit
+        // the admin port. Matches the field, not one hardcoded value, for the same
+        // reason as the ip/username rules above.
+        .replace(/"allowInsecureLiveControl":\s*(?:true|false)/g, '"allowInsecureLiveControl": false');
     fs.writeFileSync('examples/' + f, text);
 }
 console.log('prepack: synced rapid/*.mod and examples/ from repo root');
