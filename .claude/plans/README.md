@@ -19,3 +19,4 @@ todo lists.
 | `server-ip-hardcode-fix-plan.md` | Removing the hardcoded `SERVER_IP` from `rapid/MainModule.mod` — superseded by `gofa-upload-mod`'s auto-patch, see `CLAUDE.md`'s SERVER_IP note |
 | `dashboard-flow-plan.md` | Building `flows/dashboard_flow.json` (node-red-dashboard UI for the palette) |
 | `rebuild-palette-flow-plan.md` | Rebuilding `flows/gofa_demo_flow.json`/`robot_palette_flow.json` to wire in all node types |
+| `repo-audit-2026-08-04.md` | Full source audit: 7 bugs found (5 live-verified on the controller), the A–D open-items register, the fix plan, and the live-verification results — shipped as 2.5.2 |
