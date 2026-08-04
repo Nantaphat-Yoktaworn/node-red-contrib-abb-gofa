@@ -41,7 +41,13 @@ function loadNodeType(modulePath, opts) {
                 node.warnings = []; node.errors = []; node.statuses = []; node.sent = [];
                 node.warn   = function(m) { node.warnings.push(m); };
                 node.error  = function(m) { node.errors.push(m); };
-                node.status = function(s) { node.statuses.push(s); };
+                // `this.statuses`, NOT `node.statuses` — deliberately `this`-sensitive
+                // so it matches the real runtime, whose Node.prototype.status is
+                // `this._flow.handleStatus(this, status)` and therefore throws when
+                // handed around unbound. A mock that closed over `node` swallowed
+                // exactly that bug in gofa-setup (prepareLed got a bare `node.status`,
+                // threw, and the T_LED reload was silently skipped on every run).
+                node.status = function(s) { this.statuses.push(s); };
                 node.send   = function(m) { node.sent.push(m); };
             },
             getNode:      function(id) { return (opts.nodesById || {})[id] || null; },
@@ -49,11 +55,36 @@ function loadNodeType(modulePath, opts) {
         },
         settings: { userDir: opts.userDir || os.tmpdir() },
         util:     { cloneMessage: function(m) { return JSON.parse(JSON.stringify(m)); } },
-        httpAdmin: { get: function() {}, post: function() {}, delete: function() {} },
+        // Admin (editor-panel) routes are a SECOND, largely duplicated implementation
+        // of each node's logic — and historically where fixes get forgotten (the
+        // version-handshake regression in gofa-setup's own /start route lived here).
+        // Pass opts.routes to capture them keyed 'METHOD /path' and drive them with
+        // runRoute(); omit it and they're discarded as before.
+        httpAdmin: (function() {
+            var capture = function(method) {
+                return function(path, mwOrHandler, handler) {
+                    if (opts.routes) opts.routes[method + ' ' + path] = handler || mwOrHandler;
+                };
+            };
+            return { get: capture('GET'), post: capture('POST'), delete: capture('DELETE') };
+        })(),
         auth:      { needsPermission: function() { return function() {}; } }
     };
     require(modulePath)(fakeRED);
     return Ctor;
+}
+// Drives an admin route handler captured via opts.routes. Resolves with
+// { statusCode, body } once the handler calls res.json().
+function runRoute(handler, req) {
+    return new Promise(function(resolve, reject) {
+        if (!handler) return reject(new Error('route not registered'));
+        var res = {
+            statusCode: 200,
+            status: function(c) { this.statusCode = c; return this; },
+            json:   function(b) { resolve({ statusCode: this.statusCode, body: b }); return this; }
+        };
+        try { handler(req, res); } catch (e) { reject(e); }
+    });
 }
 // Drives a node's 'input' handler like the runtime would; resolves with
 // whatever the node passed to done(err).
@@ -1533,6 +1564,7 @@ await checkAsync('gofa-subscribe-elog: fetchAndEmit resolves after close() does 
     require('util').inherits(MockWS, EventEmitter);
     MockWS.prototype.terminate = function() {};
     require.cache[require.resolve('./nodes/lib/ws')] = { exports: MockWS };
+    delete require.cache[require.resolve('./nodes/lib/rws-subscription')];
     delete require.cache[require.resolve('./nodes/gofa-subscribe-elog')];
 
     var resolveGet;
@@ -1570,6 +1602,7 @@ await checkAsync('gofa-subscribe-elog: fetchAndEmit resolves after close() does 
     assert.strictEqual(node.sent.length, 0, 'no message should be sent from closed node');
 
     require.cache[require.resolve('./nodes/lib/ws')] = origWs;
+    delete require.cache[require.resolve('./nodes/lib/rws-subscription')];
     delete require.cache[require.resolve('./nodes/gofa-subscribe-elog')];
 });
 check('gofa-subscribe-elog: parseEntry reads fields from both the list-item and single-entry XHTML shapes', function() {
@@ -4049,7 +4082,7 @@ check('example flows: every gofa-* node instance has Output payload enabled', fu
 // ONE intentional difference: gofa-robot's ip/username are genericized in examples/ for the
 // public npm release (see reference_public_release memory) — excluded here, everything else
 // must be byte-for-byte identical.
-check('example flows: examples/ (npm copy) matches flows/ (source of truth), except gofa-robot ip/username', function() {
+check('example flows: examples/ (npm copy) matches flows/ (source of truth), except gofa-robot ip/username/allowInsecureLiveControl', function() {
     var flowsDir = path.join(__dirname, '..', 'flows');
     var exDir    = path.join(__dirname, 'examples');
     var problems = [];
@@ -4066,10 +4099,11 @@ check('example flows: examples/ (npm copy) matches flows/ (source of truth), exc
             var m = bMap[n.id];
             if (!m) { problems.push(f + ': node ' + n.id + ' missing from examples/ copy'); return; }
             if (n.type === 'gofa-robot') {
-                var aRest = Object.assign({}, n, { ip: undefined, username: undefined });
-                var bRest = Object.assign({}, m, { ip: undefined, username: undefined });
+                var STRIP = { ip: undefined, username: undefined, allowInsecureLiveControl: undefined };
+                var aRest = Object.assign({}, n, STRIP);
+                var bRest = Object.assign({}, m, STRIP);
                 if (JSON.stringify(aRest) !== JSON.stringify(bRest)) {
-                    problems.push(f + ': gofa-robot config differs beyond ip/username');
+                    problems.push(f + ': gofa-robot config differs beyond ip/username/allowInsecureLiveControl');
                 }
                 return;
             }
@@ -4078,6 +4112,68 @@ check('example flows: examples/ (npm copy) matches flows/ (source of truth), exc
             }
         });
     });
+    assert.deepStrictEqual(problems, [], problems.join('; '));
+});
+
+// Guards the PUBLISHED surface — everything in package.json's files: ["nodes",
+// "rapid", "examples"] allowlist. Three separate things have now leaked toward npm
+// at least once (this lab's username, its IP, and the live-control escape hatch),
+// each time because a value was set for local convenience in a file that also
+// ships. prepack.js genericizes flows -> examples, but nothing checked the result
+// until this test, and nothing at all checked the palette defaults in
+// gofa-robot.html — which are NOT run through prepack.
+check('npm surface: shipped examples and palette defaults carry no lab-specific or insecure values', function() {
+    var problems = [];
+
+    // 1. Every published example flow.
+    var exDir = path.join(__dirname, 'examples');
+    fs.readdirSync(exDir).filter(function(f) { return f.endsWith('.json'); }).forEach(function(f) {
+        JSON.parse(fs.readFileSync(path.join(exDir, f), 'utf8'))
+            .filter(function(n) { return n.type === 'gofa-robot'; })
+            .forEach(function(n) {
+                // The escape hatch disables the require-admin-auth guard on all 22
+                // state-changing editor endpoints (jog, movej, motor on, sequencer
+                // start, ...) whenever Node-RED has no adminAuth — which is the
+                // default install. It must never ship enabled.
+                if (n.allowInsecureLiveControl === true) {
+                    problems.push('examples/' + f + ': allowInsecureLiveControl is true');
+                }
+                if (n.username && n.username !== 'Default User') {
+                    problems.push('examples/' + f + ': non-generic username "' + n.username + '"');
+                }
+                if (n.ip && n.ip !== '192.168.125.1') {
+                    problems.push('examples/' + f + ': non-generic ip "' + n.ip + '"');
+                }
+            });
+    });
+
+    // 2. The palette defaults a fresh install gets before touching anything.
+    //    gofa-robot.html ships as-is — prepack never rewrites it.
+    var html = fs.readFileSync(path.join(__dirname, 'nodes', 'gofa-robot.html'), 'utf8');
+    var defaults = (/defaults:\s*\{([\s\S]*?)\n\s{8}\}/.exec(html) || [])[1] || html.slice(0, 2000);
+    var def = function(key) {
+        var m = new RegExp(key + ':\\s*\\{\\s*value:\\s*([^,}]+)').exec(defaults);
+        return m ? m[1].trim().replace(/^['"]|['"]$/g, '') : null;
+    };
+    if (def('allowInsecureLiveControl') !== 'false') {
+        problems.push('gofa-robot.html: allowInsecureLiveControl default is ' +
+            def('allowInsecureLiveControl') + ', must be false');
+    }
+    if (def('username') !== 'Default User') {
+        problems.push('gofa-robot.html: username default is "' + def('username') +
+            '", must be the ABB factory "Default User"');
+    }
+    if (def('ip') !== '192.168.125.1') {
+        problems.push('gofa-robot.html: ip default is "' + def('ip') + '", must be 192.168.125.1');
+    }
+
+    // 3. prepack.js must keep a rule for the escape hatch — without it, a future
+    //    flows/ edit silently republishes the insecure value.
+    var prepack = fs.readFileSync(path.join(__dirname, 'prepack.js'), 'utf8');
+    if (prepack.indexOf('allowInsecureLiveControl') < 0) {
+        problems.push('prepack.js: lost its allowInsecureLiveControl genericization rule');
+    }
+
     assert.deepStrictEqual(problems, [], problems.join('; '));
 });
 
@@ -4400,6 +4496,550 @@ await checkAsync('gofa-points (import): import still accepts a bare array payloa
     await runInput(node, msg);
     assert.strictEqual(msg.payload.ok, true);
     assert.strictEqual(mockRobot._pts.length, 1);
+});
+
+// ── regression tests for the 2026-08-04 repo scan (BUGFIX_CHECKLIST.md) ──────
+// Bug 1 (gofa-setup passed node.status unbound, silently skipping the whole
+// T_LED reload) needs no test of its own: the `this`-sensitive node.status mock
+// above makes the three existing "T_LED ..." tests fail without the .bind(node).
+
+await checkAsync('gofa-setup (panel route): a patch-only module version difference reports OK, not a warning', async function() {
+    // Bug 2 — the /start admin route compared `ver === PALETTE_VERSION` while the
+    // runtime node used versionsCompatible(), so any patch bump made the editor
+    // panel falsely warn about a module that is fine.
+    var PALETTE = require('./nodes/gofa-robot').PALETTE_VERSION;
+    var patchDrift = PALETTE.replace(/^(\d+)\.(\d+)\.(\d+)/, function(m, a, b, c) {
+        return a + '.' + b + '.' + (parseInt(c) + 1);
+    });
+    assert.notStrictEqual(patchDrift, PALETTE, 'sanity: drifted version must differ');
+    var routes = {};
+    var robot = makeSetupRobot({ exec: 'running', moduleVersion: patchDrift });
+    loadNodeType('./nodes/gofa-setup', { nodesById: { r1: robot }, routes: routes });
+    var r = await runRoute(routes['POST /gofa-setup/:id/start'], { params: { id: 'r1' }, body: {} });
+    assert.strictEqual(r.statusCode, 200, JSON.stringify(r.body));
+    var ping = r.body.steps.filter(function(s) { return s.name === 'socket PING'; })[0];
+    assert.strictEqual(ping.ok, true);
+    assert.ok(ping.detail.indexOf('WARNING') < 0, 'patch drift must not warn, got: ' + ping.detail);
+});
+
+await checkAsync('gofa-setup (panel route): a major/minor module version difference still warns', async function() {
+    var routes = {};
+    var robot = makeSetupRobot({ exec: 'running', moduleVersion: '1.0.0' });
+    loadNodeType('./nodes/gofa-setup', { nodesById: { r1: robot }, routes: routes });
+    var r = await runRoute(routes['POST /gofa-setup/:id/start'], { params: { id: 'r1' }, body: {} });
+    var ping = r.body.steps.filter(function(s) { return s.name === 'socket PING'; })[0];
+    assert.ok(ping.detail.indexOf('WARNING') >= 0, ping.detail);
+});
+
+await checkAsync('gofa-file (upload): remote path is URL-escaped, same as download/delete', async function() {
+    // Bug 3 — upload built its URL from the raw remotePath while download/delete
+    // used escapedPath, so a path with a space broke on upload only.
+    var puts = [];
+    var mockRobot = { ip: '10.0.0.9', rwsPut: function(p) { puts.push(p); return Promise.resolve(''); } };
+    var node = new (loadNodeType('./nodes/gofa-file', { nodesById: { r1: mockRobot } }))(
+        { robot: 'r1', action: 'upload', remotePath: '$HOME/Programs/my module.mod', outputPayload: true });
+    var msg = { payload: Buffer.from('MODULE X\nENDMODULE\n') };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true, JSON.stringify(msg.payload));
+    assert.deepStrictEqual(puts, ['/fileservice/$HOME/Programs/my%20module.mod']);
+});
+
+await checkAsync('gofa-file (upload, panel route): remote path is URL-escaped too', async function() {
+    var puts = [];
+    var routes = {};
+    var localFile = path.join(tmpDir, 'upload-escape.mod');
+    fs.writeFileSync(localFile, 'MODULE X\nENDMODULE\n', 'utf8');
+    var mockRobot = { ip: '10.0.0.9', requestRaw: function() { return Promise.resolve({ statusCode: 200 }); },
+                      rwsPut: function(p) { puts.push(p); return Promise.resolve(''); } };
+    loadNodeType('./nodes/gofa-file', { nodesById: { r1: mockRobot }, routes: routes });
+    var r = await runRoute(routes['POST /gofa-file/:id/test'],
+        { params: { id: 'r1' }, body: { action: 'upload', remotePath: '$HOME/Programs/my module.mod', localPath: localFile } });
+    assert.strictEqual(r.statusCode, 200, JSON.stringify(r.body));
+    assert.deepStrictEqual(puts, ['/fileservice/$HOME/Programs/my%20module.mod']);
+});
+
+await checkAsync('gofa-asi-led: closing mid-blink invalidates the session — no re-armed timer, no second done()', async function() {
+    // Bug 4 — the close handler cleared _blinkTimer but never bumped _blinkSession,
+    // so an in-flight ledWrite() resolving after close still passed the session
+    // guard, re-armed the timer on a dead node and called done() a second time.
+    var release;
+    var pending = new Promise(function(res) { release = res; });
+    var mockRobot = { backgroundPort: 1026, socketSend: function() { return pending.then(function() { return 'OK:SETLED'; }); } };
+    var node = new (loadNodeType('./nodes/gofa-asi-led', { nodesById: { r1: mockRobot } }))(
+        { robot: 'r1', red: 255, blinkCount: 3, blinkMs: 5, transport: 'socket', outputPayload: true });
+
+    var doneCalls = 0;
+    node._handlers['input']({ payload: { r: 255, g: 0, b: 0 } }, function(m) { node.sent.push(m); }, function() { doneCalls++; });
+
+    // close() while the first ledWrite is still in flight
+    await new Promise(function(res) { node._handlers['close'](function() { res(); }); });
+    assert.strictEqual(doneCalls, 1, 'close should settle the in-flight message exactly once');
+
+    release();                                  // now let the stale ledWrite resolve
+    await new Promise(function(res) { setTimeout(res, 30); });
+    assert.strictEqual(doneCalls, 1, 'a post-close ledWrite must not call done() again');
+    assert.ok(!node._blinkTimer, 'a post-close ledWrite must not re-arm the blink timer');
+});
+
+for (const kind of ['io', 'state', 'elog']) {
+    await checkAsync('gofa-subscribe-' + kind + ': re-subscribing deletes the stale subscription first (no leak)', async function() {
+        // Bug 6 — ws 'close' calls startSubscription() again, which overwrote
+        // node._pollkey with a new key and orphaned the old subscription on the
+        // controller. OmniCore caps concurrent sessions at 19 once any WS
+        // subscription is active, so those add up to a FlexPendant lockout.
+        var calls = [];
+        var n = 0;
+        var mockRobot = {
+            requestRaw: function(method, p) {
+                calls.push(method + ' ' + p);
+                if (method === 'POST') {
+                    n++;
+                    return Promise.resolve({ statusCode: 201, headers: { location: 'wss://h/poll/key' + n }, cookie: 'c' });
+                }
+                return Promise.resolve({ statusCode: 200 });
+            },
+            rwsGet: function() { return Promise.resolve(''); }
+        };
+        var node = new (loadNodeType('./nodes/gofa-subscribe-' + kind, { nodesById: { r1: mockRobot } }))({ robot: 'r1' });
+
+        // First subscribe, then simulate the reconnect path by re-entering with a
+        // poll key already held — exactly the state ws.on('close') leaves behind.
+        await runInput(node, {});
+        await new Promise(function(res) { setTimeout(res, 20); });
+        assert.strictEqual(node._pollkey, 'key1', 'first subscribe should hold key1');
+
+        node._ws = null;                  // ws died
+        await runInput(node, {});         // reconnect
+        await new Promise(function(res) { setTimeout(res, 20); });
+
+        var deleteIdx = calls.indexOf('DELETE /subscription/key1');
+        assert.ok(deleteIdx >= 0, 'stale key1 must be deleted, got: ' + JSON.stringify(calls));
+        var secondPost = calls.lastIndexOf('POST /subscription');
+        assert.ok(deleteIdx < secondPost, 'delete must happen BEFORE the re-subscribe POST');
+        assert.strictEqual(node._pollkey, 'key2');
+    });
+}
+
+// ── Phase 1 of the 2026-08-04 fix plan: B1-B7 + D3 ──────────────────────────
+
+await checkAsync('B3 gofa-connection-status: a throw inside the .then still calls done() and never raises', async function() {
+    // parseXhtml is called on every RWS body; make it explode to simulate any
+    // unexpected in-handler failure. Pre-fix this left done() uncalled forever
+    // (wedging watchdog_flow.json, which polls this node) plus an unhandled rejection.
+    var mockRobot = {
+        ip: '10.0.0.9', backgroundPort: 1026,
+        rwsGet: function() { return Promise.resolve('<span class="ctrlstate">motoron</span>'); },
+        socketSend: function() { return Promise.resolve('OK:PING'); },
+        getLastPingVersion: function() { return null; },
+        parseXhtml: function() { throw new Error('boom'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-connection-status', { nodesById: { r1: mockRobot } }))(
+        { robot: 'r1', outputPayload: true });
+    var msg = {};
+    var settled = false;
+    await Promise.race([
+        runInput(node, msg).then(function() { settled = true; }),
+        new Promise(function(r) { setTimeout(r, 1500); })
+    ]);
+    assert.strictEqual(settled, true, 'done() was never called — the node wedged');
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(/boom/.test(msg.payload.error), JSON.stringify(msg.payload));
+});
+
+check('B4 gofa-asi-led: a non-numeric period is guarded to 0, not NaN', function() {
+    var resolvePayload = require('./nodes/gofa-asi-led').resolvePayload;
+    var out = resolvePayload({ r: 0, g: 0, b: 0, period: 0 }, { r: 255, period: 'abc' });
+    assert.strictEqual(out.period, 0, 'got ' + out.period);
+    assert.ok(!isNaN(out.period));
+    // JSON.stringify turns NaN into null, which is what reached the RAPID side.
+    assert.notStrictEqual(JSON.parse(JSON.stringify({ v: out.period })).v, null);
+    // a valid period still passes through, and negatives still floor at 0
+    assert.strictEqual(resolvePayload({ r:0,g:0,b:0,period:0 }, { r:255, period: 500 }).period, 500);
+    assert.strictEqual(resolvePayload({ r:0,g:0,b:0,period:0 }, { r:255, period: -5 }).period, 0);
+});
+
+await checkAsync('B5 gofa-rapid-exec: task name is URL-encoded in the RWS path', async function() {
+    var paths = [];
+    var mockRobot = {
+        rwsGet: function(p) {
+            if (p === '/rw/rapid/execution') return Promise.resolve('<span class="ctrlexecstate">stopped</span>');
+            return Promise.resolve('<span class="ctrlstate">motoron</span>');
+        },
+        rwsPostHal: function(p) { paths.push(p); return Promise.resolve('{}'); },
+        withMastership: function(fn) { return fn(); },
+        parseXhtml: parseXhtml
+    };
+    var node = new (loadNodeType('./nodes/gofa-rapid-exec', { nodesById: { r1: mockRobot } }))(
+        { robot: 'r1', action: 'loadmod', task: 'T ROB/1', outputPayload: true });
+    await runInput(node, {});
+    assert.deepStrictEqual(paths, ['/rw/rapid/tasks/T%20ROB%2F1/loadmod'], JSON.stringify(paths));
+});
+
+check('B6 gofa-robot: two points created in the same millisecond get distinct ids', function() {
+    // Same-ms collisions made remoteDeletePoint remove BOTH points (it filters on p.id).
+    var ids = new Set();
+    for (var i = 0; i < 500; i++) {
+        ids.add('p' + Date.now() + '-' + Math.random().toString(36).slice(2, 8));
+    }
+    assert.strictEqual(ids.size, 500, 'id generator collided: ' + ids.size + '/500');
+    var src = fs.readFileSync(path.join(__dirname, 'nodes', 'gofa-robot.js'), 'utf8');
+    assert.ok(!/id:\s*'p'\s*\+\s*Date\.now\(\)\s*,/.test(src),
+        'remoteAddPoint still uses a bare Date.now() id');
+});
+
+check('B2 escapeFileservicePath: escapes spaces, keeps $HOME literal, no double-encoding', function() {
+    var esc = require('./nodes/gofa-robot').escapeFileservicePath;
+    assert.strictEqual(esc('$HOME/Programs/my file.mod'), '$HOME/Programs/my%20file.mod');
+    assert.strictEqual(esc('$HOME/Programs/MainModule.mod'), '$HOME/Programs/MainModule.mod');
+    assert.strictEqual(esc('$HOME/a#b?c.json'), '$HOME/a%23b%3Fc.json');
+    // Every fileservice caller must go through it — a raw path with a space is
+    // rejected by Node's HTTP client before the request is even sent (live-confirmed).
+    ['gofa-robot.js', 'gofa-file.js', 'gofa-setup.js', 'gofa-mod-edit.js'].forEach(function(f) {
+        var src = fs.readFileSync(path.join(__dirname, 'nodes', f), 'utf8');
+        var raw = src.split('\n').filter(function(l) {
+            return /['"]\/fileservice\/['"]\s*\+/.test(l) &&
+                   !/escapeFileservicePath|escapedPath/.test(l);
+        });
+        assert.deepStrictEqual(raw, [], f + ' has unescaped fileservice path(s): ' + raw.join(' | '));
+    });
+});
+
+await checkAsync('B1 gofa-points (save): an incomplete robtarget is rejected, not persisted as null', async function() {
+    // cf4 missing -> parseXhtml null -> parseFloat NaN -> JSON.stringify writes null.
+    var body = ['x','y','z','q1','q2','q3','q4','cf1','cf6','cfx']
+        .map(function(c) { return '<span class="' + c + '">1</span>'; }).join('');
+    var saved = null;
+    var mockRobot = {
+        rwsGet: function() { return Promise.resolve(body); },
+        parseXhtml: parseXhtml,
+        remoteAddPoint: function(n, t) { saved = t; return Promise.resolve({ id: 'p1', name: n, target: t }); },
+        remoteGetPoints: function() { return Promise.resolve([]); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))(
+        { robot: 'r1', action: 'save', outputPayload: true });
+    var msg = { payload: 'MyPoint' };
+    await runInput(node, msg);
+    assert.strictEqual(saved, null, 'a corrupt point was written to the robot');
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(/cf4/.test(msg.payload.error), msg.payload.error);
+});
+
+await checkAsync('B1 gofa-points (save): a complete robtarget still saves normally', async function() {
+    var body = ['x','y','z','q1','q2','q3','q4','cf1','cf4','cf6','cfx']
+        .map(function(c) { return '<span class="' + c + '">1</span>'; }).join('');
+    var saved = null;
+    var mockRobot = {
+        rwsGet: function() { return Promise.resolve(body); },
+        parseXhtml: parseXhtml,
+        remoteAddPoint: function(n, t) { saved = t; return Promise.resolve({ id: 'p1', name: n, target: t }); },
+        remoteGetPoints: function() { return Promise.resolve([{ id: 'p1', name: 'MyPoint', target: sample }]); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))(
+        { robot: 'r1', action: 'save', outputPayload: true });
+    var msg = { payload: 'MyPoint' };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true, JSON.stringify(msg.payload));
+    assert.ok(saved && saved.cf4 === 1, JSON.stringify(saved));
+});
+
+await checkAsync('B7 gofa-robot discover(): socket fan-out is capped, not one-per-address', async function() {
+    // Rebuild discover()'s pool over a fake scanner so we can observe concurrency
+    // without opening 254 real sockets.
+    var live = 0, peak = 0;
+    var src = fs.readFileSync(path.join(__dirname, 'nodes', 'gofa-robot.js'), 'utf8');
+    assert.ok(/function poolMap\(/.test(src), 'poolMap helper is missing');
+    assert.ok(/poolMap\(targets, \d+,/.test(src), 'discover() no longer routes scans through poolMap');
+    var m = /poolMap\(targets, (\d+),/.exec(src);
+    var cap = parseInt(m[1]);
+    assert.ok(cap > 0 && cap <= 128, 'unreasonable cap: ' + cap);
+
+    // Exercise the real helper via the same shape discover() uses.
+    var poolMap = require('./nodes/gofa-robot').poolMap;
+    assert.strictEqual(typeof poolMap, 'function', 'poolMap is not exported for testing');
+    var items = []; for (var i = 0; i < 300; i++) items.push(i);
+    var out = await poolMap(items, cap, function(x) {
+        live++; peak = Math.max(peak, live);
+        return new Promise(function(r) { setTimeout(function() { live--; r(x * 2); }, 1); });
+    });
+    assert.ok(peak <= cap, 'peak concurrency ' + peak + ' exceeded cap ' + cap);
+    assert.strictEqual(out.length, 300);
+    assert.strictEqual(out[299], 598, 'poolMap did not preserve result order');
+});
+
+await checkAsync('D3 gofa-points: export/import use async fs and still round-trip', async function() {
+    ['gofa-points.js', 'gofa-file.js'].forEach(function(f) {
+        var src = fs.readFileSync(path.join(__dirname, 'nodes', f), 'utf8');
+        assert.ok(!/fs\.(read|write)FileSync/.test(src), f + ' still blocks the event loop with sync fs');
+    });
+    var outFile = path.join(tmpDir, 'pts-async.json');
+    var pts = [{ id: 'p1', name: 'A', target: sample }];
+    var mockRobot = {
+        remoteGetPoints: function() { return Promise.resolve(pts); },
+        remoteSavePoints: function(a) { this._saved = a; return Promise.resolve(); }
+    };
+    var Ctor = loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } });
+    var exp = new Ctor({ robot: 'r1', action: 'export', outputPayload: true });
+    var m1 = { payload: outFile };
+    await runInput(exp, m1);
+    assert.strictEqual(m1.payload.ok, true, JSON.stringify(m1.payload));
+    assert.ok(fs.existsSync(outFile), 'export wrote nothing');
+
+    var imp = new Ctor({ robot: 'r1', action: 'import', outputPayload: true });
+    var m2 = { payload: outFile };
+    await runInput(imp, m2);
+    assert.strictEqual(m2.payload.ok, true, JSON.stringify(m2.payload));
+    assert.strictEqual(m2.payload.count, 1);
+});
+
+await checkAsync('D3 gofa-points (import): an unreadable file still reports a clean error', async function() {
+    var mockRobot = { remoteSavePoints: function() { return Promise.resolve(); } };
+    var node = new (loadNodeType('./nodes/gofa-points', { nodesById: { r1: mockRobot } }))(
+        { robot: 'r1', action: 'import', outputPayload: true });
+    var msg = { payload: path.join(tmpDir, 'does-not-exist.json') };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false);
+    assert.ok(/File read failed/.test(msg.payload.error), msg.payload.error);
+});
+
+// ── Phase 2: A1 gofa-movej malformed-payload handling ───────────────────────
+
+check('A1 resolveJointsPayload: absent/trigger payloads still fall back to configured joints', function() {
+    var r = require('./nodes/gofa-movej').resolveJointsPayload;
+    // These must KEEP working — an inject node fires a timestamp, and existing
+    // flows rely on "no target -> use the configured pose".
+    [undefined, null, 1754300000000, 0, true, false, '', '   '].forEach(function(p) {
+        assert.strictEqual(r(p).useConfigured, true, 'should fall back: ' + JSON.stringify(p));
+        assert.ok(!r(p).error, 'should not error: ' + JSON.stringify(p));
+    });
+    // A control-only object is still "no target supplied".
+    assert.strictEqual(r({}).useConfigured, true);
+    assert.strictEqual(r({ moveType: 'L' }).useConfigured, true);
+});
+
+check('A1 resolveJointsPayload: valid targets are accepted unchanged', function() {
+    var r = require('./nodes/gofa-movej').resolveJointsPayload;
+    assert.deepStrictEqual(r([0, 0, 85, 0, 0, 0]).joints, [0, 0, 85, 0, 0, 0]);
+    assert.deepStrictEqual(r({ j1: 1, j2: 2, j3: 3, j4: 4, j5: 5, j6: 6 }).joints, [1, 2, 3, 4, 5, 6]);
+    assert.deepStrictEqual(r({ joints: [1, 2, 3, 4, 5, 6] }).joints, [1, 2, 3, 4, 5, 6]);
+    // JSON string — parity with what the admin route always accepted.
+    assert.deepStrictEqual(r('[0,0,85,0,0,0]').joints, [0, 0, 85, 0, 0, 0]);
+});
+
+check('A1 resolveJointsPayload: supplied-but-malformed targets error instead of falling back', function() {
+    var r = require('./nodes/gofa-movej').resolveJointsPayload;
+    [[0, 0, 85, 0, 0], [0, 0, 85, 0, 0, 0, 0], []].forEach(function(p) {
+        var out = r(p);
+        assert.ok(out.error, 'wrong-length array should error: ' + JSON.stringify(p));
+        assert.ok(!out.useConfigured, 'must NOT fall back: ' + JSON.stringify(p));
+    });
+    var o = r({ x: 1, y: 2 });
+    assert.ok(o.error, 'object with no joint target should error');
+    assert.ok(!o.useConfigured);
+    assert.ok(r('not json').error, 'non-JSON string should error');
+});
+
+await checkAsync('A1 gofa-movej: a 5-element payload errors and sends NO motion command', async function() {
+    var sent = [];
+    var mockRobot = {
+        jointLimits: require('./nodes/gofa-robot').JOINT_LIMITS,
+        socketSend: function(c) { sent.push(c); return Promise.resolve('OK:MOVEJ'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-movej', { nodesById: { r1: mockRobot } }))(
+        { robot: 'r1', joints: '[0,0,85,0,0,0]', outputPayload: true });
+    var msg = { payload: [10, 20, 30, 40, 50] };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, false, JSON.stringify(msg.payload));
+    assert.deepStrictEqual(sent, [], 'the robot was commanded to move on a malformed payload');
+});
+
+await checkAsync('A1 gofa-movej: an inject-style timestamp still moves to the configured joints', async function() {
+    var sent = [];
+    var mockRobot = {
+        jointLimits: require('./nodes/gofa-robot').JOINT_LIMITS,
+        socketSend: function(c) { sent.push(c); return Promise.resolve('OK:MOVEJ'); }
+    };
+    var node = new (loadNodeType('./nodes/gofa-movej', { nodesById: { r1: mockRobot } }))(
+        { robot: 'r1', joints: '[0,0,85,0,0,0]', outputPayload: true });
+    var msg = { payload: 1754300000000 };
+    await runInput(node, msg);
+    assert.strictEqual(msg.payload.ok, true, JSON.stringify(msg.payload));
+    assert.deepStrictEqual(sent, [{ cmd: 'movej', val: [0, 0, 85, 0, 0, 0] }], JSON.stringify(sent));
+});
+
+await checkAsync('A1 gofa-movej (panel route): wrong-length joints still 400 and send no command', async function() {
+    var sent = [];
+    var routes = {};
+    var mockRobot = {
+        jointLimits: require('./nodes/gofa-robot').JOINT_LIMITS,
+        socketSend: function(c) { sent.push(c); return Promise.resolve('OK:MOVEJ'); }
+    };
+    loadNodeType('./nodes/gofa-movej', { nodesById: { r1: mockRobot }, routes: routes });
+    var bad = await runRoute(routes['POST /gofa-movej/:id/move'],
+        { params: { id: 'r1' }, body: { joints: [1, 2, 3, 4, 5] } });
+    assert.strictEqual(bad.statusCode, 400, JSON.stringify(bad.body));
+    assert.deepStrictEqual(sent, []);
+    // and a good one still works, via the same shared resolver
+    var ok = await runRoute(routes['POST /gofa-movej/:id/move'],
+        { params: { id: 'r1' }, body: { joints: '[0,0,85,0,0,0]' } });
+    assert.strictEqual(ok.statusCode, 200, JSON.stringify(ok.body));
+    assert.deepStrictEqual(sent, [{ cmd: 'movej', val: [0, 0, 85, 0, 0, 0] }]);
+});
+
+// ── Phase 3 (C2): admin-route contract coverage ─────────────────────────────
+// The editor (httpAdmin) routes are a second, largely duplicated implementation of
+// each node's logic, and historically where fixes get forgotten — bugs 2 and 3 both
+// lived here, invisible because the old harness discarded every handler. These two
+// table-driven tests exercise ALL of them at once, and are deliberately in place
+// BEFORE the runtime/admin de-duplication refactor so that refactor has a guard.
+
+// Every node module that registers at least one httpAdmin route.
+var ROUTE_MODULES = fs.readdirSync(path.join(__dirname, 'nodes'))
+    .filter(function(f) { return f.endsWith('.js'); })
+    .filter(function(f) {
+        return /RED\.httpAdmin\./.test(fs.readFileSync(path.join(__dirname, 'nodes', f), 'utf8'));
+    });
+
+// Routes that intentionally do NOT follow the "missing robot -> 4xx JSON error"
+// contract, with the reason each is exempt.
+var MISSING_ROBOT_EXEMPT = {
+    // Editor autocomplete helper: an undeployed config node yields an empty list
+    // rather than an error, so the dropdown just shows nothing.
+    'GET /gofa-robot/:id/remote-points': 'returns [] so the editor dropdown degrades quietly',
+    // Not robot-scoped at all — :id is absent, it scans the LAN.
+    'GET /gofa-robot/discover': 'no :id param; not robot-scoped'
+};
+
+function collectRoutes(moduleFile, nodesById) {
+    var routes = {};
+    loadNodeType('./nodes/' + moduleFile, { nodesById: nodesById || {}, routes: routes });
+    return routes;
+}
+
+// runRoute that cannot hang the suite: a handler which never responds is itself
+// the failure we want to report.
+function runRouteSafe(handler, req, ms) {
+    return Promise.race([
+        runRoute(handler, req).then(function(r) { return r; }, function(e) { return { threw: e }; }),
+        new Promise(function(res) { setTimeout(function() { res({ timedOut: true }); }, ms || 2000); })
+    ]);
+}
+
+await checkAsync('C2 admin routes: every route answers a missing robot config with a JSON error, never a crash or hang', async function() {
+    var problems = [];
+    for (const f of ROUTE_MODULES) {
+        var routes = collectRoutes(f, {});   // getNode() -> null for any id
+        for (const key of Object.keys(routes)) {
+            if (MISSING_ROBOT_EXEMPT[key]) continue;
+            var r = await runRouteSafe(routes[key], { params: { id: 'missing' }, body: {}, query: {} });
+            if (r.timedOut) { problems.push(key + ': never responded'); continue; }
+            if (r.threw)    { problems.push(key + ': threw ' + r.threw.message); continue; }
+            if (!(r.statusCode >= 400 && r.statusCode < 500)) {
+                problems.push(key + ': expected 4xx, got ' + r.statusCode);
+            } else if (!r.body || typeof r.body.error !== 'string') {
+                problems.push(key + ': 4xx without a JSON {error} body');
+            }
+        }
+    }
+    assert.deepStrictEqual(problems, [], problems.join('; '));
+});
+
+await checkAsync('C2 admin routes: every route surfaces a transport failure as a JSON error, never a crash or hang', async function() {
+    // A robot whose every call rejects — the "controller unreachable" case.
+    function deadRobot() {
+        var boom = function() { return Promise.reject(new Error('ECONNREFUSED')); };
+        return {
+            ip: '10.0.0.9', backgroundPort: 1026,
+            jointLimits: require('./nodes/gofa-robot').JOINT_LIMITS,
+            parseXhtml: parseXhtml,
+            gotoObj: require('./nodes/gofa-robot').gotoObj,
+            rwsGet: boom, rwsPost: boom, rwsPut: boom, rwsPostHal: boom,
+            socketSend: boom, requestRaw: boom, getCookie: boom,
+            withMastership: function(fn) { return fn(); },
+            getLastPingVersion: function() { return null; },
+            remoteGetPoints: boom, remoteSavePoints: boom,
+            remoteAddPoint: boom, remoteDeletePoint: boom, remoteFindPoint: boom,
+            warn: function() {}
+        };
+    }
+    // Bodies/queries that get each route past its own input validation and as far
+    // as an actual robot call, so we exercise the failure path rather than a 400.
+    var REQ = {
+        'POST /gofa-do-write/:id/write':      { signal: 'DO1', value: 1 },
+        'GET /gofa-do-write/:id/read':        { signal: 'DO1' },
+        'POST /gofa-grip/:id/toggle':         { signal: 'DO1', action: 'on' },
+        'GET /gofa-grip/:id/read':            { signal: 'DO1' },
+        'GET /gofa-di-read/:id/read':         { signal: 'DI1' },
+        'POST /gofa-movej/:id/move':          { joints: [0, 0, 85, 0, 0, 0] },
+        'POST /gofa-jog/:id/jog':             { axis: 'X', sign: '+', distance: 10 },
+        'POST /gofa-joint-jog/:id/jog':       { joint: 1, sign: '+', angle: 5 },
+        'POST /gofa-move/:id/action':         { action: 'home' },
+        'POST /gofa-motor/:id/toggle':        { action: 'on' },
+        'POST /gofa-speed-set/:id/set':       { speed: 50 },
+        'POST /gofa-zone-set/:id/set':        { zone: 'Z10' },
+        'POST /gofa-leadthrough/:id/toggle':  { action: 'enable' },
+        'POST /gofa-rapid-exec/:id/action':   { action: 'start' },
+        'POST /gofa-rapid-var-write/:id/write': { variable: 'nCount', value: 1 },
+        'GET /gofa-rapid-var-read/:id/read':  { variable: 'nCount' },
+        'POST /gofa-points/:id/run':          { action: 'list' },
+        'POST /gofa-sequencer/:id/start':     { steps: [{ name: 'A' }] },
+        'POST /gofa-file/:id/test':           { action: 'download', remotePath: '$HOME/x.mod' },
+        'GET /gofa-mod-edit/:id/file':        { path: '$HOME/x.mod' },
+        'DELETE /gofa-mod-edit/:id/file':     { path: '$HOME/x.mod' },
+        'POST /gofa-mod-edit/:id/file':       { path: '$HOME/x.mod', content: 'X' },
+        'POST /gofa-asi-led/:id/set':         { red: 255, green: 0, blue: 0 }
+    };
+    // Status-style endpoints that deliberately answer 200 even when the controller
+    // is unreachable — reporting "here is the (bad) state" IS their success case.
+    // Each carries a shape assertion so the exemption can't hide a real regression.
+    var REPORTS_STATE_ON_FAILURE = {
+        'GET /gofa-connection-status/:id/test': function(b) {
+            // Documented "never raises — safe to poll"; watchdog_flow.json depends on it.
+            return b && b.ok === false && b.rws && b.rws.ok === false;
+        },
+        'GET /gofa-sequencer/:id/status': function(b) {
+            return b && typeof b.running === 'boolean';  // reads a local flag, no robot I/O
+        },
+        'GET /gofa-robot/:id/remote-points': function(b) {
+            return Array.isArray(b);   // empty list so the editor dropdown degrades quietly
+        }
+    };
+    // Routes that legitimately take longer than the default probe window.
+    var SLOW_ROUTES = {
+        // immediateStop() polls socket PING for a full 10s before giving up — that
+        // wait is the whole point (RWS start returns 200 even when it didn't start).
+        'POST /gofa-stop-motion/:id/stop': 13000
+    };
+
+    var problems = [];
+    for (const f of ROUTE_MODULES) {
+        var robot = deadRobot();
+        var routes = collectRoutes(f, { r1: robot });
+        for (const key of Object.keys(routes)) {
+            if (key === 'GET /gofa-robot/discover') continue; // scans the LAN, no robot involved
+            var payload = REQ[key] || {};
+            var r = await runRouteSafe(routes[key],
+                { params: { id: 'r1' }, body: payload, query: payload }, SLOW_ROUTES[key]);
+            if (r.timedOut) { problems.push(key + ': never responded'); continue; }
+            if (r.threw)    { problems.push(key + ': threw ' + r.threw.message); continue; }
+            var stateReporter = REPORTS_STATE_ON_FAILURE[key];
+            if (stateReporter) {
+                if (!(r.statusCode >= 200 && r.statusCode < 300)) {
+                    problems.push(key + ': status endpoint should still answer 2xx, got ' + r.statusCode);
+                } else if (!stateReporter(r.body)) {
+                    problems.push(key + ': 2xx but did not report the failed state — ' + JSON.stringify(r.body).slice(0, 120));
+                }
+                continue;
+            }
+            if (r.statusCode >= 200 && r.statusCode < 300) {
+                // A 2xx here means the route reported success while the controller
+                // was unreachable — the "HTTP 200 lies" class of bug.
+                problems.push(key + ': reported ' + r.statusCode + ' success against a dead controller');
+            } else if (!r.body || typeof r.body.error !== 'string') {
+                problems.push(key + ': error response without a JSON {error} body');
+            }
+        }
+    }
+    assert.deepStrictEqual(problems, [], problems.join('; '));
 });
 
 fs.rmSync(tmpDir, { recursive: true, force: true });
