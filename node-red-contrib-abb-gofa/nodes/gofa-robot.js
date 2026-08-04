@@ -77,6 +77,18 @@ function validateJoints(joints, limits) {
     return { ok: true };
 }
 
+// Escapes a controller filesystem path for use in an RWS /fileservice/ URL,
+// segment by segment, leaving '$' intact ($HOME must stay literal). Extracted
+// from gofa-file.js, which had the only copy — every OTHER fileservice caller
+// interpolated the path raw. That is not cosmetic: Node's own HTTP client
+// rejects a path with an unescaped space ("Request path contains unescaped
+// characters") BEFORE the request is sent, so a points path or module path with
+// a space threw client-side. Confirmed live 2026-08-04, along with the fact that
+// the controller accepts %20 and stores the literal space in the filename.
+function escapeFileservicePath(p) {
+    return String(p).split('/').map(encodeURIComponent).join('/').replace(/%24/g, '$');
+}
+
 // Used by remoteAddPoint() — auto-names "Point N" when blank, rejects a name
 // that's already taken.
 function resolvePointName(name, existingPoints) {
@@ -136,6 +148,24 @@ function scanIp(ip, port, timeout) {
     });
 }
 
+// Runs `fn` over `items` with at most `limit` in flight, preserving result order.
+// Never rejects if `fn` never rejects (scanIp/verifyIsABB both always resolve).
+function poolMap(items, limit, fn) {
+    var results = new Array(items.length);
+    var next = 0;
+    function worker() {
+        if (next >= items.length) return Promise.resolve();
+        var i = next++;
+        return Promise.resolve(fn(items[i], i)).then(function(r) {
+            results[i] = r;
+            return worker();
+        });
+    }
+    var workers = [];
+    for (var w = 0; w < Math.min(limit, items.length); w++) workers.push(worker());
+    return Promise.all(workers).then(function() { return results; });
+}
+
 function verifyIsABB(ip, port) {
     return new Promise(function(resolve) {
         var proto = port === 443 ? https : http;
@@ -183,25 +213,26 @@ function discover(opts) {
         return Promise.resolve([]);
     }
     
-    var scanPromises = [];
+    // B7: build the address list first, then walk it through a bounded pool
+    // instead of opening every socket at once. Previously this fired
+    // 254 x subnets concurrent connections — on a host with Docker/WSL/VPN
+    // adapters that is easily 1000+ simultaneous fds, enough to hit EMFILE and
+    // make Discover fail on exactly the machines that have the most interfaces.
+    var targets = [];
     subnets.forEach(function(base) {
-        for (var i = 1; i <= 254; i++) {
-            var ip = base + '.' + i;
-            scanPromises.push(scanIp(ip, rwsPort, timeout));
-        }
+        for (var i = 1; i <= 254; i++) targets.push(base + '.' + i);
     });
-    
-    return Promise.all(scanPromises).then(function(results) {
+
+    return poolMap(targets, 64, function(ip) { return scanIp(ip, rwsPort, timeout); })
+    .then(function(results) {
         var openIps = results.filter(function(r) { return r.open; }).map(function(r) { return r.ip; });
         if (openIps.length === 0) return [];
         
-        var verifyPromises = openIps.map(function(ip) {
+        return poolMap(openIps, 16, function(ip) {
             return verifyIsABB(ip, rwsPort).then(function(isABB) {
                 return { ip: ip, isABB: isABB };
             });
-        });
-        
-        return Promise.all(verifyPromises).then(function(verifyResults) {
+        }).then(function(verifyResults) {
             return verifyResults.filter(function(r) { return r.isABB; }).map(function(r) { return r.ip; });
         });
     });
@@ -633,7 +664,7 @@ module.exports = function(RED) {
     // built.
     GoFaRobotNode.prototype.remoteGetPoints = function() {
         var node = this;
-        return node.requestRaw('GET', '/fileservice/' + node.remotePointsPath, null, { accept: '*/*' })
+        return node.requestRaw('GET', '/fileservice/' + escapeFileservicePath(node.remotePointsPath), null, { accept: '*/*' })
             .then(function(res) {
                 if (res.statusCode === 404) return [];
                 if (res.statusCode < 200 || res.statusCode >= 300) {
@@ -645,7 +676,7 @@ module.exports = function(RED) {
     };
 
     GoFaRobotNode.prototype.remoteSavePoints = function(points) {
-        return this.rwsPut('/fileservice/' + this.remotePointsPath, JSON.stringify(points, null, 2), 'text/plain;v=2.0');
+        return this.rwsPut('/fileservice/' + escapeFileservicePath(this.remotePointsPath), JSON.stringify(points, null, 2), 'text/plain;v=2.0');
     };
 
     // Re-fetches the remote points file right before an overwrite and warns if it
@@ -670,7 +701,13 @@ module.exports = function(RED) {
         return node.remoteGetPoints().then(function(points) {
             var resolved = resolvePointName(name, points);
             if (resolved.error) return resolved;
-            var pt = { id: 'p' + Date.now(), name: resolved.name, target: target };
+            // B6: Date.now() alone collides for two points added inside the same
+            // millisecond (a scripted import loop, or two flows saving at once) —
+            // and a duplicate id makes remoteDeletePoint remove BOTH, since it
+            // filters on p.id. Suffix a short random component; validatePointsArray
+            // already uses the equivalent baseTime + '-' + i shape.
+            var pt = { id: 'p' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+                       name: resolved.name, target: target };
             var updated = points.concat([pt]);
             return warnIfRemoteChanged(node, points).then(function() {
                 return node.remoteSavePoints(updated).then(function() { return pt; });
@@ -731,6 +768,8 @@ module.exports = function(RED) {
 };
 
 module.exports.parseXhtml          = parseXhtml;
+module.exports.escapeFileservicePath = escapeFileservicePath;
+module.exports.poolMap             = poolMap;
 module.exports.gotoToken           = gotoToken;
 module.exports.gotoObj             = gotoObj;
 module.exports.resolveMoveType     = resolveMoveType;

@@ -2,6 +2,7 @@
 var requireAdminAuth = require('./lib/require-admin-auth');
 var gate = require('./lib/gate');
 var patchServerIp = require('./lib/patch-server-ip');
+var escapeFileservicePath = require('./gofa-robot').escapeFileservicePath;
 
 // RWS fileservice directory-listing parser. NOT verified against a live
 // controller (none was reachable when this node was written — see the
@@ -91,7 +92,7 @@ module.exports = function(RED) {
             var body = Buffer.from(contentToUpload, 'utf8');
 
             node.status({ fill: 'blue', shape: 'dot', text: 'uploading…' });
-            r.rwsPut('/fileservice/' + node.remotePath, body, 'text/plain;v=2.0')
+            r.rwsPut('/fileservice/' + escapeFileservicePath(node.remotePath), body, 'text/plain;v=2.0')
             .then(function() {
                 msg.payload = { ok: true, remotePath: node.remotePath, bytes: body.length, serverIpInjected: serverIpInjected };
                 node.status({ fill: 'green', shape: 'dot', text: 'uploaded ' + body.length + 'B' });
@@ -123,7 +124,7 @@ module.exports = function(RED) {
         var robot = getRobot(req, res);
         if (!robot) return;
         var dir = req.query.dir || '$HOME/Programs';
-        robot.requestRaw('GET', '/fileservice/' + dir, null, { accept: 'application/xhtml+xml;v=2.0' })
+        robot.requestRaw('GET', '/fileservice/' + escapeFileservicePath(dir), null, { accept: 'application/xhtml+xml;v=2.0' })
         .then(function(r) {
             if (r.statusCode === 404) return res.status(404).json({ error: 'Directory not found on controller: ' + dir });
             if (r.statusCode < 200 || r.statusCode >= 300) return res.status(502).json({ error: 'HTTP ' + r.statusCode + ' listing ' + dir });
@@ -137,7 +138,7 @@ module.exports = function(RED) {
         if (!robot) return;
         var p = req.query.path;
         if (!p) return res.status(400).json({ error: 'Missing path' });
-        robot.requestRaw('GET', '/fileservice/' + p, null, { accept: '*/*' })
+        robot.requestRaw('GET', '/fileservice/' + escapeFileservicePath(p), null, { accept: '*/*' })
         .then(function(r) {
             if (r.statusCode === 404) return res.status(404).json({ error: 'File not found on controller: ' + p });
             if (r.statusCode < 200 || r.statusCode >= 300) return res.status(502).json({ error: 'HTTP ' + r.statusCode + ' reading ' + p });
@@ -151,7 +152,7 @@ module.exports = function(RED) {
         if (!robot) return;
         var p = req.query.path;
         if (!p) return res.status(400).json({ error: 'Missing path' });
-        robot.requestRaw('DELETE', '/fileservice/' + p, null, {})
+        robot.requestRaw('DELETE', '/fileservice/' + escapeFileservicePath(p), null, {})
         .then(function(r) {
             if (r.statusCode === 404) return res.status(404).json({ error: 'File not found on controller: ' + p });
             if (r.statusCode < 200 || r.statusCode >= 300) return res.status(502).json({ error: 'HTTP ' + r.statusCode + ' deleting ' + p });
@@ -176,7 +177,7 @@ module.exports = function(RED) {
                 serverIpInjected = result.injected;
             }
             // fileservice PUT requires text/plain;v=2.0 (application/json is 415) — confirmed live.
-            return robot.rwsPut('/fileservice/' + body.path, Buffer.from(contentToUpload, 'utf8'), 'text/plain;v=2.0')
+            return robot.rwsPut('/fileservice/' + escapeFileservicePath(body.path), Buffer.from(contentToUpload, 'utf8'), 'text/plain;v=2.0')
                 .then(function() { res.json({ ok: true, path: body.path, bytes: Buffer.byteLength(contentToUpload, 'utf8'), serverIpInjected: serverIpInjected }); });
         })
         .catch(function(err) {

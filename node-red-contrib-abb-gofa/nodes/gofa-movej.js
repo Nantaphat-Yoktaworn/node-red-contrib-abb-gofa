@@ -4,6 +4,62 @@ var gate = require('./lib/gate');
 var gofaRobot = require('./gofa-robot');
 var resolveMoveType = gofaRobot.resolveMoveType;
 var validateJoints = gofaRobot.validateJoints;
+
+// Keys an object payload may carry WITHOUT being a joint target — these are
+// control-only overrides, so {moveType:'L'} still means "use the configured
+// joints, but move linearly" rather than "here is a broken target".
+var CONTROL_KEYS = ['moveType', 'action'];
+
+// A1 (2026-08-04): resolve msg.payload into joints, distinguishing "no target
+// supplied" from "target supplied but malformed".
+//
+// Before this, BOTH collapsed to j=null and fell through to the node's configured
+// joints — so a 5-element array, or {x:1,y:2}, silently moved the arm to the
+// configured pose instead of erroring. The array-length and j1 checks further down
+// could never fire on those inputs. For a motion node that is the wrong failure
+// mode: a typo'd payload moved the robot somewhere the flow never asked for.
+//
+// Returns { joints: [...] }            -> use these
+//         { useConfigured: true }      -> no target supplied; fall back (unchanged)
+//         { error: '...' }             -> supplied but malformed; refuse to move
+function resolveJointsPayload(payload) {
+    // Absent, or a bare trigger value (inject timestamp, boolean) -> configured joints.
+    if (payload === null || payload === undefined) return { useConfigured: true };
+    if (typeof payload === 'number' || typeof payload === 'boolean') return { useConfigured: true };
+    if (typeof payload === 'string') {
+        if (payload.trim() === '') return { useConfigured: true };
+        // Non-empty string: accept a JSON array, matching what the admin route has
+        // always done (it JSON.parses req.body.joints). Anything else is malformed.
+        var parsed;
+        try { parsed = JSON.parse(payload); }
+        catch (e) {
+            return { error: 'msg.payload string is not valid JSON — expected a 6-element ' +
+                            'joint array, e.g. "[0,0,85,0,0,0]"' };
+        }
+        return resolveJointsPayload(parsed);
+    }
+    if (Array.isArray(payload)) {
+        if (payload.length !== 6) {
+            return { error: 'joints must be a 6-element array (got ' + payload.length + ')' };
+        }
+        return { joints: payload };
+    }
+    if (typeof payload === 'object') {
+        if (payload.j1 !== undefined) {
+            // Partial objects ({j1,j2} only) fall through to the numeric check below,
+            // which already rejects the resulting undefined entries.
+            return { joints: [payload.j1, payload.j2, payload.j3, payload.j4, payload.j5, payload.j6] };
+        }
+        if (Array.isArray(payload.joints)) return resolveJointsPayload(payload.joints);
+        // Control-only object (or {}) -> no target supplied, use the configured joints.
+        var keys = Object.keys(payload);
+        var onlyControl = keys.every(function(k) { return CONTROL_KEYS.indexOf(k) >= 0; });
+        if (onlyControl) return { useConfigured: true };
+        return { error: 'msg.payload has no joint target — expected a 6-element array, ' +
+                        '{j1..j6}, or {joints:[...]} (got keys: ' + keys.join(', ') + ')' };
+    }
+    return { error: 'msg.payload type ' + (typeof payload) + ' is not a joint target' };
+}
 module.exports = function(RED) {
     function GoFaMoveJNode(config) {
         RED.nodes.createNode(this, config);
@@ -16,24 +72,17 @@ module.exports = function(RED) {
             send = gate(config, send);
             if (!node.robot) { msg.payload = { ok: false, error: 'No robot configured' }; node.error('No robot configured', msg); send(msg); return done(); }
 
-            var j;
-            if (msg.payload !== null && msg.payload !== undefined) {
-                if (Array.isArray(msg.payload) && msg.payload.length === 6) {
-                    j = msg.payload;
-                } else if (typeof msg.payload === 'object' && !Array.isArray(msg.payload)) {
-                    var p = msg.payload;
-                    if (p.j1 !== undefined) {
-                        j = [p.j1, p.j2, p.j3, p.j4, p.j5, p.j6];
-                    } else {
-                        j = null;
-                    }
-                } else {
-                    j = null;
-                }
-            } else {
-                j = null;
+            var resolved = resolveJointsPayload(msg.payload);
+            if (resolved.error) {
+                // Supplied but malformed — refuse to move rather than silently
+                // falling back to the configured pose.
+                msg.payload = { ok: false, error: resolved.error };
+                node.error(resolved.error, msg);
+                node.status({ fill: 'red', shape: 'ring', text: 'bad payload' });
+                send(msg); return done();
             }
 
+            var j = resolved.joints;
             if (!j) {
                 try {
                     j = JSON.parse(node.joints);
@@ -105,20 +154,21 @@ module.exports = function(RED) {
         if (!robot || typeof robot.socketSend !== 'function') {
             return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
         }
-        var j = req.body.joints;
-        var moveType = req.body.moveType || 'J';
+        var moveType = resolveMoveType(req.body.moveType, 'J');
 
-        if (typeof j === 'string') {
-            try {
-                j = JSON.parse(j);
-            } catch(e) {
-                return res.status(400).json({ error: 'Invalid joints string: ' + j });
-            }
+        // Same resolver the runtime node uses, so the two paths cannot disagree
+        // about what counts as a valid target (they did before A1: the panel
+        // already 400'd on a wrong-length array while the node silently moved to
+        // its configured pose). The panel always supplies joints explicitly, so
+        // there is no configured-joints fallback here — useConfigured is an error.
+        var resolved = resolveJointsPayload(req.body.joints);
+        if (resolved.error) {
+            return res.status(400).json({ error: resolved.error });
         }
-
-        if (!Array.isArray(j) || j.length !== 6) {
+        if (!resolved.joints) {
             return res.status(400).json({ error: 'joints must be a 6-element array' });
         }
+        var j = resolved.joints;
 
         var nums = j.map(function(v) { return parseFloat(v); });
         if (nums.some(function(v) { return isNaN(v); })) {
@@ -134,7 +184,7 @@ module.exports = function(RED) {
 
         var cmdName = moveType === 'L' ? 'movel' : 'movej';
 
-        robot.socketSend({ cmd: cmdName, val: nums.map(function(v) { return parseFloat(v.toFixed(2)); }) }).then(function(resp) {
+        return robot.socketSend({ cmd: cmdName, val: nums.map(function(v) { return parseFloat(v.toFixed(2)); }) }).then(function(resp) {
             if (!resp.startsWith('OK:')) throw new Error('Robot error: ' + resp);
             res.json({ ok: true, joints: nums, moveType: moveType });
         }).catch(function(err) {
@@ -142,3 +192,5 @@ module.exports = function(RED) {
         });
     });
 };
+
+module.exports.resolveJointsPayload = resolveJointsPayload;

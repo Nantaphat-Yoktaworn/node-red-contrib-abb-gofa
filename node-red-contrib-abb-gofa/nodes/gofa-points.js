@@ -48,6 +48,9 @@ function validatePointsArray(arr) {
     return { points: points };
 }
 
+// The 11 robtarget fields every stored point must carry.
+var TARGET_FIELDS = ['x', 'y', 'z', 'q1', 'q2', 'q3', 'q4', 'cf1', 'cf4', 'cf6', 'cfx'];
+
 function doSave(robot, opts) {
     var name = String(opts.name || '').trim();
     return robot.rwsGet('/rw/motionsystem/mechunits/ROB_1/robtarget?tool=tool0&wobj=wobj0&coordinate=Base')
@@ -58,6 +61,18 @@ function doSave(robot, opts) {
             q1: p('q1'), q2: p('q2'), q3: p('q3'), q4: p('q4'),
             cf1: p('cf1'), cf4: p('cf4'), cf6: p('cf6'), cfx: p('cfx')
         };
+        // B1: validate BEFORE persisting. parseXhtml returns null for a class that
+        // isn't in the response, parseFloat(null) is NaN, and JSON.stringify writes
+        // NaN as null — so a partial/unexpected robtarget response used to be stored
+        // silently as a corrupt point, only failing much later at gotoObj ("Point has
+        // invalid data (NaN)") when someone tried to move to it. Same isFinite check
+        // validatePointsArray already applies on the import path.
+        var bad = TARGET_FIELDS.filter(function(f) { return !isFinite(target[f]); });
+        if (bad.length) {
+            return { error: 'Could not read a valid robtarget from the controller — ' +
+                'missing/non-numeric field(s): ' + bad.join(', ') +
+                '. Point not saved (check RAPID is running and ROB_1 is the active mechunit).' };
+        }
         return robot.remoteAddPoint(name, target).then(function(pt) {
             if (pt.error) return pt;
             return robot.remoteGetPoints().then(function(points) { return { point: pt, points: points }; });
@@ -102,36 +117,34 @@ function doExport(robot, opts) {
         if (!savePath) return { count: points.length, points: points };
         var p = savePath;
         if (!/\.json$/i.test(p)) p += '.json';
-        try {
-            fs.writeFileSync(p, JSON.stringify(points, null, 2), 'utf8');
-        } catch (err) {
-            throw new Error('File write failed: ' + err.message);
-        }
-        return { count: points.length, points: points, savedTo: p };
+        // D3: async — a sync write blocks Node-RED's whole event loop, and this
+        // path can target a slow/remote mount.
+        return fs.promises.writeFile(p, JSON.stringify(points, null, 2), 'utf8')
+            .then(function() { return { count: points.length, points: points, savedTo: p }; },
+                  function(err) { throw new Error('File write failed: ' + err.message); });
     });
 }
 
 function doImport(robot, opts) {
     var loadPath = opts.path || '';
-    var arr;
-    if (loadPath) {
-        try {
-            var raw = fs.readFileSync(loadPath, 'utf8');
+    // D3: async read, same reasoning as doExport above.
+    var arrPromise = loadPath
+        ? fs.promises.readFile(loadPath, 'utf8').then(function(raw) {
             var parsed = JSON.parse(raw);
-            arr = Array.isArray(parsed) ? parsed
+            var arr = Array.isArray(parsed) ? parsed
                 : (parsed && Array.isArray(parsed.points)) ? parsed.points
                 : null;
             if (!arr) throw new Error('File must contain an array or {points:[...]}');
-        } catch (err) {
-            return Promise.reject(new Error('File read failed: ' + err.message));
-        }
-    } else {
-        arr = Array.isArray(opts.points) ? opts.points : [];
-    }
-    var validated = validatePointsArray(arr);
-    if (validated.error) return Promise.resolve({ error: validated.error });
-    return robot.remoteSavePoints(validated.points).then(function() {
-        return { count: validated.points.length, loadedFrom: loadPath || null };
+            return arr;
+          }).catch(function(err) { throw new Error('File read failed: ' + err.message); })
+        : Promise.resolve(Array.isArray(opts.points) ? opts.points : []);
+
+    return arrPromise.then(function(arr) {
+        var validated = validatePointsArray(arr);
+        if (validated.error) return { error: validated.error };
+        return robot.remoteSavePoints(validated.points).then(function() {
+            return { count: validated.points.length, loadedFrom: loadPath || null };
+        });
     });
 }
 
