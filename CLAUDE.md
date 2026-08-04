@@ -84,7 +84,7 @@ Move commands (`HOME`/`GOTOJ`/`GOTOL`/`MOVEJ`/`MOVEL`) are blocking, no `\Conc`,
 | `gofa-elog` | RWS | Event log; Domain + Min Severity filters |
 | `gofa-motor` | RWS | Motor on/off |
 | `gofa-move` | Socket | HOME or SETHOME |
-| `gofa-movej` | Socket | Absolute joint move; Joint/Linear; validates against Joint Limits first |
+| `gofa-movej` | Socket | Absolute joint move; Joint/Linear; validates against Joint Limits first. Since 2.5.2 a *malformed* payload errors instead of silently falling back to the configured joints — only an absent/number/boolean/empty payload falls back (see `resolveJointsPayload`) |
 | `gofa-jog` | Socket | Cartesian jog |
 | `gofa-joint-jog` | Socket | Single joint jog |
 | `gofa-grip` | RWS | Named DO on/off via `/set-value` (needs `Access: All`); Known Signals dropdown |
@@ -134,7 +134,7 @@ Move commands (`HOME`/`GOTOJ`/`GOTOL`/`MOVEJ`/`MOVEL`) are blocking, no `\Conc`,
 
 | Setting | Value |
 |---------|-------|
-| Robot IP | `192.168.1.103` (as of 2026-07-16 — **drifts often, including whole-subnet changes**; never trust this table over a live check — see `reference_robot_ip_drift`/`project_robot_current_ip` memories) |
+| Robot IP | `192.168.20.43` (as of 2026-08-04 — **drifts often, including whole-subnet changes**; never trust this table over a live check — see `reference_robot_ip_drift`/`project_robot_current_ip` memories) |
 | RWS port | `443` (HTTPS, self-signed — `rejectUnauthorized: false`) |
 | Socket port | `1025` |
 | Username | `NNNN` |
@@ -155,6 +155,31 @@ Move commands (`HOME`/`GOTOJ`/`GOTOL`/`MOVEJ`/`MOVEL`) are blocking, no `\Conc`,
 | Node.js | `v24.18.0` |
 
 Full product/option breakdown (RobotOS, ASI, EGM/Multitasking licensing) is in the `abb-rws` skill's version-snapshot section — re-pull via `GET /rw/system` + `GET /rw/system/products` rather than trusting this table blind after any ABB software update.
+
+## Shared helpers (`node-red-contrib-abb-gofa/nodes/lib/`)
+
+Extracted during the 2026-08-04 audit (2.5.2), when two bugs turned out to be "the
+fix landed in only one of two duplicated copies". Prefer these over re-implementing:
+
+| Helper | Purpose |
+|--------|---------|
+| `require-admin-auth.js` | Guard for state-changing editor endpoints; 403s when Node-RED has no `adminAuth` unless `allowInsecureLiveControl` is ticked |
+| `gate.js` | "Output payload" toggle — strips `msg` down to `_msgid` unless enabled |
+| `ws.js` | Minimal WebSocket client for RWS subscriptions (no `ws` dependency) |
+| `rws-subscription.js` | Subscribe + WS connect + reconnect lifecycle shared by all three `gofa-subscribe-*` WS nodes |
+| `drop-subscription.js` | Best-effort DELETE of a held subscription — **must** run before re-subscribing or every reconnect orphans one (controller caps concurrent sessions at 19) |
+| `patch-server-ip.js` | Rewrites `SERVER_IP` in a `.mod` to match the config node's IP |
+| `list-signals.js` | Parses the I/O signal list XHTML |
+
+Also in `gofa-robot.js`: `escapeFileservicePath()` — **every** `/fileservice/` URL
+must go through it. Node's HTTP client rejects an unescaped space client-side
+("Request path contains unescaped characters"), so a raw path throws before it
+reaches the controller (confirmed live 2026-08-04).
+
+**Runtime vs. admin-route duplication**: `gofa-setup`, `gofa-connection-status`,
+`gofa-rapid-exec`, `gofa-file`, `gofa-sequencer` and `gofa-points` each implement
+their logic **once** and call it from both the deployed node and the editor panel.
+Keep it that way — the two-copy pattern is what produced bugs 2 and 3.
 
 ## Repo layout
 

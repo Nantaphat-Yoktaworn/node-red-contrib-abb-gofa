@@ -13,6 +13,27 @@ Developed and live-tested against a GoFa 12 (CRB 15000-12/1.27) on an OmniCore C
 - Jog/rotate step limits (50 mm / 30°) are enforced in the RAPID module, not in Node-RED — if you edit `MainModule.mod`, keep them.
 - The node property panels have live-action buttons (jog, move, motors on/off, …) backed by Node-RED admin HTTP endpoints. The browser confirmation dialogs are convenience only, not a security control. **Configure [`adminAuth`](https://nodered.org/docs/user-guide/runtime/securing-node-red) on any Node-RED instance controlling a real robot** — it is required, not optional. As of 2.4.10 these motion endpoints are **refused (HTTP 403) when `adminAuth` is not configured**, so an unauthenticated editor port can no longer trigger motion. If your instance has no `adminAuth` but is genuinely protected another way (isolated cell network / firewall / reverse proxy), tick **Allow insecure live control** on the `gofa-robot` config node to re-enable them at your own risk. Deployed flows are unaffected either way — this guard only covers the editor buttons.
 
+## 2.5.2 — bug-fix release (one behavior change)
+
+No RAPID protocol change: `MODULE_VERSION` is bumped in lockstep for provenance
+only, so a controller still reporting **2.5.x stays compatible** and does not need
+re-flashing.
+
+**`gofa-movej` no longer moves on a malformed target.** It used to treat a
+*malformed* joint payload the same as *no* payload — both fell back to the node's
+configured joints **and moved the arm there**, so a 5-element array or an object
+with no joint keys moved the robot to a pose the flow never asked for. Those now
+return an error and send no motion command.
+
+Still falls back to the configured joints (inject-triggered flows are unaffected):
+`undefined`/`null`, a number, a boolean, an empty string, `{}`, `{moveType:'L'}`.
+
+Also fixed: `gofa-setup`'s `T_LED` reload was silently skipped on every deployed
+run; fileservice paths containing a space failed; `gofa-subscribe-*` leaked one
+controller subscription per reconnect; `gofa-points` could persist an incomplete
+robtarget; `gofa-connection-status` could crash the Node-RED process via an
+unhandled rejection.
+
 ## How it works
 
 Two transports, one rule — **motion goes through a TCP socket, everything else goes through RWS**:

@@ -11,6 +11,35 @@ Node-RED palette for controlling the **ABB GoFa 12** (CRB 15000-12/1.27) collabo
 - Jog/rotate step limits (50 mm / 30° per command) are enforced in the RAPID module, not in Node-RED — if you edit `MainModule.mod`, keep them.
 - Every node's edit dialog has live-action buttons (jog, move, motors on/off, …) backed by Node-RED **admin HTTP endpoints**. The browser confirmation dialogs are convenience only, not a security control. **Configuring [`adminAuth`](https://nodered.org/docs/user-guide/runtime/securing-node-red) is required, not optional, on any instance controlling a real robot.** As of 2.4.10 these motion endpoints are **refused (HTTP 403) when `adminAuth` is not configured**, so an unauthenticated editor port can no longer be used to move the robot. For a deployment that relies on network isolation instead of `adminAuth`, tick **Allow insecure live control** on the `gofa-robot` config node to re-enable them (at your own risk). This guard covers the editor buttons only — deployed flows use a separate runtime path and are never affected.
 
+## 2.5.2 — bug-fix release (behavior change in `gofa-movej`)
+
+Fourteen fixes from a full source audit. Five were confirmed against the live
+controller. No RAPID protocol change — `MODULE_VERSION` is bumped in lockstep for
+provenance only, so a module still reporting **2.5.x remains compatible** and does
+*not* need re-flashing.
+
+**One behavior change you should read before upgrading:**
+
+`gofa-movej` used to treat a *malformed* joint payload the same as *no* payload —
+both silently fell back to the node's configured joints **and moved the arm there**.
+A 5-element array or an object with no joint keys therefore moved the robot to a
+pose the flow never asked for. Those now return an error and send no motion command.
+
+Unchanged (so inject-triggered flows keep working): `undefined`/`null`, a number
+(inject timestamp), a boolean, an empty string, `{}`, and `{moveType:'L'}` all still
+fall back to the configured joints.
+
+Other fixes: `gofa-setup` now actually performs its `T_LED` reload (it was silently
+skipped on every deployed run); the editor Setup panel no longer warns about a
+compatible patch-level module version; fileservice paths containing a space no
+longer fail; `gofa-asi-led` no longer double-calls `done()` when closed mid-blink;
+the `gofa-subscribe-*` nodes no longer leak one controller subscription per
+reconnect; `gofa-points` refuses to save an incomplete robtarget instead of
+persisting nulls; `gofa-connection-status` can no longer take down the Node-RED
+process via an unhandled rejection; and `discover()` no longer opens an unbounded
+number of sockets. Published examples and the palette defaults are now guarded by a
+test so they can never ship with `allowInsecureLiveControl` enabled.
+
 ## 2.0.0 breaking changes
 
 Six single-action nodes were merged into three action-dropdown nodes (same pattern as
@@ -677,7 +706,7 @@ msg.payload  →  node property (editor)  →  built-in default
 | **gofa-grip** | `true` / `1` / `'on'` / `'gripon'` or `false` / `0` / `'off'` / `'gripoff'` · `{ action: 'on' }` | `on` |
 | **gofa-jog** | `{ axis, dir, step }` | X, +, 10 |
 | **gofa-joint-jog** | `{ joint, dir, step }` | J1, +, 5 |
-| **gofa-movej** | `[j1,j2,j3,j4,j5,j6]` or `{ j1, j2, j3, j4, j5, j6 }` | `[0,0,85,0,0,0]` |
+| **gofa-movej** | `[j1,j2,j3,j4,j5,j6]` · `{ j1..j6 }` · `{ joints: [...] }` · a JSON-array string. A **malformed** target (wrong-length array, object with no joint keys) is an **error** since 2.5.2 — see below | `[0,0,85,0,0,0]` |
 | **gofa-go-point** | `{ name, moveType?, storage? }` or `{ id, moveType?, storage? }` — `moveType`: `"J"` or `"L"`, `storage`: `"local"`/`"remote"` | (property) |
 | **gofa-save-point** | string (name) · `{ name, storage? }` | (property) |
 | **gofa-delete-point** | `{ name, storage? }` or `{ id, storage? }` | (property) |
