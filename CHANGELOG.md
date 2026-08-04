@@ -8,6 +8,22 @@ be edited. Each entry below says exactly what to replace them with.
 
 ---
 
+## 2.6.1 — documentation only
+
+No code or behavior change. The README shipped with 2.6.0 had drifted from the code: it claimed
+43 nodes (there are 37 plus the config node), told you to `npm install` a `ws` dependency that no
+longer exists, and led with 2.5.2's release notes.
+
+Documentation is now split by task — [getting started](docs/getting-started.md) (including a
+first-move tutorial), [node reference](docs/reference.md), and
+[troubleshooting](docs/troubleshooting.md) — with release history collected here.
+
+`MODULE_VERSION` in the RAPID modules is bumped in lockstep for provenance only. **A controller
+still running the 2.6.0 module stays compatible and does not need re-flashing** — the version
+handshake compares major.minor only.
+
+---
+
 ## 2.6.0 — `gofa-joint-jog` merged into `gofa-jog`
 
 **Breaking: `gofa-joint-jog` is removed.** Its single-joint jogging moved into `gofa-jog` as extra
