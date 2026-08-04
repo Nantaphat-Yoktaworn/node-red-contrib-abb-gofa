@@ -1,6 +1,6 @@
 'use strict';
 var gate = require('./lib/gate');
-var WS = require('./lib/ws');
+var createSubscription = require('./lib/rws-subscription');
 
 function meetsSeverity(entry, minSeverity) {
     return !!entry && parseInt(entry.msgtype) >= minSeverity;
@@ -35,6 +35,8 @@ module.exports = function(RED) {
         node._wsTimer = null;
         node._stopped = false;
 
+        // The WS frame only announces THAT an event arrived, with a self link —
+        // the entry itself has to be fetched.
         function fetchAndEmit(href) {
             if (!/\?/.test(href)) href += '?lang=en'; else href += '&lang=en';
             node.robot.rwsGet(href).then(function(body) {
@@ -46,113 +48,33 @@ module.exports = function(RED) {
             }).catch(function(err) { node.error(err); });
         }
 
-        function startSubscription() {
-            if (!node.robot) { node.error('No robot configured'); return; }
-            if (node._ws)    { return; }
-            var robot        = node.robot;
-            var resourcePath = '/rw/elog/' + encodeURIComponent(node.domain);
-            var priority     = 1;
-
-            node.status({ fill: 'yellow', shape: 'ring', text: 'connecting' });
-
-            var subscribeBody = 'resources=1&1=' + encodeURIComponent(resourcePath) + '&1-p=' + priority;
-            // Root-cause fix for a live-confirmed bug: two subscribe nodes sharing one
-            // gofa-robot session both firing POST /subscription within milliseconds of each
-            // other (e.g. auto-injects at flow-deploy time) got a real HTTP 500 from the
-            // controller on one of them. robot.queueSubscription() (gofa-robot.js) serializes
-            // subscription-creation attempts across all subscribe-* node types on this robot —
-            // see gofa-subscribe-io.js for the fuller writeup.
-            var performSubscribe = function() {
-                return robot.requestRaw('POST', '/subscription', subscribeBody, {
-                    contentType: 'application/x-www-form-urlencoded;v=2.0'
-                }).then(function(res) {
-                    if (res.statusCode !== 201) throw new Error('Subscription failed: HTTP ' + res.statusCode);
-                    // Use the cookie from THIS subscribe response, not a separate robot.getCookie()
-                    // re-fetch — see gofa-subscribe-io.js for why (confirmed live race).
-                    return { location: res.headers.location, cookie: res.cookie };
-                }).then(function(sub) {
-                    if (node._stopped) {
-                        // Node was closed while the subscribe POST was still in flight — close() already
-                        // ran and couldn't clean this up (node._pollkey was still null at that time).
-                        // Best-effort delete the now-orphaned subscription ourselves.
-                        var pk = sub.location.split('/poll/').pop();
-                        return node.robot.requestRaw('DELETE', '/subscription/' + pk, null, {}).catch(function(){});
-                    }
-                    node._pollkey = sub.location.split('/poll/').pop();
-                    return new Promise(function(resolve) {
-                        node._wsTimer = setTimeout(function() {
-                            node._wsTimer = null;
-                            if (node._stopped) { resolve(); return; }
-                            var ws = new WS(sub.location, ['rws_subscription'], {
-                                rejectUnauthorized: false,
-                                headers: { Cookie: sub.cookie || '' }
-                            });
-                            node._ws = ws;
-                            ws.on('open', function() {
-                                node.status({ fill: 'green', shape: 'dot', text: 'connected' });
-                                resolve();
-                            });
-                            ws.on('message', function(data) {
-                                var str = data.toString();
-                                var evRe = /<li class="elog-message-ev"[^>]*>([\s\S]*?)<\/li>/g;
-                                var hrefRe = /href="([^"]+)"\s+rel="self"/;
-                                var ev;
-                                while ((ev = evRe.exec(str)) !== null) {
-                                    var hm = hrefRe.exec(ev[1]);
-                                    if (hm) fetchAndEmit(hm[1]);
-                                }
-                            });
-                            ws.on('error', function(err) {
-                                node.warn('GoFa WebSocket subscription error: ' + err.message);
-                                resolve();
-                            });
-                            ws.on('close', function() {
-                                resolve();
-                                if (node._ws) {
-                                    node._ws = null;
-                                    if (!node._stopped) {
-                                        node.status({ fill: 'yellow', shape: 'ring', text: 'reconnecting...' });
-                                        setTimeout(function() { if (!node._stopped) startSubscription(); }, 3000);
-                                    } else {
-                                        node.status({ fill: 'grey', shape: 'ring', text: 'disconnected' });
-                                    }
-                                }
-                            });
-                        }, 100);
-                    });
-                });
-            };
-
-            var subscribePromise = typeof robot.queueSubscription === 'function'
-                ? robot.queueSubscription(performSubscribe)
-                : performSubscribe();
-
-            subscribePromise.catch(function(err) {
-                node.status({ fill: 'red', shape: 'ring', text: 'error' });
-                node.error(err);
-            });
-        }
+        // C3: subscribe/WS/reconnect mechanics live in lib/rws-subscription.js.
+        var sub = createSubscription(node, {
+            resourcePath: '/rw/elog/' + encodeURIComponent(node.domain),
+            priority: 1,
+            onStatus: function(s) { node.status(s); },
+            onMessage: function(data) {
+                var str = data.toString();
+                var evRe = /<li class="elog-message-ev"[^>]*>([\s\S]*?)<\/li>/g;
+                var hrefRe = /href="([^"]+)"\s+rel="self"/;
+                var ev;
+                while ((ev = evRe.exec(str)) !== null) {
+                    var hm = hrefRe.exec(ev[1]);
+                    if (hm) fetchAndEmit(hm[1]);
+                }
+            }
+        });
 
         node.on('input', function(msg, send, done) {
             send = gate(config, send);
             if (!node.robot) { node.error('No robot configured'); return done(); }
-            startSubscription();
+            sub.start();
             done();
         });
 
         node.on('close', function(done) {
             node._stopped = true;
-            if (node._wsTimer) { clearTimeout(node._wsTimer); node._wsTimer = null; }
-            var ws = node._ws;
-            node._ws = null;
-            if (ws) { ws.terminate(); }
-            if (node._pollkey && node.robot) {
-                var pk = node._pollkey;
-                node._pollkey = null;
-                node.robot.requestRaw('DELETE', '/subscription/' + pk, null, {})
-                    .catch(function(){})
-                    .then(function(){ done(); });
-            } else { done(); }
+            sub.stop(done);
         });
     }
     RED.nodes.registerType('gofa-subscribe-elog', GoFaSubscribeElogNode);

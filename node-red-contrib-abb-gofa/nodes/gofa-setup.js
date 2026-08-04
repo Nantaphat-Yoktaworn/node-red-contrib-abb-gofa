@@ -8,6 +8,7 @@ var PALETTE_VERSION = require('./gofa-robot').PALETTE_VERSION;
 var versionsCompatible = require('./gofa-robot').versionsCompatible;
 var parseLiSpans  = require('./gofa-rapid-tasks').parseLiSpans;
 var patchServerIp = require('./lib/patch-server-ip');
+var escapeFileservicePath = require('./gofa-robot').escapeFileservicePath;
 
 // T_LED (BackgroundLed.mod) reload — see the "Background LED task" section of
 // CLAUDE.md. Unlike T_ROB1, T_LED is SEMISTATIC and not part of any RWS
@@ -92,12 +93,12 @@ function prepareLed(r, steps, timings, onStatus) {
             try { text = fs.readFileSync(LED_MODULE_LOCAL, 'utf8'); }
             catch (e) { throw new Error('bundled module file missing (' + LED_MODULE_LOCAL + '): ' + e.message); }
             var patched = patchServerIp(text, r.ip);
-            return r.rwsPut('/fileservice/' + LED_MODULE_PATH, Buffer.from(patched.text, 'utf8'), 'text/plain;v=2.0')
+            return r.rwsPut('/fileservice/' + escapeFileservicePath(LED_MODULE_PATH), Buffer.from(patched.text, 'utf8'), 'text/plain;v=2.0')
                 .then(function() { return Buffer.byteLength(patched.text) + 'B, SERVER_IP → ' + r.ip; });
         }))
         .then(ledStep('load module into T_LED', function() {
             return r.withMastership(function() {
-                return r.rwsPostHal('/rw/rapid/tasks/' + LED_TASK + '/loadmod', 'modulepath=' + encodeURIComponent(LED_MODULE_PATH) + '&replace=true');
+                return r.rwsPostHal('/rw/rapid/tasks/' + encodeURIComponent(LED_TASK) + '/loadmod', 'modulepath=' + encodeURIComponent(LED_MODULE_PATH) + '&replace=true');
             }).then(function(result) {
                 try { return 'loaded ' + JSON.parse(result).state[0].name; }
                 catch (e) { return 'loaded'; }
@@ -173,6 +174,175 @@ function finishLed(r, steps, timings, prep) {
         });
 }
 
+// C1 (2026-08-04): ONE implementation of the setup chain, shared by the runtime
+// node and the editor-panel route. These were two ~130-line copies of the same
+// nine steps, and that duplication is exactly what produced bug 2 — the
+// version-handshake fix (versionsCompatible instead of ===) landed in the runtime
+// copy and was missed in the panel copy, so the panel falsely warned on every
+// patch release. Extracting it removes that whole bug class here.
+//
+// Resolves { ok:true, module, task, steps } and rejects with an Error carrying
+// .steps/.current/.module/.task so both callers can report the per-step breakdown.
+function runSetup(r, opts) {
+    var moduleName = opts.module;
+    var task       = opts.task;
+    var timings    = opts.timings;
+    var onStatus   = opts.onStatus || function() {};
+    var sibling    = moduleName === 'MainModule' ? 'MainModuleEGM' : 'MainModule';
+    var remotePath = '$HOME/Programs/' + moduleName + '.mod';
+    var localPath  = path.join(__dirname, '..', 'rapid', moduleName + '.mod');
+    var steps      = [];
+    var current    = null;
+    var ledPrep    = null;
+
+    function step(name, fn) {
+        return function(prev) {
+            current = name;
+            onStatus({ fill: 'blue', shape: 'dot', text: name + '…' });
+            return Promise.resolve(prev).then(fn).then(function(detail) {
+                steps.push({ name: name, ok: true, detail: detail || null });
+            });
+        };
+    }
+    function readState(rwsPath, cls) {
+        return r.rwsGet(rwsPath).then(function(b) { return parseXhtml(b, cls); });
+    }
+    function waitFor(readFn, want, timeoutMs, label) {
+        var deadline = Date.now() + timeoutMs;
+        function poll() {
+            return readFn().then(function(state) {
+                if (state === want) return state;
+                if (Date.now() >= deadline) throw new Error(label + ' did not reach "' + want + '" (still "' + state + '")');
+                return new Promise(function(res) { setTimeout(res, timings.poll); }).then(poll);
+            });
+        }
+        return poll();
+    }
+    var readExec = function() { return readState('/rw/rapid/execution', 'ctrlexecstate'); };
+    var readCtrl = function() { return readState('/rw/panel/ctrl-state', 'ctrlstate'); };
+
+    return Promise.resolve()
+    .then(step('preflight', function() {
+        return Promise.all([readState('/rw/panel/opmode', 'opmode'), readCtrl()]).then(function(res) {
+            // opmode is reported UPPERCASE live ("AUTO"), unlike ctrlstate/ctrlexecstate
+            if (String(res[0]).toLowerCase() !== 'auto') {
+                throw new Error('controller is in "' + res[0] + '" mode — switch it to Auto on the FlexPendant, then run setup again (RWS cannot change the operating mode)');
+            }
+            return 'opmode auto, motors ' + res[1];
+        });
+    }))
+    .then(step('stop RAPID', function() {
+        return readExec().then(function(state) {
+            if (state === 'stopped') return 'already stopped';
+            return r.rwsPost('/rw/rapid/execution/stop', 'stopmode=stop&usetsp=normal')
+                .then(function() { return waitFor(readExec, 'stopped', timings.stop, 'RAPID'); })
+                .then(function() { return 'stopped'; });
+        });
+    }))
+    .then(step('unload conflicting module', function() {
+        return r.rwsGet('/rw/rapid/tasks/' + encodeURIComponent(task) + '/modules').then(function(body) {
+            var mods = parseLiSpans(body, 'rap-module-info-li', ['name', 'type']);
+            var names = mods.map(function(m) { return m.name; });
+            // Only the known MainModule/MainModuleEGM pair is auto-unloaded (both
+            // declare PROC main() — leaving both loaded breaks resetpp/start with
+            // "main ambiguous", confirmed live). Anything else is not ours to remove.
+            if (names.indexOf(sibling) < 0) return 'nothing to unload (loaded: ' + (names.join(', ') || 'none') + ')';
+            return r.withMastership(function() {
+                return r.rwsPostHal('/rw/rapid/tasks/' + encodeURIComponent(task) + '/unloadmod', 'module=' + encodeURIComponent(sibling));
+            }).then(function() { return 'unloaded ' + sibling; });
+        });
+    }))
+    .then(step('upload ' + moduleName + '.mod', function() {
+        var text;
+        try { text = fs.readFileSync(localPath, 'utf8'); }
+        catch (e) { throw new Error('bundled module file missing (' + localPath + '): ' + e.message); }
+        var patched = patchServerIp(text, r.ip);
+        return r.rwsPut('/fileservice/' + escapeFileservicePath(remotePath), Buffer.from(patched.text, 'utf8'), 'text/plain;v=2.0')
+            .then(function() { return Buffer.byteLength(patched.text) + 'B, SERVER_IP → ' + r.ip; });
+    }))
+    .then(step('load module', function() {
+        return r.withMastership(function() {
+            return r.rwsPostHal('/rw/rapid/tasks/' + encodeURIComponent(task) + '/loadmod', 'modulepath=' + encodeURIComponent(remotePath) + '&replace=true');
+        }).then(function(result) {
+            try { return 'loaded ' + JSON.parse(result).state[0].name; }
+            catch (e) { return 'loaded'; }
+        });
+    }))
+    .then(step('reset program pointer', function() {
+        return r.withMastership(function() {
+            return r.rwsPost('/rw/rapid/execution/resetpp', '');
+        });
+    }))
+    .then(function() {
+        // T_LED's own loadmod needs the GLOBAL RAPID execution state stopped
+        // (confirmed live — same rule as T_ROB1's loadmod), so this must run
+        // here, before "motors on"/"start RAPID" below, not after.
+        return prepareLed(r, steps, timings, onStatus).then(function(prep) { ledPrep = prep; });
+    })
+    .then(step('motors on', function() {
+        return readCtrl().then(function(state) {
+            if (state === 'motoron') return 'already on';
+            if (state === 'guardstop' || state === 'emergencystop') {
+                throw new Error('motors are in ' + state + ' — release the protective/emergency stop first');
+            }
+            return r.rwsPost('/rw/panel/ctrl-state', 'ctrl-state=motoron')
+                .then(function() { return waitFor(readCtrl, 'motoron', timings.motoron, 'ctrl-state'); })
+                .then(function() { return 'on'; });
+        });
+    }))
+    .then(step('start RAPID', function() {
+        return r.rwsPost('/rw/rapid/execution/start',
+            'regain=continue&execmode=continue&cycle=forever&condition=none&stopatbp=disabled&alltaskbytsp=false')
+        .then(function() {
+            // RWS returns 200 even when the controller rejects the start — verify.
+            return waitFor(readExec, 'running', timings.start, 'RAPID').catch(function(err) {
+                throw new Error(err.message + ' — check the controller event log (gofa-elog)');
+            });
+        }).then(function() { return 'running'; });
+    }))
+    .then(step('socket PING', function() {
+        var deadline = Date.now() + timings.ping;
+        function ping() {
+            return r.socketSend('PING').then(function(resp) {
+                if (resp === 'OK:PING') {
+                    var ver = r.getLastPingVersion();
+                    if (ver === null) return 'OK (module version unknown — this module predates the version-handshake feature)';
+                    // versionsCompatible, NOT === : patch releases never change the
+                    // socket protocol and must not nag. Using === here was bug 2, and
+                    // it survived precisely because this step existed twice.
+                    if (versionsCompatible(ver, PALETTE_VERSION)) return 'OK (module v' + ver + ')';
+                    return 'OK — WARNING: module reports v' + ver + ', palette expects v' + PALETTE_VERSION + ' — check node-red-contrib-abb-gofa/rapid/ is in sync with the root rapid/ copies (see CLAUDE.md), then re-run setup';
+                }
+                throw new Error('unexpected reply: ' + resp);
+            }).catch(function(err) {
+                if (Date.now() >= deadline) {
+                    throw new Error('socket server not answering (' + err.message + ') — RAPID is running but the socket did not come up; check SERVER_IP in the module matches the robot\'s real IP');
+                }
+                return new Promise(function(res) { setTimeout(res, 500); }).then(ping);
+            });
+        }
+        return ping();
+    }))
+    .then(function() {
+        // Best-effort — failures here are recorded in `steps` but never fail the
+        // overall run; T_ROB1 motion setup succeeding is the priority. See
+        // CLAUDE.md's "Background LED task" section.
+        return finishLed(r, steps, timings, ledPrep);
+    })
+    .then(function() {
+        return { ok: true, module: moduleName, task: task, steps: steps };
+    })
+    .catch(function(err) {
+        steps.push({ name: current, ok: false, detail: err.message });
+        var e = new Error(current + ': ' + err.message);
+        e.steps = steps;
+        e.current = current;
+        e.module = moduleName;
+        e.task = task;
+        throw e;
+    });
+}
+
 // One-click first-run initialization: preflight → stop RAPID → unload the
 // conflicting sibling module → upload the bundled .mod (SERVER_IP auto-synced
 // to the config node's IP) → loadmod → resetpp → motors on → start (verified,
@@ -194,161 +364,27 @@ module.exports = function(RED) {
             if (node._running) { node.warn('setup already running — ignoring input'); return done(); }
             node._running = true;
 
-            var r          = node.robot;
-            var moduleName = node.module;
-            var task       = node.task;
-            var sibling    = moduleName === 'MainModule' ? 'MainModuleEGM' : 'MainModule';
-            var remotePath = '$HOME/Programs/' + moduleName + '.mod';
-            var localPath  = path.join(__dirname, '..', 'rapid', moduleName + '.mod');
-            var steps      = [];
-            var current    = null;
-            var ledPrep    = null;
-
-            function step(name, fn) {
-                return function(prev) {
-                    current = name;
-                    node.status({ fill: 'blue', shape: 'dot', text: name + '…' });
-                    return Promise.resolve(prev).then(fn).then(function(detail) {
-                        steps.push({ name: name, ok: true, detail: detail || null });
-                    });
-                };
-            }
-            function readState(rwsPath, cls) {
-                return r.rwsGet(rwsPath).then(function(b) { return parseXhtml(b, cls); });
-            }
-            function waitFor(readFn, want, timeoutMs, label) {
-                var deadline = Date.now() + timeoutMs;
-                function poll() {
-                    return readFn().then(function(state) {
-                        if (state === want) return state;
-                        if (Date.now() >= deadline) throw new Error(label + ' did not reach "' + want + '" (still "' + state + '")');
-                        return new Promise(function(res) { setTimeout(res, node._t.poll); }).then(poll);
-                    });
-                }
-                return poll();
-            }
-            var readExec = function() { return readState('/rw/rapid/execution', 'ctrlexecstate'); };
-            var readCtrl = function() { return readState('/rw/panel/ctrl-state', 'ctrlstate'); };
-
-            Promise.resolve()
-            .then(step('preflight', function() {
-                return Promise.all([readState('/rw/panel/opmode', 'opmode'), readCtrl()]).then(function(res) {
-                    // opmode is reported UPPERCASE live ("AUTO"), unlike ctrlstate/ctrlexecstate
-                    if (String(res[0]).toLowerCase() !== 'auto') {
-                        throw new Error('controller is in "' + res[0] + '" mode — switch it to Auto on the FlexPendant, then run setup again (RWS cannot change the operating mode)');
-                    }
-                    return 'opmode auto, motors ' + res[1];
-                });
-            }))
-            .then(step('stop RAPID', function() {
-                return readExec().then(function(state) {
-                    if (state === 'stopped') return 'already stopped';
-                    return r.rwsPost('/rw/rapid/execution/stop', 'stopmode=stop&usetsp=normal')
-                        .then(function() { return waitFor(readExec, 'stopped', node._t.stop, 'RAPID'); })
-                        .then(function() { return 'stopped'; });
-                });
-            }))
-            .then(step('unload conflicting module', function() {
-                return r.rwsGet('/rw/rapid/tasks/' + encodeURIComponent(task) + '/modules').then(function(body) {
-                    var mods = parseLiSpans(body, 'rap-module-info-li', ['name', 'type']);
-                    var names = mods.map(function(m) { return m.name; });
-                    // Only the known MainModule/MainModuleEGM pair is auto-unloaded (both
-                    // declare PROC main() — leaving both loaded breaks resetpp/start with
-                    // "main ambiguous", confirmed live). Anything else is not ours to remove.
-                    if (names.indexOf(sibling) < 0) return 'nothing to unload (loaded: ' + (names.join(', ') || 'none') + ')';
-                    return r.withMastership(function() {
-                        return r.rwsPostHal('/rw/rapid/tasks/' + task + '/unloadmod', 'module=' + encodeURIComponent(sibling));
-                    }).then(function() { return 'unloaded ' + sibling; });
-                });
-            }))
-            .then(step('upload ' + moduleName + '.mod', function() {
-                var text;
-                try { text = fs.readFileSync(localPath, 'utf8'); }
-                catch (e) { throw new Error('bundled module file missing (' + localPath + '): ' + e.message); }
-                var patched = patchServerIp(text, r.ip);
-                return r.rwsPut('/fileservice/' + remotePath, Buffer.from(patched.text, 'utf8'), 'text/plain;v=2.0')
-                    .then(function() { return Buffer.byteLength(patched.text) + 'B, SERVER_IP → ' + r.ip; });
-            }))
-            .then(step('load module', function() {
-                return r.withMastership(function() {
-                    return r.rwsPostHal('/rw/rapid/tasks/' + task + '/loadmod', 'modulepath=' + encodeURIComponent(remotePath) + '&replace=true');
-                }).then(function(result) {
-                    try { return 'loaded ' + JSON.parse(result).state[0].name; }
-                    catch (e) { return 'loaded'; }
-                });
-            }))
-            .then(step('reset program pointer', function() {
-                return r.withMastership(function() {
-                    return r.rwsPost('/rw/rapid/execution/resetpp', '');
-                });
-            }))
-            .then(function() {
-                // T_LED's own loadmod needs the GLOBAL RAPID execution state stopped
-                // (confirmed live — same rule as T_ROB1's loadmod), so this must run
-                // here, before "motors on"/"start RAPID" below, not after.
-                return prepareLed(r, steps, node._t, node.status).then(function(prep) {
-                    ledPrep = prep;
-                });
-            })
-            .then(step('motors on', function() {
-                return readCtrl().then(function(state) {
-                    if (state === 'motoron') return 'already on';
-                    if (state === 'guardstop' || state === 'emergencystop') {
-                        throw new Error('motors are in ' + state + ' — release the protective/emergency stop first');
-                    }
-                    return r.rwsPost('/rw/panel/ctrl-state', 'ctrl-state=motoron')
-                        .then(function() { return waitFor(readCtrl, 'motoron', node._t.motoron, 'ctrl-state'); })
-                        .then(function() { return 'on'; });
-                });
-            }))
-            .then(step('start RAPID', function() {
-                return r.rwsPost('/rw/rapid/execution/start',
-                    'regain=continue&execmode=continue&cycle=forever&condition=none&stopatbp=disabled&alltaskbytsp=false')
-                .then(function() {
-                    // RWS returns 200 even when the controller rejects the start — verify.
-                    return waitFor(readExec, 'running', node._t.start, 'RAPID').catch(function(err) {
-                        throw new Error(err.message + ' — check the controller event log (gofa-elog)');
-                    });
-                }).then(function() { return 'running'; });
-            }))
-            .then(step('socket PING', function() {
-                var deadline = Date.now() + node._t.ping;
-                function ping() {
-                    return r.socketSend('PING').then(function(resp) {
-                        if (resp === 'OK:PING') {
-                            var ver = r.getLastPingVersion();
-                            if (ver === null) return 'OK (module version unknown — this module predates the version-handshake feature)';
-                            if (versionsCompatible(ver, PALETTE_VERSION)) return 'OK (module v' + ver + ')';
-                            return 'OK — WARNING: module reports v' + ver + ', palette expects v' + PALETTE_VERSION + ' — check node-red-contrib-abb-gofa/rapid/ is in sync with the root rapid/ copies (see CLAUDE.md), then re-run setup';
-                        }
-                        throw new Error('unexpected reply: ' + resp);
-                    }).catch(function(err) {
-                        if (Date.now() >= deadline) {
-                            throw new Error('socket server not answering (' + err.message + ') — RAPID is running but the socket did not come up; check SERVER_IP in the module matches the robot\'s real IP');
-                        }
-                        return new Promise(function(res) { setTimeout(res, 500); }).then(ping);
-                    });
-                }
-                return ping();
-            }))
-            .then(function() {
-                // Best-effort — failures here are recorded in `steps` but never fail
-                // the overall run; T_ROB1 motion setup above succeeding is the
-                // priority. See CLAUDE.md's "Background LED task" section.
-                return finishLed(r, steps, node._t, ledPrep);
-            })
-            .then(function() {
+            runSetup(node.robot, {
+                module:  node.module,
+                task:    node.task,
+                timings: node._t,
+                // .bind(node) is required, not cosmetic: Node-RED's
+                // Node.prototype.status is `this._flow.handleStatus(this, status)`,
+                // so a bare onStatus({...}) call throws a TypeError when handed an
+                // unbound method — and prepareLed's own .catch swallowed that into a
+                // failed "stop T_LED" step, silently skipping the whole T_LED reload
+                // on every run (bug 1).
+                onStatus: node.status.bind(node)
+            }).then(function(out) {
                 node._running = false;
-                msg.payload = { ok: true, module: moduleName, task: task, steps: steps };
+                msg.payload = out;
                 node.status({ fill: 'green', shape: 'dot', text: 'ready' });
                 send(msg); done();
-            })
-            .catch(function(err) {
+            }).catch(function(err) {
                 node._running = false;
-                steps.push({ name: current, ok: false, detail: err.message });
-                msg.payload = { ok: false, module: moduleName, task: task, steps: steps, error: current + ': ' + err.message };
-                node.status({ fill: 'red', shape: 'ring', text: current + ' failed' });
-                node.error(current + ': ' + err.message, msg);
+                msg.payload = { ok: false, module: err.module, task: err.task, steps: err.steps, error: err.message };
+                node.status({ fill: 'red', shape: 'ring', text: err.current + ' failed' });
+                node.error(err.message, msg);
                 send(msg); done(err);
             });
         });
@@ -360,145 +396,18 @@ module.exports = function(RED) {
         if (!robot) {
             return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
         }
-        var moduleName = req.body.module || 'MainModule';
-        var task       = req.body.task || 'T_ROB1';
-        var sibling    = moduleName === 'MainModule' ? 'MainModuleEGM' : 'MainModule';
-        var remotePath = '$HOME/Programs/' + moduleName + '.mod';
-        var localPath  = path.join(__dirname, '..', 'rapid', moduleName + '.mod');
-        var steps      = [];
-        var current    = null;
-        var ledPrep    = null;
-        var timings = { poll: 300, stop: 5000, motoron: 8000, start: 3000, ping: 8000 };
-
-        function step(name, fn) {
-            return function(prev) {
-                current = name;
-                return Promise.resolve(prev).then(fn).then(function(detail) {
-                    steps.push({ name: name, ok: true, detail: detail || null });
-                });
-            };
-        }
-        function readState(rwsPath, cls) {
-            return robot.rwsGet(rwsPath).then(function(b) { return parseXhtml(b, cls); });
-        }
-        function waitFor(readFn, want, timeoutMs, label) {
-            var deadline = Date.now() + timeoutMs;
-            function poll() {
-                return readFn().then(function(state) {
-                    if (state === want) return state;
-                    if (Date.now() >= deadline) throw new Error(label + ' did not reach "' + want + '" (still "' + state + '")');
-                    return new Promise(function(res) { setTimeout(res, timings.poll); }).then(poll);
-                });
-            }
-            return poll();
-        }
-        var readExec = function() { return readState('/rw/rapid/execution', 'ctrlexecstate'); };
-        var readCtrl = function() { return readState('/rw/panel/ctrl-state', 'ctrlstate'); };
-
-        Promise.resolve()
-        .then(step('preflight', function() {
-            return Promise.all([readState('/rw/panel/opmode', 'opmode'), readCtrl()]).then(function(res) {
-                if (String(res[0]).toLowerCase() !== 'auto') {
-                    throw new Error('controller is in "' + res[0] + '" mode — switch it to Auto on the FlexPendant, then run setup again (RWS cannot change the operating mode)');
-                }
-                return 'opmode auto, motors ' + res[1];
-            });
-        }))
-        .then(step('stop RAPID', function() {
-            return readExec().then(function(state) {
-                if (state === 'stopped') return 'already stopped';
-                return robot.rwsPost('/rw/rapid/execution/stop', 'stopmode=stop&usetsp=normal')
-                    .then(function() { return waitFor(readExec, 'stopped', timings.stop, 'RAPID'); })
-                    .then(function() { return 'stopped'; });
-            });
-        }))
-        .then(step('unload conflicting module', function() {
-            return robot.rwsGet('/rw/rapid/tasks/' + encodeURIComponent(task) + '/modules').then(function(body) {
-                var mods = parseLiSpans(body, 'rap-module-info-li', ['name', 'type']);
-                var names = mods.map(function(m) { return m.name; });
-                if (names.indexOf(sibling) < 0) return 'nothing to unload (loaded: ' + (names.join(', ') || 'none') + ')';
-                return robot.withMastership(function() {
-                    return robot.rwsPostHal('/rw/rapid/tasks/' + task + '/unloadmod', 'module=' + encodeURIComponent(sibling));
-                }).then(function() { return 'unloaded ' + sibling; });
-            });
-        }))
-        .then(step('upload ' + moduleName + '.mod', function() {
-            var text;
-            try { text = fs.readFileSync(localPath, 'utf8'); }
-            catch (e) { throw new Error('bundled module file missing (' + localPath + '): ' + e.message); }
-            var patched = patchServerIp(text, robot.ip);
-            return robot.rwsPut('/fileservice/' + remotePath, Buffer.from(patched.text, 'utf8'), 'text/plain;v=2.0')
-                .then(function() { return Buffer.byteLength(patched.text) + 'B, SERVER_IP → ' + robot.ip; });
-        }))
-        .then(step('load module', function() {
-            return robot.withMastership(function() {
-                return robot.rwsPostHal('/rw/rapid/tasks/' + task + '/loadmod', 'modulepath=' + encodeURIComponent(remotePath) + '&replace=true');
-            }).then(function(result) {
-                try { return 'loaded ' + JSON.parse(result).state[0].name; }
-                catch (e) { return 'loaded'; }
-            });
-        }))
-        .then(step('reset program pointer', function() {
-            return robot.withMastership(function() {
-                return robot.rwsPost('/rw/rapid/execution/resetpp', '');
-            });
-        }))
-        .then(function() {
-            return prepareLed(robot, steps, timings, null).then(function(prep) {
-                ledPrep = prep;
-            });
-        })
-        .then(step('motors on', function() {
-            return readCtrl().then(function(state) {
-                if (state === 'motoron') return 'already on';
-                if (state === 'emergencystop' || state === 'guardstop') {
-                    throw new Error('motors are in ' + state + ' — release the protective/emergency stop first');
-                }
-                return robot.rwsPost('/rw/panel/ctrl-state', 'ctrl-state=motoron')
-                    .then(function() { return waitFor(readCtrl, 'motoron', timings.motoron, 'ctrl-state'); })
-                    .then(function() { return 'on'; });
-            });
-        }))
-        .then(step('start RAPID', function() {
-            return robot.rwsPost('/rw/rapid/execution/start',
-                'regain=continue&execmode=continue&cycle=forever&condition=none&stopatbp=disabled&alltaskbytsp=false')
-            .then(function() {
-                return waitFor(readExec, 'running', timings.start, 'RAPID').catch(function(err) {
-                    throw new Error(err.message + ' — check the controller event log (gofa-elog)');
-                });
-            }).then(function() { return 'running'; });
-        }))
-        .then(step('socket PING', function() {
-            var deadline = Date.now() + timings.ping;
-            function ping() {
-                return robot.socketSend('PING').then(function(resp) {
-                    if (resp === 'OK:PING') {
-                        var ver = robot.getLastPingVersion();
-                        if (ver === null) return 'OK (module version unknown — this module predates the version-handshake feature)';
-                        if (ver === PALETTE_VERSION) return 'OK (module v' + ver + ')';
-                        return 'OK — WARNING: module reports v' + ver + ', palette expects v' + PALETTE_VERSION + ' — check node-red-contrib-abb-gofa/rapid/ is in sync with the root rapid/ copies (see CLAUDE.md), then re-run setup';
-                    }
-                    throw new Error('unexpected reply: ' + resp);
-                }).catch(function(err) {
-                    if (Date.now() >= deadline) {
-                        throw new Error('socket server not answering (' + err.message + ') — RAPID is running but the socket did not come up; check SERVER_IP in the module matches the robot\'s real IP');
-                    }
-                    return new Promise(function(res) { setTimeout(res, 500); }).then(ping);
-                });
-            }
-            return ping();
-        }))
-        .then(function() {
-            // Best-effort — see the runtime node's identical call above for the
-            // full rationale (CLAUDE.md's "Background LED task" section).
-            return finishLed(robot, steps, timings, ledPrep);
-        })
-        .then(function() {
-            res.json({ ok: true, module: moduleName, task: task, steps: steps });
-        })
-        .catch(function(err) {
-            steps.push({ name: current, ok: false, detail: err.message });
-            res.status(502).json({ ok: false, module: moduleName, task: task, steps: steps, error: current + ': ' + err.message });
+        runSetup(robot, {
+            module:  req.body.module || 'MainModule',
+            task:    req.body.task   || 'T_ROB1',
+            timings: { poll: 300, stop: 5000, motoron: 8000, start: 3000, ping: 8000 }
+            // no onStatus — the panel reports progress via the returned steps[]
+        }).then(function(out) {
+            res.json(out);
+        }).catch(function(err) {
+            res.status(502).json({ ok: false, module: err.module, task: err.task,
+                                   steps: err.steps, error: err.message });
         });
     });
 };
+
+module.exports.runSetup = runSetup;

@@ -19,6 +19,13 @@ function clamp(v) {
     return Math.max(0, Math.min(255, isNaN(n) ? 0 : n));
 }
 
+// Period has no 255 ceiling (it's a blink interval, not a colour channel) but
+// needs the same NaN -> 0 guard clamp() gives the RGB channels.
+function clampPeriod(v) {
+    var n = Math.round(Number(v));
+    return isNaN(n) ? 0 : Math.max(0, n);
+}
+
 // Asi1LedRed/Green/Blue/Period are plain GO signals (SetGO in MainModule.mod) —
 // in principle writable over RWS /set-value like any other signal once Access
 // Level is All, same as gofa-do-write. In practice the ASI board's Access
@@ -87,7 +94,10 @@ function resolvePayload(defaults, payload) {
         r:      clamp(r),
         g:      clamp(g),
         b:      clamp(b),
-        period: Math.max(0, Math.round(Number(period)))
+        // B4: same NaN guard clamp() applies to r/g/b. Without it a non-numeric
+        // period ({period:"x"}) produced NaN, which JSON.stringify writes as null
+        // in the setled command — an unusable value the RAPID side can't parse.
+        period: clampPeriod(period)
     };
 }
 
@@ -109,6 +119,14 @@ module.exports = function(RED) {
                 done = removed;
                 removed = false;
             }
+            // Invalidate the running blink session BEFORE anything else. Clearing
+            // _blinkTimer alone isn't enough: an in-flight ledWrite() that resolves
+            // after close still passes the `_blinkSession !== currentSession` guard,
+            // so it re-arms _blinkTimer on a torn-down node and calls done() a
+            // second time ("done called more than once"). Bumping the counter is
+            // what actually stops the chain — same mechanism on('input') already
+            // uses to supersede an earlier blink.
+            node._blinkSession = (node._blinkSession || 0) + 1;
             if (node._blinkTimer) {
                 clearTimeout(node._blinkTimer);
                 node._blinkTimer = null;

@@ -1,7 +1,12 @@
 'use strict';
 var gate = require('./lib/gate');
-var WS = require('./lib/ws');
 var parseSignalList = require('./lib/list-signals');
+var createSubscription = require('./lib/rws-subscription');
+
+function parseLvalue(body) {
+    var m = String(body).match(/class="lvalue">([^<]+)</);
+    return m ? parseInt(m[1].trim()) : null;
+}
 
 module.exports = function(RED) {
     function GoFaSubscribeIoNode(config) {
@@ -20,21 +25,10 @@ module.exports = function(RED) {
         node._lastValue = null;
         node._stopped   = false;
 
-        function stopAll(callback) {
-            if (node._wsTimer) { clearTimeout(node._wsTimer); node._wsTimer = null; }
-            if (node._pollTimer) { clearInterval(node._pollTimer); node._pollTimer = null; }
-            var ws = node._ws;
-            node._ws = null;
-            if (ws) { ws.terminate(); }
-            if (node._pollkey && node.robot) {
-                var pk = node._pollkey;
-                node._pollkey = null;
-                node.robot.requestRaw('DELETE', '/subscription/' + pk, null, {})
-                    .catch(function(){})
-                    .then(function(){ if (callback) callback(); });
-            } else { if (callback) callback(); }
-        }
+        var current = null;   // the createSubscription handle for node._signal
 
+        // Fallback for controllers that reject a subscription on this resource
+        // (HTTP 400): poll the signal and emit only on change.
         function startPolling(signal) {
             if (node._stopped) return;
             node._lastValue = null;
@@ -43,9 +37,8 @@ module.exports = function(RED) {
                 if (!node.robot) return;
                 node.robot.rwsGet('/rw/iosystem/signals/' + encodeURIComponent(signal))
                     .then(function(body) {
-                        var m = body.match(/class="lvalue">([^<]+)</);
-                        if (!m) return;
-                        var value = parseInt(m[1].trim());
+                        var value = parseLvalue(body);
+                        if (value === null) return;
                         if (value !== node._lastValue) {
                             node._lastValue = value;
                             node.status({ fill: 'blue', shape: 'dot', text: signal + '=' + value });
@@ -67,102 +60,39 @@ module.exports = function(RED) {
             }, 500);
         }
 
-        function startSubscription(signal) {
-            if (!node.robot) { node.error('No robot configured'); return; }
-            var robot        = node.robot;
-            var resourcePath = '/rw/iosystem/signals/' + encodeURIComponent(signal) + ';state';
-            var priority     = 2;
-
+        // C3: subscribe/WS/reconnect mechanics live in lib/rws-subscription.js.
+        function subscribeTo(signal) {
             node._signal = signal;
-            node.status({ fill: 'yellow', shape: 'ring', text: signal + ' connecting' });
-
-            var subscribeBody = 'resources=1&1=' + encodeURIComponent(resourcePath) + '&1-p=' + priority;
-            var performSubscribe = function() {
-                return robot.requestRaw('POST', '/subscription', subscribeBody, {
-                    contentType: 'application/x-www-form-urlencoded;v=2.0'
-                }).then(function(res) {
-                    if (res.statusCode !== 201) throw new Error('Subscription failed: HTTP ' + res.statusCode);
-                    // Use the cookie from THIS subscribe response, not a separate robot.getCookie()
-                    // re-fetch — the shared session cookie can be overwritten by another node's
-                    // concurrent request in between, causing the WS upgrade to use the wrong
-                    // session and fail (confirmed live: two subscribe-io nodes starting together).
-                    return { location: res.headers.location, cookie: res.cookie };
-                }).then(function(sub) {
-                    if (node._stopped) {
-                        // Node was closed while the subscribe POST was still in flight — close() already
-                        // ran and couldn't clean this up (node._pollkey was still null at that time).
-                        // Best-effort delete the now-orphaned subscription ourselves.
-                        var pk = sub.location.split('/poll/').pop();
-                        return node.robot.requestRaw('DELETE', '/subscription/' + pk, null, {}).catch(function(){});
-                    }
-                    node._pollkey = sub.location.split('/poll/').pop();
-                    return new Promise(function(resolve) {
-                        node._wsTimer = setTimeout(function() {
-                            node._wsTimer = null;
-                            if (node._stopped) { resolve(); return; }
-                            var ws = new WS(sub.location, ['rws_subscription'], {
-                                rejectUnauthorized: false,
-                                headers: { Cookie: sub.cookie || '' }
-                            });
-                            node._ws = ws;
-                            ws.on('open', function() {
-                                node.status({ fill: 'green', shape: 'dot', text: signal + ' connected' });
-                                resolve();
-                            });
-                            ws.on('message', function(data) {
-                                var str = data.toString();
-                                var m = str.match(/class="lvalue">([^<]+)</);
-                                if (m) {
-                                    var value = parseInt(m[1].trim());
-                                    node.status({ fill: 'green', shape: 'dot', text: signal + '=' + value });
-                                    node.send({ payload: { ok: true, signal: signal, value: value, source: 'ws' } });
-                                }
-                            });
-                            ws.on('error', function(err) {
-                                node.warn('GoFa WebSocket subscription error: ' + err.message);
-                                resolve();
-                            });
-                            ws.on('close', function() {
-                                resolve();
-                                if (node._ws) {
-                                    node._ws = null;
-                                    if (!node._stopped) {
-                                        node.status({ fill: 'yellow', shape: 'ring', text: signal + ' reconnecting...' });
-                                        setTimeout(function() { if (!node._stopped) startSubscription(signal); }, 3000);
-                                    } else {
-                                        node.status({ fill: 'grey', shape: 'ring', text: signal + ' disconnected' });
-                                    }
-                                }
-                            });
-                        }, 100);
-                    });
-                });
-            };
-
-            var subscribePromise = typeof robot.queueSubscription === 'function'
-                ? robot.queueSubscription(performSubscribe)
-                : performSubscribe();
-
-            subscribePromise.catch(function(err) {
-                if (/HTTP 400/.test(err.message)) {
-                    startPolling(signal);
-                } else {
-                    node.status({ fill: 'red', shape: 'ring', text: 'error' });
-                    node.error(err);
+            current = createSubscription(node, {
+                label: signal,
+                resourcePath: '/rw/iosystem/signals/' + encodeURIComponent(signal) + ';state',
+                priority: 2,
+                onStatus: function(s) { node.status(s); },
+                onMessage: function(data) {
+                    var value = parseLvalue(data.toString());
+                    if (value === null) return;
+                    node.status({ fill: 'green', shape: 'dot', text: signal + '=' + value });
+                    node.send({ payload: { ok: true, signal: signal, value: value, source: 'ws' } });
+                },
+                onError: function(err) {
+                    // A 400 here means this controller won't subscribe to the resource —
+                    // degrade to polling rather than failing the node outright.
+                    if (/HTTP 400/.test(err.message)) { startPolling(signal); return true; }
+                    return false;
                 }
             });
+            current.start();
         }
 
         function readOnce(signal) {
             node.status({ fill: 'yellow', shape: 'ring', text: signal + ' reading' });
             node.robot.rwsGet('/rw/iosystem/signals/' + encodeURIComponent(signal))
                 .then(function(body) {
-                    var m = body.match(/class="lvalue">([^<]+)</);
-                    if (m) {
-                        var value = parseInt(m[1].trim());
-                        node.status({ fill: node._ws ? 'green' : 'blue', shape: 'dot', text: signal + '=' + value });
-                        node.send({ payload: { ok: true, signal: signal, value: value, source: node.oneshot ? 'oneshot' : (node._ws ? 'ws' : 'poll') } });
-                    }
+                    var value = parseLvalue(body);
+                    if (value === null) return;
+                    node.status({ fill: node._ws ? 'green' : 'blue', shape: 'dot', text: signal + '=' + value });
+                    node.send({ payload: { ok: true, signal: signal, value: value,
+                        source: node.oneshot ? 'oneshot' : (node._ws ? 'ws' : 'poll') } });
                 })
                 .catch(function(err) {
                     node.status({ fill: 'red', shape: 'ring', text: 'error' });
@@ -177,26 +107,29 @@ module.exports = function(RED) {
                 ? msg.payload.signal
                 : node.signal;
 
-            if (node.oneshot) {
-                readOnce(signal);
-                return done();
-            }
+            if (node.oneshot) { readOnce(signal); return done(); }
 
+            // Already watching this exact signal — just report its current value.
             if ((node._ws || node._pollTimer) && node._signal === signal) {
                 readOnce(signal);
                 return done();
             }
+            // Watching a different signal — tear that down first so its
+            // subscription is released before the new one is created.
             if (node._ws || node._pollTimer) {
-                stopAll(function() { startSubscription(signal); });
+                var prev = current;
+                if (prev) prev.stop(function() { subscribeTo(signal); });
+                else subscribeTo(signal);
             } else {
-                startSubscription(signal);
+                subscribeTo(signal);
             }
             done();
         });
 
         node.on('close', function(done) {
             node._stopped = true;
-            stopAll(done);
+            if (current) current.stop(done);
+            else done();
         });
     }
     RED.nodes.registerType('gofa-subscribe-io', GoFaSubscribeIoNode);
