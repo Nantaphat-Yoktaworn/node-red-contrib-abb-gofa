@@ -8,8 +8,8 @@
             signal: { value: 'ABB_Scalable_IO_0_DI1' }
         },
         inputs: 1, outputs: 1, icon: 'gofa.svg',
-        label: function() { return this.name || ('DI ' + this.signal); },
-        paletteLabel: 'DI Read',
+        label: function() { return this.name || ('IO ' + this.signal); },
+        paletteLabel: 'DI/DO Read',
         oneditprepare: function() {
             var node = this;
             function robotId() {
@@ -34,7 +34,7 @@
                         var color = data.value === 1 ? '#5cb85c' : '#777';
                         var html = '<div style="display: flex; align-items: center;">' +
                             '<span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background-color: ' + color + '; margin-right: 8px; border: 1px solid #444;"></span>' +
-                            '<span><b>Value:</b> ' + data.value + '</span>' +
+                            '<span><b>Value:</b> ' + data.value + (data.type ? ' <span style="color:#888;">(' + data.type + ')</span>' : '') + '</span>' +
                             '</div>';
                         $('#gofa-di-result').html(html);
                     })
@@ -54,11 +54,21 @@
                 $.getJSON('gofa-di-read/' + id + '/signals')
                     .done(function(data) {
                         var current = $('#node-input-signal').val();
+                        var all = data.signals || [];
                         sel.empty().append($('<option>', { value: '', text: 'Other (type below)' }));
-                        (data.signals || []).forEach(function(s) {
-                            sel.append($('<option>', { value: s.name, text: s.name }));
+                        // Grouped so inputs and outputs are never confused for one
+                        // another — this controller reports 51 DI and 45 DO, which
+                        // is an unreadable flat list.
+                        [['DI', 'Digital Inputs (DI)'], ['DO', 'Digital Outputs (DO)']].forEach(function(g) {
+                            var ofType = all.filter(function(s) { return s.type === g[0]; });
+                            if (!ofType.length) return;
+                            var grp = $('<optgroup>', { label: g[1] });
+                            ofType.forEach(function(s) {
+                                grp.append($('<option>', { value: s.name, text: s.name }));
+                            });
+                            sel.append(grp);
                         });
-                        if (current && (data.signals || []).some(function(s) { return s.name === current; })) {
+                        if (current && all.some(function(s) { return s.name === current; })) {
                             sel.val(current);
                         }
                     });
@@ -113,8 +123,13 @@
 </script>
 <script type="text/html" data-help-name="gofa-di-read">
     <p><b>Output payload</b> unchecked (default): fires an empty signal to trigger the next node. Checked: outputs the full <code>msg.payload</code> described below.</p>
-    <p>Reads a digital input (DI) signal from the ABB GoFa controller via RWS.</p>
-    <p>The <b>Known Signals</b> dropdown lists live DI signals from the controller — pick one to fill the Signal field, or leave it on "Other (type below)" and type a name manually as before.</p>
+    <p>Reads a digital <b>input (DI) or output (DO)</b> signal from the ABB GoFa controller via RWS.
+    Reading a DO reports the output's current state — it never writes; use <b>DO Write</b> to change one.</p>
+    <p>The <b>Known Signals</b> dropdown lists the controller's live signals, grouped into Digital
+    Inputs and Digital Outputs — pick one to fill the Signal field, or leave it on "Other (type below)"
+    and type a name manually.</p>
+    <p>Any signal name typed by hand is read, including group outputs (GO), which are not listed in
+    the dropdown. Note the value is parsed as an integer, so an analog signal would be truncated.</p>
     <h3>Input</h3>
     <p><code>msg.payload</code> can be:</p>
     <ul>
@@ -122,6 +137,7 @@
         <li><code>null</code> / not set — uses the configured signal name</li>
     </ul>
     <h3>Output</h3>
-    <p><code>msg.payload = { ok: true, signal: 'ABB_Scalable_IO_0_DI1', value: 0 }</code> on success (value is 0 or 1).</p>
+    <p><code>msg.payload = { ok: true, signal: 'ABB_Scalable_IO_0_DO1', value: 0, type: 'DO' }</code>
+    on success (value is 0 or 1; <code>type</code> is what the controller reports, e.g. DI/DO/GO).</p>
     <p><code>msg.payload = { ok: false, error: "..." }</code> on failure.</p>
 </script>
