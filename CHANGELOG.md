@@ -8,6 +8,40 @@ be edited. Each entry below says exactly what to replace them with.
 
 ---
 
+## 2.6.3 — fix: "Go to point" failed with `ERR:GOTOJ` on most taught points
+
+**`gofa-points` (action `go`) and `gofa-sequencer` could send a goto request too long for the
+controller to read, which came back as `ERR:GOTOJ` and no motion.** Palette-only fix — no
+controller reflash, no flow edit. `MODULE_VERSION` stays `2.6.2` and the version handshake
+(major.minor) is unaffected.
+
+RAPID's `string` type holds **80 characters**, and `MainModule.mod` reads every socket request
+into a single one (`SocketReceive clientSocket \Str:=rxStr`). A longer line is truncated at 80 on
+the controller before any parsing happens.
+
+goto is the only command that gets near that: 11 numbers, and the JSON framing
+`{"cmd":"gotoj","val":[…]}` costs 24 characters before a single digit. Real GoFa 12 targets
+serialize to **81–83 characters**, and the worst case inside the arm's reach is ~91 — the JSON
+form of this command could never fit. Truncation cut the closing `]}`, `GetJsonNumArray` found no
+`]`, and the controller answered `{"status":"err","cmd":"gotoj","msg":"invalid target"}`, which
+the palette surfaces as `ack: "ERR:GOTOJ"`.
+
+Why it looked point-specific rather than broken-everywhere: the overrun depends on how many
+digits the point's coordinates happen to need. A point at 81 characters loses only its `}` and
+still parses (the `]` survives at position 80); at 82+ the `]` goes and it fails. Of three points
+taught for the Pick & Place Sorting Flow, "Pickup" landed on 81 and worked while "Bin A" and
+"Bin B" landed on 83 and did not — so the flow reached the pickup and failed at both bins,
+looking like a bin problem.
+
+The fix is on the palette side: a goto request is emitted as JSON when it fits, and downgraded to
+the legacy text token (`GOTOJ<x;y;z;q1;q2;q3;q4;cf1;cf4;cf6;cfx>`) when it doesn't. That token
+carries the same 11 numbers in **62–72 characters** because its framing is 5 instead of 24, and
+`TryGoTo` in `MainModule.mod` parses it into the same `robtarget` and acks the same `OK:GOTO`.
+The worst reachable target is 72 characters, so no target the robot can physically reach can
+overrun any more. Every other command's JSON stays well under the limit and is untouched.
+
+---
+
 ## 2.6.2 — DI Read also reads digital outputs
 
 **`gofa-di-read` now reads DO signals as well as DI, and lists both in the Known Signals
