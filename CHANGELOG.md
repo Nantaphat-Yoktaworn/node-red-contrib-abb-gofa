@@ -8,6 +8,45 @@ be edited. Each entry below says exactly what to replace them with.
 
 ---
 
+## 2.6.4 — fix: Known Signals dropdowns showed only the first 100 I/O signals
+
+**Every signal-listing node read only the first page of `GET /rw/iosystem/signals` and silently
+dropped the rest.** Affects `gofa-io-list`, `gofa-di-read`, `gofa-do-write`, `gofa-grip` and
+`gofa-subscribe-io` — both the deployed nodes and their editor-panel dropdowns. No migration, no
+flow edit, no controller change.
+
+RWS caps that collection at **100 signals per response** and links the remainder through
+`<a href="signals?start=100&limit=100" rel="next">`. The cap is enforced controller-side, not a
+default a caller can raise: `?limit=500`, `?limit=1000` and `?start=0&limit=300` each came back with
+exactly 100 items and a `next` link.
+
+Nothing hit this before because the controller had 96 signals — page one *was* the whole list.
+Installing a **Modbus TCP add-in** added 161 more (273 total), and since the collection is ordered
+with the Modbus device first, **all 32 `ABB_Scalable_*` signals moved onto pages 2–3**. The
+dropdowns still looked full — of `mb_*` entries — while the robot's own I/O had vanished from them,
+including signals live flows were already using by name.
+
+`lib/list-signals.js` gains `fetchSignals(robot)`, which walks `rel="next"` to exhaustion; all five
+nodes now call it. It decodes `&amp;` in the link, stops if a link repeats, caps at 100 pages, and
+returns the pages already gathered if the walk fails partway rather than discarding a partial list.
+Live-verified against the lab controller: 100 → **273** signals, `ABB_Scalable_IO_0_DO1`/`DO4` back
+in the dropdown.
+
+Typed signal names were never affected — reads and writes address a signal by bare name and resolve
+regardless of page or network/device path, so existing flows kept working throughout. This was a
+listing bug only.
+
+Also in this release: `gofa-io-list` had its listing logic duplicated between the deployed node and
+its admin route, and both copies needed the same fix — folded into one `listSignals()` per
+CLAUDE.md's runtime-vs-admin-route rule.
+
+**Note for anyone with an analog add-in:** the palette still ships no analog nodes (removed at
+2026-07-07 because this controller had zero AI/AO signals). A Modbus add-in can introduce them — the
+lab controller now reports one `AO` signal, `mb_aoSpeed`. `gofa-io-list` will show it; nothing can
+write it. Re-adding `gofa-ao-write` is tracked as a possible future item, not part of this release.
+
+---
+
 ## 2.6.3 — fix: "Go to point" failed with `ERR:GOTOJ` on most taught points
 
 **`gofa-points` (action `go`) and `gofa-sequencer` could send a goto request too long for the
