@@ -1,6 +1,6 @@
 'use strict';
 var gate = require('./lib/gate');
-var parseSignalList = require('./lib/list-signals');
+var fetchSignals = require('./lib/list-signals').fetchSignals;
 var createSubscription = require('./lib/rws-subscription');
 
 function parseLvalue(body) {
@@ -139,9 +139,9 @@ module.exports = function(RED) {
         if (!robot || typeof robot.rwsGet !== 'function') {
             return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
         }
-        robot.rwsGet('/rw/iosystem/signals')
-        .then(function(body) {
-            res.json({ ok: true, signals: parseSignalList(body) });
+        fetchSignals(robot)
+        .then(function(signals) {
+            res.json({ ok: true, signals: signals });
         }).catch(function(err) {
             res.status(502).json({ error: err.message });
         });

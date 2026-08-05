@@ -1,6 +1,6 @@
 'use strict';
 var gate = require('./lib/gate');
-var parseSignalList = require('./lib/list-signals');
+var fetchSignals = require('./lib/list-signals').fetchSignals;
 
 // Signal types offered in the Known Signals dropdown.
 //
@@ -29,9 +29,8 @@ function readSignal(robot, signal) {
 }
 
 function listSignals(robot) {
-    return robot.rwsGet('/rw/iosystem/signals')
-    .then(function(body) {
-        return parseSignalList(body).filter(function(s) {
+    return fetchSignals(robot).then(function(signals) {
+        return signals.filter(function(s) {
             return LISTED_TYPES.indexOf(s.type) !== -1;
         });
     });

@@ -16,6 +16,7 @@ var createRobotClient   = robot.createRobotClient;
 var patchServerIp       = require('./nodes/lib/patch-server-ip');
 var parseLiSpans        = require('./nodes/gofa-rapid-tasks').parseLiSpans;
 var gate                = require('./nodes/lib/gate');
+var fetchSignals        = require('./nodes/lib/list-signals').fetchSignals;
 
 var passed = 0, failed = 0;
 function check(label, fn) {
@@ -229,6 +230,78 @@ check('gotoLegacyToken: returns null for non-goto commands', function() {
     assert.strictEqual(gotoLegacyToken({ cmd: 'movej', val: [0, 0, 0, 0, 0, 0] }), null);
     assert.strictEqual(gotoLegacyToken({ cmd: 'gotoj', val: [1, 2, 3] }), null);
     assert.strictEqual(gotoLegacyToken(null), null);
+});
+
+// GET /rw/iosystem/signals caps every response at 100 signals and links the rest via
+// rel="next" — a hard controller cap, not a default a bigger ?limit can raise (confirmed
+// live 2026-08-05). Reading only page one silently truncated every Known Signals dropdown
+// once a Modbus TCP add-in pushed the controller past 100 signals.
+function signalPage(names, nextHref) {
+    var lis = names.map(function(n) {
+        return '<li class="ios-signal-li" title="Virtual/MB_Device/' + n + '">' +
+               '<span class="name">' + n + '</span><span class="type">DO</span>' +
+               '<span class="lvalue">0</span></li>';
+    }).join('');
+    var next = nextHref ? '<a href="' + nextHref + '" rel="next"></a>' : '';
+    return '<html><body><div class="state"><ul>' + lis + '</ul>' + next + '</div></body></html>';
+}
+
+check('fetchSignals: follows rel="next" and returns every page', function() {
+    var asked = [];
+    var robot = { rwsGet: function(p) {
+        asked.push(p);
+        if (p === '/rw/iosystem/signals')  return Promise.resolve(signalPage(['a1', 'a2'], 'signals?start=100&amp;limit=100'));
+        if (p === '/rw/iosystem/signals?start=100&limit=100') return Promise.resolve(signalPage(['b1'], 'signals?start=200&amp;limit=100'));
+        return Promise.resolve(signalPage(['ABB_Scalable_IO_0_DO1'], null));
+    }};
+    return fetchSignals(robot).then(function(all) {
+        assert.deepStrictEqual(all.map(function(s) { return s.name; }),
+            ['a1', 'a2', 'b1', 'ABB_Scalable_IO_0_DO1']);
+        assert.strictEqual(asked.length, 3, 'should have fetched exactly three pages');
+        // &amp; in the href must be decoded, else the controller sees a bogus param
+        assert.ok(asked[1].indexOf('&amp;') === -1, 'next href should be entity-decoded');
+    });
+});
+
+check('fetchSignals: single page with no next link does one request', function() {
+    var calls = 0;
+    var robot = { rwsGet: function() { calls++; return Promise.resolve(signalPage(['only'], null)); } };
+    return fetchSignals(robot).then(function(all) {
+        assert.strictEqual(all.length, 1);
+        assert.strictEqual(calls, 1);
+    });
+});
+
+check('fetchSignals: a repeated next link terminates instead of looping forever', function() {
+    var calls = 0;
+    var robot = { rwsGet: function() {
+        calls++;
+        if (calls > 20) throw new Error('runaway pagination');
+        return Promise.resolve(signalPage(['s' + calls], 'signals?start=100&limit=100'));
+    }};
+    return fetchSignals(robot).then(function(all) {
+        assert.ok(calls <= 3, 'should stop once the same next link repeats, got ' + calls + ' calls');
+        assert.ok(all.length >= 1);
+    });
+});
+
+check('fetchSignals: a mid-pagination failure keeps the pages already gathered', function() {
+    var robot = { rwsGet: function(p) {
+        if (p === '/rw/iosystem/signals') return Promise.resolve(signalPage(['a1'], 'signals?start=100&limit=100'));
+        return Promise.reject(new Error('controller went away'));
+    }};
+    return fetchSignals(robot).then(function(all) {
+        assert.deepStrictEqual(all.map(function(s) { return s.name; }), ['a1']);
+    });
+});
+
+check('fetchSignals: a first-page failure still rejects', function() {
+    var robot = { rwsGet: function() { return Promise.reject(new Error('boom')); } };
+    return fetchSignals(robot).then(function() {
+        throw new Error('should not resolve');
+    }, function(err) {
+        assert.strictEqual(err.message, 'boom');
+    });
 });
 
 check('parseXhtml: extracts value for matching class', function() {

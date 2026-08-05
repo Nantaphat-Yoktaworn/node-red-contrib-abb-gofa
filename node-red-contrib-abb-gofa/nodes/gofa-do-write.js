@@ -1,7 +1,7 @@
 'use strict';
 var requireAdminAuth = require('./lib/require-admin-auth');
 var gate = require('./lib/gate');
-var parseSignalList = require('./lib/list-signals');
+var fetchSignals = require('./lib/list-signals').fetchSignals;
 module.exports = function(RED) {
     function GoFaDoWriteNode(config) {
         RED.nodes.createNode(this, config);
@@ -127,9 +127,9 @@ module.exports = function(RED) {
         if (!robot || typeof robot.rwsGet !== 'function') {
             return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
         }
-        robot.rwsGet('/rw/iosystem/signals')
-        .then(function(body) {
-            var signals = parseSignalList(body).filter(function(s) { return s.type === 'DO'; });
+        fetchSignals(robot)
+        .then(function(all) {
+            var signals = all.filter(function(s) { return s.type === 'DO'; });
             res.json({ ok: true, signals: signals });
         }).catch(function(err) {
             res.status(502).json({ error: err.message });

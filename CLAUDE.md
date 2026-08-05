@@ -195,7 +195,7 @@ fix landed in only one of two duplicated copies". Prefer these over re-implement
 | `rws-subscription.js` | Subscribe + WS connect + reconnect lifecycle shared by all three `gofa-subscribe-*` WS nodes |
 | `drop-subscription.js` | Best-effort DELETE of a held subscription — **must** run before re-subscribing or every reconnect orphans one (controller caps concurrent sessions at 19) |
 | `patch-server-ip.js` | Rewrites `SERVER_IP` in a `.mod` to match the config node's IP |
-| `list-signals.js` | Parses the I/O signal list XHTML |
+| `list-signals.js` | `fetchSignals(robot)` — **every** I/O signal, following RWS's `rel="next"` pagination (collection GETs are hard-capped at 100 per response; a bigger `?limit` does not raise it). Use this, never a bare `GET /rw/iosystem/signals` — see `docs/transport-internals.md` §2.3a. Default export still parses one response body |
 | `jog.js` | `resolveJog(target, dir, step)` → socket command + token, for every jog kind; `pickTarget()` reads the `target`/`axis`/`joint` payload aliases |
 
 Also in `gofa-robot.js`: `escapeFileservicePath()` — **every** `/fileservice/` URL

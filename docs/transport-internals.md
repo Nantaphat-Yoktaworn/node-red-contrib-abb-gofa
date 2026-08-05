@@ -219,6 +219,34 @@ dependency-free. Two details that are load-bearing:
 
 `gofa-pose.js:19` is the canonical read to copy from.
 
+## 2.3a Collection GETs are paginated at 100, and the cap is not negotiable
+
+`GET /rw/iosystem/signals` returns **at most 100 signals**, with the remainder behind
+`<a href="signals?start=100&amp;limit=100" rel="next">`. The 100 is a hard controller-side cap, not a
+default a larger request can raise — confirmed live 2026-08-05 that `?limit=500`, `?limit=1000` and
+`?start=0&limit=300` each came back with exactly 100 items *and* a `next` link. Following the link
+is the only way to see the whole collection.
+
+This is the kind of bug that hides for a year and then looks like something else entirely. The
+controller had 96 I/O signals — just under the cap — so page one *was* the whole list and every
+node reading only page one was accidentally correct. Installing a Modbus TCP add-in added 161
+signals (273 total), and because the collection is ordered with the Modbus device first, **all 32
+`ABB_Scalable_*` signals moved to pages 2–3**. Every Known Signals dropdown in the palette quietly
+lost the robot's own I/O while still looking populated — it was full of `mb_*` entries.
+
+`lib/list-signals.js` now owns this: `fetchSignals(robot)` walks `rel="next"` to exhaustion and is
+what all five listing nodes call (`gofa-io-list`, `gofa-di-read`, `gofa-do-write`, `gofa-grip`,
+`gofa-subscribe-io`). It decodes `&amp;` in the href, stops if the controller ever echoes a link it
+already followed, caps at 100 pages, and on a mid-walk failure returns the pages already gathered
+rather than throwing away a partial list. The bare `parseSignalList` export is still there for
+parsing a single response body.
+
+**Assume every RWS collection paginates.** Only `/rw/iosystem/signals` has been audited; if you add
+a node that lists `/rw/rapid/tasks`, `/rw/elog/<domain>` or any other collection, check for a `next`
+link before trusting the first response to be complete. Point reads (`/rw/iosystem/signals/<name>`)
+are unaffected — a bare signal name resolves regardless of which page it sits on, and regardless of
+its network/device path (`mb_do72` and `Virtual/MB_Device/mb_do72` both work).
+
 ## 2.4 Mastership
 
 RAPID variable writes, `resetpp`, `loadmod` and `activate` are ownership-locked. `withMastership(fn)`

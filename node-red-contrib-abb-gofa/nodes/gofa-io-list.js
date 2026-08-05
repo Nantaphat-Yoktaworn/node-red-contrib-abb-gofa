@@ -1,6 +1,20 @@
 'use strict';
 var gate = require('./lib/gate');
-var parseSignalList = require('./lib/list-signals');
+var fetchSignals = require('./lib/list-signals').fetchSignals;
+
+// One implementation, called from both the deployed node and the editor panel's
+// list button — see CLAUDE.md, "Runtime vs. admin-route duplication".
+function listSignals(robot, filterType) {
+    return fetchSignals(robot).then(function(signals) {
+        if (filterType) {
+            signals = signals.filter(function(s) {
+                return s.type && s.type.toUpperCase() === filterType;
+            });
+        }
+        return signals;
+    });
+}
+
 module.exports = function(RED) {
     function GoFaIoListNode(config) {
         RED.nodes.createNode(this, config);
@@ -18,16 +32,8 @@ module.exports = function(RED) {
 
             node.status({ fill: 'blue', shape: 'dot', text: 'listing...' });
 
-            node.robot.rwsGet('/rw/iosystem/signals')
-            .then(function(body) {
-                var signals = parseSignalList(body);
-
-                if (filterType) {
-                    signals = signals.filter(function(s) {
-                        return s.type && s.type.toUpperCase() === filterType;
-                    });
-                }
-
+            listSignals(node.robot, filterType)
+            .then(function(signals) {
                 msg.payload = { ok: true, count: signals.length, signals: signals };
                 node.status({ fill: 'green', shape: 'dot', text: signals.length + ' signals' });
                 send(msg); done();
@@ -48,16 +54,8 @@ module.exports = function(RED) {
             return res.status(400).json({ error: 'Robot config node not found — deploy the flow first' });
         }
         var filterType = (req.query.type || '').toUpperCase();
-        robot.rwsGet('/rw/iosystem/signals')
-        .then(function(body) {
-            var signals = parseSignalList(body);
-
-            if (filterType) {
-                signals = signals.filter(function(s) {
-                    return s.type && s.type.toUpperCase() === filterType;
-                });
-            }
-
+        listSignals(robot, filterType)
+        .then(function(signals) {
             res.json({ ok: true, count: signals.length, signals: signals });
         }).catch(function(err) {
             res.status(502).json({ error: err.message });
