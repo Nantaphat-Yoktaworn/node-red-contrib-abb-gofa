@@ -33,6 +33,18 @@ flows/teach_flow_th.json
 # User docs (getting-started/reference/troubleshooting) + per-subsystem internals
 !docs/
 !docs/**
+# ...except vendor manuals converted to Markdown. These are ABB's copyrighted
+# documentation ("© Copyright ABB, All rights reserved"), not this project's writing,
+# and this is a public repo — converting a manual to .md does not make it ours to
+# redistribute. Keep local copies for reference; they stay out of git.
+# Anything this project learns FROM a manual belongs in our own docs, in our own words,
+# with the live-verified evidence (see docs/transport-internals.md for the pattern).
+docs/*Operating_manual*.md
+docs/*Product_manual*.md
+docs/*Application_manual*.md
+docs/*Product_specification*.md
+docs/OmniCore_C30_AddIns_ModbusTCP_CollaborativeFeatures.md
+docs/_raw_text.txt
 
 # This file, README, changelog, license, CI, and Claude Code project config
 !.gitignore
