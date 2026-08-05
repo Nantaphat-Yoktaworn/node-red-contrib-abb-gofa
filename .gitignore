@@ -39,6 +39,10 @@ flows/teach_flow_th.json
 # redistribute. Keep local copies for reference; they stay out of git.
 # Anything this project learns FROM a manual belongs in our own docs, in our own words,
 # with the live-verified evidence (see docs/transport-internals.md for the pattern).
+# Same rule for the manuals themselves — a local copy of an ABB PDF (e.g. the one
+# shipped in AppData/Local/ABB/DistributionPackages2/) is handy to keep beside the
+# docs it informed, but it is redistribution the moment it is pushed.
+docs/*.pdf
 docs/*Operating_manual*.md
 docs/*Product_manual*.md
 docs/*Application_manual*.md
