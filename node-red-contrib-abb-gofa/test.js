@@ -7,6 +7,9 @@ var http   = require('http');
 var robot  = require('./nodes/gofa-robot');
 var gotoToken           = robot.gotoToken;
 var gotoObj             = robot.gotoObj;
+var gotoLegacyToken     = robot.gotoLegacyToken;
+var encodeForRapid      = robot.encodeForRapid;
+var RAPID_STR_MAX       = robot.RAPID_STR_MAX;
 var parseXhtml          = robot.parseXhtml;
 var resolveMoveType     = robot.resolveMoveType;
 var createRobotClient   = robot.createRobotClient;
@@ -182,6 +185,50 @@ check('gotoObj: unrecognized moveType falls back to gotoj', function() {
 check('gotoObj: returns null when any value is NaN', function() {
     var bad = Object.assign({}, sample, { q1: NaN });
     assert.strictEqual(gotoObj(bad), null);
+});
+
+// RAPID reads each socket request into one 80-char string, so anything longer is
+// truncated on the controller and fails to parse. The goto JSON framing costs 24
+// chars and cannot fit 11 numbers; the legacy text token's costs 5 and always can.
+check('encodeForRapid: short commands stay JSON', function() {
+    assert.strictEqual(encodeForRapid({ cmd: 'ping' }), '{"cmd":"ping"}');
+});
+
+check('encodeForRapid: over-long goto downgrades to the legacy text token', function() {
+    // The real "Bin B" point that made the Pick & Place flow answer ERR:GOTOJ
+    var binB = { x: 174.541473388672, y: -176.089569926262, z: 855.632245540619,
+                 q1: 0.0224058665335178, q2: -0.129138499498367,
+                 q3: -0.991366982460022, q4: 0.00356016028672457,
+                 cf1: -1, cf4: -1, cf6: -1, cfx: 0 };
+    var obj = gotoObj(binB);
+    assert.ok(JSON.stringify(obj).length > RAPID_STR_MAX, 'JSON form should overrun');
+    var wire = encodeForRapid(obj);
+    assert.strictEqual(wire, 'GOTOJ174.5;-176.1;855.6;0.0224;-0.1291;-0.9914;0.0036;-1;-1;-1;0');
+    assert.ok(wire.length <= RAPID_STR_MAX, 'downgraded token must fit');
+});
+
+check('encodeForRapid: gotol downgrades to a GOTOL token', function() {
+    var obj = gotoObj({ x: -1234.567, y: -1234.567, z: -1234.567,
+                        q1: -0.98765, q2: -0.98765, q3: -0.98765, q4: -0.98765,
+                        cf1: -1, cf4: -1, cf6: -1, cfx: 0 }, 'L');
+    var wire = encodeForRapid(obj);
+    assert.ok(wire.startsWith('GOTOL'), 'should be a GOTOL token, got ' + wire);
+    assert.ok(wire.length <= RAPID_STR_MAX, 'downgraded token must fit');
+});
+
+check('encodeForRapid: every reachable GoFa 12 target fits after downgrade', function() {
+    // Worst case within the arm's 1.27 m reach: widest xyz, widest quaternion,
+    // widest config flags. If this fits, nothing the robot can reach overruns.
+    var worst = gotoObj({ x: -1270, y: -1270, z: -1270,
+                          q1: -0.99999, q2: -0.99999, q3: -0.99999, q4: -0.99999,
+                          cf1: -4, cf4: -4, cf6: -4, cfx: -4 });
+    assert.ok(encodeForRapid(worst).length <= RAPID_STR_MAX);
+});
+
+check('gotoLegacyToken: returns null for non-goto commands', function() {
+    assert.strictEqual(gotoLegacyToken({ cmd: 'movej', val: [0, 0, 0, 0, 0, 0] }), null);
+    assert.strictEqual(gotoLegacyToken({ cmd: 'gotoj', val: [1, 2, 3] }), null);
+    assert.strictEqual(gotoLegacyToken(null), null);
 });
 
 check('parseXhtml: extracts value for matching class', function() {

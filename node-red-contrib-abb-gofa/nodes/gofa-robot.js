@@ -133,6 +133,43 @@ function gotoObj(t, moveType) {
     };
 }
 
+// RAPID's `string` type holds at most 80 characters, and MainModule.mod reads every
+// request into a single one (`SocketReceive clientSocket \Str:=rxStr`). A longer line
+// is truncated at 80 on the controller, so an over-long JSON request arrives without
+// its closing "]}" and the hand-rolled scanners reject it.
+//
+// goto is the only command that gets near the limit: 11 numbers, and its JSON framing
+// (`{"cmd":"gotoj","val":[...]}`) costs 24 characters before a single digit. Real GoFa 12
+// targets serialize to 81-83 chars and the worst case is ~91 — i.e. the JSON form cannot
+// fit, ever. The legacy text token (`GOTOJ<x;y;z;...>`) carries the same 11 numbers in
+// 62-72 chars because its framing is 5, and `TryGoTo` in MainModule.mod parses it into
+// the same robtarget and acks the same "OK:GOTO". So: emit JSON when it fits, downgrade
+// to the text token when it doesn't.
+//
+// Confirmed live 2026-08-05 — all three points taught for the Pick & Place Sorting Flow
+// produced 81/83/83-char JSON; the two 83-char ones lost their "]" to truncation and came
+// back {"status":"err","cmd":"gotoj","msg":"invalid target"} -> "ERR:GOTOJ". "Pickup" at
+// 81 chars only lost its "}" so it kept working, which is why the flow failed only at the
+// bins and looked like a bin-specific problem.
+var RAPID_STR_MAX = 80;
+
+// Legacy text-protocol equivalent of a gotoj/gotol request object, or null if the
+// object isn't one (no text fallback exists for any other command).
+function gotoLegacyToken(obj) {
+    if (!obj || (obj.cmd !== 'gotoj' && obj.cmd !== 'gotol')) return null;
+    if (!Array.isArray(obj.val) || obj.val.length !== 11) return null;
+    return 'GOTO' + (obj.cmd === 'gotol' ? 'L' : 'J') + obj.val.join(';');
+}
+
+// Serialize a request object for the wire, downgrading to the legacy text token
+// when the JSON form would overrun RAPID's receive buffer.
+function encodeForRapid(obj) {
+    var json = JSON.stringify(obj);
+    if (json.length <= RAPID_STR_MAX) return json;
+    var legacy = gotoLegacyToken(obj);
+    return (legacy && legacy.length <= RAPID_STR_MAX) ? legacy : json;
+}
+
 function scanIp(ip, port, timeout) {
     return new Promise(function(resolve) {
         var socket = new net.Socket();
@@ -443,7 +480,7 @@ function createRobotClient(opts) {
         });
     }
 function translateToJSON(cmd) {
-        if (typeof cmd === 'object' && cmd !== null) return JSON.stringify(cmd);
+        if (typeof cmd === 'object' && cmd !== null) return encodeForRapid(cmd);
         if (typeof cmd !== 'string') return cmd;
         var trimmed = cmd.trim();
         if (trimmed.indexOf('{') === 0) return trimmed; // already JSON
@@ -470,7 +507,7 @@ function translateToJSON(cmd) {
             var type = gotoMatch[1].toLowerCase();
             if (type === 'goto') type = 'gotoj';
             var vals = gotoMatch[2].split(';').map(Number);
-            return JSON.stringify({ cmd: type, val: vals });
+            return encodeForRapid({ cmd: type, val: vals });
         }
         
         if (trimmed.indexOf('MOVEJ') === 0 || trimmed.indexOf('MOVEL') === 0) {
@@ -772,6 +809,9 @@ module.exports.escapeFileservicePath = escapeFileservicePath;
 module.exports.poolMap             = poolMap;
 module.exports.gotoToken           = gotoToken;
 module.exports.gotoObj             = gotoObj;
+module.exports.gotoLegacyToken     = gotoLegacyToken;
+module.exports.encodeForRapid      = encodeForRapid;
+module.exports.RAPID_STR_MAX       = RAPID_STR_MAX;
 module.exports.resolveMoveType     = resolveMoveType;
 module.exports.versionsCompatible  = versionsCompatible;
 module.exports.JOINT_LIMITS        = JOINT_LIMITS;
