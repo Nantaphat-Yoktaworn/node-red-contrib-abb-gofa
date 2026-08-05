@@ -8,6 +8,49 @@ be edited. Each entry below says exactly what to replace them with.
 
 ---
 
+## 2.6.2 — DI Read also reads digital outputs
+
+**`gofa-di-read` now reads DO signals as well as DI, and lists both in the Known Signals
+dropdown.** No migration needed — the node type, its input, and its existing output fields are
+unchanged.
+
+The read path was always type-agnostic: `GET /rw/iosystem/signals/<name>` returns the same
+`name`/`type`/`lvalue` shape for every signal kind, so a DO name typed into the Signal field
+already worked. What changed is that outputs are now *offered*: the dropdown's `type === 'DI'`
+filter became `['DI','DO']`, and the list is grouped into **Digital Inputs** and **Digital
+Outputs** optgroups — with 51 DI and 45 DO on a typical Scalable I/O controller, a flat list made
+it easy to pick an output while meaning to pick an input.
+
+Reading a DO reports its current state and never writes it; `gofa-do-write` is still the only way
+to change one.
+
+`msg.payload` gains a **`type`** field (`'DI'`, `'DO'`, `'GO'`, … — whatever the controller
+reports, never inferred from the signal name):
+
+```js
+{ ok: true, signal: 'ABB_Scalable_IO_0_DO1', value: 0, type: 'DO' }
+```
+
+This is additive; flows reading `payload.value` are unaffected.
+
+Group outputs (GO) are deliberately *not* listed in the dropdown but remain readable by typing the
+name. Analog signals are not listed either, because the value is parsed with `parseInt` and a float
+reading would be silently truncated.
+
+Internally, the runtime handler and the editor panel's **Read Value** button now share one
+`readSignal()` implementation instead of holding two copies of the same read-and-parse logic.
+
+**Also in this release:** new maintainer doc [`docs/transport-internals.md`](docs/transport-internals.md)
+— how the socket and RWS layers actually work end to end (session/auth state machine, the
+connection-per-command lifecycle, RAPID's hand-rolled JSON scanning, XHTML responses, WebSocket
+subscription traps, and the node/admin-route pattern). No behavior change.
+
+`MODULE_VERSION` in the three `rapid/*.mod` files is bumped to 2.6.2 in lockstep for provenance.
+**The socket protocol did not change**, and the runtime handshake compares `major.minor` only, so a
+controller still running a 2.6.x module reads as a match and does *not* need re-flashing.
+
+---
+
 ## 2.6.1 — documentation only
 
 No code or behavior change. The README shipped with 2.6.0 had drifted from the code: it claimed
