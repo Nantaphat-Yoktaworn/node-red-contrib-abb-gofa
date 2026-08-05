@@ -59,6 +59,7 @@ section rename.
 
 | Doc | Covers |
 |-----|--------|
+| `docs/transport-internals.md` | **Read first when touching either transport.** How the layers work end to end: socket server lifecycle, connection-per-command, RAPID's hand-rolled JSON scanners and the constraints they impose, `translateToJSON`, ack-before-move, RWS session/cookie/401 state machine, XHTML `parseXhtml`, mastership, fileservice, WS subscription traps, the node/admin-route pattern |
 | `docs/rapid-protocol-notes.md` | Full RAPID socket command table + every protocol gotcha/bugfix history (I/O write endpoint, SERVER_IP, loadmod/unloadmod, `\Conc` crash fix, VelSet vs SpeedRefresh, mid-move stop, elog, joint limits, chaining hazards) |
 | `docs/egm.md` | Externally Guided Motion — `MainModuleEGM.mod`, `gofa-egm`/`gofa-egm-move`, mode switch/exit design (TRAP/`EGMStop`), UDP `EGM_PC` setup, superseded designs (do not re-implement) |
 | `docs/background-led-task.md` | `BackgroundLed.mod` / `T_LED` — the separate RAPID task that survives `T_ROB1` stops, one-time RobotStudio setup, remote-reload mechanics, safety-controller LED override behavior |

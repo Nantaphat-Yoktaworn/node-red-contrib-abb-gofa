@@ -25,6 +25,7 @@ failed. They assume you're changing the code, not using it.
 
 | Doc | Covers |
 |-----|--------|
+| [transport-internals.md](transport-internals.md) | How the socket and RWS layers work — session/auth, connection lifecycle, RAPID's JSON parsing, XHTML responses, WS subscriptions, the node pattern |
 | [rapid-protocol-notes.md](rapid-protocol-notes.md) | Full RAPID socket command table and every protocol-level gotcha and bugfix |
 | [egm.md](egm.md) | Externally Guided Motion internals, mode switch/exit design, superseded designs |
 | [background-led-task.md](background-led-task.md) | `BackgroundLed.mod` / `T_LED` mechanics and one-time RobotStudio setup |
